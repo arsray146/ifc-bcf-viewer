@@ -1,7 +1,6 @@
 # robots.txt — Viewer IFC · BCF
-# Sostituire https://example.com con l'URL reale prima della pubblicazione.
 
 User-agent: *
 Allow: /
 
-Sitemap: https://example.com/sitemap.xml
+Sitemap: https://viewifc.com/sitemap.xml
