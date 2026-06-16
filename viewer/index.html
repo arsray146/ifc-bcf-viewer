@@ -58,6 +58,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 /* ---------- header ---------- */
 header{display:flex;align-items:center;gap:16px;padding:0 18px;height:58px;background:var(--panel);border-bottom:1px solid var(--line);flex:0 0 auto;box-shadow:var(--shadow);position:relative;z-index:10}
 .hdr-logo{width:30px;height:30px;border-radius:7px;display:block;flex:none}
+.brand-link{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;border-radius:8px;padding:3px 6px;margin:-3px -6px;transition:background .15s}
+.brand-link:hover{background:rgba(0,0,0,.04)}
 .logo{display:flex;align-items:center;gap:9px}
 .logo-mark{display:inline-flex;align-items:center;justify-content:center;height:26px;padding:0 8px;border-radius:6px;background:var(--lime);color:var(--lime-ink);font-family:var(--disp);font-weight:800;font-size:14px;letter-spacing:.06em}
 .logo-word{font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:.16em;color:var(--text)}
@@ -465,8 +467,10 @@ input[type=file]{display:none}
 <body>
 
 <header>
+  <a class="brand-link" href="../" data-i18n-title="appname.back" title="Vai alla landing page">
   <img class="hdr-logo" src="data:image/png;base64,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" alt="APE" width="30" height="30">
   <div class="appname">Viewer IFC · BCF<span data-i18n="appname.sub">Coordinamento modelli &amp; issues</span></div>
+  </a>
   <div class="spacer"></div>
   <div class="stats">
     <span><span data-i18n="stat.models">Modelli</span> <b id="stModels">0</b></span>
@@ -708,6 +712,7 @@ try { const s = localStorage.getItem("viewer_lang"); if (s === "it" || s === "en
 const STRINGS = {
   it: {
     "appname.sub": "Coordinamento modelli & issues",
+    "appname.back": "Vai alla landing page",
     "stat.models": "Modelli", "stat.elems": "Elementi", "stat.issues": "Issues",
     "btn.loadIfc": "Carica IFC", "btn.loadBcf": "Carica BCF",
     "tab.models": "Modelli", "tab.issues": "Issues",
@@ -838,6 +843,7 @@ const STRINGS = {
   },
   en: {
     "appname.sub": "Model & issue coordination",
+    "appname.back": "Go to landing page",
     "stat.models": "Models", "stat.elems": "Elements", "stat.issues": "Issues",
     "btn.loadIfc": "Load IFC", "btn.loadBcf": "Load BCF",
     "tab.models": "Models", "tab.issues": "Issues",
