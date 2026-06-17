@@ -3576,7 +3576,7 @@ function scanModelByValue(model, psetName, propName, value) {
   return [...out];
 }
 
-function selectByValue(psetName, propName, value, federation, baseModel) {
+function selectByValue(psetName, propName, value, federation, baseModel, origin) {
   const tgt = federation ? models : (baseModel ? [baseModel] : models);
   showLoading(tr("load.findByValue"));
   setTimeout(() => {
@@ -3591,7 +3591,7 @@ function selectByValue(psetName, propName, value, federation, baseModel) {
     const label = `${propName} = "${value}"`;
     $("ftHint").textContent = `${items.length} elementi selezionati — ${label}`;
     bulkFormOpen = false;
-    showMultiDetail({ items, label, criterion: { psetName, propName, value, baseModel }, federation, index: null });
+    showMultiDetail({ items, label, criterion: { psetName, propName, value, baseModel }, federation, index: null, origin });
   }, 30);
 }
 
@@ -3609,6 +3609,7 @@ function showMultiDetail(sel) {
       <button id="btnZoomElem">Zoom su selezione</button>
       ${sel.criterion && !sel.federation && models.length > 1 ? `<button id="btnExtFed">Estendi alla federazione</button>` : ""}
       <button id="btnBulk">${bulkFormOpen ? "Chiudi modifica bulk" : "✎ Modifica in bulk"}</button>
+      ${sel.origin ? `<button id="btnBackElem">↩ Torna all'elemento</button>` : ""}
     </div>
     <div id="bulkBox"></div>`;
   bulkFlash = "";
@@ -3619,7 +3620,7 @@ function showMultiDetail(sel) {
   const ef = $("btnExtFed");
   if (ef) ef.addEventListener("click", () => {
     const c = sel.criterion;
-    selectByValue(c.psetName, c.propName, c.value, true, c.baseModel);
+    selectByValue(c.psetName, c.propName, c.value, true, c.baseModel, sel.origin);
   });
   $("btnBulk").addEventListener("click", () => {
     bulkFormOpen = !bulkFormOpen;
@@ -3632,6 +3633,8 @@ function showMultiDetail(sel) {
     showMultiDetail(sel);
   });
   if (bulkFormOpen && sel.index) renderBulkForm(sel);
+  const bk = $("btnBackElem");
+  if (bk) bk.addEventListener("click", () => showElementDetail(sel.origin.model, sel.origin.eid));
 }
 
 /** indice: per-elemento (pset→props con pid) + aggregato (conteggi e distribuzione valori) */
@@ -3918,7 +3921,7 @@ function showElementDetail(model, eid) {
   /* selezione per valore di parametro */
   body.querySelectorAll(".pv-selby").forEach(b => b.addEventListener("click", (e) => {
     e.stopPropagation();
-    selectByValue(b.dataset.pset, b.dataset.pname, b.dataset.val, false, model);
+    selectByValue(b.dataset.pset, b.dataset.pname, b.dataset.val, false, model, { model, eid });
   }));
   /* modalità edit: contatore modifiche + swap del controllo al cambio tipo.
      NB: property oninput/onchange (non addEventListener) per non accumulare handler sui re-render */
@@ -4482,8 +4485,8 @@ $("btnSectionBox").addEventListener("click", () => {
 }
 
 /* ---- nota versione ---- */
-$("ftVersion").textContent = `v1.9.5 · web-ifc · © Alessandro Perugini`;
-console.info(`[APE Viewer] versione 1.9.5 · lingua ${LANG}`);
+$("ftVersion").textContent = `v1.9.6 · web-ifc · © Alessandro Perugini`;
+console.info(`[APE Viewer] versione 1.9.6 · lingua ${LANG}`);
 
 /* ---- i18n: applicazione iniziale e toggle lingua (v1.8.0) ---- */
 document.querySelectorAll("#langSwitch .lang-opt").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang)));
