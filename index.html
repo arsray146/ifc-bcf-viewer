@@ -230,6 +230,7 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
     <a class="navlink nav-hide" href="#privacy" data-i18n="nav.privacy">Privacy</a>
     <a class="navlink nav-hide" href="#opensource" data-i18n="nav.opensource">Open source</a>
     <a class="navlink nav-hide" href="guide/" data-i18n="nav.guide">Guida</a>
+    <a class="navlink nav-hide" href="#contact" data-i18n="nav.contact">Contatti</a>
     <div class="tb-actions">
       <div class="langsw" role="group" aria-label="Language">
         <button data-lang="it" class="on">IT</button>
@@ -371,6 +372,23 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
   </div>
 </section>
 
+<!-- ====================== CONTACT ====================== -->
+<section id="contact" class="strip">
+  <div class="wrap">
+    <div class="sec-head rv" style="max-width:62ch">
+      <span class="eyebrow" data-i18n="ct.eyebrow">Contatti</span>
+      <h2 data-i18n="ct.h2">Domande, idee o segnalazioni?</h2>
+      <p data-i18n="ct.p">Scrivimi una mail: rispondo volentieri a domande sul viewer, proposte di collaborazione o bug riscontrati.</p>
+    </div>
+    <div class="hero-cta rv">
+      <a class="btn primary lg" href="mailto:info@viewifc.com">
+        <svg class="ar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="m22 7-10 6L2 7"/></svg>
+        <span>info@viewifc.com</span>
+      </a>
+    </div>
+  </div>
+</section>
+
 <!-- ====================== CTA BAND ====================== -->
 <section class="cta-band">
   <div class="wrap">
@@ -398,6 +416,7 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
       <a href="#privacy" data-i18n="nav.privacy">Privacy</a>
       <a href="#opensource" data-i18n="nav.opensource">Open source</a>
       <a href="guide/" data-i18n="nav.guide">Guida</a>
+      <a href="#contact" data-i18n="nav.contact">Contatti</a>
       <a href="viewer/" data-i18n="cta.open">Apri il viewer</a>
     </nav>
     <div class="foot-meta">
@@ -416,7 +435,7 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
 /* ---------------- i18n ---------------- */
 const I18N = {
   it:{
-    "appname.sub":"Coordinamento modelli & issues","nav.features":"Funzioni","nav.privacy":"Privacy","nav.opensource":"Open source","nav.guide":"Guida",
+    "appname.sub":"Coordinamento modelli & issues","nav.features":"Funzioni","nav.privacy":"Privacy","nav.opensource":"Open source","nav.guide":"Guida","nav.contact":"Contatti",
     "cta.open":"Apri il viewer",
     "hero.eyebrow":"Viewer BIM · IFC + BCF",
     "hero.h1a":"Coordina il BIM","hero.h1b":"nel ","hero.h1c":"browser.",
@@ -450,11 +469,14 @@ const I18N = {
     "os.cta":"Repository GitHub","os.lic":"Leggi la licenza AGPL-3.0",
     "band.h2a":"Apri un IFC.","band.h2b":"Subito.",
     "band.p":"Niente installazione, niente attesa. Trascina un file e inizia a coordinare.",
+    "ct.eyebrow":"Contatti",
+    "ct.h2":"Domande, idee o segnalazioni?",
+    "ct.p":"Scrivimi una mail: rispondo volentieri a domande sul viewer, proposte di collaborazione o bug riscontrati.",
     "foot.local":"100% client-side","foot.tag":"Costruito per il coordinamento BIM openBIM.",
     "foot.warranty":"Software fornito \"così com'è\", senza alcuna garanzia. Verifica sempre i risultati con i tuoi strumenti di authoring prima di usarli per decisioni progettuali."
   },
   en:{
-    "appname.sub":"Model & issue coordination","nav.features":"Features","nav.privacy":"Privacy","nav.opensource":"Open source","nav.guide":"Guide",
+    "appname.sub":"Model & issue coordination","nav.features":"Features","nav.privacy":"Privacy","nav.opensource":"Open source","nav.guide":"Guide","nav.contact":"Contact",
     "cta.open":"Open the viewer",
     "hero.eyebrow":"BIM viewer · IFC + BCF",
     "hero.h1a":"Coordinate BIM","hero.h1b":"in your ","hero.h1c":"browser.",
@@ -488,6 +510,9 @@ const I18N = {
     "os.cta":"GitHub repository","os.lic":"Read the AGPL-3.0 license",
     "band.h2a":"Open an IFC.","band.h2b":"Right now.",
     "band.p":"No install, no wait. Drop a file and start coordinating.",
+    "ct.eyebrow":"Contact",
+    "ct.h2":"Questions, ideas or bug reports?",
+    "ct.p":"Drop me an email: I'm happy to answer questions about the viewer, collaboration proposals or bugs you ran into.",
     "foot.local":"100% client-side","foot.tag":"Built for openBIM coordination.",
     "foot.warranty":"Software provided \"as is\", without warranty of any kind. Always verify results against your authoring tools before relying on them for design decisions."
   }
