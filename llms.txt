@@ -1,0 +1,37 @@
+# Viewer IFC · BCF
+
+> Free and open-source IFC and BCF viewer that runs entirely in the browser. Open and federate IFC models, review BCF issues and Solibri reports, inspect elements and their property sets, slice with a section box, edit properties in the 3D view and re-export an updated IFC. 100% client-side: models never leave the user's computer — no upload, no account, no server.
+
+Key facts:
+- License: GNU AGPL-3.0 (open source).
+- Privacy by design: IFC parsing happens locally in the browser via web-ifc (WebAssembly). No file is uploaded; no account or tracking.
+- Single-file app: plain HTML/CSS/JS, no framework, no build step. Dependencies (three.js, web-ifc) are loaded from a CDN on first launch.
+- Supported formats: IFC2x3, IFC4, IFC4x3, BCF, Solibri report.
+- It is a coordination viewer, not just a visualization viewer: federation, BCF issue review, property editing (including bulk) and IFC re-export.
+- Author: Alessandro Perugini (BIM Coordinator).
+- Bilingual interface: Italian and English.
+
+## Pages
+
+- [Landing page](https://viewifc.com/): overview, features, privacy model and links.
+- [Viewer (the app)](https://viewifc.com/viewer/): the in-browser IFC/BCF viewer itself.
+- [Guide](https://viewifc.com/guide/): quick-start, how to load models, navigate, open BCF, work on issues and edit parameters.
+
+## Source & license
+
+- [GitHub repository](https://github.com/arsray146/ifc-bcf-viewer): full source code (AGPL-3.0).
+- [AGPL-3.0 license](https://www.gnu.org/licenses/agpl-3.0.html): terms of use and redistribution.
+
+## Tech stack
+
+- Rendering: three.js 0.160.0 (MIT).
+- IFC parsing: web-ifc 0.0.77 (MPL-2.0), WebAssembly.
+- Fonts: Barlow Semi Condensed, IBM Plex Sans, IBM Plex Mono.
+
+## Contact
+
+- Email: info@viewifc.com
+
+## Optional
+
+- [Sitemap](https://viewifc.com/sitemap.xml): machine-readable list of public URLs.

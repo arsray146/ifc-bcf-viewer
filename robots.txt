@@ -1,6 +1,45 @@
-# robots.txt — Viewer IFC · BCF
+# robots.txt — Viewer IFC · BCF (https://viewifc.com)
+#
+# Progetto open source: massima indicizzabilità.
+# Nota: gli scanner abusivi (vulnerability scanner, curl, ecc.) ignorano
+# questo file. Qui controlliamo solo i crawler che lo rispettano.
 
+# --- Motori di ricerca e crawler generici ---
 User-agent: *
 Allow: /
 
+# --- Crawler AI / LLM (esplicitamente ammessi) ---
+# Il progetto è open source e vuole essere citabile/scopribile dagli LLM.
+# Per disattivarne uno, cambia "Allow: /" in "Disallow: /" sotto il suo nome.
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+# --- Risorse per le macchine ---
 Sitemap: https://viewifc.com/sitemap.xml
