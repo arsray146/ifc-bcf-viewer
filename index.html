@@ -193,6 +193,16 @@ section{padding:84px 0}
 .cap .cic svg{width:100%;height:100%}
 .cap h3{font-family:var(--disp);font-weight:600;font-size:19px;margin:0 0 7px;color:var(--text);letter-spacing:.01em}
 .cap p{margin:0;font-size:14.5px;color:var(--muted);line-height:1.55}
+/* tools section */
+.tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,360px));gap:18px}
+.tool-card{display:flex;flex-direction:column}
+.tool-card p{flex:1}
+.tool-card .tool-go{margin-top:16px;font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;
+  color:var(--lime-deep);display:inline-flex;align-items:center;gap:6px}
+.tool-card .tool-go svg{width:14px;height:14px;transition:transform .18s}
+.tool-card:hover .tool-go svg{transform:translateX(3px)}
+.tool-tag{display:inline-block;margin-bottom:14px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--lime-deep);background:var(--lime-soft);border-radius:5px;padding:3px 8px}
 
 /* ---------- privacy strip ---------- */
 .strip{background:var(--ink);color:#e8eede;border-top:1px solid #2c3a22;border-bottom:1px solid #2c3a22}
@@ -285,6 +295,7 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
     <a class="navlink nav-hide" href="#capabilities" data-i18n="nav.features">Funzioni</a>
     <a class="navlink nav-hide" href="#privacy" data-i18n="nav.privacy">Privacy</a>
     <a class="navlink nav-hide" href="#opensource" data-i18n="nav.opensource">Open source</a>
+    <a class="navlink nav-hide" href="#tools" data-i18n="nav.tools">Strumenti</a>
     <a class="navlink nav-hide" href="guide/" data-i18n="nav.guide">Guida</a>
     <a class="navlink nav-hide" href="#faq" data-i18n="nav.faq">FAQ</a>
     <a class="navlink nav-hide" href="#contact" data-i18n="nav.contact">Contatti</a>
@@ -429,6 +440,26 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
   </div>
 </section>
 
+<!-- ====================== TOOLS ====================== -->
+<section id="tools">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="eyebrow" data-i18n="tools.eyebrow">Strumenti</span>
+      <h2 data-i18n="tools.h2">Piccole utility per il flusso openBIM.</h2>
+      <p data-i18n="tools.p">Oltre al viewer, una raccolta di strumenti accessori che girano nel browser — nessun upload, nessuna installazione.</p>
+    </div>
+    <div class="tools-grid">
+      <a class="cap tool-card rv" href="tools/ifc-class-patcher/">
+        <span class="tool-tag" data-i18n="tools.tag">Client-side</span>
+        <div class="cic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="m9 15 2 2 4-4"/></svg></div>
+        <h3 data-i18n="tools.t1t">IFC Class Patcher</h3>
+        <p data-i18n="tools.t1d">Aggiorna in massa il PredefinedType degli elementi IFC partendo da una mappatura Excel (Classe → Entità → ENUMTYPE). Scegli tu le colonne; scarichi un IFC corretto.</p>
+        <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+    </div>
+  </div>
+</section>
+
 <!-- ====================== FAQ ====================== -->
 <section id="faq">
   <div class="wrap">
@@ -509,6 +540,7 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
       <a href="#capabilities" data-i18n="nav.features">Funzioni</a>
       <a href="#privacy" data-i18n="nav.privacy">Privacy</a>
       <a href="#opensource" data-i18n="nav.opensource">Open source</a>
+      <a href="#tools" data-i18n="nav.tools">Strumenti</a>
       <a href="guide/" data-i18n="nav.guide">Guida</a>
       <a href="#faq" data-i18n="nav.faq">FAQ</a>
       <a href="#contact" data-i18n="nav.contact">Contatti</a>
@@ -530,7 +562,7 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
 /* ---------------- i18n ---------------- */
 const I18N = {
   it:{
-    "appname.sub":"Coordinamento modelli & issues","nav.features":"Funzioni","nav.privacy":"Privacy","nav.opensource":"Open source","nav.guide":"Guida","nav.faq":"FAQ","nav.contact":"Contatti",
+    "appname.sub":"Coordinamento modelli & issues","nav.features":"Funzioni","nav.privacy":"Privacy","nav.opensource":"Open source","nav.tools":"Strumenti","nav.guide":"Guida","nav.faq":"FAQ","nav.contact":"Contatti",
     "cta.open":"Apri il viewer",
     "hero.eyebrow":"Viewer BIM · IFC + BCF",
     "hero.h1a":"Coordina il BIM","hero.h1b":"nel ","hero.h1c":"browser.",
@@ -562,6 +594,7 @@ const I18N = {
     "os.h2":"Libero da usare, aperto da ispezionare.",
     "os.p":"Il viewer è rilasciato sotto licenza AGPL-3.0: puoi usarlo, studiarlo e contribuire. Il codice è una singola pagina HTML, senza build step né dipendenze nascoste.",
     "os.cta":"Repository GitHub","os.lic":"Leggi la licenza AGPL-3.0",
+    "tools.eyebrow":"Strumenti","tools.h2":"Piccole utility per il flusso openBIM.","tools.p":"Oltre al viewer, una raccolta di strumenti accessori che girano nel browser — nessun upload, nessuna installazione.","tools.tag":"Client-side","tools.t1t":"IFC Class Patcher","tools.t1d":"Aggiorna in massa il PredefinedType degli elementi IFC partendo da una mappatura Excel (Classe → Entità → ENUMTYPE). Scegli tu le colonne; scarichi un IFC corretto.","tools.open":"Apri lo strumento",
     "band.h2a":"Apri un IFC.","band.h2b":"Subito.",
     "band.p":"Niente installazione, niente attesa. Trascina un file e inizia a coordinare.",
     "faq.eyebrow":"FAQ",
@@ -586,7 +619,7 @@ const I18N = {
     "foot.warranty":"Software fornito \"così com'è\", senza alcuna garanzia. Verifica sempre i risultati con i tuoi strumenti di authoring prima di usarli per decisioni progettuali."
   },
   en:{
-    "appname.sub":"Model & issue coordination","nav.features":"Features","nav.privacy":"Privacy","nav.opensource":"Open source","nav.guide":"Guide","nav.faq":"FAQ","nav.contact":"Contact",
+    "appname.sub":"Model & issue coordination","nav.features":"Features","nav.privacy":"Privacy","nav.opensource":"Open source","nav.tools":"Tools","nav.guide":"Guide","nav.faq":"FAQ","nav.contact":"Contact",
     "cta.open":"Open the viewer",
     "hero.eyebrow":"BIM viewer · IFC + BCF",
     "hero.h1a":"Coordinate BIM","hero.h1b":"in your ","hero.h1c":"browser.",
@@ -618,6 +651,7 @@ const I18N = {
     "os.h2":"Free to use, open to inspect.",
     "os.p":"The viewer is released under the AGPL-3.0 license: use it, study it, contribute. The code is a single HTML page, with no build step and no hidden dependencies.",
     "os.cta":"GitHub repository","os.lic":"Read the AGPL-3.0 license",
+    "tools.eyebrow":"Tools","tools.h2":"Small utilities for your openBIM workflow.","tools.p":"Beyond the viewer, a set of companion tools that run in your browser — no upload, no install.","tools.tag":"Client-side","tools.t1t":"IFC Class Patcher","tools.t1d":"Bulk-update the PredefinedType of IFC elements from an Excel mapping (Class → Entity → ENUMTYPE). You pick the columns; you download a corrected IFC.","tools.open":"Open the tool",
     "band.h2a":"Open an IFC.","band.h2b":"Right now.",
     "band.p":"No install, no wait. Drop a file and start coordinating.",
     "faq.eyebrow":"FAQ",

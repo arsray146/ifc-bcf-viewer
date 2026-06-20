@@ -17,6 +17,12 @@ Key facts:
 - [Viewer (the app)](https://viewifc.com/viewer/): the in-browser IFC/BCF viewer itself.
 - [Guide](https://viewifc.com/guide/): quick-start, how to load models, navigate, open BCF, work on issues and edit parameters.
 
+## Tools
+
+Companion tools that run entirely in the browser (no upload, no install), in the same client-side, privacy-by-design spirit as the viewer.
+
+- [IFC Class Patcher](https://viewifc.com/tools/ifc-class-patcher/): bulk-updates the PredefinedType of IFC elements from an Excel mapping (Class → IFC entity → ENUMTYPE). The user loads an IFC file and an Excel mapping, picks which columns to use, and downloads a corrected IFC. Bilingual (Italian/English).
+
 ## Source & license
 
 - [GitHub repository](https://github.com/arsray146/ifc-bcf-viewer): full source code (AGPL-3.0).
