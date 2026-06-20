@@ -125,7 +125,19 @@ main{padding:28px 0 70px}
   padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2)}
 .refparam label{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
 .refparam .sel{width:auto;flex:0 0 auto;min-width:200px;cursor:text}
+.refparam .param-field{flex:0 0 auto}
+.refparam .param-field .sel{width:100%;min-width:0}
 .ref-hint{flex:1;min-width:200px;font-size:12px;color:var(--muted);line-height:1.45}
+
+/* tendina suggerimenti custom (stile sito, sostituisce il datalist nativo) */
+.param-field{position:relative;min-width:220px}
+.ac{position:absolute;top:calc(100% + 6px);left:0;z-index:30;min-width:100%;max-width:360px;
+  max-height:220px;overflow:auto;background:var(--panel);border:1px solid var(--line-2);
+  border-radius:9px;box-shadow:var(--shadow-lg);padding:4px}
+.ac[hidden]{display:none}
+.ac-item{font-family:var(--mono);font-size:12.5px;color:var(--text);padding:7px 10px;
+  border-radius:6px;cursor:pointer;white-space:nowrap}
+.ac-item:hover,.ac-item.active{background:var(--lime-soft);color:var(--lime-ink)}
 
 /* tables */
 .tbl-wrap{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px}
@@ -245,8 +257,10 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
 
       <div class="refparam" id="refParamRow">
         <label data-i18n="ref.label">Parametro di riferimento IFC</label>
-        <input class="sel" id="refParam" list="refParamList" spellcheck="false" autocomplete="off" data-i18n-placeholder="ref.ph" placeholder="seleziona o digita una proprietà">
-        <datalist id="refParamList"></datalist>
+        <div class="param-field">
+          <input class="sel" id="refParam" role="combobox" aria-autocomplete="list" aria-expanded="false" spellcheck="false" autocomplete="off" data-i18n-placeholder="ref.ph" placeholder="seleziona o digita una proprietà">
+          <div class="ac" id="refAc" role="listbox" hidden></div>
+        </div>
         <span class="ref-hint" data-i18n="ref.hint">La proprietà IFC il cui valore corrisponde al codice del mapping. Caricando l'IFC vengono suggeriti i nomi delle proprietà presenti nel file.</span>
       </div>
     </section>
@@ -643,13 +657,13 @@ async function processFileAsync(content, rules, onProgress, refParam){
 /* =========================================================================
    UI
    ========================================================================= */
-const STATE = { ifcText:null, ifcName:null, rules:[], xlsxRows:null, maxCols:0, headerIdx:0, cols:{ci:0,ei:1,ti:2} };
+const STATE = { ifcText:null, ifcName:null, ifcProps:[], rules:[], xlsxRows:null, maxCols:0, headerIdx:0, cols:{ci:0,ei:1,ti:2} };
 const ui = {
   ifcInput:document.getElementById("ifcInput"), ifcBtn:document.getElementById("ifcBtn"),
   ifcName:document.getElementById("ifcName"), ifcRow:document.getElementById("ifcRow"),
   xlsxInput:document.getElementById("xlsxInput"), xlsxBtn:document.getElementById("xlsxBtn"),
   xlsxName:document.getElementById("xlsxName"), xlsxRow:document.getElementById("xlsxRow"),
-  refParam:document.getElementById("refParam"), refParamList:document.getElementById("refParamList"),
+  refParam:document.getElementById("refParam"), refAc:document.getElementById("refAc"),
   mapCtl:document.getElementById("mapCtl"), hdrRow:document.getElementById("hdrRow"),
   colClasse:document.getElementById("colClasse"), colEntity:document.getElementById("colEntity"), colType:document.getElementById("colType"),
   rulesBody:document.getElementById("rulesBody"), rulesCount:document.getElementById("rulesCount"),
@@ -678,17 +692,49 @@ function readIfc(file){
     STATE.ifcText = r.result; STATE.ifcName = file.name;
     ui.ifcName.textContent = file.name; ui.ifcName.classList.add("set");
     ui.ifcRow.classList.add("set");
-    populateRefParam(scanIfcProps(r.result));
+    STATE.ifcProps = scanIfcProps(r.result);
     refreshRun();
   };
   r.onerror = ()=> alert(tr("m.ifcErr")+(r.error?r.error.message:""));
   r.readAsText(file);
 }
-/* Suggerimenti del parametro di riferimento dalle proprietà trovate nell'IFC.
+
+/* ---- tendina suggerimenti custom per il parametro di riferimento (stile sito) ----
    Non precompila il campo: la scelta resta esplicita dell'utente. */
-function populateRefParam(props){
-  ui.refParamList.innerHTML = props.map(p=> `<option value="${esc(p)}">`).join("");
+let refAcItems = [], refAcIndex = -1;
+function refAcAvailable(filter){
+  const f = (filter || "").trim().toLowerCase();
+  return STATE.ifcProps.filter(p=> f === "" || p.toLowerCase().includes(f));
 }
+function openRefAc(){
+  refAcItems = refAcAvailable(ui.refParam.value);
+  if(!refAcItems.length){ closeRefAc(); return; }
+  refAcIndex = -1;
+  ui.refAc.innerHTML = refAcItems.map((p,i)=> `<div class="ac-item" role="option" data-i="${i}">${esc(p)}</div>`).join("");
+  ui.refAc.querySelectorAll(".ac-item").forEach(el=>{
+    el.addEventListener("mousedown", ev=>{ ev.preventDefault(); pickRef(refAcItems[+el.dataset.i]); });
+  });
+  ui.refAc.hidden = false;
+  ui.refParam.setAttribute("aria-expanded", "true");
+}
+function closeRefAc(){ ui.refAc.hidden = true; refAcItems = []; refAcIndex = -1; ui.refParam.setAttribute("aria-expanded", "false"); }
+function refAcSetActive(i){
+  const els = ui.refAc.querySelectorAll(".ac-item");
+  refAcIndex = i;
+  els.forEach((el,idx)=> el.classList.toggle("active", idx === i));
+  if(i >= 0 && els[i]) els[i].scrollIntoView({block:"nearest"});
+}
+function pickRef(name){ ui.refParam.value = name; closeRefAc(); ui.refParam.focus(); }
+ui.refParam.addEventListener("input", openRefAc);
+ui.refParam.addEventListener("focus", openRefAc);
+ui.refParam.addEventListener("blur", ()=> setTimeout(closeRefAc, 120));
+ui.refParam.addEventListener("keydown", e=>{
+  if(e.key === "ArrowDown"){ e.preventDefault(); if(ui.refAc.hidden) openRefAc(); else refAcSetActive(Math.min(refAcIndex+1, refAcItems.length-1)); }
+  else if(e.key === "ArrowUp"){ e.preventDefault(); if(!ui.refAc.hidden) refAcSetActive(Math.max(refAcIndex-1, 0)); }
+  else if(e.key === "Enter"){ if(!ui.refAc.hidden){ e.preventDefault(); if(refAcIndex >= 0) pickRef(refAcItems[refAcIndex]); else closeRefAc(); } }
+  else if(e.key === "Escape"){ closeRefAc(); }
+});
+document.addEventListener("click", e=>{ if(!e.target.closest("#refParamRow .param-field")) closeRefAc(); });
 
 /* ---- Excel ---- */
 ui.xlsxBtn.addEventListener("click", ()=>ui.xlsxInput.click());
