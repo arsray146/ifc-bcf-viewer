@@ -21,7 +21,7 @@ Key facts:
 
 Companion tools that run entirely in the browser (no upload, no install), in the same client-side, privacy-by-design spirit as the viewer.
 
-- [IFC Class Patcher](https://viewifc.com/tools/ifc-class-patcher/): bulk-updates the PredefinedType of IFC elements from an Excel mapping (Class → IFC entity → ENUMTYPE). The user loads an IFC file and an Excel mapping, picks which columns to use, and downloads a corrected IFC. Bilingual (Italian/English).
+- [IFC Class Patcher](https://viewifc.com/tools/ifc-class-patcher/): bulk-reclassifies IFC elements from an Excel mapping (Class → IFC entity → ENUMTYPE). For each element matched by a configurable reference property (default "Classe", auto-suggested from the loaded IFC) it rewrites both the IFC class (the STEP entity keyword, e.g. IFCBUILDINGELEMENTPROXY → IFCKERB) and the PredefinedType. The user loads an IFC file and an Excel mapping, picks which columns to use, and downloads a corrected IFC. Bilingual (Italian/English).
 
 ## Source & license
 
