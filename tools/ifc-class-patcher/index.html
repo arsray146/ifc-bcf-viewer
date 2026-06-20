@@ -11,7 +11,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IFC Class Patcher — viewifc.com</title>
 
-<meta name="description" content="Aggiorna in massa il PredefinedType degli elementi IFC partendo da una mappatura Classe → Entità → ENUMTYPE in Excel. Gira interamente nel browser: nessun upload.">
+<meta name="description" content="Riclassifica in massa gli elementi IFC: cambia classe IFC e PredefinedType partendo da una mappatura Classe → Entità → ENUMTYPE in Excel. Gira interamente nel browser: nessun upload.">
 <meta name="author" content="Alessandro Perugini">
 <meta name="theme-color" content="#bfd730">
 <link rel="canonical" href="https://viewifc.com/tools/ifc-class-patcher/">
@@ -119,6 +119,13 @@ main{padding:28px 0 70px}
 .sel{font-family:var(--mono);font-size:12.5px;color:var(--text);background:var(--panel);
   border:1px solid var(--line-2);border-radius:7px;padding:8px 10px;cursor:pointer;width:100%}
 .sel:focus{outline:none;border-color:var(--lime-deep)}
+
+/* parametro di riferimento IFC */
+.refparam{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;
+  padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2)}
+.refparam label{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.refparam .sel{width:auto;flex:0 0 auto;min-width:200px;cursor:text}
+.ref-hint{flex:1;min-width:200px;font-size:12px;color:var(--muted);line-height:1.45}
 
 /* tables */
 .tbl-wrap{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px}
@@ -235,6 +242,13 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
         <button class="btn" id="xlsxBtn" data-i18n="f.browse">Sfoglia…</button>
         <input type="file" id="xlsxInput" accept=".xlsx,.xlsm" hidden>
       </div>
+
+      <div class="refparam" id="refParamRow">
+        <label data-i18n="ref.label">Parametro di riferimento IFC</label>
+        <input class="sel" id="refParam" list="refParamList" spellcheck="false" autocomplete="off" data-i18n-placeholder="ref.ph" placeholder="seleziona o digita una proprietà">
+        <datalist id="refParamList"></datalist>
+        <span class="ref-hint" data-i18n="ref.hint">La proprietà IFC il cui valore corrisponde al codice del mapping. Caricando l'IFC vengono suggeriti i nomi delle proprietà presenti nel file.</span>
+      </div>
     </section>
 
     <!-- STEP 2 — rules -->
@@ -350,10 +364,11 @@ const I18N = {
     "nav.site":"← viewifc.com","nav.viewer":"Viewer",
     "hero.eyebrow":"Strumento IFC · client-side",
     "hero.h1html":'IFC <span class="lime">Class Patcher</span>',
-    "hero.lead":'Carica un mapping Excel (Classe → Entità IFC → ENUMTYPE) e un file IFC: lo strumento trova gli elementi in base alla proprietà <em>Classe</em> e ne aggiorna in massa il <em>PredefinedType</em>. Scarichi un IFC corretto, pronto per la validazione.',
+    "hero.lead":'Carica un mapping Excel (Classe → Entità IFC → ENUMTYPE) e un file IFC: lo strumento trova gli elementi in base alla proprietà <em>Classe</em> e ne riscrive in massa la <em>classe IFC</em> e il <em>PredefinedType</em>. Scarichi un IFC corretto, pronto per la validazione.',
     "hero.note":"100% nel tuo browser — nessun file viene caricato su un server.",
     "step.files":"Carica i file",
     "f.ifc.k":"File IFC","f.xlsx.k":"Mapping Excel","f.none":"Nessun file selezionato","f.browse":"Sfoglia…",
+    "ref.label":"Parametro di riferimento IFC","ref.ph":"seleziona o digita una proprietà","ref.hint":"La proprietà IFC il cui valore corrisponde al codice del mapping. Caricando l'IFC vengono suggeriti i nomi delle proprietà presenti nel file.",
     "rules.title":"Regole caricate dal mapping","rules.empty":"Carica il file Mapping Excel per vedere le regole.",
     "rules.c.classe":"Classe","rules.c.entity":"Entità IFC","rules.c.type":"ENUMTYPE VALUE",
     "map.hdr":"Riga intestazione","map.classe":"Colonna · Classe","map.entity":"Colonna · Entità IFC",
@@ -367,10 +382,10 @@ const I18N = {
     "foot.warranty":"Software fornito \"così com'è\", senza alcuna garanzia. Verifica sempre i risultati con i tuoi strumenti di authoring prima di usarli per decisioni progettuali.",
     /* messaggi runtime */
     "m.rulesCount":"{n} regole","m.original":"(originario)","m.keep":"valore originario mantenuto",
-    "m.noIfc":"Seleziona prima un file IFC.","m.noXlsx":"Carica prima il file Mapping Excel.",
+    "m.noIfc":"Seleziona prima un file IFC.","m.noXlsx":"Carica prima il file Mapping Excel.","m.noRef":"Indica il parametro di riferimento IFC (la proprietà che identifica gli elementi).",
     "m.noRules":"Il file non contiene regole valide.","m.libLoading":"Libreria Excel non ancora pronta, riprova tra un istante.",
     "m.xlsxErr":"Errore nel caricamento del mapping: ","m.ifcErr":"Errore nella lettura dell'IFC: ",
-    "m.start":"── Avvio patch ─────────────────────────────────","m.file":"File  : ","m.rules":"Regole: ",
+    "m.start":"── Avvio patch ─────────────────────────────────","m.file":"File  : ","m.rules":"Regole: ","m.refparam":"Param.: ",
     "m.noObj":"nessun oggetto trovato","m.objFound":"oggetti trovati","m.kept":"valore originario mantenuto",
     "m.totalOk":"{n} oggetti modificati","m.totalMiss":", {n} non trovati","m.out":"→ scaricato: ",
     "m.totalText":"{n} oggetti aggiornati","m.totalNone":"Nessun oggetto modificato",
@@ -381,10 +396,11 @@ const I18N = {
     "nav.site":"← viewifc.com","nav.viewer":"Viewer",
     "hero.eyebrow":"IFC tool · client-side",
     "hero.h1html":'IFC <span class="lime">Class Patcher</span>',
-    "hero.lead":'Load an Excel mapping (Class → IFC entity → ENUMTYPE) and an IFC file: the tool finds elements by their <em>Class</em> property and bulk-updates their <em>PredefinedType</em>. You download a corrected IFC, ready for validation.',
+    "hero.lead":'Load an Excel mapping (Class → IFC entity → ENUMTYPE) and an IFC file: the tool finds elements by their <em>Class</em> property and bulk-rewrites their <em>IFC class</em> and <em>PredefinedType</em>. You download a corrected IFC, ready for validation.',
     "hero.note":"100% in your browser — no file is ever uploaded to a server.",
     "step.files":"Load the files",
     "f.ifc.k":"IFC file","f.xlsx.k":"Excel mapping","f.none":"No file selected","f.browse":"Browse…",
+    "ref.label":"IFC reference property","ref.ph":"select or type a property","ref.hint":"The IFC property whose value matches the code in the mapping. Once you load the IFC, the property names found in the file are suggested.",
     "rules.title":"Rules loaded from the mapping","rules.empty":"Load the Excel mapping to see the rules.",
     "rules.c.classe":"Class","rules.c.entity":"IFC entity","rules.c.type":"ENUMTYPE VALUE",
     "map.hdr":"Header row","map.classe":"Column · Class","map.entity":"Column · IFC entity",
@@ -397,10 +413,10 @@ const I18N = {
     "foot.local":"100% client-side",
     "foot.warranty":"Software provided \"as is\", without warranty of any kind. Always verify results against your authoring tools before relying on them for design decisions.",
     "m.rulesCount":"{n} rules","m.original":"(original)","m.keep":"original value kept",
-    "m.noIfc":"Please select an IFC file first.","m.noXlsx":"Please load the Excel mapping first.",
+    "m.noIfc":"Please select an IFC file first.","m.noXlsx":"Please load the Excel mapping first.","m.noRef":"Please set the IFC reference property (the property that identifies the elements).",
     "m.noRules":"The file contains no valid rules.","m.libLoading":"Excel library not ready yet, try again in a moment.",
     "m.xlsxErr":"Error loading the mapping: ","m.ifcErr":"Error reading the IFC: ",
-    "m.start":"── Patch started ───────────────────────────────","m.file":"File : ","m.rules":"Rules: ",
+    "m.start":"── Patch started ───────────────────────────────","m.file":"File : ","m.rules":"Rules: ","m.refparam":"Param: ",
     "m.noObj":"no object found","m.objFound":"objects found","m.kept":"original value kept",
     "m.totalOk":"{n} objects patched","m.totalMiss":", {n} not found","m.out":"→ downloaded: ",
     "m.totalText":"{n} objects updated","m.totalNone":"No object modified",
@@ -422,6 +438,10 @@ function applyLang(lang){
   document.querySelectorAll("[data-i18n-title]").forEach(el=>{
     const k = el.getAttribute("data-i18n-title");
     if(dict[k] != null) el.title = dict[k];
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>{
+    const k = el.getAttribute("data-i18n-placeholder");
+    if(dict[k] != null) el.placeholder = dict[k];
   });
   // contenuti con HTML (titolo + lead con <span>/<em>)
   document.querySelector(".h1").innerHTML = tr("hero.h1html");
@@ -492,11 +512,22 @@ function guessColumns(header){
   return {ci, ei, ti};
 }
 
-/* Risale: IFCPROPERTYSINGLEVALUE('Classe',…) → IFCPROPERTYSET → IFCRELDEFINESBYPROPERTIES → entity IDs */
-function findEntitiesByClasse(content, classeValue){
+/* Nomi distinti delle proprietà IFCPROPERTYSINGLEVALUE presenti nel file (per i suggerimenti). */
+function scanIfcProps(content){
+  const set = new Set();
+  const pat = /IFCPROPERTYSINGLEVALUE\('([^']*)'/g; let m;
+  while((m = pat.exec(content)) !== null){ if(m[1]) set.add(m[1]); }
+  return Array.from(set).sort((a,b)=> a.localeCompare(b));
+}
+
+/* Risale: IFCPROPERTYSINGLEVALUE('<param>','val') → IFCPROPERTYSET → IFCRELDEFINESBYPROPERTIES → entity IDs.
+   propName = proprietà di riferimento scelta dall'utente (default "Classe"). */
+function findEntitiesByClasse(content, classeValue, propName){
   const ids = new Set();
-  const esc = escapeRegExp(classeValue);
-  const propPat = new RegExp("#(\\d+)=IFCPROPERTYSINGLEVALUE\\('Classe',\\$,IFC(?:TEXT|LABEL)\\('"+esc+"'\\),\\$\\);","g");
+  const esc  = escapeRegExp(classeValue);
+  const prop = escapeRegExp((propName || "Classe").trim());
+  // Description: $ o stringa · NominalValue: qualsiasi tipo nominale stringa · Unit: $ o #ref
+  const propPat = new RegExp("#(\\d+)=IFCPROPERTYSINGLEVALUE\\('"+prop+"',(?:\\$|'[^']*'),IFC\\w+\\('"+esc+"'\\),(?:\\$|#\\d+)\\);","g");
   let pm;
   while((pm = propPat.exec(content)) !== null){
     const pid = pm[1];
@@ -514,62 +545,83 @@ function findEntitiesByClasse(content, classeValue){
   return ids;
 }
 
-/* Sostituisce il PredefinedType (.X. oppure $) degli entity indicati. */
-function patchPredefinedType(content, entityIds, newType){
+/* Per ogni entity indicato:
+   1) rinomina la CLASSE IFC (keyword STEP, es. IFCBUILDINGELEMENTPROXY → IFCKERB);
+   2) imposta il PredefinedType (.X. oppure $), se newType non è null (null = mantieni).
+   targetEntity = valore "Entità IFC" dal mapping (es. "IfcKerb"). */
+function patchElement(content, entityIds, targetEntity, newType){
   let modified = content;
   const log = [], patched = new Set();
+  const targetKw = (targetEntity || "").trim().toUpperCase();   // "IfcKerb" → "IFCKERB"
   const ids = Array.from(entityIds).sort((a,b)=> Number(a)-Number(b));
   for(const eid of ids){
-    const patEnum = new RegExp("(#"+eid+"=IFC\\w+\\b[^;]*?,)\\.(\\w+)\\.(\\);)");
-    const patNull = new RegExp("(#"+eid+"=IFC\\w+\\b[^;]*?,)(\\$)(\\);)");
-    const m = patEnum.exec(modified);
-    if(m){
-      const oldType = m[2];
-      if(oldType === newType){
-        log.push([eid,"skip","  #"+eid+": già ."+newType+". "+tr("m.unchanged")]);
-      }else{
-        const repl = m[1] + "."+newType+"." + m[3];
-        modified = modified.slice(0,m.index) + repl + modified.slice(m.index+m[0].length);
-        log.push([eid,"ok","  #"+eid+": ."+oldType+". → ."+newType+".  OK"]);
-        patched.add(eid);
-      }
-    }else{
-      const mn = patNull.exec(modified);
-      if(mn){
-        const repl = mn[1] + "."+newType+"." + mn[3];
-        modified = modified.slice(0,mn.index) + repl + modified.slice(mn.index+mn[0].length);
-        log.push([eid,"ok","  #"+eid+": $ → ."+newType+".  OK"]);
-        patched.add(eid);
-      }else{
-        log.push([eid,"warn","  #"+eid+": "+tr("m.noMatch")]);
+    let changed = false, missed = false;
+    const parts = [];
+
+    // 1) rinomina classe IFC
+    if(targetKw){
+      const entPat = new RegExp("(#"+eid+"=)(IFC\\w+)");
+      const em = entPat.exec(modified);
+      if(em && em[2] !== targetKw){
+        modified = modified.slice(0,em.index) + em[1] + targetKw + modified.slice(em.index+em[0].length);
+        parts.push(em[2] + " → " + targetKw);
+        changed = true;
       }
     }
+
+    // 2) PredefinedType (saltato quando newType è null = "mantieni originario")
+    if(newType){
+      const patEnum = new RegExp("(#"+eid+"=IFC\\w+\\b[^;]*?,)\\.(\\w+)\\.(\\);)");
+      const patNull = new RegExp("(#"+eid+"=IFC\\w+\\b[^;]*?,)(\\$)(\\);)");
+      const m = patEnum.exec(modified);
+      if(m){
+        const oldType = m[2];
+        if(oldType === newType){
+          parts.push("."+newType+". "+tr("m.unchanged"));
+        }else{
+          modified = modified.slice(0,m.index) + m[1] + "."+newType+"." + m[3] + modified.slice(m.index+m[0].length);
+          parts.push("."+oldType+". → ."+newType+".");
+          changed = true;
+        }
+      }else{
+        const mn = patNull.exec(modified);
+        if(mn){
+          modified = modified.slice(0,mn.index) + mn[1] + "."+newType+"." + mn[3] + modified.slice(mn.index+mn[0].length);
+          parts.push("$ → ."+newType+".");
+          changed = true;
+        }else{
+          parts.push(tr("m.noMatch"));
+          missed = true;
+        }
+      }
+    }
+
+    const status = changed ? "ok" : (missed ? "warn" : "skip");
+    if(changed) patched.add(eid);
+    log.push([eid, status, "  #"+eid+": " + (parts.length ? parts.join("  ·  ") : tr("m.unchanged"))]);
   }
   return {modified, log, patched};
 }
 
 /* Applica tutte le regole. Asincrona: cede il thread ogni ~60ms così la UI resta
    reattiva e la barra di avanzamento può aggiornarsi. onProgress(fatte, totale). */
-async function processFileAsync(content, rules, onProgress){
+async function processFileAsync(content, rules, onProgress, refParam){
   const allLog = [], summary = {};
   const total = rules.length;
   const now = ()=> (typeof performance!=="undefined" ? performance.now() : Date.now());
   let last = now();
   for(let idx=0; idx<total; idx++){
     const rule = rules[idx];
-    const ids = findEntitiesByClasse(content, rule.classe);
+    const ids = findEntitiesByClasse(content, rule.classe, refParam);
     const entry = {found:ids.size, patched:0, skipped:0, missed:0};
+    const entityKw = (rule.entity || "").trim().toUpperCase();
+    const keep = rule.type === "_KEEP_ORIGINAL_";
     if(ids.size === 0){
-      allLog.push([null,"info","["+rule.classe+"] → ."+rule.type+". — "+tr("m.noObj")]);
-    }else if(rule.type === "_KEEP_ORIGINAL_"){
-      allLog.push([null,"info","["+rule.classe+"] → ("+tr("m.kept")+") ("+ids.size+" "+tr("m.objFound")+")"]);
-      for(const eid of Array.from(ids).sort((a,b)=>Number(a)-Number(b))){
-        allLog.push([eid,"skip","  #"+eid+": "+tr("m.keptShort")]);
-        entry.skipped++;
-      }
+      allLog.push([null,"info","["+rule.classe+"] → "+entityKw+" · ."+rule.type+". — "+tr("m.noObj")]);
     }else{
-      allLog.push([null,"info","["+rule.classe+"] → ."+rule.type+". ("+ids.size+" "+tr("m.objFound")+")"]);
-      const res = patchPredefinedType(content, ids, rule.type);
+      const typeLbl = keep ? "("+tr("m.kept")+")" : "."+rule.type+".";
+      allLog.push([null,"info","["+rule.classe+"] → "+entityKw+" · "+typeLbl+" ("+ids.size+" "+tr("m.objFound")+")"]);
+      const res = patchElement(content, ids, rule.entity, keep ? null : rule.type);
       content = res.modified;
       for(const [eid,status,msg] of res.log){
         allLog.push([eid,status,msg]);
@@ -597,6 +649,7 @@ const ui = {
   ifcName:document.getElementById("ifcName"), ifcRow:document.getElementById("ifcRow"),
   xlsxInput:document.getElementById("xlsxInput"), xlsxBtn:document.getElementById("xlsxBtn"),
   xlsxName:document.getElementById("xlsxName"), xlsxRow:document.getElementById("xlsxRow"),
+  refParam:document.getElementById("refParam"), refParamList:document.getElementById("refParamList"),
   mapCtl:document.getElementById("mapCtl"), hdrRow:document.getElementById("hdrRow"),
   colClasse:document.getElementById("colClasse"), colEntity:document.getElementById("colEntity"), colType:document.getElementById("colType"),
   rulesBody:document.getElementById("rulesBody"), rulesCount:document.getElementById("rulesCount"),
@@ -625,10 +678,16 @@ function readIfc(file){
     STATE.ifcText = r.result; STATE.ifcName = file.name;
     ui.ifcName.textContent = file.name; ui.ifcName.classList.add("set");
     ui.ifcRow.classList.add("set");
+    populateRefParam(scanIfcProps(r.result));
     refreshRun();
   };
   r.onerror = ()=> alert(tr("m.ifcErr")+(r.error?r.error.message:""));
   r.readAsText(file);
+}
+/* Suggerimenti del parametro di riferimento dalle proprietà trovate nell'IFC.
+   Non precompila il campo: la scelta resta esplicita dell'utente. */
+function populateRefParam(props){
+  ui.refParamList.innerHTML = props.map(p=> `<option value="${esc(p)}">`).join("");
 }
 
 /* ---- Excel ---- */
@@ -746,6 +805,7 @@ function setProgress(done, total){
 ui.runBtn.addEventListener("click", async ()=>{
   if(!STATE.ifcText){ alert(tr("m.noIfc")); return; }
   if(!STATE.rules.length){ alert(tr("m.noXlsx")); return; }
+  if(!ui.refParam.value.trim()){ alert(tr("m.noRef")); ui.refParam.focus(); return; }
   clearLog();
   ui.sumBody.innerHTML = "";
   ui.total.classList.remove("on");
@@ -753,19 +813,21 @@ ui.runBtn.addEventListener("click", async ()=>{
   ui.progress.classList.add("on");
   ui.progressLabel.classList.add("on");
   setProgress(0, STATE.rules.length);
+  const refParam = ui.refParam.value.trim();
   logLine(tr("m.start"), "head");
   logLine(tr("m.file")+STATE.ifcName, "info");
   logLine(tr("m.rules")+STATE.rules.length, "info");
+  logLine(tr("m.refparam")+refParam, "info");
   logLine("", "info");
   // un tick per far ridisegnare la UI (barra a 0) prima di iniziare
   await new Promise(r=> setTimeout(r, 30));
-  await runWork();
+  await runWork(refParam);
 });
 
-async function runWork(){
+async function runWork(refParam){
   let result;
   try{
-    result = await processFileAsync(STATE.ifcText, STATE.rules, setProgress);
+    result = await processFileAsync(STATE.ifcText, STATE.rules, setProgress, refParam);
   }catch(err){
     ui.progress.classList.remove("on"); ui.progressLabel.classList.remove("on");
     ui.runBtn.disabled=false;
