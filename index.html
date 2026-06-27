@@ -463,6 +463,13 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
         <p data-i18n="tools.t2d">Converte le progressive degli elementi IFC tra metri e formato chilometrico K+MMM,CC, in entrambe le direzioni. Scegli quali parametri convertire; scarichi un IFC aggiornato.</p>
         <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
+      <a class="cap tool-card rv" href="tools/ifc-alignment-to-landxml/">
+        <span class="tool-tag" data-i18n="tools.tag">Client-side</span>
+        <div class="cic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c4 0 5-10 9-10s5 4 9 4"/><circle cx="3" cy="17" r="1.4"/><circle cx="21" cy="11" r="1.4"/></svg></div>
+        <h3 data-i18n="tools.t3t">IFC Alignment to LandXML</h3>
+        <p data-i18n="tools.t3d">Estrae gli IfcAlignment da un file IFC4x3 e li esporta in LandXML 1.2 (planimetria Line/Curve/Spiral e profilo PVI/ParaCurve), pronto da caricare su Dalux.</p>
+        <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
     </div>
   </div>
 </section>
@@ -601,7 +608,7 @@ const I18N = {
     "os.h2":"Libero da usare, aperto da ispezionare.",
     "os.p":"Il viewer è rilasciato sotto licenza AGPL-3.0: puoi usarlo, studiarlo e contribuire. Il codice è una singola pagina HTML, senza build step né dipendenze nascoste.",
     "os.cta":"Repository GitHub","os.lic":"Leggi la licenza AGPL-3.0",
-    "tools.eyebrow":"Strumenti","tools.h2":"Piccole utility per il flusso openBIM.","tools.p":"Oltre al viewer, una raccolta di strumenti accessori che girano nel browser — nessun upload, nessuna installazione.","tools.tag":"Client-side","tools.t1t":"IFC Class Patcher","tools.t1d":"Riclassifica in massa gli elementi IFC: cambia classe IFC e PredefinedType da una mappatura Excel (Classe → Entità → ENUMTYPE). Scegli tu le colonne; scarichi un IFC corretto.","tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converte le progressive degli elementi IFC tra metri e formato chilometrico K+MMM,CC, in entrambe le direzioni. Scegli quali parametri convertire; scarichi un IFC aggiornato.","tools.open":"Apri lo strumento",
+    "tools.eyebrow":"Strumenti","tools.h2":"Piccole utility per il flusso openBIM.","tools.p":"Oltre al viewer, una raccolta di strumenti accessori che girano nel browser — nessun upload, nessuna installazione.","tools.tag":"Client-side","tools.t1t":"IFC Class Patcher","tools.t1d":"Riclassifica in massa gli elementi IFC: cambia classe IFC e PredefinedType da una mappatura Excel (Classe → Entità → ENUMTYPE). Scegli tu le colonne; scarichi un IFC corretto.","tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converte le progressive degli elementi IFC tra metri e formato chilometrico K+MMM,CC, in entrambe le direzioni. Scegli quali parametri convertire; scarichi un IFC aggiornato.","tools.t3t":"IFC Alignment to LandXML","tools.t3d":"Estrae gli IfcAlignment da un file IFC4x3 e li esporta in LandXML 1.2 (planimetria Line/Curve/Spiral e profilo PVI/ParaCurve), pronto da caricare su Dalux.","tools.open":"Apri lo strumento",
     "band.h2a":"Apri un IFC.","band.h2b":"Subito.",
     "band.p":"Niente installazione, niente attesa. Trascina un file e inizia a coordinare.",
     "faq.eyebrow":"FAQ",
@@ -658,7 +665,7 @@ const I18N = {
     "os.h2":"Free to use, open to inspect.",
     "os.p":"The viewer is released under the AGPL-3.0 license: use it, study it, contribute. The code is a single HTML page, with no build step and no hidden dependencies.",
     "os.cta":"GitHub repository","os.lic":"Read the AGPL-3.0 license",
-    "tools.eyebrow":"Tools","tools.h2":"Small utilities for your openBIM workflow.","tools.p":"Beyond the viewer, a set of companion tools that run in your browser — no upload, no install.","tools.tag":"Client-side","tools.t1t":"IFC Class Patcher","tools.t1d":"Bulk-reclassify IFC elements: change the IFC class and PredefinedType from an Excel mapping (Class → Entity → ENUMTYPE). You pick the columns; you download a corrected IFC.","tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converts IFC chainage values between metres and the kilometric format K+MMM,CC, both ways. You choose which parameters to convert; you download an updated IFC.","tools.open":"Open the tool",
+    "tools.eyebrow":"Tools","tools.h2":"Small utilities for your openBIM workflow.","tools.p":"Beyond the viewer, a set of companion tools that run in your browser — no upload, no install.","tools.tag":"Client-side","tools.t1t":"IFC Class Patcher","tools.t1d":"Bulk-reclassify IFC elements: change the IFC class and PredefinedType from an Excel mapping (Class → Entity → ENUMTYPE). You pick the columns; you download a corrected IFC.","tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converts IFC chainage values between metres and the kilometric format K+MMM,CC, both ways. You choose which parameters to convert; you download an updated IFC.","tools.t3t":"IFC Alignment to LandXML","tools.t3d":"Extracts the IfcAlignment entities from an IFC4x3 file and exports them as LandXML 1.2 (horizontal Line/Curve/Spiral and vertical PVI/ParaCurve), ready to load into Dalux.","tools.open":"Open the tool",
     "band.h2a":"Open an IFC.","band.h2b":"Right now.",
     "band.p":"No install, no wait. Drop a file and start coordinating.",
     "faq.eyebrow":"FAQ",
