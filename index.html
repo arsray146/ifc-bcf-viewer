@@ -47,7 +47,7 @@
       "url": "https://viewifc.com/",
       "downloadUrl": "https://viewifc.com/viewer/",
       "image": "https://viewifc.com/og-image.png",
-      "description": "Free and open-source IFC and BCF viewer that runs entirely in the browser. Open and federate IFC models, review BCF issues and Solibri reports, inspect elements and property sets, slice with a section box, edit properties and re-export an updated IFC. 100% client-side: your models never leave your computer.",
+      "description": "Free and open-source IFC and BCF viewer that runs entirely in the browser. Open and federate IFC models, review BCF issues and Solibri reports, inspect elements and property sets, slice with a section box, edit properties and re-export an updated IFC. Open IFC4x3 road and infrastructure alignments with a 3D axis, an interactive vertical profile, an orthogonal cross-section and a top-down minimap. 100% client-side: your models never leave your computer.",
       "author": { "@type": "Person", "name": "Alessandro Perugini" },
       "license": "https://www.gnu.org/licenses/agpl-3.0.html",
       "isAccessibleForFree": true,
@@ -57,6 +57,7 @@
         "Federated IFC models (IFC2x3, IFC4, IFC4x3)",
         "BCF issues and Solibri reports with viewpoints, comments and snapshots",
         "Section box and element inspection with property sets",
+        "IFC4x3 road/infrastructure alignments: 3D axis, interactive vertical profile, orthogonal cross-section and top-down minimap",
         "Edit IFC properties (including bulk) and re-export an updated IFC",
         "100% client-side, no upload, no account"
       ]
@@ -67,6 +68,7 @@
         { "@type": "Question", "name": "Is Viewer IFC · BCF free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes — completely free and open source under the AGPL-3.0 license: you can use it, study its code and contribute." } },
         { "@type": "Question", "name": "Are my models uploaded to a server?", "acceptedAnswer": { "@type": "Answer", "text": "No. The viewer is 100% client-side: IFC and BCF files are read and rendered in your browser and never leave your computer. No upload, no account, no tracking." } },
         { "@type": "Question", "name": "Which file formats are supported?", "acceptedAnswer": { "@type": "Answer", "text": "IFC2x3, IFC4 and IFC4x3, plus BCF issues and Solibri reports with viewpoints, comments and snapshots." } },
+        { "@type": "Question", "name": "Does it support road and infrastructure alignments (IFC4x3)?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. It opens the IfcAlignment of IFC4x3 files: it shows the 3D axis, an interactive vertical (elevation) profile, a cross-section orthogonal to the axis — cut or slab, movable along the chainage by dragging in 3D or on the profile — and a top-down minimap of the alignments." } },
         { "@type": "Question", "name": "Do I need to install anything or create an account?", "acceptedAnswer": { "@type": "Answer", "text": "No. It is a single HTML page running in the browser: no install and no login. On first launch it fetches the rendering engine from a CDN, then it works even offline." } },
         { "@type": "Question", "name": "Can I edit IFC properties and export them?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. You can edit element properties directly in the 3D view, in bulk across multiple elements too, and re-export an updated IFC file." } },
         { "@type": "Question", "name": "Which browser is recommended?", "acceptedAnswer": { "@type": "Answer", "text": "A Chromium-based browser such as Chrome or Edge, for the best performance." } }
@@ -496,6 +498,10 @@ footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
         <div class="faq-a" data-i18n="faq.a3">IFC2x3, IFC4 e IFC4x3, più le issue BCF e i report Solibri con viewpoint, commenti e snapshot.</div>
       </details>
       <details class="faq-item">
+        <summary data-i18n="faq.q7">Supporta i tracciati stradali e le infrastrutture (IFC4x3)?</summary>
+        <div class="faq-a" data-i18n="faq.a7">Sì. Apre gli IfcAlignment dei file IFC4x3: mostra l'asse 3D, il profilo altimetrico interattivo, una sezione trasversale ortogonale all'asse — taglio o fetta, spostabile lungo la progressiva trascinando in 3D o sul profilo — e una minimap dei tracciati vista dall'alto.</div>
+      </details>
+      <details class="faq-item">
         <summary data-i18n="faq.q4">Devo installare qualcosa o creare un account?</summary>
         <div class="faq-a" data-i18n="faq.a4">No. È una singola pagina HTML che gira nel browser: nessuna installazione, nessun login. Al primo avvio scarica il motore di rendering da CDN, poi funziona anche offline.</div>
       </details>
@@ -626,6 +632,8 @@ const I18N = {
     "faq.a5":"Sì. Puoi modificare le property degli elementi direttamente nella vista 3D, anche in modo massivo su più elementi, e riesportare un file IFC aggiornato.",
     "faq.q6":"Quale browser è consigliato?",
     "faq.a6":"Un browser basato su Chromium, come Chrome o Edge, per le migliori prestazioni.",
+    "faq.q7":"Supporta i tracciati stradali e le infrastrutture (IFC4x3)?",
+    "faq.a7":"Sì. Apre gli IfcAlignment dei file IFC4x3: mostra l'asse 3D, il profilo altimetrico interattivo, una sezione trasversale ortogonale all'asse — taglio o fetta, spostabile lungo la progressiva trascinando in 3D o sul profilo — e una minimap dei tracciati vista dall'alto.",
     "ct.eyebrow":"Contatti",
     "ct.h2":"Domande, idee o segnalazioni?",
     "ct.p":"Scrivimi una mail: rispondo volentieri a domande sul viewer, proposte di collaborazione o bug riscontrati.",
@@ -683,6 +691,8 @@ const I18N = {
     "faq.a5":"Yes. You can edit element properties directly in the 3D view, in bulk across multiple elements too, and re-export an updated IFC file.",
     "faq.q6":"Which browser is recommended?",
     "faq.a6":"A Chromium-based browser such as Chrome or Edge, for the best performance.",
+    "faq.q7":"Does it support road and infrastructure alignments (IFC4x3)?",
+    "faq.a7":"Yes. It opens the IfcAlignment of IFC4x3 files: it shows the 3D axis, an interactive vertical (elevation) profile, a cross-section orthogonal to the axis — cut or slab, movable along the chainage by dragging in 3D or on the profile — and a top-down minimap of the alignments.",
     "ct.eyebrow":"Contact",
     "ct.h2":"Questions, ideas or bug reports?",
     "ct.p":"Drop me an email: I'm happy to answer questions about the viewer, collaboration proposals or bugs you ran into.",

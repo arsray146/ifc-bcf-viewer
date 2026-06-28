@@ -1,6 +1,6 @@
 # Viewer IFC · BCF
 
-> Free and open-source IFC and BCF viewer that runs entirely in the browser. Open and federate IFC models, review BCF issues and Solibri reports, inspect elements and their property sets, slice with a section box, edit properties in the 3D view and re-export an updated IFC. 100% client-side: models never leave the user's computer — no upload, no account, no server.
+> Free and open-source IFC and BCF viewer that runs entirely in the browser. Open and federate IFC models, review BCF issues and Solibri reports, inspect elements and their property sets, slice with a section box, edit properties in the 3D view and re-export an updated IFC. Open IFC4x3 road and infrastructure alignments with a 3D axis, an interactive vertical profile, an orthogonal cross-section and a top-down minimap. 100% client-side: models never leave the user's computer — no upload, no account, no server.
 
 Key facts:
 - License: GNU AGPL-3.0 (open source).
@@ -8,6 +8,7 @@ Key facts:
 - Single-file app: plain HTML/CSS/JS, no framework, no build step. Dependencies (three.js, web-ifc) are loaded from a CDN on first launch.
 - Supported formats: IFC2x3, IFC4, IFC4x3, BCF, Solibri report.
 - It is a coordination viewer, not just a visualization viewer: federation, BCF issue review, property editing (including bulk) and IFC re-export.
+- Infrastructure (IFC4x3): reads IfcAlignment and draws the 3D axis, an interactive vertical/elevation profile, a cross-section orthogonal to the axis (cut or slab, draggable along the chainage in 3D or on the profile) and a top-down minimap of the alignments.
 - Author: Alessandro Perugini (BIM Coordinator).
 - Bilingual interface: Italian and English.
 
