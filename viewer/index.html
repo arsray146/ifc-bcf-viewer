@@ -454,6 +454,83 @@ input[type=file]{display:none}
 #btnSectionBox.btn-ico{display:inline-flex;align-items:center;gap:7px}
 .sb-cube{width:15px;height:15px;flex:none;fill:none;stroke:var(--lime-deep);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
 #btnSectionBox.sb-on .sb-cube{stroke:var(--lime-ink)}
+#btnAlign.btn-ico{display:inline-flex;align-items:center;gap:7px}
+#btnAlign .al-ic{width:18px;height:18px;fill:none;stroke:#e0322c;stroke-width:2.4;stroke-linecap:round}
+#btnAlign.al-on{background:var(--lime);border-color:var(--lime-deep);color:var(--lime-ink)}
+#btnAlign .al-caret{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.4;margin-left:1px}
+/* tendina selettore asse */
+.align-menu{position:absolute;z-index:7;min-width:248px;max-width:360px;max-height:340px;overflow:auto;
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:6px}
+.align-menu[hidden]{display:none}
+.align-menu .aln-hd{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:4px 6px 8px}
+.align-menu .aln-hd button{margin-left:auto;border:none;background:none;color:var(--lime-deep);font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;cursor:pointer;padding:2px 4px}
+.align-menu .aln-hd button:hover{text-decoration:underline}
+.aln-row{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:6px}
+.aln-row:hover{background:var(--panel-2)}
+.aln-row.active{background:var(--lime-soft)}
+.aln-row input{accent-color:var(--lime-deep);cursor:pointer;flex:none}
+.aln-name{flex:1;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.aln-row .aln-sw{width:9px;height:9px;border-radius:2px;background:#e0322c;flex:none;opacity:.9}
+.aln-prof{border:none;background:none;cursor:pointer;color:var(--muted);width:26px;height:26px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.aln-prof:hover{background:var(--lime-soft);color:var(--lime-deep)}
+.aln-prof svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}
+/* finestra profilo altimetrico */
+.profile-panel{position:absolute;left:14px;right:14px;bottom:14px;height:212px;z-index:6;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
+  display:flex;flex-direction:column;overflow:hidden}
+.profile-panel[hidden]{display:none}
+.profile-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--line)}
+.profile-title{font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:.02em;color:var(--text)}
+.profile-meta{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.profile-close{margin-left:auto;border:none;background:none;font-size:15px;color:var(--muted);cursor:pointer;width:26px;height:26px;border-radius:5px}
+.profile-close:hover{background:var(--panel-2);color:var(--text)}
+.profile-body{flex:1;position:relative;min-height:0;display:flex}
+.profile-chart{flex:1;position:relative;min-height:0;min-width:0}
+.profile-mini{position:relative;flex:0 0 34%;min-width:200px;border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.profile-mini[hidden]{display:none}
+.mini-resize{position:absolute;left:-4px;top:0;bottom:0;width:9px;cursor:col-resize;z-index:3;touch-action:none}
+.mini-resize::after{content:"";position:absolute;left:50%;top:50%;transform:translateX(-50%) translateY(-50%);width:2px;height:28px;border-radius:2px;background:var(--line-2)}
+.mini-resize:hover::after{background:var(--lime-deep);height:42px}
+.mini-head{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);padding:6px 12px 2px}
+.mini-chart{flex:1;position:relative;min-height:0;cursor:crosshair;overflow:hidden}
+.mini-chart svg{display:block;overflow:hidden}
+.mini-path{fill:none;stroke:var(--muted);stroke-width:1.2;opacity:.5;stroke-linejoin:round;stroke-linecap:round}
+.mini-path.act{stroke:#e0322c;stroke-width:1.8;opacity:1}
+.mini-cut line{stroke:#e0322c;stroke-width:2}
+.mini-cut circle{fill:#e0322c}
+.profile-body svg{display:block}
+.profile-body .pf-grid line{stroke:var(--line);stroke-width:1}
+.profile-body .pf-line{fill:none;stroke:#e0322c;stroke-width:2;stroke-linejoin:round}
+.profile-body .pf-yl,.profile-body .pf-xl{font-family:var(--mono);font-size:10px;fill:var(--faint)}
+.profile-body .pf-guide line{stroke:var(--lime-deep);stroke-width:1;stroke-dasharray:3 3}
+.profile-body .pf-guide circle{fill:#e0322c}
+.profile-body .pf-guide rect{fill:var(--text);opacity:.92}
+.profile-body .pf-guide text{font-family:var(--mono);font-size:10.5px;fill:#fff}
+.profile-body .pf-empty{font-family:var(--mono);font-size:12px;fill:var(--faint)}
+/* FASE 3 — sezione ortogonale all'asse: toolbar nel profilo + marcatore trascinabile */
+.profile-tools{margin-left:auto;display:flex;align-items:center;gap:8px}
+.profile-sbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);color:var(--muted);
+  font-family:var(--mono);font-size:11px;letter-spacing:.04em;padding:4px 9px;border-radius:6px;cursor:pointer}
+.profile-sbtn:hover{background:var(--panel-2);color:var(--text)}
+.profile-sbtn.on{background:#e0322c;border-color:#c12722;color:#fff}
+.profile-sbtn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.profile-sbtn.pf-icobtn{padding:4px 7px}
+.profile-sbtn.pf-icobtn[hidden]{display:none}
+.pf-seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.pf-seg[hidden]{display:none}
+.pf-seg-b{border:none;background:var(--panel);color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.04em;padding:4px 10px;cursor:pointer}
+.pf-seg-b + .pf-seg-b{border-left:1px solid var(--line)}
+.pf-seg-b:hover{background:var(--panel-2);color:var(--text)}
+.pf-seg-b.on{background:#e0322c;color:#fff}
+.pf-thick{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--faint)}
+.pf-thick[hidden]{display:none}
+.pf-thick input{width:52px;padding:3px 5px;border:1px solid var(--line);border-radius:5px;font-family:var(--mono);font-size:11px;background:var(--panel);color:var(--text)}
+#profileChart.alnsec-on{cursor:ew-resize}
+.profile-body .pf-cut line{stroke:#e0322c;stroke-width:1.6;stroke-dasharray:4 3}
+.profile-body .pf-cut circle{fill:#e0322c}
+.profile-body .pf-cut rect{fill:#e0322c}
+.profile-body .pf-cut text{font-family:var(--mono);font-size:10.5px;fill:#fff}
+.profile-body .pf-cut path{fill:#e0322c}
 </style>
 <script type="importmap">
 {
@@ -553,10 +630,36 @@ input[type=file]{display:none}
     <div id="toolbar">
       <button id="btnFit" data-i18n="btn.fit" data-i18n-title="title.fit" title="Inquadra tutti i modelli (doppio clic rotella)">Zoom esteso</button>
       <button id="btnWalk" data-i18n="btn.walk" data-i18n-title="title.walk" title="Modalità Walk: W/A/S/D o frecce per muoversi, trascina per guardare, Esc per uscire">Walk</button>
-      <label class="tgl"><input type="checkbox" id="tglEdges" checked> <span data-i18n="tgl.edges">Spigoli</span></label>
       <label class="tgl"><input type="checkbox" id="tglIsolate"> <span data-i18n="tgl.isolate">Isola selezione</span></label>
       <label class="tgl"><input type="checkbox" id="tglSnap" disabled> <span data-i18n="tgl.snap">Snapshot in sovrapposizione</span></label>
       <button id="btnSectionBox" class="btn-ico" data-i18n-title="title.sectionBox" title="Attiva / disattiva section box 3D — ritaglia la vista con un box regolabile (stile Revit)"><svg class="sb-cube" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6 21 7v10l-9 4.4L3 17V7z"/><path d="M3 7l9 4.4L21 7M12 11.4V21.4"/></svg><span data-i18n="btn.sectionBox">Sezione</span></button>
+      <button id="btnAlign" class="btn-ico" style="display:none" aria-haspopup="true" aria-expanded="false" data-i18n-title="title.align" title="Scegli l'asse (alignment) da mostrare in rosso e apri il profilo"><svg class="al-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18c5 0 6-12 10.5-12S18 11 21 11"/></svg><span data-i18n="btn.align">Asse</span><svg class="al-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+    </div>
+    <div id="alignMenu" class="align-menu" hidden></div>
+    <div id="profilePanel" class="profile-panel" hidden>
+      <div class="profile-head">
+        <span class="profile-title" id="profileTitle"></span>
+        <span class="profile-meta" id="profileMeta"></span>
+        <div class="profile-tools">
+          <button class="profile-sbtn" id="profileMiniBtn" data-i18n-title="mini.toggle" title="Apri/chiudi la minimap dei tracciati (vista dall'alto)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span data-i18n="mini.btn">Minimap</span></button>
+          <button class="profile-sbtn" id="profileSection" data-i18n-title="alnsec.toggle" title="Sezione ortogonale all'asse: nasconde il modello da un lato del piano per vedere il resto del tracciato. Trascina la sezione in 3D o lungo il profilo per spostarla."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M5 21h14"/></svg><span data-i18n="alnsec.btn">Sezione asse</span></button>
+          <div class="pf-seg" id="profileMode" hidden role="group" data-i18n-title="alnsec.mode" title="Modalità: Taglio (nasconde un lato) o Fetta (slab di spessore dato)">
+            <button class="pf-seg-b on" data-mode="clip" data-i18n="alnsec.modeClip">Taglio</button>
+            <button class="pf-seg-b" data-mode="slab" data-i18n="alnsec.modeSlab">Fetta</button>
+          </div>
+          <button class="profile-sbtn pf-icobtn" id="profileFlip" hidden data-i18n-title="alnsec.flip" title="Inverti il lato sezionato"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h13M14 6l3 3-3 3M20 15H7M10 12l-3 3 3 3"/></svg></button>
+          <label class="pf-thick" id="profileThickWrap" hidden data-i18n-title="alnsec.thick" title="Spessore della fetta sezionata (m)"><input id="profileThick" type="number" min="0.5" step="0.5" value="8"> m</label>
+        </div>
+        <button class="profile-close" id="profileClose" data-i18n-title="profile.close" title="Chiudi il profilo">✕</button>
+      </div>
+      <div class="profile-body">
+        <div class="profile-chart" id="profileChart"></div>
+        <div class="profile-mini" id="profileMini" hidden>
+          <div class="mini-resize" id="miniResize" data-i18n-title="mini.resize" title="Trascina per ridimensionare la minimap"></div>
+          <div class="mini-head"><span data-i18n="mini.title">Mappa tracciati</span></div>
+          <div class="mini-chart" id="profileMiniChart"></div>
+        </div>
+      </div>
     </div>
     <div id="navHelp" data-i18n-html="navHelp">Orbita: tasto sx &nbsp;·&nbsp; Pan: rotella premuta &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× clic rotella: zoom esteso</div>
     <div id="dropHint">
@@ -703,7 +806,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import * as WebIFC from "https://unpkg.com/web-ifc@0.0.77/web-ifc-api.js";
 
 /* ============================ stato globale ============================ */
-const APP_VERSION = "1.8.1";
+const APP_VERSION = "2.0.0";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN (v1.8.0) ============================ */
@@ -752,6 +855,19 @@ const STRINGS = {
     "tgl.edges": "Spigoli", "tgl.isolate": "Isola selezione", "tgl.snap": "Snapshot in sovrapposizione",
     "btn.sectionBox": "Sezione",
     "title.sectionBox": "Attiva / disattiva section box 3D — ritaglia la vista con un box regolabile (stile Revit)",
+    "btn.align": "Asse",
+    "title.align": "Scegli l'asse (alignment) da mostrare in rosso e apri il profilo",
+    "align.menuHd": "Assi del modello", "align.all": "tutti", "align.none": "nessuno",
+    "align.show": "Mostra in 3D", "align.profileBtn": "Apri il profilo altimetrico", "align.empty": "Nessun asse",
+    "profile.close": "Chiudi il profilo", "profile.nodata": "Profilo altimetrico non disponibile",
+    "alnsec.btn": "Sezione asse",
+    "alnsec.toggle": "Sezione ortogonale all'asse: nasconde il modello da un lato del piano per vedere il resto del tracciato. Trascina la sezione in 3D o lungo il profilo per spostarla.",
+    "alnsec.thick": "Spessore della fetta sezionata (m)",
+    "alnsec.mode": "Modalità: Taglio (nasconde un lato) o Fetta (slab di spessore dato)",
+    "alnsec.modeClip": "Taglio", "alnsec.modeSlab": "Fetta", "alnsec.flip": "Inverti il lato sezionato",
+    "mini.btn": "Minimap", "mini.toggle": "Apri/chiudi la minimap dei tracciati (vista dall'alto), con la posizione della sezione",
+    "mini.title": "Mappa tracciati", "mini.nodata": "Nessun tracciato da mostrare",
+    "mini.resize": "Trascina per ridimensionare la minimap",
     "ctx.scene": "Scena", "ctx.elem3d": "Elemento 3D",
     "ctx.zoomElem": "Zoom su elemento", "ctx.zoomFit": "Zoom esteso", "ctx.zoomSel": "Zoom su selezione",
     "ctx.isolate": "Isola elemento", "ctx.unisolate": "Rimuovi isolamento",
@@ -883,6 +999,19 @@ const STRINGS = {
     "tgl.edges": "Edges", "tgl.isolate": "Isolate selection", "tgl.snap": "Snapshot overlay",
     "btn.sectionBox": "Section box",
     "title.sectionBox": "Toggle 3D section box — crop the view with an adjustable box (Revit-style)",
+    "btn.align": "Alignment",
+    "title.align": "Pick the alignment (axis) to show in red and open its profile",
+    "align.menuHd": "Model alignments", "align.all": "all", "align.none": "none",
+    "align.show": "Show in 3D", "align.profileBtn": "Open vertical profile", "align.empty": "No alignment",
+    "profile.close": "Close profile", "profile.nodata": "Vertical profile unavailable",
+    "alnsec.btn": "Axis section",
+    "alnsec.toggle": "Cross-section orthogonal to the axis: hides the model on one side of the plane so you can see the rest of the route. Drag the section in 3D or along the profile to move it.",
+    "alnsec.thick": "Sectioned slab thickness (m)",
+    "alnsec.mode": "Mode: Cut (hides one side) or Slab (slice of given thickness)",
+    "alnsec.modeClip": "Cut", "alnsec.modeSlab": "Slab", "alnsec.flip": "Flip the cut side",
+    "mini.btn": "Minimap", "mini.toggle": "Toggle the top-down minimap of the alignments, showing the section position",
+    "mini.title": "Alignments map", "mini.nodata": "No alignment to show",
+    "mini.resize": "Drag to resize the minimap",
     "ctx.scene": "Scene", "ctx.elem3d": "3D element",
     "ctx.zoomElem": "Zoom to element", "ctx.zoomFit": "Zoom to fit", "ctx.zoomSel": "Zoom to selection",
     "ctx.isolate": "Isolate element", "ctx.unisolate": "Remove isolation",
@@ -1288,13 +1417,17 @@ function buildModel(data, name) {
   const A = georefMatrix(geo);
   if (bcfGeoMatrix === null) bcfGeoMatrix = A.clone();
   const mModelIfc = new THREE.Matrix4().multiplyMatrices(A, F_INV); // (output web-ifc) → mappa Z-up
+  /* unità del file → metri: serve all'overlay alignment, che legge le coordinate IFC grezze
+     (in unità del file) mentre A è calibrata sui metri (web-ifc normalizza la geometria). */
+  const unitFactor = (geo.unitFactor !== undefined) ? geo.unitFactor : readLengthUnit(modelID);
 
   const model = {
     name, modelID, uid: ++modelUidCounter,
     meshes: [], edges: [], elemCount: 0, visible: true,
-    mModelIfc, geoInfo: describeGeoref(geo),
+    mModelIfc, A: A.clone(), unitFactor, geoInfo: describeGeoref(geo),
     guidByExpress: new Map(), expressByGuid: new Map(), typeByExpress: new Map(),
     psetMap: null, typeOfElem: null, typePsetIds: null,
+    alignObjs: null,
     dirty: false, edits: []
   };
 
@@ -1351,6 +1484,7 @@ function buildModel(data, name) {
   classeCache.clear();   // i nuovi GUID possono ora risolvere la Classe (v1.7.6)
   prewarmModel(model);  // v1.9.4 — costruisce le mappe pset/type in background (idle),
                         // così la PRIMA selezione non paga la scansione del modello
+  try { extractAlignments(model, data); } catch (e) { console.warn("alignment:", e); } // v1.9.7
   console.info(
     `[APE Viewer] ${name} · ${model.elemCount} elementi · ${model.geoInfo}` +
     (worldOriginMap ? ` · origine condivisa E=${worldOriginMap.x} N=${worldOriginMap.y} H=${worldOriginMap.z}` : "")
@@ -1600,6 +1734,17 @@ function removeModel(model) {
   for (const ed of model.edges) {
     rootGroup.remove(ed);
     ed.geometry.dispose();
+  }
+  if (model.alignObjs) {                     // v1.9.7 — rimuovi gli overlay alignment del modello
+    for (const o of model.alignObjs) {
+      rootGroup.remove(o.line);
+      o.line.geometry.dispose();
+      o.line.material.dispose();
+      const k = ALIGN.objs.indexOf(o);
+      if (k >= 0) ALIGN.objs.splice(k, 1);
+      if (ALIGN.active === o) { ALIGN.active = null; closeProfile(); }
+    }
+    updateAlignUI();
   }
   try { ifcApi.CloseModel(model.modelID); } catch (e) { console.warn("CloseModel:", e); }
   const i = models.indexOf(model);
@@ -2263,10 +2408,8 @@ function applyIsolate() {
   edgeMaterial.opacity = dim ? 0.05 : 0.45;
 }
 $("tglIsolate").addEventListener("change", (e) => { isolateOn = e.target.checked; applyIsolate(); });
-$("tglEdges").addEventListener("change", (e) => {
-  edgesOn = e.target.checked;
-  for (const m of models) for (const ed of m.edges) ed.visible = edgesOn && m.visible;
-});
+/* v1.9.8 — spigoli sempre attivi: il toggle "Spigoli" è stato rimosso dalla toolbar
+   (edgesOn resta true). */
 
 function resolveGuids(guids) {
   const found = [], missing = [];
@@ -4313,16 +4456,24 @@ function _updateSbPlanes() {
   sbPlanes[5].set(new THREE.Vector3( 0, 0,-1),  sbMax.z);
 }
 
-/* ---- applica i piani a tutti i materiali IFC (meshes + spigoli + highlight) ---- */
-function _applySbClipping() {
-  _updateSbPlanes();
-  for (const m of models) {
-    for (const mesh of m.meshes) { mesh.material.clippingPlanes = sbPlanes; mesh.material.needsUpdate = true; }
-    for (const ed of m.edges)    { ed.material.clippingPlanes   = sbPlanes; ed.material.needsUpdate = true; }
-  }
-  hlMaterial.clippingPlanes = sbPlanes;
-  hlMaterial.needsUpdate = true;
+/* ---- piani di clipping attivi: section box (6) + sezione asse (2), combinati in AND ---- */
+function _activeClipPlanes() {
+  const arr = [];
+  if (sectionBoxOn) arr.push(...sbPlanes);
+  if (typeof ALNSEC !== "undefined" && ALNSEC.on) arr.push(...ALNSEC.activePlanes);
+  return arr;
 }
+/* ---- applica i piani attivi a tutti i materiali IFC (meshes + spigoli + highlight) ---- */
+function _applyClipping() {
+  const planes = _activeClipPlanes();
+  for (const m of models) {
+    for (const mesh of m.meshes) { mesh.material.clippingPlanes = planes; mesh.material.needsUpdate = true; }
+    for (const ed of m.edges)    { ed.material.clippingPlanes   = planes; ed.material.needsUpdate = true; }
+  }
+  hlMaterial.clippingPlanes = planes; hlMaterial.needsUpdate = true;
+  renderer.localClippingEnabled = planes.length > 0;
+}
+function _applySbClipping() { _updateSbPlanes(); _applyClipping(); }
 
 /* ---- ricostruisce wireframe + handle dalla sbMin/sbMax corrente ---- */
 function _rebuildSbVisual() {
@@ -4435,22 +4586,16 @@ renderer.domElement.addEventListener("pointerup", (e) => {
 /* ---- attiva / disattiva section box ---- */
 function setSectionBox(on) {
   sectionBoxOn = on;
-  renderer.localClippingEnabled = on;
   $("btnSectionBox").classList.toggle("sb-on", on);
-  if (!on) {
-    /* rimuovi clipping da tutti i materiali */
-    for (const m of models) {
-      for (const mesh of m.meshes) { mesh.material.clippingPlanes = []; mesh.material.needsUpdate = true; }
-      for (const ed of m.edges)    { ed.material.clippingPlanes   = []; ed.material.needsUpdate = true; }
-    }
-    hlMaterial.clippingPlanes = []; hlMaterial.needsUpdate = true;
-    /* rimuovi visuale */
+  if (on) {
+    _updateSbPlanes();
+    _rebuildSbVisual();
+  } else {
+    /* rimuovi solo la visuale del box: il clipping eventualmente attivo (sezione asse) resta */
     if (sbWire) { scene.remove(sbWire); sbWire.geometry.dispose(); sbWire = null; }
     sbHandleGroup.clear(); sbHandles = [];
-  } else {
-    _applySbClipping();
-    _rebuildSbVisual();
   }
+  _applyClipping();
 }
 
 /* ---- inizializza box su un THREE.Box3 (con margine) ---- */
@@ -4480,13 +4625,681 @@ $("btnSectionBox").addEventListener("click", () => {
   const _olf = loadIfcFiles;
   loadIfcFiles = async function(files) {
     await _olf(files);
-    if (sectionBoxOn) _applySbClipping();
+    if (sectionBoxOn || (typeof ALNSEC !== "undefined" && ALNSEC.on)) _applyClipping();
   };
 }
 
+/* ============================ Alignment IFC4x3 — overlay 3D (v1.9.7) ============================
+   FASE 1: visualizza gli IfcAlignment come polilinea 3D rossa (planimetria + profilo).
+   La lettura usa un parser STEP dedicato (robusto su export non standard, già validato nel
+   tool LandXML del sito); il posizionamento riusa la georeferenziazione A del modello e
+   l'origine condivisa worldOriginMap, SENZA toccare la catena di trasformazione invariante.
+   Coordinate IFC (unità file) → ×unitFactor (metri) → ×A (mappa Z-up) → ribasate su O e
+   swizzle Z-up→Y-up, identico al percorso dei vertici mesh. */
+const ALIGN = { color: 0xff1422, objs: [], active: null };
+
+/* --- parser STEP minimale, limitato alle entità alignment --- */
+const _ALN_TYPES = "IFCALIGNMENTHORIZONTALSEGMENT|IFCALIGNMENTVERTICALSEGMENT|IFCALIGNMENTHORIZONTAL|IFCALIGNMENTVERTICAL|IFCALIGNMENTSEGMENT|IFCALIGNMENT|IFCRELNESTS|IFCRELAGGREGATES";
+/* Scansione a blocchi del Uint8Array: evita di costruire un'unica stringa enorme
+   (TextDecoder lancia oltre il limite V8 ~512 MB → falliva sui file >500 MB).
+   Finestre da 48 MB con 2 MB di sovrapposizione (≥ lunghezza max di un'entità) → ogni
+   entità è interamente contenuta in almeno una finestra; il dedup avviene per id (Map). */
+function _alnEachChunk(data, fn) {
+  if (typeof data === "string") { fn(data); return; }
+  const CHUNK = 48 * 1024 * 1024, OVL = 2 * 1024 * 1024;
+  const dec = new TextDecoder("utf-8");
+  if (data.length <= CHUNK + OVL) { fn(dec.decode(data)); return; }
+  for (let start = 0; start < data.length; start += CHUNK) {
+    const end = Math.min(data.length, start + CHUNK + OVL);
+    fn(dec.decode(data.subarray(start, end)));
+    if (end >= data.length) break;
+  }
+}
+/* Guard a livello byte: c'è "IFCALIGNMENT" nel file? (niente decode dell'intero file
+   per i comuni IFC architettonici senza alignment). */
+function _alnHasKw(data) {
+  if (typeof data === "string") return data.indexOf("IFCALIGNMENT") !== -1;
+  const P = [73, 70, 67, 65, 76, 73, 71, 78, 77, 69, 78, 84]; // "IFCALIGNMENT"
+  const n = data.length - P.length;
+  for (let i = 0; i < n; i++) {
+    if (data[i] !== 73) continue;
+    let ok = true;
+    for (let j = 1; j < P.length; j++) if (data[i + j] !== P[j]) { ok = false; break; }
+    if (ok) return true;
+  }
+  return false;
+}
+function _alnExtractData(data) {
+  const ents = new Map();
+  const src = "#(\\d+)\\s*=\\s*(" + _ALN_TYPES + ")\\b\\s*\\(([^;]*)\\)\\s*;";
+  _alnEachChunk(data, (txt) => {
+    const re = new RegExp(src, "gi"); let m;
+    while ((m = re.exec(txt)) !== null) ents.set(+m[1], { type: m[2].toUpperCase(), raw: m[3] });
+  });
+  return ents;
+}
+function _alnSplit(s) {
+  const out = []; let depth = 0, inStr = false, cur = "";
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inStr) { if (ch === "'") { if (s[i + 1] === "'") { cur += "''"; i++; } else { inStr = false; cur += ch; } } else cur += ch; }
+    else if (ch === "'") { inStr = true; cur += ch; }
+    else if (ch === "(") { depth++; cur += ch; }
+    else if (ch === ")") { depth--; cur += ch; }
+    else if (ch === "," && depth === 0) { out.push(cur.trim()); cur = ""; }
+    else cur += ch;
+  }
+  if (cur.trim() !== "") out.push(cur.trim());
+  return out;
+}
+function _alnArgs(e) { if (!e.args) e.args = _alnSplit(e.raw); return e.args; }
+function _alnRef(a) { return (a && a[0] === "#") ? +a.slice(1) : null; }
+function _alnStr(a) { return (a && a.length >= 2 && a[0] === "'" && a[a.length - 1] === "'") ? a.slice(1, -1).replace(/''/g, "'") : null; }
+function _alnEnum(a) { const m = /^\.([^.]*)\.$/.exec(a || ""); return m ? m[1] : null; }
+function _alnNum(a) { if (a == null) return 0; a = a.trim(); if (a === "$" || a === "*" || a === "") return 0; const v = Number(a); return isFinite(v) ? v : 0; }
+function _alnList(a) { if (!a || a[0] !== "(") return []; return _alnSplit(a.slice(1, -1)); }
+function _alnPointsData(data, ids) {
+  const map = new Map(); if (!ids.size) return map;
+  const list = [...ids].sort((a, b) => b - a);
+  const src = "#(" + list.join("|") + ")\\s*=\\s*IFCCARTESIANPOINT\\s*\\(([^;]*)\\)\\s*;";
+  _alnEachChunk(data, (txt) => {
+    const re = new RegExp(src, "gi"); let m;
+    while ((m = re.exec(txt)) !== null) { if (map.has(+m[1])) continue; const a = _alnSplit(m[2]); const c = _alnList(a[0]); map.set(+m[1], [_alnNum(c[0]), _alnNum(c[1])]); }
+  });
+  return map;
+}
+
+/* --- campionamento geometrico (planimetria + profilo) --- */
+function _alnHeightAt(vsegs, s) {
+  if (!vsegs.length) return 0;
+  for (const v of vsegs) {
+    if (s >= v.sta - 1e-6 && s <= v.sta + v.L + 1e-6) {
+      const ds = s - v.sta;
+      if (v.t === "PARABOLICARC" || v.t === "CIRCULARARC") return v.h + v.g0 * ds + (v.g1 - v.g0) / (2 * v.L) * ds * ds;
+      return v.h + v.g0 * ds;
+    }
+  }
+  const f = vsegs[0]; if (s < f.sta) return f.h + f.g0 * (s - f.sta);
+  const l = vsegs[vsegs.length - 1]; const ds = s - l.sta;
+  if (l.t === "PARABOLICARC" || l.t === "CIRCULARARC") return l.h + l.g0 * ds + (l.g1 - l.g0) / (2 * l.L) * ds * ds;
+  return l.h + l.g0 * ds;
+}
+function _alnSampleH(hsegs, ds) {
+  const pts = []; let sta = 0;
+  for (const seg of hsegs) {
+    const L = seg.length; const n = Math.max(2, Math.ceil(L / ds));
+    const t = seg.ptype;
+    if (t === "LINE" || t === "STRAIGHT") {
+      for (let i = 0; i <= n; i++) { const u = L * i / n; pts.push({ x: seg.start[0] + u * Math.cos(seg.theta), y: seg.start[1] + u * Math.sin(seg.theta), s: sta + u, dir: seg.theta }); }
+    } else if (t === "CIRCULARARC" || t === "ARC" || t === "CIRCULAR") {
+      const ref = seg.r0 !== 0 ? seg.r0 : seg.r1; const R = Math.abs(ref); const sign = ref > 0 ? 1 : -1;
+      const cx = seg.start[0] - Math.sin(seg.theta) * R * sign, cy = seg.start[1] + Math.cos(seg.theta) * R * sign;
+      const dx0 = seg.start[0] - cx, dy0 = seg.start[1] - cy;
+      for (let i = 0; i <= n; i++) { const u = L * i / n; const dphi = sign * (u / R);
+        pts.push({ x: cx + dx0 * Math.cos(dphi) - dy0 * Math.sin(dphi), y: cy + dx0 * Math.sin(dphi) + dy0 * Math.cos(dphi), s: sta + u, dir: seg.theta + dphi }); }
+    } else { // CLOTHOID / SPIRAL / TRANSITION — integrazione numerica
+      const k0 = seg.r0 !== 0 ? 1 / seg.r0 : 0, k1 = seg.r1 !== 0 ? 1 / seg.r1 : 0;
+      const dk = L !== 0 ? (k1 - k0) / L : 0; const step = L / n;
+      let x = seg.start[0], y = seg.start[1], th = seg.theta, sl = 0;
+      pts.push({ x, y, s: sta, dir: th });
+      for (let i = 0; i < n; i++) { const k = k0 + dk * (sl + step / 2); const thm = th + k * (step / 2);
+        x += step * Math.cos(thm); y += step * Math.sin(thm); th += k * step; sl += step; pts.push({ x, y, s: sta + sl, dir: th }); }
+    }
+    sta += L;
+  }
+  return pts;
+}
+
+/* --- costruzione overlay 3D --- */
+const _alnTmp = new THREE.Vector3();
+function _alnToWorld(x, y, z, A, O, uf, out) {
+  out.set(x * uf, y * uf, z * uf).applyMatrix4(A);            // unità file → metri → mappa Z-up
+  return out.set(out.x - O.x, out.z - O.z, -(out.y - O.y));   // ribasa su O + swizzle Z-up → Y-up
+}
+function _alnBuild(model, ad) {
+  const A = model.A, uf = model.unitFactor || 1;
+  const hpts = _alnSampleH(ad.hsegs, 1.0); if (!hpts.length) return null;
+  if (worldOriginMap === null) {                               // modello senza geometria: origine dal 1° punto
+    const p = _alnTmp.set(hpts[0].x * uf, hpts[0].y * uf, _alnHeightAt(ad.vsegs, hpts[0].s) * uf).applyMatrix4(A);
+    worldOriginMap = new THREE.Vector3(Math.round(p.x), Math.round(p.y), Math.round(p.z));
+  }
+  const O = worldOriginMap;
+  const positions = [], world = [], profile = [], tmp = new THREE.Vector3();
+  for (const p of hpts) {
+    const z = _alnHeightAt(ad.vsegs, p.s);
+    _alnToWorld(p.x, p.y, z, A, O, uf, tmp);
+    positions.push(tmp.x, tmp.y, tmp.z); world.push(tmp.clone());
+    profile.push({ s: p.s * uf, z: z * uf });   // progressiva e quota in METRI (per il grafico)
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  const mat = new THREE.LineBasicMaterial({ color: ALIGN.color, depthTest: false, transparent: true });
+  const line = new THREE.Line(g, mat);
+  line.renderOrder = 998; line.frustumCulled = false; line.visible = true;
+  rootGroup.add(line);
+  const length = profile.length ? profile[profile.length - 1].s : 0;
+  return { model, line, name: ad.name, profile, length, world, _visible: true };
+}
+
+/* --- entry point: chiamato da buildModel --- */
+function extractAlignments(model, data) {
+  if (!_alnHasKw(data)) return;   // nessun alignment nel file (es. IFC architettonico): esci subito
+  let ents;
+  try { ents = _alnExtractData(data); } catch (e) { console.warn("[APE Viewer] alignment: scansione fallita:", e); return; }
+  const aligns = [];
+  for (const [id, e] of ents) if (e.type === "IFCALIGNMENT") aligns.push(id);
+  if (!aligns.length) return;
+
+  /* Mappa di decomposizione: segue SIA IfcRelNests SIA IfcRelAggregates. Lo standard IFC4x3
+     usa IfcRelNests per alignment→layout→segmenti, ma alcuni export (es. SierraSoft) annidano
+     con IfcRelAggregates: unirle rende il parser robusto sugli export reali. */
+  const decomp = new Map();
+  for (const e of ents.values()) {
+    if (e.type !== "IFCRELNESTS" && e.type !== "IFCRELAGGREGATES") continue;
+    const a = _alnArgs(e); const r = _alnRef(a[4]); if (r == null) continue;
+    decomp.set(r, (decomp.get(r) || []).concat(_alnList(a[5]).map(_alnRef).filter(x => x != null)));
+  }
+  /* Segmenti di un layout: gestisce sia IfcAlignmentSegment(→DesignParameters) sia il
+     segmento di geometria annidato direttamente (export non standard, come nel Python originale). */
+  const layoutSegs = (layoutId, want) => {
+    const out = [];
+    for (const sid of (decomp.get(layoutId) || [])) {
+      const s = ents.get(sid); if (!s) continue;
+      if (s.type === "IFCALIGNMENTSEGMENT") { const dp = ents.get(_alnRef(_alnArgs(s)[7])); if (dp && dp.type === want) out.push(dp); }
+      else if (s.type === want) out.push(s);
+    }
+    return out;
+  };
+
+  const need = new Set(); const built = [];
+  for (let i = 0; i < aligns.length; i++) {
+    const id = aligns[i];
+    const name = _alnStr(_alnArgs(ents.get(id))[2]) || ("Alignment " + (i + 1));
+    const hP = [], vP = [];
+    for (const cid of (decomp.get(id) || [])) {
+      const c = ents.get(cid); if (!c) continue;
+      if (c.type === "IFCALIGNMENTHORIZONTAL") for (const dp of layoutSegs(cid, "IFCALIGNMENTHORIZONTALSEGMENT")) hP.push(dp);
+      else if (c.type === "IFCALIGNMENTVERTICAL") for (const dp of layoutSegs(cid, "IFCALIGNMENTVERTICALSEGMENT")) vP.push(dp);
+    }
+    for (const dp of hP) { const pid = _alnRef(_alnArgs(dp)[2]); if (pid != null) need.add(pid); }
+    built.push({ id, name, hP, vP });
+  }
+  const pmap = _alnPointsData(data, need);
+
+  let okCount = 0, noPoint = 0;
+  for (const b of built) {
+    const hsegs = [];
+    for (const dp of b.hP) { const a = _alnArgs(dp); const pt = pmap.get(_alnRef(a[2])); if (!pt) continue;
+      hsegs.push({ start: pt, theta: _alnNum(a[3]), r0: _alnNum(a[4]), r1: _alnNum(a[5]), length: _alnNum(a[6]), ptype: (_alnEnum(a[8]) || "LINE").toUpperCase() }); }
+    if (!hsegs.length) { if (b.hP.length) noPoint++; continue; }
+    const vsegs = [];
+    for (const dp of b.vP) { const a = _alnArgs(dp);
+      vsegs.push({ sta: _alnNum(a[2]), L: _alnNum(a[3]), h: _alnNum(a[4]), g0: _alnNum(a[5]), g1: _alnNum(a[6]), t: (_alnEnum(a[8]) || "CONSTANTGRADIENT").toUpperCase() }); }
+    const obj = _alnBuild(model, { name: b.name, hsegs, vsegs });
+    if (obj) { ALIGN.objs.push(obj); (model.alignObjs || (model.alignObjs = [])).push(obj); okCount++; }
+  }
+
+  /* diagnostica: utile per adattarsi agli export reali (handoff §5.2) */
+  console.info(`[APE Viewer] alignment: ${aligns.length} assi nel file · ${okCount} con geometria estratta` + (noPoint ? ` · ${noPoint} senza punti risolti` : ""));
+  if (!okCount && aligns.length) {
+    const id0 = aligns[0];
+    const kids = (decomp.get(id0) || []).map(k => { const e = ents.get(k); return e ? e.type : ("#" + k + "?"); });
+    let layoutKids = [];
+    for (const cid of (decomp.get(id0) || [])) { const c = ents.get(cid); if (c && (c.type === "IFCALIGNMENTHORIZONTAL" || c.type === "IFCALIGNMENTVERTICAL")) { layoutKids = (decomp.get(cid) || []).map(k => { const e = ents.get(k); return e ? e.type : ("#" + k + "?"); }); break; } }
+    console.warn("[APE Viewer] alignment DIAG · 1° asse #" + id0 + " · figli:", kids.length ? kids : "(nessuno: layout non annidati via IfcRelNests/IfcRelAggregates)", "· figli del 1° layout:", layoutKids.length ? layoutKids : "(nessuno)");
+  }
+  updateAlignUI();
+}
+
+/* --- UI: selettore asse (tendina) + finestra profilo altimetrico --- */
+function _alnEsc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function _alnFmtSta(s) { const km = Math.floor(s / 1000); const m = Math.round(s - km * 1000); return km + "+" + String(Math.abs(m)).padStart(3, "0"); }
+function _alnZat(prof, s) {
+  if (s <= prof[0].s) return prof[0].z;
+  if (s >= prof[prof.length - 1].s) return prof[prof.length - 1].z;
+  let lo = 0, hi = prof.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (prof[m].s <= s) lo = m; else hi = m; }
+  const a = prof[lo], b = prof[hi]; const t = (s - a.s) / ((b.s - a.s) || 1); return a.z + (b.z - a.z) * t;
+}
+
+function updateAlignUI() {
+  const btn = $("btnAlign"); if (!btn) return;
+  const has = ALIGN.objs.length > 0;
+  btn.style.display = has ? "" : "none";
+  btn.classList.toggle("al-on", has && ALIGN.objs.some(o => o._visible));
+  if (!has) { closeAlignMenu(); closeProfile(); }
+  renderAlignMenu();
+  if (MINI.on) renderMinimap();
+}
+function renderAlignMenu() {
+  const menu = $("alignMenu"); if (!menu) return;
+  const rows = ALIGN.objs.map((o, i) =>
+    `<div class="aln-row${o === ALIGN.active ? " active" : ""}" data-i="${i}">` +
+    `<input type="checkbox" class="aln-vis"${o._visible ? " checked" : ""} title="${tr('align.show')}">` +
+    `<span class="aln-sw"></span>` +
+    `<span class="aln-name" title="${_alnEsc(o.name)}">${_alnEsc(o.name)}</span>` +
+    `<button class="aln-prof" title="${tr('align.profileBtn')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M19 8l-5 6-4-3-4 5"/></svg></button>` +
+    `</div>`).join("");
+  menu.innerHTML =
+    `<div class="aln-hd"><span>${tr('align.menuHd')}</span>` +
+    `<button data-act="all">${tr('align.all')}</button><button data-act="none">${tr('align.none')}</button></div>` +
+    (rows || `<div class="aln-row"><span class="aln-name">${tr('align.empty')}</span></div>`);
+  menu.querySelectorAll(".aln-vis").forEach(cb => cb.addEventListener("change", e => {
+    toggleAxis(ALIGN.objs[+e.target.closest(".aln-row").dataset.i], e.target.checked);
+  }));
+  menu.querySelectorAll(".aln-name, .aln-prof").forEach(el => el.addEventListener("click", e => {
+    const row = e.target.closest(".aln-row"); if (!row || row.dataset.i === undefined) return;
+    setActiveAlignment(ALIGN.objs[+row.dataset.i]);
+  }));
+  menu.querySelectorAll(".aln-hd button").forEach(b => b.addEventListener("click", () => {
+    const on = b.dataset.act === "all"; for (const o of ALIGN.objs) toggleAxis(o, on);
+  }));
+}
+function toggleAxis(o, on) {
+  o._visible = on; o.line.visible = on;
+  $("btnAlign").classList.toggle("al-on", ALIGN.objs.some(x => x._visible));
+  const cb = $("alignMenu").querySelector(`.aln-row[data-i="${ALIGN.objs.indexOf(o)}"] .aln-vis`);
+  if (cb) cb.checked = on;
+}
+function openAlignMenu() {
+  const btn = $("btnAlign"), menu = $("alignMenu"), wrap = document.getElementById("viewportWrap");
+  renderAlignMenu();
+  const r = btn.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
+  menu.style.left = Math.max(8, r.left - wr.left) + "px";
+  menu.style.top = (r.bottom - wr.top + 6) + "px";
+  menu.hidden = false; btn.setAttribute("aria-expanded", "true");
+}
+function closeAlignMenu() { const m = $("alignMenu"); if (m) m.hidden = true; const b = $("btnAlign"); if (b) b.setAttribute("aria-expanded", "false"); }
+function toggleAlignMenu() { const m = $("alignMenu"); if (m.hidden) openAlignMenu(); else closeAlignMenu(); }
+
+function setActiveAlignment(o) {
+  if (ALNSEC.on && ALNSEC.obj !== o) setAlnSection(false);   // cambio asse → spegni la sezione precedente
+  ALIGN.active = o;
+  if (!o._visible) toggleAxis(o, true);   // selezionare un asse lo mostra anche in 3D
+  renderAlignMenu();
+  $("profileTitle").textContent = o.name;
+  $("profileMeta").textContent = "L = " + o.length.toFixed(1) + " m";
+  $("profilePanel").hidden = false;
+  renderProfile(o);
+  if (MINI.on) renderMinimap();          // nuovo asse attivo → ridisegna la minimap (evidenzia + sezione)
+  closeAlignMenu();
+}
+function closeProfile() { stopAlnSection(); setMinimap(false); const p = $("profilePanel"); if (p) p.hidden = true; }
+
+/* ============================ FASE 3 — sezione ortogonale all'asse ============================
+   Slab di 2 clipping plane ⟂ alla tangente dell'asse attivo, agganciata a una progressiva.
+   Riusa l'infrastruttura di clipping del section box (_applyClipping). Si sposta trascinando
+   il rettangolo rosso in 3D oppure trascinando lungo il profilo altimetrico. */
+const ALNSEC = { on: false, obj: null, s: 0, thickness: 8, mode: "clip", side: 1,
+  planes: [new THREE.Plane(), new THREE.Plane()], activePlanes: [], group: null, pickMesh: null };
+let _pfMap = null;                       // mappa schermo↔progressiva del profilo correntemente disegnato
+const _alnSecLineMat  = new THREE.LineBasicMaterial({ color: ALIGN.color, depthTest: false, transparent: true, opacity: 0.95 });
+const _alnSecLineFaint = new THREE.LineBasicMaterial({ color: ALIGN.color, depthTest: false, transparent: true, opacity: 0.4 });
+const _alnSecFillMat  = new THREE.MeshBasicMaterial({ color: ALIGN.color, side: THREE.DoubleSide, transparent: true, opacity: 0.09, depthTest: false, depthWrite: false });
+const _alnSecArrowMat = new THREE.MeshBasicMaterial({ color: ALIGN.color, depthTest: false, transparent: true, opacity: 0.92 });
+const _alnSecArrowGeo = new THREE.ConeGeometry(0.5, 1.5, 14);
+
+/* posizione 3D (world Y-up) sull'asse alla progressiva s — interpola world[] su profile[].s */
+function _alnPosAt(o, s) {
+  const prof = o.profile, world = o.world, n = prof.length;
+  if (s <= prof[0].s) return world[0].clone();
+  if (s >= prof[n - 1].s) return world[n - 1].clone();
+  let lo = 0, hi = n - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (prof[m].s <= s) lo = m; else hi = m; }
+  const t = (s - prof[lo].s) / ((prof[hi].s - prof[lo].s) || 1);
+  return world[lo].clone().lerp(world[hi], t);
+}
+/* tangente orizzontale (x,0,z) normalizzata alla progressiva s */
+function _alnTangentAt(o, s) {
+  const prof = o.profile, world = o.world, n = prof.length;
+  let lo, hi;
+  if (s <= prof[0].s) { lo = 0; hi = 1; }
+  else if (s >= prof[n - 1].s) { lo = n - 2; hi = n - 1; }
+  else { lo = 0; hi = n - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (prof[m].s <= s) lo = m; else hi = m; } }
+  const a = world[lo], b = world[hi];
+  const t = new THREE.Vector3(b.x - a.x, 0, b.z - a.z);
+  if (t.lengthSq() < 1e-9) t.set(1, 0, 0);
+  return t.normalize();
+}
+function _alnSecEnsureGroup() {
+  if (!ALNSEC.group) { const g = new THREE.Group(); g.renderOrder = 999; scene.add(g); ALNSEC.group = g; }
+  ALNSEC.group.visible = true;
+}
+/* rettangolo rosso ⟂ alla tangente (cornice + riempimento per il pick), box di profondità in
+   modalità "fetta", e una piccola doppia-freccia di scorrimento in un angolo (non invasiva). */
+function _alnSecVisual(P, T) {
+  const g = ALNSEC.group; if (!g) return;
+  for (const c of g.children.slice()) { g.remove(c); if (c.geometry && c.userData.disp) c.geometry.dispose(); }
+  const gb = computeGlobalBox();
+  let yBot, yTop, half;
+  if (!gb.isEmpty()) {
+    const sz = gb.getSize(new THREE.Vector3());
+    const mY = Math.max(sz.y * 0.05, 1);
+    yBot = gb.min.y - mY; yTop = gb.max.y + mY;
+    half = Math.min(Math.max(sz.length() * 0.03, 10), 80);
+  } else { yBot = P.y - 15; yTop = P.y + 15; half = 20; }
+  const L = new THREE.Vector3(-T.z, 0, T.x);
+  const cor = (lat, y) => new THREE.Vector3(P.x + L.x * half * lat, y, P.z + L.z * half * lat);
+  const c1 = cor(1, yBot), c2 = cor(1, yTop), c3 = cor(-1, yTop), c4 = cor(-1, yBot);
+  /* box di profondità della fetta (faccia opposta a distanza thickness verso il lato scelto) */
+  if (ALNSEC.mode === "slab") {
+    const off = T.clone().multiplyScalar(ALNSEC.side * ALNSEC.thickness);
+    const d1 = c1.clone().add(off), d2 = c2.clone().add(off), d3 = c3.clone().add(off), d4 = c4.clone().add(off);
+    const bg = new THREE.BufferGeometry().setFromPoints([
+      d1, d2, d2, d3, d3, d4, d4, d1,          // cornice faccia opposta
+      c1, d1, c2, d2, c3, d3, c4, d4]);         // connettori
+    const box = new THREE.LineSegments(bg, _alnSecLineFaint); box.renderOrder = 998; box.frustumCulled = false; box.userData.disp = true; g.add(box);
+  }
+  /* cornice + riempimento sul piano di sezione (il riempimento è il bersaglio del drag) */
+  const fg = new THREE.BufferGeometry().setFromPoints([c1, c2, c3, c4, c1]);
+  const frame = new THREE.Line(fg, _alnSecLineMat); frame.renderOrder = 999; frame.frustumCulled = false; frame.userData.disp = true; g.add(frame);
+  const pg = new THREE.BufferGeometry();
+  pg.setAttribute("position", new THREE.Float32BufferAttribute([
+    c1.x, c1.y, c1.z, c2.x, c2.y, c2.z, c3.x, c3.y, c3.z,
+    c1.x, c1.y, c1.z, c3.x, c3.y, c3.z, c4.x, c4.y, c4.z], 3));
+  const fill = new THREE.Mesh(pg, _alnSecFillMat); fill.renderOrder = 998; fill.frustumCulled = false; fill.userData.disp = true; g.add(fill);
+  ALNSEC.pickMesh = fill;
+  /* piccola doppia-freccia di scorrimento (±tangente) nell'angolo in alto, dimensionata sul piano */
+  const aSize = Math.max(half * 0.045, 0.4);
+  const cb = new THREE.Vector3(P.x + L.x * half * 0.82, yTop - (yTop - yBot) * 0.07, P.z + L.z * half * 0.82);
+  for (const sgn of [1, -1]) {
+    const cone = new THREE.Mesh(_alnSecArrowGeo, _alnSecArrowMat);
+    cone.position.set(cb.x + T.x * sgn * aSize * 1.9, cb.y, cb.z + T.z * sgn * aSize * 1.9);
+    cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), T.clone().multiplyScalar(sgn));
+    cone.scale.setScalar(aSize); cone.renderOrder = 1000; cone.frustumCulled = false; g.add(cone);
+  }
+}
+/* aggiorna i piani attivi + visuale + clipping + marcatore sul profilo, alla progressiva s.
+   - mode "clip": 1 piano → tieni il semispazio dal lato scelto (vedi il resto del tracciato).
+   - mode "slab": 2 piani → fetta con UNA faccia coincidente col piano di sezione (T·X = d),
+     estesa di `thickness` verso il lato scelto.
+   `side` (+1/−1) sceglie quale lato; il pulsante "inverti lato" lo cambia di segno. */
+function updateAlnSection(s) {
+  const o = ALNSEC.obj; if (!o) return;
+  s = Math.max(0, Math.min(o.length, s)); ALNSEC.s = s;
+  const P = _alnPosAt(o, s), T = _alnTangentAt(o, s), d = T.dot(P), side = ALNSEC.side;
+  const N = T.clone().multiplyScalar(side);                 // normale del lato "tenuto"
+  if (ALNSEC.mode === "slab") {
+    const t = ALNSEC.thickness;
+    ALNSEC.planes[0].set(N, -side * d);                     // faccia sul piano: tieni side·(T·X) ≥ side·d
+    ALNSEC.planes[1].set(N.clone().negate(), side * d + t); // faccia opposta a distanza t
+    ALNSEC.activePlanes = [ALNSEC.planes[0], ALNSEC.planes[1]];
+  } else {
+    ALNSEC.planes[0].set(N, -side * d);                     // un solo semipiano dal lato scelto
+    ALNSEC.activePlanes = [ALNSEC.planes[0]];
+  }
+  _alnSecVisual(P, T);
+  _applyClipping();
+  _pfPlaceCut();
+  _miniPlaceCut();
+}
+function _alnSecSyncControls() {
+  const on = ALNSEC.on, slab = ALNSEC.mode === "slab";
+  const btn = $("profileSection"); if (btn) btn.classList.toggle("on", on);
+  const seg = $("profileMode"); if (seg) { seg.hidden = !on; seg.querySelectorAll(".pf-seg-b").forEach(b => b.classList.toggle("on", b.dataset.mode === ALNSEC.mode)); }
+  const flip = $("profileFlip"); if (flip) flip.hidden = !on;
+  const tw = $("profileThickWrap"); if (tw) tw.hidden = !(on && slab);
+  const chart = $("profileChart"); if (chart) chart.classList.toggle("alnsec-on", on);
+}
+function setAlnSection(on) {
+  const o = ALIGN.active;
+  if (on && !o) return;
+  ALNSEC.on = on;
+  if (on) {
+    ALNSEC.obj = o;
+    const th = parseFloat($("profileThick").value); if (isFinite(th) && th > 0) ALNSEC.thickness = th;
+    if (!(ALNSEC.s > 0 && ALNSEC.s < o.length)) ALNSEC.s = o.length / 2;   // default: metà tracciato
+    _alnSecSyncControls();
+    _alnSecEnsureGroup();
+    updateAlnSection(ALNSEC.s);
+  } else {
+    if (ALNSEC.group) ALNSEC.group.visible = false;
+    ALNSEC.obj = null; ALNSEC.pickMesh = null;
+    _alnSecSyncControls();
+    _applyClipping();
+    _pfPlaceCut();
+  }
+}
+function setAlnSecMode(mode) {
+  if (mode !== "clip" && mode !== "slab") return;
+  ALNSEC.mode = mode;
+  _alnSecSyncControls();
+  if (ALNSEC.on) updateAlnSection(ALNSEC.s);
+}
+function flipAlnSecSide() { ALNSEC.side = -ALNSEC.side; if (ALNSEC.on) updateAlnSection(ALNSEC.s); }
+function stopAlnSection() { if (ALNSEC.on) setAlnSection(false); }
+
+/* marcatore rosso trascinabile sul profilo: posizionato dalla mappa _pfMap del profilo corrente */
+function _pfPlaceCut() {
+  const host = $("profileChart"); const cut = host && host.querySelector(".pf-cut");
+  if (!cut) return;
+  if (!ALNSEC.on || !_pfMap || _pfMap.o !== ALNSEC.obj || _pfMap.o !== ALIGN.active) { cut.style.display = "none"; return; }
+  const m = _pfMap, s = Math.max(m.sMin, Math.min(m.sMax, ALNSEC.s));
+  const z = _alnZat(m.o.profile, s), x = m.X(s), y = m.Y(z);
+  const ln = cut.querySelector("line"), cc = cut.querySelector("circle"), rect = cut.querySelector("rect"),
+        txt = cut.querySelector("text"), aL = cut.querySelector(".pf-aL"), aR = cut.querySelector(".pf-aR");
+  ln.setAttribute("x1", x.toFixed(1)); ln.setAttribute("x2", x.toFixed(1));
+  cc.setAttribute("cx", x.toFixed(1)); cc.setAttribute("cy", y.toFixed(1));
+  const label = _alnFmtSta(s) + "  ·  " + z.toFixed(2) + " m";
+  const tw = label.length * 6.2 + 16, tx = Math.min(m.W - m.padR - tw, Math.max(m.padL, x - tw / 2)), ty = m.padT + 2;
+  rect.setAttribute("x", tx.toFixed(1)); rect.setAttribute("y", ty.toFixed(1)); rect.setAttribute("width", tw.toFixed(1));
+  txt.textContent = label; txt.setAttribute("x", (tx + tw / 2).toFixed(1)); txt.setAttribute("y", (ty + 12).toFixed(1));
+  aL.setAttribute("d", `M${(tx - 6).toFixed(1)} ${(ty + 8.5).toFixed(1)} l7 -4 l0 8 z`);
+  aR.setAttribute("d", `M${(tx + tw + 6).toFixed(1)} ${(ty + 8.5).toFixed(1)} l-7 -4 l0 8 z`);
+  cut.style.display = "";
+}
+
+/* ============================ v2.0.0 — minimap dei tracciati (vista dall'alto) ============================
+   Pannello a fianco del profilo: planimetria di TUTTI gli assi (proiezione world x↔z, scala isometrica),
+   asse attivo in rosso, + traccia della sezione corrente (linea ⟂ alla tangente + punto). */
+const MINI = { on: false, width: null };
+let _miniMap = null;                      // { PX, PY, scale } trasformazione world(plan)→schermo
+function renderMinimap() {
+  const host = $("profileMiniChart"); if (!host) return;
+  const W = host.clientWidth || 300, H = host.clientHeight || 150;
+  const objs = ALIGN.objs.filter(o => o.world && o.world.length > 1);
+  const focus = (ALIGN.active && ALIGN.active.world && ALIGN.active.world.length > 1) ? ALIGN.active : objs[0];
+  if (!objs.length || !focus) { host.innerHTML = `<svg width="${W}" height="${H}"><text class="pf-empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">${tr('mini.nodata')}</text></svg>`; _miniMap = null; return; }
+  /* inquadratura SOLO sul tracciato attivo (così una rampa piccola è zoomata, non minuscola
+     rispetto all'intero modello); gli altri assi restano disegnati come contesto e vengono
+     ritagliati dalla viewport dell'SVG. Margine del 12% attorno all'asse attivo. */
+  let xmin = Infinity, xmax = -Infinity, zmin = Infinity, zmax = -Infinity;
+  for (const p of focus.world) { if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.z < zmin) zmin = p.z; if (p.z > zmax) zmax = p.z; }
+  const mX = (xmax - xmin) * 0.12 + 1, mZ = (zmax - zmin) * 0.12 + 1;
+  xmin -= mX; xmax += mX; zmin -= mZ; zmax += mZ;
+  const pad = 12, plotW = Math.max(10, W - 2 * pad), plotH = Math.max(10, H - 2 * pad);
+  const dx = Math.max(xmax - xmin, 1e-3), dz = Math.max(zmax - zmin, 1e-3);
+  const scale = Math.min(plotW / dx, plotH / dz);     // scala isometrica (planimetria non distorta)
+  const offX = pad + (plotW - dx * scale) / 2, offY = pad + (plotH - dz * scale) / 2;
+  const PX = x => offX + (x - xmin) * scale, PY = z => offY + (z - zmin) * scale;
+  let paths = "";
+  for (const o of objs) {
+    const w = o.world, n = w.length, step = Math.max(1, Math.floor(n / 500));
+    let d = "";
+    for (let i = 0; i < n; i += step) d += (d ? "L" : "M") + PX(w[i].x).toFixed(1) + " " + PY(w[i].z).toFixed(1);
+    d += "L" + PX(w[n - 1].x).toFixed(1) + " " + PY(w[n - 1].z).toFixed(1);
+    paths += `<path class="mini-path${o === ALIGN.active ? " act" : ""}" d="${d}"/>`;
+  }
+  host.innerHTML = `<svg width="${W}" height="${H}">${paths}<g class="mini-cut" style="display:none"><line/><circle r="3.4"/></g></svg>`;
+  _miniMap = { PX, PY, scale };
+  _miniPlaceCut();
+}
+/* traccia della sezione sulla minimap: linea ⟂ alla tangente (lato = larghezza in pixel) + punto */
+function _miniPlaceCut() {
+  const host = $("profileMiniChart"); const cut = host && host.querySelector(".mini-cut");
+  if (!cut) return;
+  const o = ALNSEC.obj;
+  if (!ALNSEC.on || !_miniMap || !o || o !== ALIGN.active) { cut.style.display = "none"; return; }
+  const P = _alnPosAt(o, ALNSEC.s), T = _alnTangentAt(o, ALNSEC.s), wlen = 14 / _miniMap.scale;
+  const ln = cut.querySelector("line"), cc = cut.querySelector("circle");
+  ln.setAttribute("x1", _miniMap.PX(P.x - T.z * wlen).toFixed(1)); ln.setAttribute("y1", _miniMap.PY(P.z + T.x * wlen).toFixed(1));
+  ln.setAttribute("x2", _miniMap.PX(P.x + T.z * wlen).toFixed(1)); ln.setAttribute("y2", _miniMap.PY(P.z - T.x * wlen).toFixed(1));
+  cc.setAttribute("cx", _miniMap.PX(P.x).toFixed(1)); cc.setAttribute("cy", _miniMap.PY(P.z).toFixed(1));
+  cut.style.display = "";
+}
+function setMinimap(on) {
+  MINI.on = on;
+  const panel = $("profileMini"); if (panel) { panel.hidden = !on; if (on && MINI.width) panel.style.flexBasis = MINI.width + "px"; }
+  const btn = $("profileMiniBtn"); if (btn) btn.classList.toggle("on", on);
+  if (on) renderMinimap();
+  if (ALIGN.active && !$("profilePanel").hidden) renderProfile(ALIGN.active);  // larghezza grafico cambiata
+}
+function toggleMinimap() { setMinimap(!MINI.on); }
+
+/* --- resize del pannello minimap (drag sul bordo sinistro) --- */
+let _miniResizeDrag = null;
+function _miniResizeStart(e) {
+  e.preventDefault();
+  const panel = $("profileMini");
+  _miniResizeDrag = { rightEdge: panel.getBoundingClientRect().right, bodyW: panel.parentElement.clientWidth };
+  try { $("miniResize").setPointerCapture(e.pointerId); } catch (_) {}
+}
+function _miniResizeMove(e) {
+  if (!_miniResizeDrag) return;
+  const w = Math.max(200, Math.min(_miniResizeDrag.bodyW - 240, _miniResizeDrag.rightEdge - e.clientX));
+  $("profileMini").style.flexBasis = w + "px"; MINI.width = w;   // i ResizeObserver ridisegnano grafico+minimap
+}
+function _miniResizeEnd(e) { if (!_miniResizeDrag) return; _miniResizeDrag = null; try { $("miniResize").releasePointerCapture(e.pointerId); } catch (_) {} }
+
+/* --- click-to-jump: cerca il punto più vicino SOLO sull'asse attivo (niente cambio tracciato:
+   la selezione dell'asse resta quella dell'altimetria) → ci sposto (o ci attivo) la sezione --- */
+function _miniNearest(clientX, clientY) {
+  if (!_miniMap || !ALIGN.active) return null;
+  const o = ALIGN.active, w = o.world; if (!w || w.length < 2) return null;
+  const svg = $("profileMiniChart").querySelector("svg"); if (!svg) return null;
+  const r = svg.getBoundingClientRect(), px = clientX - r.left, py = clientY - r.top;
+  let bi = -1, bestD = Infinity;
+  const step = Math.max(1, Math.floor(w.length / 1500));
+  for (let i = 0; i < w.length; i += step) {
+    const dx = _miniMap.PX(w[i].x) - px, dy = _miniMap.PY(w[i].z) - py, d = dx * dx + dy * dy;
+    if (d < bestD) { bestD = d; bi = i; }
+  }
+  if (bi < 0 || bestD > 60 * 60) return null;          // clic troppo lontano dal tracciato → ignora
+  return { s: o.profile[bi].s };
+}
+function _miniClickJump(e) {
+  const hit = _miniNearest(e.clientX, e.clientY); if (!hit) return;
+  if (!ALNSEC.on) setAlnSection(true);                 // sezione spenta → la attiva sul punto
+  updateAlnSection(hit.s);
+}
+
+/* trascinamento della sezione in 3D: raycast sul rettangolo, spostamento proiettato sulla tangente */
+let _alnSecDrag = null;
+function _alnSecHit(cx, cy) {
+  if (!ALNSEC.on || !ALNSEC.pickMesh) return false;
+  const r = renderer.domElement.getBoundingClientRect();
+  _sbNdc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+  _sbRay.setFromCamera(_sbNdc, camera);
+  return _sbRay.intersectObject(ALNSEC.pickMesh, false).length > 0;
+}
+renderer.domElement.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0 || walkMode || sbDrag || !ALNSEC.on || !ALNSEC.obj) return;
+  if (_pickSbHandle(e.clientX, e.clientY) >= 0) return;       // priorità agli handle del section box
+  if (!_alnSecHit(e.clientX, e.clientY)) return;
+  const o = ALNSEC.obj, P = _alnPosAt(o, ALNSEC.s), T = _alnTangentAt(o, ALNSEC.s);
+  const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), P);
+  const r = renderer.domElement.getBoundingClientRect();
+  _sbNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  _sbRay.setFromCamera(_sbNdc, camera);
+  const startPt = new THREE.Vector3();
+  if (!_sbRay.ray.intersectPlane(plane, startPt)) return;
+  e.stopPropagation(); controls.enabled = false;
+  _alnSecDrag = { plane, T, startPt, startS: ALNSEC.s };
+  renderer.domElement.style.cursor = "grabbing";
+  try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {}
+}, { capture: true });
+renderer.domElement.addEventListener("pointermove", (e) => {
+  if (!_alnSecDrag) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  _sbNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  _sbRay.setFromCamera(_sbNdc, camera);
+  const pt = new THREE.Vector3();
+  if (!_sbRay.ray.intersectPlane(_alnSecDrag.plane, pt)) return;
+  const d = pt.sub(_alnSecDrag.startPt).dot(_alnSecDrag.T);
+  updateAlnSection(_alnSecDrag.startS + d);
+});
+renderer.domElement.addEventListener("pointerup", (e) => {
+  if (!_alnSecDrag) return;
+  _alnSecDrag = null; controls.enabled = !walkMode; renderer.domElement.style.cursor = "";
+  try { renderer.domElement.releasePointerCapture(e.pointerId); } catch (_) {}
+});
+/* hover: cursore "grab" sopra il rettangolo della sezione */
+renderer.domElement.addEventListener("pointermove", (e) => {
+  if (_alnSecDrag || sbDrag || walkMode || !ALNSEC.on) return;
+  if (_pickSbHandle(e.clientX, e.clientY) >= 0) return;
+  if (_alnSecHit(e.clientX, e.clientY)) renderer.domElement.style.cursor = "grab";
+});
+
+function renderProfile(o) {
+  const host = $("profileChart"); if (!host) return;
+  const prof = o.profile;
+  const W = host.clientWidth || 640, H = host.clientHeight || 150;
+  if (!prof || prof.length < 2) { host.innerHTML = `<svg width="${W}" height="${H}"><text class="pf-empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">${tr('profile.nodata')}</text></svg>`; return; }
+  const padL = 54, padR = 18, padT = 14, padB = 28;
+  const plotW = Math.max(10, W - padL - padR), plotH = Math.max(10, H - padT - padB);
+  const sMin = prof[0].s, sMax = prof[prof.length - 1].s;
+  let zMin = Infinity, zMax = -Infinity; for (const p of prof) { if (p.z < zMin) zMin = p.z; if (p.z > zMax) zMax = p.z; }
+  if (zMax - zMin < 1e-6) zMax = zMin + 1;
+  const dz = (zMax - zMin) * 0.12; zMin -= dz; zMax += dz;
+  const X = s => padL + (s - sMin) / ((sMax - sMin) || 1) * plotW;
+  const Y = z => padT + (1 - (z - zMin) / ((zMax - zMin) || 1)) * plotH;
+  let d = ""; for (let i = 0; i < prof.length; i++) d += (i ? "L" : "M") + X(prof[i].s).toFixed(1) + " " + Y(prof[i].z).toFixed(1);
+  let grid = "", labels = ""; const nY = 4, nX = 6;
+  for (let i = 0; i <= nY; i++) { const z = zMin + (zMax - zMin) * i / nY, y = Y(z); grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}"/>`; labels += `<text class="pf-yl" x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end">${z.toFixed(0)}</text>`; }
+  for (let i = 0; i <= nX; i++) { const s = sMin + (sMax - sMin) * i / nX, x = X(s); grid += `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${H - padB}"/>`; labels += `<text class="pf-xl" x="${x.toFixed(1)}" y="${(H - padB + 15).toFixed(1)}" text-anchor="middle">${_alnFmtSta(s)}</text>`; }
+  host.innerHTML = `<svg width="${W}" height="${H}">` +
+    `<g class="pf-grid">${grid}</g>` +
+    `<path class="pf-line" d="${d}"/>` + labels +
+    `<g class="pf-guide" style="display:none"><line y1="${padT}" y2="${H - padB}"/><circle r="3.2"/><rect rx="3" height="17"/><text></text></g>` +
+    `<g class="pf-cut" style="display:none"><line y1="${padT}" y2="${H - padB}"/><circle r="3.6"/><rect rx="3" height="17"/><text text-anchor="middle"></text><path class="pf-aL"/><path class="pf-aR"/></g>` +
+    `<rect class="pf-hit" x="${padL}" y="${padT}" width="${plotW}" height="${plotH}" fill="transparent"/>` +
+    `</svg>`;
+  const svg = host.querySelector("svg"), guide = host.querySelector(".pf-guide"), hit = host.querySelector(".pf-hit");
+  const gl = guide.querySelector("line"), gc = guide.querySelector("circle"), gr = guide.querySelector("rect"), gt = guide.querySelector("text");
+  hit.addEventListener("mousemove", ev => {
+    const rect = svg.getBoundingClientRect();
+    let s = sMin + (ev.clientX - rect.left - padL) / plotW * (sMax - sMin); s = Math.max(sMin, Math.min(sMax, s));
+    const z = _alnZat(prof, s), x = X(s), y = Y(z);
+    gl.setAttribute("x1", x.toFixed(1)); gl.setAttribute("x2", x.toFixed(1));
+    gc.setAttribute("cx", x.toFixed(1)); gc.setAttribute("cy", y.toFixed(1));
+    const label = _alnFmtSta(s) + "  ·  " + z.toFixed(2) + " m"; gt.textContent = label;
+    const tw = label.length * 6.2 + 12, tx = Math.min(W - padR - tw, Math.max(padL, x + 8)), ty = padT + 2;
+    gr.setAttribute("x", tx.toFixed(1)); gr.setAttribute("y", ty.toFixed(1)); gr.setAttribute("width", tw.toFixed(1));
+    gt.setAttribute("x", (tx + 6).toFixed(1)); gt.setAttribute("y", (ty + 12).toFixed(1));
+    guide.style.display = "";
+  });
+  hit.addEventListener("mouseleave", () => guide.style.display = "none");
+
+  /* FASE 3: mappa schermo↔progressiva + trascinamento della sezione lungo il profilo */
+  _pfMap = { o, sMin, sMax, padL, padR, padT, padB, plotW, plotH, W, H, X, Y };
+  let _pfDrag = false;
+  const _pfS = ev => { const rect = svg.getBoundingClientRect(); return Math.max(sMin, Math.min(sMax, sMin + (ev.clientX - rect.left - padL) / plotW * (sMax - sMin))); };
+  hit.addEventListener("pointerdown", ev => { if (!ALNSEC.on) return; _pfDrag = true; try { hit.setPointerCapture(ev.pointerId); } catch (_) {} updateAlnSection(_pfS(ev)); });
+  hit.addEventListener("pointermove", ev => { if (_pfDrag) updateAlnSection(_pfS(ev)); });
+  const _pfEnd = ev => { if (_pfDrag) { _pfDrag = false; try { hit.releasePointerCapture(ev.pointerId); } catch (_) {} } };
+  hit.addEventListener("pointerup", _pfEnd); hit.addEventListener("pointercancel", _pfEnd);
+  _pfPlaceCut();
+}
+
+if (window.ResizeObserver) new ResizeObserver(() => { if (ALIGN.active && !$("profilePanel").hidden) renderProfile(ALIGN.active); }).observe($("profileChart"));
+if (window.ResizeObserver) new ResizeObserver(() => { if (MINI.on && !$("profilePanel").hidden) renderMinimap(); }).observe($("profileMiniChart"));
+$("btnAlign").addEventListener("click", e => { e.stopPropagation(); toggleAlignMenu(); });
+$("profileMiniBtn").addEventListener("click", toggleMinimap);
+$("profileMiniChart").addEventListener("click", _miniClickJump);
+$("miniResize").addEventListener("pointerdown", _miniResizeStart);
+$("miniResize").addEventListener("pointermove", _miniResizeMove);
+$("miniResize").addEventListener("pointerup", _miniResizeEnd);
+$("miniResize").addEventListener("pointercancel", _miniResizeEnd);
+$("profileSection").addEventListener("click", () => setAlnSection(!ALNSEC.on));
+$("profileMode").addEventListener("click", e => { const b = e.target.closest(".pf-seg-b"); if (b) setAlnSecMode(b.dataset.mode); });
+$("profileFlip").addEventListener("click", flipAlnSecSide);
+$("profileThick").addEventListener("input", e => { const v = parseFloat(e.target.value); if (isFinite(v) && v > 0) { ALNSEC.thickness = v; if (ALNSEC.on) updateAlnSection(ALNSEC.s); } });
+$("profileClose").addEventListener("click", closeProfile);
+document.addEventListener("click", e => { if (!e.target.closest("#alignMenu") && !e.target.closest("#btnAlign")) closeAlignMenu(); });
+
 /* ---- nota versione ---- */
-$("ftVersion").textContent = `v1.9.6 · web-ifc · © Alessandro Perugini`;
-console.info(`[APE Viewer] versione 1.9.6 · lingua ${LANG}`);
+$("ftVersion").textContent = `v2.0.0 · web-ifc · © Alessandro Perugini`;
+console.info(`[APE Viewer] versione 2.0.0 · lingua ${LANG}`);
 
 /* ---- i18n: applicazione iniziale e toggle lingua (v1.8.0) ---- */
 document.querySelectorAll("#langSwitch .lang-opt").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang)));
