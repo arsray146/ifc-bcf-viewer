@@ -83,9 +83,9 @@ button:disabled{opacity:.4;cursor:default}
 
 /* ---------- layout ---------- */
 main{flex:1;display:grid;grid-template-columns:340px 1fr;min-height:0}
-main.with-detail{grid-template-columns:340px 1fr 390px}
+main.with-detail{grid-template-columns:340px 1fr var(--detail-w,390px)}
 main.left-off{grid-template-columns:1fr}
-main.left-off.with-detail{grid-template-columns:1fr 390px}
+main.left-off.with-detail{grid-template-columns:1fr var(--detail-w,390px)}
 main.left-off #leftPanel{display:none}
 /* dettaglio collassato: la 3ª colonna scompare ma il contenuto è conservato */
 main.with-detail.detail-collapsed{grid-template-columns:340px 1fr}
@@ -96,8 +96,8 @@ main.with-detail.detail-collapsed #detailPanel{display:none}
    centrale (e la sua toolbar) mantiene spazio utilizzabile.                */
 @media(max-width:1100px){
   main{grid-template-columns:288px 1fr}
-  main.with-detail{grid-template-columns:288px 1fr 320px}
-  main.left-off.with-detail{grid-template-columns:1fr 320px}
+  main.with-detail{grid-template-columns:288px 1fr var(--detail-w,320px)}
+  main.left-off.with-detail{grid-template-columns:1fr var(--detail-w,320px)}
   main.with-detail.detail-collapsed{grid-template-columns:288px 1fr}
   main.left-off #toolbar,
   main.with-detail.detail-collapsed #toolbar,
@@ -105,8 +105,8 @@ main.with-detail.detail-collapsed #detailPanel{display:none}
 }
 @media(max-width:820px){
   main{grid-template-columns:252px 1fr}
-  main.with-detail{grid-template-columns:252px 1fr 288px}
-  main.left-off.with-detail{grid-template-columns:1fr 288px}
+  main.with-detail{grid-template-columns:252px 1fr var(--detail-w,288px)}
+  main.left-off.with-detail{grid-template-columns:1fr var(--detail-w,288px)}
   main.with-detail.detail-collapsed{grid-template-columns:252px 1fr}
 }
 
@@ -340,13 +340,51 @@ main.detail-collapsed #btnDetailReopen{display:inline-flex}
 @media(max-width:560px){.lp-cards{grid-template-columns:1fr}}
 
 /* ---------- drawer dettaglio ---------- */
-#detailPanel{border-left:1px solid var(--line);background:var(--panel);display:none;flex-direction:column;min-height:0}
+#detailPanel{position:relative;border-left:1px solid var(--line);background:var(--panel);display:none;flex-direction:column;min-height:0}
+.detail-resize{position:absolute;left:-3px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:7;touch-action:none}
+.detail-resize::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:2px;height:30px;border-radius:2px;background:var(--line-2)}
+.detail-resize:hover::after{background:var(--lime-deep);height:46px}
 main.with-detail #detailPanel{display:flex}
 #detailPanel .panel-head{display:flex;align-items:stretch;gap:0;padding:0}
 #detailCollapse{flex:0 0 32px;border:none;border-right:1px solid var(--line);border-radius:0;background:var(--panel);color:var(--muted);font-size:15px;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center}
 #detailCollapse:hover{background:var(--panel-2);color:var(--text);border-color:var(--line)}
-#detailPanel .panel-head h2{flex:1;min-width:0;padding:13px 15px 10px}
+.detail-tabs{flex:1;display:flex;align-items:stretch;min-width:0;gap:0}
+.dtab{display:flex;align-items:center;gap:7px;min-width:0;border:none;background:transparent;border-bottom:2px solid transparent;padding:11px 14px 9px;cursor:pointer;color:var(--muted)}
+.dtab h2{margin:0;padding:0;font-size:13.5px;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.dtab[hidden]{display:none}
+.dtab.on{color:var(--text);border-bottom-color:var(--lime)}
+.dtab.on h2{color:var(--text)}
+.dtab:not(.on) h2::before{background:var(--line-2)}
+.dtab:not(.on):hover{color:var(--text);background:var(--panel-2)}
 #detailBody{flex:1;overflow-y:auto;padding:15px}
+#detailBody[hidden]{display:none}
+/* ---- scheda Sezione 2D (modalità disegno) ---- */
+#sectionBody{flex:1;min-height:0;display:flex;flex-direction:column}
+#sectionBody[hidden]{display:none}
+.s2d-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.s2d-btn{display:inline-flex;align-items:center;gap:5px;font-family:var(--disp);font-weight:600;font-size:11.5px;letter-spacing:.02em;padding:5px 9px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel);color:var(--text);cursor:pointer}
+.s2d-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.s2d-btn:hover{border-color:var(--lime-deep)}
+.s2d-btn.on{background:var(--lime);border-color:var(--lime-deep);color:var(--lime-ink)}
+.s2d-sep{flex:0 0 1px;align-self:stretch;background:var(--line);margin:1px 3px}
+.s2d-chart{flex:1;position:relative;min-height:0;overflow:hidden;cursor:crosshair;background:var(--panel-2);user-select:none;-webkit-user-select:none}
+.s2d-chart svg{display:block;width:100%;height:100%;touch-action:none}
+.s2d-readout{border-top:1px solid var(--line);padding:7px 10px;font-family:var(--mono);font-size:11px;color:var(--muted);min-height:18px;white-space:pre-line;line-height:1.5}
+.s2d-empty{font-family:var(--mono);font-size:12px;fill:var(--faint)}
+.s2d-grid line{stroke:var(--line);stroke-width:1}
+.s2d-axis{stroke:var(--lime-deep);stroke-width:1.1;stroke-dasharray:5 4;opacity:.8}
+.s2d-tick{font-family:var(--mono);font-size:9.5px;fill:var(--faint)}
+.s2d-seg{stroke:var(--text);stroke-width:1.25;fill:none;stroke-linecap:round}
+.s2d-axispt{fill:var(--lime-deep)}
+.s2d-snap{fill:none;stroke:var(--lime-deep);stroke-width:1.6}
+.s2d-mline{stroke:#e0322c;stroke-width:1.7;fill:none;stroke-linejoin:round}
+.s2d-marea{stroke:#e0322c;stroke-width:1.7;fill:rgba(224,50,44,.10);stroke-linejoin:round}
+.s2d-mpt{fill:#e0322c}
+.s2d-mtri{fill:#e0322c}
+.s2d-snaptri{fill:rgba(154,179,19,.4);stroke:var(--lime-deep);stroke-width:1.5}
+.s2d-mlabbg{fill:var(--text);opacity:.92}
+.s2d-mlab{fill:#fff;font-family:var(--mono);font-size:10.5px}
+.s2d-mlab.big{font-size:11.5px;font-weight:600}
 .d-status{display:inline-block;font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:99px;color:#fff;margin-bottom:9px}
 .d-title{font-family:var(--disp);font-weight:700;font-size:20px;line-height:1.25;margin-bottom:11px}
 .d-snap{width:100%;border:1px solid var(--line);border-radius:6px;cursor:zoom-in;margin-bottom:12px;display:block;box-shadow:var(--shadow)}
@@ -454,6 +492,17 @@ input[type=file]{display:none}
 #btnSectionBox.btn-ico{display:inline-flex;align-items:center;gap:7px}
 .sb-cube{width:15px;height:15px;flex:none;fill:none;stroke:var(--lime-deep);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
 #btnSectionBox.sb-on .sb-cube{stroke:var(--lime-ink)}
+#btnSection.btn-ico,#btnSecDraw.btn-ico{display:inline-flex;align-items:center;gap:7px}
+.sp-ic{width:15px;height:15px;flex:none;fill:none;stroke:var(--lime-deep);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+#btnSection.sp-on{background:var(--lime);border-color:var(--lime-deep);color:var(--lime-ink)}
+#btnSection.sp-on .sp-ic{stroke:var(--lime-ink)}
+#btnSection .al-caret{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.4;margin-left:1px}
+#btnSecDraw.on{background:var(--lime);border-color:var(--lime-deep);color:var(--lime-ink)}
+.sec-opt{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:6px;cursor:pointer}
+.sec-opt:hover{background:var(--panel-2)}
+.sec-opt.active{background:var(--lime-soft)}
+.sec-opt svg{width:16px;height:16px;flex:none;fill:none;stroke:var(--lime-deep);stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
+.sec-nm{font-size:13px;color:var(--text)}
 #btnAlign.btn-ico{display:inline-flex;align-items:center;gap:7px}
 #btnAlign .al-ic{width:18px;height:18px;fill:none;stroke:#e0322c;stroke-width:2.4;stroke-linecap:round}
 #btnAlign.al-on{background:var(--lime);border-color:var(--lime-deep);color:var(--lime-ink)}
@@ -628,14 +677,18 @@ input[type=file]{display:none}
     <button id="btnPanel" style="display:none" data-i18n="btn.panel" data-i18n-title="title.panel" title="Mostra il pannello laterale">» Pannello</button>
     <button id="btnDetailReopen" data-i18n="btn.detailReopen" data-i18n-title="title.detailReopen" title="Mostra il pannello dettagli">« Dettagli</button>
     <div id="toolbar">
-      <button id="btnFit" data-i18n="btn.fit" data-i18n-title="title.fit" title="Inquadra tutti i modelli (doppio clic rotella)">Zoom esteso</button>
       <button id="btnWalk" data-i18n="btn.walk" data-i18n-title="title.walk" title="Modalità Walk: W/A/S/D o frecce per muoversi, trascina per guardare, Esc per uscire">Walk</button>
       <label class="tgl"><input type="checkbox" id="tglIsolate"> <span data-i18n="tgl.isolate">Isola selezione</span></label>
-      <label class="tgl"><input type="checkbox" id="tglSnap" disabled> <span data-i18n="tgl.snap">Snapshot in sovrapposizione</span></label>
-      <button id="btnSectionBox" class="btn-ico" data-i18n-title="title.sectionBox" title="Attiva / disattiva section box 3D — ritaglia la vista con un box regolabile (stile Revit)"><svg class="sb-cube" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6 21 7v10l-9 4.4L3 17V7z"/><path d="M3 7l9 4.4L21 7M12 11.4V21.4"/></svg><span data-i18n="btn.sectionBox">Sezione</span></button>
+      <label class="tgl" id="tglSnapWrap" style="display:none"><input type="checkbox" id="tglSnap" disabled> <span data-i18n="tgl.snap">Snapshot in sovrapposizione</span></label>
+      <button id="btnSection" class="btn-ico" aria-haspopup="true" aria-expanded="false" data-i18n-title="title.section" title="Strumenti di sezione: piano su faccia o box di sezione"><svg class="sp-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M12 12v8"/></svg><span data-i18n="btn.section">Piano di sezione</span><svg class="al-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <button id="btnSecDraw" class="btn-ico" style="display:none" data-i18n-title="draw.toggle" title="Modalità disegno: sezione 2D reale del piano, per misurare quote e aree"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg><span data-i18n="draw.btn">Disegno</span></button>
       <button id="btnAlign" class="btn-ico" style="display:none" aria-haspopup="true" aria-expanded="false" data-i18n-title="title.align" title="Scegli l'asse (alignment) da mostrare in rosso e apri il profilo"><svg class="al-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 18c5 0 6-12 10.5-12S18 11 21 11"/></svg><span data-i18n="btn.align">Asse</span><svg class="al-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
     </div>
     <div id="alignMenu" class="align-menu" hidden></div>
+    <div id="sectionMenu" class="align-menu" hidden>
+      <div class="sec-opt" id="secOptPlane" role="menuitemcheckbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l9-4 9 4-9 4-9-4z"/><path d="M12 12v8"/></svg><span class="sec-nm" data-i18n="btn.secPlane">Piano</span></div>
+      <div class="sec-opt" id="secOptBox" role="menuitemcheckbox"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.6 21 7v10l-9 4.4L3 17V7z"/><path d="M3 7l9 4.4L21 7M12 11.4V21.4"/></svg><span class="sec-nm" data-i18n="btn.sectionBox">Box di sezione</span></div>
+    </div>
     <div id="profilePanel" class="profile-panel" hidden>
       <div class="profile-head">
         <span class="profile-title" id="profileTitle"></span>
@@ -649,6 +702,7 @@ input[type=file]{display:none}
           </div>
           <button class="profile-sbtn pf-icobtn" id="profileFlip" hidden data-i18n-title="alnsec.flip" title="Inverti il lato sezionato"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h13M14 6l3 3-3 3M20 15H7M10 12l-3 3 3 3"/></svg></button>
           <label class="pf-thick" id="profileThickWrap" hidden data-i18n-title="alnsec.thick" title="Spessore della fetta sezionata (m)"><input id="profileThick" type="number" min="0.5" step="0.5" value="8"> m</label>
+          <button class="profile-sbtn" id="profileDraw" hidden data-i18n-title="draw.toggle" title="Modalità disegno: apre nel pannello destro la sezione 2D reale di ciò che si sta tagliando, per misurare quote e aree."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg><span data-i18n="draw.btn">Disegno</span></button>
         </div>
         <button class="profile-close" id="profileClose" data-i18n-title="profile.close" title="Chiudi il profilo">✕</button>
       </div>
@@ -672,11 +726,16 @@ input[type=file]{display:none}
   </div>
 
   <aside id="detailPanel">
+    <div class="detail-resize" id="detailResize" data-i18n-title="detail.resize" title="Trascina per ridimensionare il pannello"></div>
     <div class="panel-head">
       <button id="detailCollapse" data-i18n-title="title.collapseDetail" title="Comprimi il pannello dettagli">»</button>
-      <h2 id="detailTitle" data-i18n="detail.title">Dettagli</h2>
+      <div class="detail-tabs" id="detailTabs" role="tablist">
+        <button class="dtab on" id="dtabInfo" role="tab" aria-selected="true"><h2 id="detailTitle" data-i18n="detail.title">Dettagli</h2></button>
+        <button class="dtab" id="dtabSection" role="tab" aria-selected="false" hidden data-i18n="sec2d.tab">Sezione 2D</button>
+      </div>
     </div>
     <div id="detailBody"></div>
+    <div id="sectionBody" hidden></div>
   </aside>
 </main>
 
@@ -837,6 +896,7 @@ const STRINGS = {
     "btn.panel": "» Pannello", "title.panel": "Mostra il pannello laterale",
     "btn.detailReopen": "« Dettagli", "title.detailReopen": "Mostra il pannello dettagli",
     "title.collapseDetail": "Comprimi il pannello dettagli",
+    "detail.resize": "Trascina per ridimensionare il pannello",
     "btn.fit": "Zoom esteso", "title.fit": "Inquadra tutti i modelli (doppio clic rotella)",
     "btn.walk": "Walk", "title.walk": "Modalità Walk: W/A/S/D o frecce per muoversi, trascina per guardare, Esc per uscire",
     "navHelp": "Orbita: tasto sx &nbsp;·&nbsp; Pan: rotella premuta &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× clic rotella: zoom esteso",
@@ -853,8 +913,13 @@ const STRINGS = {
     "lp.card4t": "Edita parametri", "lp.card4d": "Modifica le property degli elementi e riesporta l'IFC aggiornato.",
     "loading.init": "Inizializzazione…", "dragVeil": "Rilascia per caricare",
     "tgl.edges": "Spigoli", "tgl.isolate": "Isola selezione", "tgl.snap": "Snapshot in sovrapposizione",
-    "btn.sectionBox": "Sezione",
+    "btn.section": "Piano di sezione",
+    "title.section": "Strumenti di sezione: piano su faccia o box di sezione",
+    "btn.sectionBox": "Box di sezione",
     "title.sectionBox": "Attiva / disattiva section box 3D — ritaglia la vista con un box regolabile (stile Revit)",
+    "btn.secPlane": "Piano",
+    "title.secPlane": "Piano di sezione parallelo a una faccia: clicca una faccia per posizionarlo, Shift+trascina per spostarlo avanti/indietro",
+    "toast.secPlanePick": "Clicca una faccia per posizionare il piano di sezione.",
     "btn.align": "Asse",
     "title.align": "Scegli l'asse (alignment) da mostrare in rosso e apri il profilo",
     "align.menuHd": "Assi del modello", "align.all": "tutti", "align.none": "nessuno",
@@ -868,6 +933,24 @@ const STRINGS = {
     "mini.btn": "Minimap", "mini.toggle": "Apri/chiudi la minimap dei tracciati (vista dall'alto), con la posizione della sezione",
     "mini.title": "Mappa tracciati", "mini.nodata": "Nessun tracciato da mostrare",
     "mini.resize": "Trascina per ridimensionare la minimap",
+    "draw.btn": "Disegno",
+    "draw.toggle": "Modalità disegno: apre nel pannello destro la sezione 2D reale di ciò che si sta tagliando, per misurare quote e aree.",
+    "sec2d.tab": "Sezione 2D",
+    "sec2d.dist": "Distanza", "sec2d.distT": "Misura distanze: clic per aggiungere punti, doppio clic/Invio per chiudere",
+    "sec2d.area": "Area", "sec2d.areaT": "Misura aree: clic per i vertici del poligono, doppio clic/Invio per chiudere",
+    "sec2d.elev": "Quota", "sec2d.elevT": "Quota/coordinate: clic per leggere offset laterale e quota assoluta",
+    "sec2d.snap": "Snap", "sec2d.snapT": "Aggancia le misure ai vertici della sezione",
+    "sec2d.undo": "Annulla", "sec2d.undoT": "Annulla l'ultimo punto o misura (Ctrl+Z)",
+    "sec2d.fit": "Adatta", "sec2d.fitT": "Inquadra l'intera sezione",
+    "sec2d.clear": "Pulisci", "sec2d.clearT": "Cancella tutte le misure",
+    "sec2d.dxf": "DXF", "sec2d.dxfT": "Esporta la sezione e le misure in DXF (CAD)",
+    "sec2d.nodata": "Nessuna geometria intersecata dal piano di sezione",
+    "sec2d.hint": "Clic sx per misurare · doppio clic o Invio per chiudere · Esc annulla · rotella per zoom · trascina col tasto destro per spostare",
+    "sec2d.coord": "u {u} m · q {q} m",
+    "sec2d.levelOnly": "Z {z} m",
+    "sec2d.distVal": "distanza {d} m",
+    "sec2d.areaLbl": "area {a} m² · perimetro {p} m",
+    "sec2d.updating": "aggiornamento sezione…",
     "ctx.scene": "Scena", "ctx.elem3d": "Elemento 3D",
     "ctx.zoomElem": "Zoom su elemento", "ctx.zoomFit": "Zoom esteso", "ctx.zoomSel": "Zoom su selezione",
     "ctx.isolate": "Isola elemento", "ctx.unisolate": "Rimuovi isolamento",
@@ -943,6 +1026,8 @@ const STRINGS = {
     "toast.noStatusChange": "Nessun cambio di stato da scaricare.",
     "toast.bcfExportErr": "Errore durante l'export del BCF: {e}",
     "toast.bcfExported": "{nt} stati scritti · {nf} file BCF scaricati.",
+    "toast.dxfOk": "Sezione esportata in DXF.",
+    "toast.dxfNodata": "Nessuna sezione da esportare.",
     "toast.unknownFormat": "Formato non riconosciuto: trascina file .ifc, .bcf/.bcfzip o report .xlsx.",
     "ft.reportFound": "Report «{name}» — componenti trovati {found}/{tot}",
     "ft.noModelForReport": "Nessun modello IFC caricato: la issue è visibile solo come scheda.",
@@ -981,6 +1066,7 @@ const STRINGS = {
     "btn.panel": "» Panel", "title.panel": "Show the side panel",
     "btn.detailReopen": "« Details", "title.detailReopen": "Show the details panel",
     "title.collapseDetail": "Collapse the details panel",
+    "detail.resize": "Drag to resize the panel",
     "btn.fit": "Zoom to fit", "title.fit": "Frame all models (double-click wheel)",
     "btn.walk": "Walk", "title.walk": "Walk mode: W/A/S/D or arrows to move, drag to look, Esc to exit",
     "navHelp": "Orbit: left button &nbsp;·&nbsp; Pan: wheel pressed &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× wheel click: zoom to fit",
@@ -997,8 +1083,13 @@ const STRINGS = {
     "lp.card4t": "Edit parameters", "lp.card4d": "Edit element properties and re-export the updated IFC.",
     "loading.init": "Initializing…", "dragVeil": "Drop to load",
     "tgl.edges": "Edges", "tgl.isolate": "Isolate selection", "tgl.snap": "Snapshot overlay",
+    "btn.section": "Section plane",
+    "title.section": "Sectioning tools: plane on a face or section box",
     "btn.sectionBox": "Section box",
     "title.sectionBox": "Toggle 3D section box — crop the view with an adjustable box (Revit-style)",
+    "btn.secPlane": "Plane",
+    "title.secPlane": "Section plane parallel to a face: click a face to place it, Shift+drag to move it back/forth",
+    "toast.secPlanePick": "Click a face to place the section plane.",
     "btn.align": "Alignment",
     "title.align": "Pick the alignment (axis) to show in red and open its profile",
     "align.menuHd": "Model alignments", "align.all": "all", "align.none": "none",
@@ -1012,6 +1103,24 @@ const STRINGS = {
     "mini.btn": "Minimap", "mini.toggle": "Toggle the top-down minimap of the alignments, showing the section position",
     "mini.title": "Alignments map", "mini.nodata": "No alignment to show",
     "mini.resize": "Drag to resize the minimap",
+    "draw.btn": "Draw",
+    "draw.toggle": "Drawing mode: opens, in the right panel, the real 2D section of what is being cut, to measure levels and areas.",
+    "sec2d.tab": "2D section",
+    "sec2d.dist": "Distance", "sec2d.distT": "Measure distances: click to add points, double-click/Enter to close",
+    "sec2d.area": "Area", "sec2d.areaT": "Measure areas: click the polygon vertices, double-click/Enter to close",
+    "sec2d.elev": "Level", "sec2d.elevT": "Level/coordinates: click to read lateral offset and absolute level",
+    "sec2d.snap": "Snap", "sec2d.snapT": "Snap measurements to the section vertices",
+    "sec2d.undo": "Undo", "sec2d.undoT": "Undo the last point or measurement (Ctrl+Z)",
+    "sec2d.fit": "Fit", "sec2d.fitT": "Frame the whole section",
+    "sec2d.clear": "Clear", "sec2d.clearT": "Clear all measurements",
+    "sec2d.dxf": "DXF", "sec2d.dxfT": "Export section and measurements to DXF (CAD)",
+    "sec2d.nodata": "No geometry intersected by the section plane",
+    "sec2d.hint": "Left-click to measure · double-click or Enter to close · Esc to cancel · wheel to zoom · right-drag to pan",
+    "sec2d.coord": "u {u} m · z {q} m",
+    "sec2d.levelOnly": "Z {z} m",
+    "sec2d.distVal": "distance {d} m",
+    "sec2d.areaLbl": "area {a} m² · perimeter {p} m",
+    "sec2d.updating": "updating section…",
     "ctx.scene": "Scene", "ctx.elem3d": "3D element",
     "ctx.zoomElem": "Zoom to element", "ctx.zoomFit": "Zoom to fit", "ctx.zoomSel": "Zoom to selection",
     "ctx.isolate": "Isolate element", "ctx.unisolate": "Remove isolation",
@@ -1080,6 +1189,8 @@ const STRINGS = {
     "toast.noStatusChange": "No status change to download.",
     "toast.bcfExportErr": "Error during BCF export: {e}",
     "toast.bcfExported": "{nt} statuses written · {nf} BCF files downloaded.",
+    "toast.dxfOk": "Section exported to DXF.",
+    "toast.dxfNodata": "No section to export.",
     "toast.unknownFormat": "Unrecognized format: drag .ifc, .bcf/.bcfzip or .xlsx report files.",
     "ft.reportFound": "Report «{name}» — components found {found}/{tot}",
     "ft.noModelForReport": "No IFC model loaded: the issue is visible only as a card.",
@@ -1117,6 +1228,7 @@ function refreshDynamicI18n() {
   else if (typeof activeReport !== "undefined" && activeReport) { try { openReportTopic(activeReport); } catch (e) {} }
   else if (typeof curDetail !== "undefined" && curDetail && $("main").classList.contains("with-detail")) { try { showElementDetail(curDetail.model, curDetail.eid); } catch (e) {} }
   try { updateBcfDirtyUI(); } catch (e) {}
+  try { if (typeof DRAW !== "undefined" && DRAW.on && !$("sectionBody").hidden) { renderSection2D(); } } catch (e) {}
   if ($("ftHint") && (!models || !models.length)) $("ftHint").textContent = tr("ft.ready");
 }
 function setLang(l) {
@@ -1129,6 +1241,8 @@ function setLang(l) {
 }
 const models = [];            // {name, modelID, meshes:[], elemCount, visible, ...}
 let topics = [];
+/* lo snapshot overlay (toggle in toolbar) compare solo quando è caricato almeno un BCF */
+function _updateSnapVisibility() { const w = document.getElementById("tglSnapWrap"); if (w) w.style.display = topics.length ? "" : "none"; }
 let activeTopic = null;
 let bcfSources = [];          // {name, zip} — sorgenti .bcfzip caricate, per ri-export con stati aggiornati (v1.7.5)
 /* Set di stati BCF standard offerti nel dropdown; gli stati realmente presenti nei
@@ -2213,7 +2327,6 @@ function fitAll() {
   updateClipping(box);
   fitBox(box);
 }
-$("btnFit").addEventListener("click", () => { camera.fov = 55; camera.updateProjectionMatrix(); fitAll(); });
 
 /* doppio clic con la rotella (tasto centrale) = zoom esteso */
 let lastMidTime = 0, lastMidXY = [0, 0];
@@ -2437,6 +2550,7 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   const r = renderer.domElement.getBoundingClientRect();
   mouseNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   raycaster.setFromCamera(mouseNdc, camera);
+  if (typeof SECPL !== "undefined" && SECPL.on && !e.shiftKey) { _spPickFaceFromRay(); return; }   // modalità piano: il clic posiziona il piano sulla faccia
   const visible = allBaseMeshes().filter(m => m.visible);
   const hits = raycaster.intersectObjects(visible, false);
   if (!hits.length) {
@@ -2460,6 +2574,7 @@ window.addEventListener("keydown", (e) => {
   if (isTyping(e)) return;
   if (e.key === "Escape") {
     if (walkMode) { setWalkMode(false); return; }
+    if (typeof SECPL !== "undefined" && SECPL.on) { setSectionPlane(false); SECPL.P = null; return; }   // cancella il piano di sezione applicato
     clearHighlight();
     if (activeTopic === null) closeDetail();
     return;
@@ -2790,6 +2905,7 @@ async function loadBcf(file) {
     });
     topics = topics.concat(loaded);
     if (loaded.length) bcfSources.push(src);
+    _updateSnapVisibility();
     hideLoading();
     updateStats();
     renderStatusChips();
@@ -3029,6 +3145,7 @@ function unloadBcfSource(src) {
   if (activeTopic && activeTopic._src === src) { closeDetail(); clearHighlight(); }
   topics = topics.filter(t => t._src !== src);
   bcfSources = bcfSources.filter(s => s !== src);
+  _updateSnapVisibility();
   updateStats(); renderStatusChips(); renderIssueList(); renderBcfSources(); updateBcfDirtyUI();
   showLandingIfEmpty();
   toast(tr("toast.bcfUnloaded", { name: src.name, n }));
@@ -3998,6 +4115,7 @@ function showElementDetail(model, eid) {
   if (curDetail && (curDetail.eid !== eid || curDetail.model !== model)) detailEditMode = false;
   const info = getElementInfo(model, eid);
   curDetail = { model, eid, label: info.name || info.globalId || ("#" + eid) };
+  if (typeof DRAW !== "undefined" && DRAW.on && !$("sectionBody").hidden) _drawShowTab("info");  // mostra ciò che si è cliccato
   $("detailTitle").textContent = tr("el.title");
   const body = $("detailBody");
   const hasEditable = info.psets.some(ps => ps.props.some(p => p.editable));
@@ -4461,6 +4579,7 @@ function _activeClipPlanes() {
   const arr = [];
   if (sectionBoxOn) arr.push(...sbPlanes);
   if (typeof ALNSEC !== "undefined" && ALNSEC.on) arr.push(...ALNSEC.activePlanes);
+  if (typeof SECPL !== "undefined" && SECPL.on && SECPL.P) arr.push(SECPL.plane);
   return arr;
 }
 /* ---- applica i piani attivi a tutti i materiali IFC (meshes + spigoli + highlight) ---- */
@@ -4586,7 +4705,7 @@ renderer.domElement.addEventListener("pointerup", (e) => {
 /* ---- attiva / disattiva section box ---- */
 function setSectionBox(on) {
   sectionBoxOn = on;
-  $("btnSectionBox").classList.toggle("sb-on", on);
+  _secSyncMenu();
   if (on) {
     _updateSbPlanes();
     _rebuildSbVisual();
@@ -4607,8 +4726,8 @@ function setSectionBoxToBox(box) {
   setSectionBox(true);
 }
 
-/* ---- toolbar button ---- */
-$("btnSectionBox").addEventListener("click", () => {
+/* ---- toggle section box (dal menu a tendina) ---- */
+function toggleSectionBox() {
   if (sectionBoxOn) {
     setSectionBox(false);
   } else {
@@ -4617,7 +4736,7 @@ $("btnSectionBox").addEventListener("click", () => {
     if (!b || b.isEmpty()) toast(tr("toast.loadModelFirst"));
     else setSectionBoxToBox(b);
   }
-});
+}
 
 /* ---- patch loadIfcFiles: applica il clipping ai nuovi modelli caricati
    (monkey-patch sul binding mutabile della function declaration)          ---- */
@@ -4625,9 +4744,155 @@ $("btnSectionBox").addEventListener("click", () => {
   const _olf = loadIfcFiles;
   loadIfcFiles = async function(files) {
     await _olf(files);
-    if (sectionBoxOn || (typeof ALNSEC !== "undefined" && ALNSEC.on)) _applyClipping();
+    if (sectionBoxOn || (typeof ALNSEC !== "undefined" && ALNSEC.on) || (typeof SECPL !== "undefined" && SECPL.on)) _applyClipping();
   };
 }
+
+/* ============================ Section plane (piano di sezione su faccia) ============================
+   Un singolo clipping plane PARALLELO alla faccia cliccata. Click sinistro su una faccia → posiziona
+   il piano (passante per il punto, normale = normale della faccia). Shift + trascina sinistro → sposta
+   il piano avanti/indietro lungo la sua normale. Riusa _applyClipping (coesiste in AND con section box
+   e sezione asse) e l'infrastruttura del draw 2D (computeSection2D, generalizzato a un piano qualsiasi). */
+const SECPL = { on: false, P: null, N: new THREE.Vector3(0, 1, 0), U: new THREE.Vector3(1, 0, 0), V: new THREE.Vector3(0, 0, 1), side: 1, plane: new THREE.Plane(), group: null, pickMesh: null };
+const _spLineMat = new THREE.LineBasicMaterial({ color: 0xa3d840, depthTest: false, transparent: true, opacity: 0.95 });
+const _spFillMat = new THREE.MeshBasicMaterial({ color: 0xa3d840, side: THREE.DoubleSide, transparent: true, opacity: 0.10, depthTest: false, depthWrite: false });
+
+function _spEnsureGroup() { if (!SECPL.group) { const g = new THREE.Group(); g.renderOrder = 999; scene.add(g); SECPL.group = g; } SECPL.group.visible = true; }
+
+/* base nel piano: V = "su" proiettato nel piano (o orizzontale se il piano è orizzontale), U = N × V */
+function _spComputeBasis() {
+  const N = SECPL.N;
+  let V = new THREE.Vector3(0, 1, 0).addScaledVector(N, -N.y);
+  if (V.lengthSq() < 1e-6) V = new THREE.Vector3(1, 0, 0).addScaledVector(N, -N.x);
+  V.normalize();
+  SECPL.V = V;
+  SECPL.U = new THREE.Vector3().crossVectors(N, V).normalize();
+}
+
+/* quad visivo nel piano (cornice + riempimento), dimensionato sulla scena */
+function _spVisual() {
+  _spEnsureGroup();
+  const g = SECPL.group;
+  for (const c of g.children.slice()) { g.remove(c); if (c.geometry) c.geometry.dispose(); }
+  if (!SECPL.P) return;
+  const gb = computeGlobalBox();
+  let half = 20;
+  if (!gb.isEmpty()) { const sz = gb.getSize(new THREE.Vector3()); half = Math.min(Math.max(sz.length() * 0.06, 5), 250); }
+  const U = SECPL.U, V = SECPL.V, P = SECPL.P;
+  const cor = (su, sv) => new THREE.Vector3(P.x + U.x * half * su + V.x * half * sv, P.y + U.y * half * su + V.y * half * sv, P.z + U.z * half * su + V.z * half * sv);
+  const c1 = cor(1, 1), c2 = cor(-1, 1), c3 = cor(-1, -1), c4 = cor(1, -1);
+  const fg = new THREE.BufferGeometry().setFromPoints([c1, c2, c3, c4, c1]);
+  const frame = new THREE.Line(fg, _spLineMat); frame.renderOrder = 999; frame.frustumCulled = false; g.add(frame);
+  const pg = new THREE.BufferGeometry();
+  pg.setAttribute("position", new THREE.Float32BufferAttribute([c1.x, c1.y, c1.z, c2.x, c2.y, c2.z, c3.x, c3.y, c3.z, c1.x, c1.y, c1.z, c3.x, c3.y, c3.z, c4.x, c4.y, c4.z], 3));
+  const fill = new THREE.Mesh(pg, _spFillMat); fill.renderOrder = 998; fill.frustumCulled = false; g.add(fill);
+  SECPL.pickMesh = fill;
+}
+
+/* (ri)calcola il clipping plane dalla P/N correnti e aggiorna tutto */
+function _spApply() {
+  if (!SECPL.P) return;
+  SECPL.plane.setFromNormalAndCoplanarPoint(SECPL.N.clone().multiplyScalar(-SECPL.side), SECPL.P);
+  _applyClipping();
+  if (typeof DRAW !== "undefined" && DRAW.on) _drawScheduleRecompute();
+}
+
+/* posiziona il piano parallelo a una faccia: punto = hit, normale = normale world della faccia */
+function setSectionPlaneAt(P, N) {
+  SECPL.P = P.clone(); SECPL.N = N.clone().normalize();
+  _spComputeBasis(); _spVisual(); _spApply();
+  _secDrawSync();
+}
+
+function setSectionPlane(on) {
+  SECPL.on = on;
+  _secSyncMenu();
+  if (on) {
+    if (!models.length) { toast(tr("toast.loadModelFirst")); }
+    else toast(tr("toast.secPlanePick"));
+    _spEnsureGroup(); if (SECPL.group) SECPL.group.visible = true;
+    if (SECPL.P) _spApply();
+  } else {
+    if (typeof DRAW !== "undefined" && DRAW.on) setDrawMode(false);
+    if (SECPL.group) SECPL.group.visible = false;
+    _applyClipping();
+  }
+  _secDrawSync();
+}
+
+/* sincronizza il pulsante "Disegno" in alto (visibile solo in modalità piano) */
+function _secDrawSync() {
+  const b = $("btnSecDraw"); if (!b) return;
+  b.style.display = SECPL.on ? "" : "none";
+  b.classList.toggle("on", typeof DRAW !== "undefined" && DRAW.on);
+}
+
+/* picking della faccia dal ray di selezione corrente (raycaster già impostato dal chiamante) */
+function _spPickFaceFromRay() {
+  const hits = raycaster.intersectObjects(allBaseMeshes().filter(m => m.visible), false);
+  if (!hits.length) return;
+  const hit = hits[0];
+  const nrm = (hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 1, 0));
+  nrm.applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();
+  setSectionPlaneAt(hit.point, nrm);
+}
+
+/* Shift + trascina sinistro → scorre il piano lungo la sua normale (precede OrbitControls) */
+let _spDrag = null;
+const _spRay = new THREE.Raycaster(), _spNdc = new THREE.Vector2();
+renderer.domElement.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0 || walkMode || !SECPL.on || !e.shiftKey || !SECPL.P) return;
+  e.stopPropagation(); controls.enabled = false;
+  const camDir = camera.getWorldDirection(new THREE.Vector3());
+  const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(camDir, SECPL.P.clone());
+  const r = renderer.domElement.getBoundingClientRect();
+  _spNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  _spRay.setFromCamera(_spNdc, camera);
+  const startPt = new THREE.Vector3(); _spRay.ray.intersectPlane(dragPlane, startPt);
+  _spDrag = { plane: dragPlane, startPt, startP: SECPL.P.clone() };
+  renderer.domElement.style.cursor = "grabbing";
+  try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {}
+}, { capture: true });
+renderer.domElement.addEventListener("pointermove", (e) => {
+  if (!_spDrag) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  _spNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  _spRay.setFromCamera(_spNdc, camera);
+  const pt = new THREE.Vector3();
+  if (!_spRay.ray.intersectPlane(_spDrag.plane, pt)) return;
+  const move = pt.clone().sub(_spDrag.startPt).dot(SECPL.N);
+  SECPL.P = _spDrag.startP.clone().addScaledVector(SECPL.N, move);
+  _spVisual(); _spApply();
+});
+renderer.domElement.addEventListener("pointerup", (e) => {
+  if (!_spDrag) return;
+  _spDrag = null; controls.enabled = !walkMode; renderer.domElement.style.cursor = "";
+  try { renderer.domElement.releasePointerCapture(e.pointerId); } catch (_) {}
+  if (typeof DRAW !== "undefined" && DRAW.on) _drawForceRecompute();
+});
+
+$("btnSecDraw").addEventListener("click", () => { if (typeof setDrawMode === "function") setDrawMode(!DRAW.on); });
+
+/* ---- menu a tendina "Piano di sezione": opzione 1 = Piano (su faccia), opzione 2 = Box di sezione ---- */
+function _secSyncMenu() {
+  const planeOn = (typeof SECPL !== "undefined" && SECPL.on), boxOn = sectionBoxOn;
+  const trg = $("btnSection"); if (trg) trg.classList.toggle("sp-on", planeOn || boxOn);
+  const rp = $("secOptPlane"); if (rp) rp.classList.toggle("active", planeOn);
+  const rb = $("secOptBox"); if (rb) rb.classList.toggle("active", boxOn);
+}
+function openSectionMenu() {
+  const btn = $("btnSection"), menu = $("sectionMenu"), wrap = document.getElementById("viewportWrap");
+  const r = btn.getBoundingClientRect(), wr = wrap.getBoundingClientRect();
+  menu.style.left = Math.max(8, r.left - wr.left) + "px";
+  menu.style.top = (r.bottom - wr.top + 6) + "px";
+  menu.hidden = false; btn.setAttribute("aria-expanded", "true");
+}
+function closeSectionMenu() { const m = $("sectionMenu"); if (m) m.hidden = true; const b = $("btnSection"); if (b) b.setAttribute("aria-expanded", "false"); }
+function toggleSectionMenu() { const m = $("sectionMenu"); if (m.hidden) openSectionMenu(); else closeSectionMenu(); }
+$("btnSection").addEventListener("click", e => { e.stopPropagation(); toggleSectionMenu(); });
+$("secOptPlane").addEventListener("click", () => { setSectionPlane(!SECPL.on); _secSyncMenu(); closeSectionMenu(); });
+$("secOptBox").addEventListener("click", () => { toggleSectionBox(); _secSyncMenu(); closeSectionMenu(); });
+document.addEventListener("click", e => { if (!e.target.closest("#sectionMenu") && !e.target.closest("#btnSection")) closeSectionMenu(); });
 
 /* ============================ Alignment IFC4x3 — overlay 3D (v1.9.7) ============================
    FASE 1: visualizza gli IfcAlignment come polilinea 3D rossa (planimetria + profilo).
@@ -5032,6 +5297,7 @@ function updateAlnSection(s) {
   _applyClipping();
   _pfPlaceCut();
   _miniPlaceCut();
+  if (typeof DRAW !== "undefined" && DRAW.on) _drawScheduleRecompute();   // sezione 2D: ricalcolo coalescato
 }
 function _alnSecSyncControls() {
   const on = ALNSEC.on, slab = ALNSEC.mode === "slab";
@@ -5039,6 +5305,7 @@ function _alnSecSyncControls() {
   const seg = $("profileMode"); if (seg) { seg.hidden = !on; seg.querySelectorAll(".pf-seg-b").forEach(b => b.classList.toggle("on", b.dataset.mode === ALNSEC.mode)); }
   const flip = $("profileFlip"); if (flip) flip.hidden = !on;
   const tw = $("profileThickWrap"); if (tw) tw.hidden = !(on && slab);
+  const draw = $("profileDraw"); if (draw) { draw.hidden = !on; draw.classList.toggle("on", typeof DRAW !== "undefined" && DRAW.on); }
   const chart = $("profileChart"); if (chart) chart.classList.toggle("alnsec-on", on);
 }
 function setAlnSection(on) {
@@ -5053,6 +5320,7 @@ function setAlnSection(on) {
     _alnSecEnsureGroup();
     updateAlnSection(ALNSEC.s);
   } else {
+    if (typeof DRAW !== "undefined" && DRAW.on) setDrawMode(false);   // sezione spenta → spegni la modalità disegno
     if (ALNSEC.group) ALNSEC.group.visible = false;
     ALNSEC.obj = null; ALNSEC.pickMesh = null;
     _alnSecSyncControls();
@@ -5137,9 +5405,28 @@ function _miniPlaceCut() {
   cc.setAttribute("cx", _miniMap.PX(P.x).toFixed(1)); cc.setAttribute("cy", _miniMap.PY(P.z).toFixed(1));
   cut.style.display = "";
 }
+/* larghezza di default proporzionata alla forma planare dell'asse a fuoco: così un tracciato
+   largo apre un riquadro largo (niente più minimap "quadrata" letterboxed). dx↔larghezza (asse x),
+   dz↔altezza (asse z), scala isometrica → il tracciato riempie il riquadro senza distorsioni. */
+function _miniDefaultBasis() {
+  const objs = ALIGN.objs.filter(o => o.world && o.world.length > 1);
+  const focus = (ALIGN.active && ALIGN.active.world && ALIGN.active.world.length > 1) ? ALIGN.active : objs[0];
+  const panel = $("profileMini"), body = panel && panel.parentElement;
+  if (!focus || !body) return null;
+  let xmin = Infinity, xmax = -Infinity, zmin = Infinity, zmax = -Infinity;
+  for (const p of focus.world) { if (p.x < xmin) xmin = p.x; if (p.x > xmax) xmax = p.x; if (p.z < zmin) zmin = p.z; if (p.z > zmax) zmax = p.z; }
+  const dx = Math.max(xmax - xmin, 1e-3), dz = Math.max(zmax - zmin, 1e-3);
+  const availH = Math.max(80, body.clientHeight - 26);          // altezza utile (tolta la mini-head)
+  const bodyW = body.clientWidth || 600;
+  return Math.max(200, Math.min(bodyW * 0.55, availH * dx / dz));
+}
 function setMinimap(on) {
   MINI.on = on;
-  const panel = $("profileMini"); if (panel) { panel.hidden = !on; if (on && MINI.width) panel.style.flexBasis = MINI.width + "px"; }
+  const panel = $("profileMini");
+  if (panel) {
+    panel.hidden = !on;
+    if (on) { const basis = MINI.width || _miniDefaultBasis(); if (basis) panel.style.flexBasis = basis + "px"; }
+  }
   const btn = $("profileMiniBtn"); if (btn) btn.classList.toggle("on", on);
   if (on) renderMinimap();
   if (ALIGN.active && !$("profilePanel").hidden) renderProfile(ALIGN.active);  // larghezza grafico cambiata
@@ -5222,6 +5509,7 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   if (!_alnSecDrag) return;
   _alnSecDrag = null; controls.enabled = !walkMode; renderer.domElement.style.cursor = "";
   try { renderer.domElement.releasePointerCapture(e.pointerId); } catch (_) {}
+  if (typeof DRAW !== "undefined" && DRAW.on) _drawForceRecompute();   // sezione 2D: ricalcolo a fine drag
 });
 /* hover: cursore "grab" sopra il rettangolo della sezione */
 renderer.domElement.addEventListener("pointermove", (e) => {
@@ -5281,6 +5569,439 @@ function renderProfile(o) {
   _pfPlaceCut();
 }
 
+/* ============================ v2.x — Sezione 2D (modalità disegno) ============================
+   Intersezione del piano di sezione (⟂ asse, alla progressiva corrente) con le mesh visibili →
+   linee di taglio 2D vere, in coordinate metriche (offset laterale u × quota assoluta), nella nuova
+   scheda del pannello destro. Strumenti per misurare distanze/aree e leggere quote (snap ai vertici).
+   Legge in sola lettura la matematica dei piani ALNSEC: NON tocca clipping né catena di trasformazione. */
+const DRAW = { on: false, tool: "dist", snap: true, geom: null, view: null,
+               draft: [], measures: [], hover: null, _raf: 0, _heavy: false, _stale: false, _panning: false };
+
+/* --- coordinate: world(u,elev) ↔ pixel --- */
+function _s2dP2x(u) { return DRAW.view.ox + u * DRAW.view.scale; }
+function _s2dP2y(e) { return DRAW.view.oy - e * DRAW.view.scale; }
+const _s2dFmt = x => (x >= 0 ? " " : "") + x.toFixed(2);          // numero con segno allineato
+function _s2dNiceStep(x) { const p = Math.pow(10, Math.floor(Math.log10(x))), f = x / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
+/* triangolino con il vertice (in basso) sul punto: simbolo della quota (spot elevation) */
+function _s2dTriPath(x, y, s) { return `M${x.toFixed(1)} ${y.toFixed(1)}L${(x - s).toFixed(1)} ${(y - 1.7 * s).toFixed(1)}L${(x + s).toFixed(1)} ${(y - 1.7 * s).toFixed(1)}Z`; }
+
+/* --- calcolo intersezione piano∩mesh → segmenti 2D --- */
+const _s2dA = new THREE.Vector3(), _s2dB = new THREE.Vector3(), _s2dC = new THREE.Vector3();
+const _s2dPX = [0, 0], _s2dPY = [0, 0], _s2dPZ = [0, 0];
+/* frame della sezione 2D corrente: piano di taglio (P, normale n) + base nel piano (U=u, V=quota).
+   Sorgente = piano-faccia SECPL (se attivo) oppure sezione asse ALNSEC. Unifica i due casi:
+   u = (X−P)·U, quota = (X−P)·V + baseElev. Per l'asse: n=tangente (ny=0), U=laterale, V=verticale,
+   baseElev = P.y+originZ → identico al comportamento precedente. */
+function _secFrame() {
+  const originZ = worldOriginMap ? worldOriginMap.z : 0;
+  if (typeof SECPL !== "undefined" && SECPL.on && SECPL.P) {
+    const V = SECPL.V, baseElev = Math.abs(V.y) > 0.99 ? SECPL.P.y + originZ : 0;
+    return { on: true, curved: false, P: SECPL.P, n: SECPL.N, U: SECPL.U, V, baseElev };
+  }
+  if (ALNSEC.on) {
+    const o = ALNSEC.obj || ALIGN.active;
+    if (!o || !o.world || o.world.length < 2) return { on: false };
+    const P = _alnPosAt(o, ALNSEC.s), T = _alnTangentAt(o, ALNSEC.s);
+    return { on: true, curved: true, P, n: new THREE.Vector3(T.x, 0, T.z),
+             U: new THREE.Vector3(-T.z, 0, T.x), V: new THREE.Vector3(0, 1, 0), baseElev: P.y + originZ };
+  }
+  return { on: false };
+}
+function computeSection2D() {
+  DRAW.geom = null;
+  const fr = _secFrame();
+  if (!fr.on) return;
+  const t0 = performance.now();
+  const P = fr.P, U = fr.U, V = fr.V, baseElev = fr.baseElev;
+  const nx = fr.n.x, ny = fr.n.y, nz = fr.n.z, d = nx * P.x + ny * P.y + nz * P.z;   // piano: n·X = d
+  const ux = U.x, uy = U.y, uz = U.z, vx = V.x, vy = V.y, vz = V.z, px = P.x, py = P.y, pz = P.z;
+  const segs = [], ptKeys = new Set(), pts = [];
+  let umin = Infinity, umax = -Infinity, emin = Infinity, emax = -Infinity;
+  for (const model of models) {
+    if (!model.visible) continue;
+    for (const mesh of model.meshes) {
+      if (!mesh.visible) continue;
+      const geo = mesh.geometry; if (!geo || !geo.attributes || !geo.attributes.position) continue;
+      if (!geo.boundingBox) geo.computeBoundingBox();
+      const bb = geo.boundingBox;
+      mesh.updateWorldMatrix(true, false);
+      const me = mesh.matrixWorld.elements;
+      const isId = me[0] === 1 && me[5] === 1 && me[10] === 1 && me[15] === 1 && me[1] === 0 && me[2] === 0 && me[3] === 0 &&
+                   me[4] === 0 && me[6] === 0 && me[7] === 0 && me[8] === 0 && me[9] === 0 && me[11] === 0 && me[12] === 0 && me[13] === 0 && me[14] === 0;
+      if (isId) {   // cull AABB↔piano (centro ± estensione proiettata sulla normale); solo in coord world
+        const cx2 = (bb.min.x + bb.max.x) / 2, cy2 = (bb.min.y + bb.max.y) / 2, cz2 = (bb.min.z + bb.max.z) / 2;
+        const ex = (bb.max.x - bb.min.x) / 2, ey = (bb.max.y - bb.min.y) / 2, ez = (bb.max.z - bb.min.z) / 2;
+        const fc = nx * cx2 + ny * cy2 + nz * cz2 - d, rad = Math.abs(nx) * ex + Math.abs(ny) * ey + Math.abs(nz) * ez;
+        if (fc - rad > 0 || fc + rad < 0) continue;              // box tutto da un lato → nessun taglio
+      }
+      const arr = geo.attributes.position.array;
+      const idx = geo.index, ix = idx ? idx.array : null, triCount = idx ? idx.count : geo.attributes.position.count;
+      let ax, ay, az, bx, by, bz, cx, cy, cz;
+      for (let t = 0; t + 2 < triCount; t += 3) {
+        const a = (ix ? ix[t] : t) * 3, b = (ix ? ix[t + 1] : t + 1) * 3, c = (ix ? ix[t + 2] : t + 2) * 3;
+        if (isId) {                                              // mesh in coordinate world (caso reale) → nessuna trasformazione
+          ax = arr[a]; ay = arr[a + 1]; az = arr[a + 2]; bx = arr[b]; by = arr[b + 1]; bz = arr[b + 2]; cx = arr[c]; cy = arr[c + 1]; cz = arr[c + 2];
+        } else {                                                 // fallback robusto se la mesh avesse una matrice
+          _s2dA.set(arr[a], arr[a + 1], arr[a + 2]).applyMatrix4(mesh.matrixWorld); ax = _s2dA.x; ay = _s2dA.y; az = _s2dA.z;
+          _s2dB.set(arr[b], arr[b + 1], arr[b + 2]).applyMatrix4(mesh.matrixWorld); bx = _s2dB.x; by = _s2dB.y; bz = _s2dB.z;
+          _s2dC.set(arr[c], arr[c + 1], arr[c + 2]).applyMatrix4(mesh.matrixWorld); cx = _s2dC.x; cy = _s2dC.y; cz = _s2dC.z;
+        }
+        const da = nx * ax + ny * ay + nz * az - d, db = nx * bx + ny * by + nz * bz - d, dc = nx * cx + ny * cy + nz * cz - d;
+        let cnt = 0;
+        if ((da < 0) !== (db < 0)) { const tt = da / (da - db); _s2dPX[cnt] = ax + (bx - ax) * tt; _s2dPY[cnt] = ay + (by - ay) * tt; _s2dPZ[cnt] = az + (bz - az) * tt; cnt++; }
+        if ((db < 0) !== (dc < 0)) { const tt = db / (db - dc); _s2dPX[cnt] = bx + (cx - bx) * tt; _s2dPY[cnt] = by + (cy - by) * tt; _s2dPZ[cnt] = bz + (cz - bz) * tt; cnt++; }
+        if (cnt < 2 && (dc < 0) !== (da < 0)) { const tt = dc / (dc - da); _s2dPX[cnt] = cx + (ax - cx) * tt; _s2dPY[cnt] = cy + (ay - cy) * tt; _s2dPZ[cnt] = cz + (az - cz) * tt; cnt++; }
+        if (cnt < 2) continue;
+        const rx0 = _s2dPX[0] - px, ry0 = _s2dPY[0] - py, rz0 = _s2dPZ[0] - pz;
+        const rx1 = _s2dPX[1] - px, ry1 = _s2dPY[1] - py, rz1 = _s2dPZ[1] - pz;
+        const u0 = rx0 * ux + ry0 * uy + rz0 * uz, e0 = rx0 * vx + ry0 * vy + rz0 * vz + baseElev;
+        const u1 = rx1 * ux + ry1 * uy + rz1 * uz, e1 = rx1 * vx + ry1 * vy + rz1 * vz + baseElev;
+        if (Math.abs(u0 - u1) < 1e-6 && Math.abs(e0 - e1) < 1e-6) continue;   // segmento degenere
+        if (fr.curved && Math.min(Math.abs(u0), Math.abs(u1)) > 5000) continue;   // intersezione remota (asse curvo) → scarta
+        segs.push(u0, e0, u1, e1);
+        if (u0 < umin) umin = u0; if (u0 > umax) umax = u0; if (e0 < emin) emin = e0; if (e0 > emax) emax = e0;
+        if (u1 < umin) umin = u1; if (u1 > umax) umax = u1; if (e1 < emin) emin = e1; if (e1 > emax) emax = e1;
+        const k0 = Math.round(u0 * 1000) + ":" + Math.round(e0 * 1000); if (!ptKeys.has(k0)) { ptKeys.add(k0); pts.push(u0, e0); }
+        const k1 = Math.round(u1 * 1000) + ":" + Math.round(e1 * 1000); if (!ptKeys.has(k1)) { ptKeys.add(k1); pts.push(u1, e1); }
+      }
+    }
+  }
+  DRAW._heavy = (performance.now() - t0) > 40;
+  DRAW.geom = segs.length
+    ? { segs, pts, bbox: { umin, umax, emin, emax }, axisElev: baseElev, count: segs.length / 2 }
+    : { segs: [], pts: [], bbox: null, axisElev: baseElev, count: 0 };
+}
+
+/* --- inquadratura iniziale (fit) sulla bbox della sezione --- */
+function _drawFit() {
+  const host = $("s2dChart"); if (!host) return;
+  const W = host.clientWidth || 320, H = host.clientHeight || 220, pad = 30;
+  const g = DRAW.geom;
+  if (!g || !g.bbox) { DRAW.view = { scale: 10, ox: W / 2, oy: H / 2 }; return; }
+  const du = Math.max(g.bbox.umax - g.bbox.umin, 1e-3), de = Math.max(g.bbox.emax - g.bbox.emin, 1e-3);
+  const scale = Math.max(1e-3, Math.min((W - 2 * pad) / du, (H - 2 * pad) / de));
+  const cu = (g.bbox.umin + g.bbox.umax) / 2, ce = (g.bbox.emin + g.bbox.emax) / 2;
+  DRAW.view = { scale, ox: W / 2 - cu * scale, oy: H / 2 + ce * scale };
+}
+
+/* --- ricalcolo: coalescato in rAF; durante un drag pesante rimanda a fine drag --- */
+function _drawScheduleRecompute() {
+  if (!DRAW.on) return;
+  if (DRAW._heavy && _alnSecDrag) { DRAW._stale = true; const el = $("s2dReadout"); if (el) el.textContent = tr("sec2d.updating"); return; }
+  if (DRAW._raf) return;
+  DRAW._raf = requestAnimationFrame(() => { DRAW._raf = 0; computeSection2D(); if (!$("sectionBody").hidden) renderSection2D(); });
+}
+function _drawForceRecompute() {
+  if (!DRAW.on) return;
+  DRAW._stale = false; computeSection2D(); if (!$("sectionBody").hidden) renderSection2D();
+}
+
+/* --- schede del pannello destro --- */
+function _drawShowTab(which) {
+  const onSec = which === "section";
+  const info = $("dtabInfo"), sec = $("dtabSection"), ib = $("detailBody"), sb = $("sectionBody");
+  if (info) { info.classList.toggle("on", !onSec); info.setAttribute("aria-selected", String(!onSec)); }
+  if (sec) { sec.classList.toggle("on", onSec); sec.setAttribute("aria-selected", String(onSec)); }
+  if (ib) ib.hidden = onSec;
+  if (sb) sb.hidden = !onSec;
+  if (onSec) renderSection2D();
+}
+function setDrawMode(on) {
+  if (on && !ALNSEC.on && !(typeof SECPL !== "undefined" && SECPL.on)) return;
+  DRAW.on = on;
+  const btn = $("profileDraw"); if (btn) btn.classList.toggle("on", on);
+  const b2 = $("btnSecDraw"); if (b2) b2.classList.toggle("on", on);
+  const tab = $("dtabSection"); if (tab) tab.hidden = !on;
+  if (on) {
+    $("main").classList.add("with-detail"); $("main").classList.remove("detail-collapsed");
+    _s2dEnsureDom();
+    _drawShowTab("section");                 // rendi visibile il canvas PRIMA del fit (serve clientWidth reale)
+    computeSection2D();
+    _drawFit();
+    renderSection2D();
+  } else {
+    DRAW.draft = [];
+    _drawShowTab("info");
+  }
+}
+
+/* --- costruzione una-tantum della UI della scheda (toolbar + canvas + readout) --- */
+function _s2dEnsureDom() {
+  const host = $("sectionBody"); if (!host || host.dataset.built) return;
+  host.dataset.built = "1";
+  const ic = {
+    dist: '<svg viewBox="0 0 24 24"><path d="M3 17L17 3M5 13l2 2M9 9l2 2M13 5l2 2"/></svg>',
+    area: '<svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/></svg>',
+    elev: '<svg viewBox="0 0 24 24"><path d="M12 3v18M7 8h10M6 13h12M5 18h14"/></svg>',
+    snap: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>',
+    fit:  '<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+    clear:'<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>',
+    undo: '<svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5M4 12h11a5 5 0 0 1 0 10h-3"/></svg>',
+    dxf:  '<svg viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg>'
+  };
+  host.innerHTML =
+    `<div class="s2d-toolbar">
+       <button class="s2d-btn on" id="s2dDist" data-tool="dist" data-i18n-title="sec2d.distT" title="">${ic.dist}<span data-i18n="sec2d.dist">Distanza</span></button>
+       <button class="s2d-btn" id="s2dArea" data-tool="area" data-i18n-title="sec2d.areaT" title="">${ic.area}<span data-i18n="sec2d.area">Area</span></button>
+       <button class="s2d-btn" id="s2dElev" data-tool="elev" data-i18n-title="sec2d.elevT" title="">${ic.elev}<span data-i18n="sec2d.elev">Quota</span></button>
+       <span class="s2d-sep"></span>
+       <button class="s2d-btn on" id="s2dSnap" data-i18n-title="sec2d.snapT" title="">${ic.snap}<span data-i18n="sec2d.snap">Snap</span></button>
+       <span class="s2d-sep"></span>
+       <button class="s2d-btn" id="s2dUndo" data-i18n-title="sec2d.undoT" title="">${ic.undo}<span data-i18n="sec2d.undo">Annulla</span></button>
+       <button class="s2d-btn" id="s2dFit" data-i18n-title="sec2d.fitT" title="">${ic.fit}<span data-i18n="sec2d.fit">Adatta</span></button>
+       <button class="s2d-btn" id="s2dClear" data-i18n-title="sec2d.clearT" title="">${ic.clear}<span data-i18n="sec2d.clear">Pulisci</span></button>
+       <span class="s2d-sep"></span>
+       <button class="s2d-btn" id="s2dDxf" data-i18n-title="sec2d.dxfT" title="">${ic.dxf}<span data-i18n="sec2d.dxf">DXF</span></button>
+     </div>
+     <div class="s2d-chart" id="s2dChart"></div>
+     <div class="s2d-readout" id="s2dReadout"></div>`;
+  applyStaticI18n(host);
+  const setTool = tl => { DRAW.tool = tl; DRAW.draft = []; ["dist", "area", "elev"].forEach(k => $("s2d" + k[0].toUpperCase() + k.slice(1)).classList.toggle("on", k === tl)); _s2dRenderOverlay(); _drawSetReadout(); };
+  $("s2dDist").addEventListener("click", () => setTool("dist"));
+  $("s2dArea").addEventListener("click", () => setTool("area"));
+  $("s2dElev").addEventListener("click", () => setTool("elev"));
+  $("s2dSnap").addEventListener("click", () => { DRAW.snap = !DRAW.snap; $("s2dSnap").classList.toggle("on", DRAW.snap); });
+  $("s2dUndo").addEventListener("click", _s2dUndo);
+  $("s2dFit").addEventListener("click", () => { _drawFit(); renderSection2D(); });
+  $("s2dClear").addEventListener("click", () => { DRAW.measures = []; DRAW.draft = []; _s2dRenderOverlay(); _drawSetReadout(); });
+  $("s2dDxf").addEventListener("click", exportSection2DDXF);
+  const chart = $("s2dChart");
+  let down = null;
+  chart.addEventListener("wheel", ev => {
+    if (!DRAW.view) return; ev.preventDefault();
+    const r = chart.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top;
+    const u = (px - DRAW.view.ox) / DRAW.view.scale, e = (DRAW.view.oy - py) / DRAW.view.scale;
+    DRAW.view.scale *= (ev.deltaY < 0 ? 1.15 : 1 / 1.15);
+    DRAW.view.ox = px - u * DRAW.view.scale; DRAW.view.oy = py + e * DRAW.view.scale;
+    renderSection2D();
+  }, { passive: false });
+  chart.addEventListener("mousedown", ev => { if (ev.button === 1) ev.preventDefault(); });  // rotella: niente autoscroll del browser
+  chart.addEventListener("pointerdown", ev => {
+    if (!DRAW.view) return;
+    if (ev.button === 1 || ev.button === 2) ev.preventDefault();  // rotella (pan) / destro (chiudi): niente autoscroll/selezione
+    down = { x: ev.clientX, y: ev.clientY, ox: DRAW.view.ox, oy: DRAW.view.oy, moved: false, btn: ev.button };
+    try { chart.setPointerCapture(ev.pointerId); } catch (_) {}
+  });
+  chart.addEventListener("pointermove", ev => {
+    if (!DRAW.view) return;
+    const ue = _s2dEventUE(ev);
+    if (down && down.btn === 1) {                                 // pan SOLO con la rotella
+      const dx = ev.clientX - down.x, dy = ev.clientY - down.y;
+      if (down.moved || Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        down.moved = true; DRAW._panning = true;
+        DRAW.view.ox = down.ox + dx; DRAW.view.oy = down.oy + dy;
+        renderSection2D(); return;
+      }
+    }
+    DRAW.hover = ue; _s2dRenderOverlay(); _drawSetReadout(ue);
+  });
+  chart.addEventListener("pointerup", ev => {
+    try { chart.releasePointerCapture(ev.pointerId); } catch (_) {}
+    const d = down; down = null; DRAW._panning = false;
+    if (!d || !DRAW.view) return;
+    if (d.btn === 1) return;                                      // rotella: solo pan
+    if (d.btn === 2) { _s2dCommitDraft(); return; }              // destro: chiudi la misura in corso
+    if (d.btn === 0) _s2dPlacePoint(_s2dEventUE(ev));             // sinistro: posa solo punti (mai pan)
+  });
+  chart.addEventListener("pointerleave", () => { DRAW.hover = null; _s2dRenderOverlay(); _drawSetReadout(); });
+  /* doppio clic → chiudi: scarta il punto duplicato lasciato dal 2° clic, poi conferma */
+  chart.addEventListener("dblclick", ev => { ev.preventDefault(); if (DRAW.tool !== "elev" && DRAW.draft.length) DRAW.draft.pop(); _s2dCommitDraft(); });
+  chart.addEventListener("contextmenu", ev => ev.preventDefault());
+}
+
+/* --- mappa evento → coordinate (u,elev), con snap ai vertici della sezione --- */
+function _s2dEventUE(ev) {
+  const chart = $("s2dChart"), r = chart.getBoundingClientRect();
+  const px = ev.clientX - r.left, py = ev.clientY - r.top;
+  let u = (px - DRAW.view.ox) / DRAW.view.scale, e = (DRAW.view.oy - py) / DRAW.view.scale, snapped = false;
+  if (DRAW.snap && DRAW.geom && DRAW.geom.pts.length) {
+    const pts = DRAW.geom.pts, thr = 12; let best = thr * thr, bu = 0, be = 0;
+    for (let i = 0; i < pts.length; i += 2) {
+      const dx = _s2dP2x(pts[i]) - px, dy = _s2dP2y(pts[i + 1]) - py, dd = dx * dx + dy * dy;
+      if (dd < best) { best = dd; bu = pts[i]; be = pts[i + 1]; snapped = true; }
+    }
+    if (snapped) { u = bu; e = be; }
+  }
+  return { u, e, px, py, snapped };
+}
+
+/* --- piazza un punto: distanza/area accumulano in draft; quota lascia un marker --- */
+function _s2dPlacePoint(ue) {
+  if (DRAW.tool === "elev") { DRAW.measures.push({ type: "elev", pts: [{ u: ue.u, e: ue.e }] }); _s2dRenderOverlay(); _drawSetReadout(ue); return; }
+  DRAW.draft.push({ u: ue.u, e: ue.e });
+  if (DRAW.tool === "dist" && DRAW.draft.length >= 2) { _s2dCommitDraft(); return; }   // distanza = singolo segmento (auto al 2° punto)
+  _s2dRenderOverlay(); _drawSetReadout(ue);
+}
+function _s2dCommitDraft() {
+  const need = DRAW.tool === "area" ? 3 : 2;
+  if (DRAW.draft.length >= need) DRAW.measures.push({ type: DRAW.tool, pts: DRAW.draft.slice() });
+  DRAW.draft = []; _s2dRenderOverlay(); _drawSetReadout();
+}
+/* annulla: prima l'ultimo punto in bozza, poi l'ultima misura confermata (anche le quote) */
+function _s2dUndo() {
+  if (DRAW.draft.length) DRAW.draft.pop();
+  else if (DRAW.measures.length) DRAW.measures.pop();
+  else return;
+  _s2dRenderOverlay(); _drawSetReadout(DRAW.hover);
+}
+
+/* --- export DXF (R12 ASCII, client-side): X = offset laterale u (0 = asse), Y = quota assoluta, unità metri ---
+   layer separati: SEZIONE (linee di taglio), ASSE, MISURE (distanze/aree), QUOTE, TESTI. */
+function exportSection2DDXF() {
+  const g = DRAW.geom;
+  if (!g || !g.count) { toast(tr("toast.dxfNodata")); return; }
+  const o = ALNSEC.obj || ALIGN.active, station = ALNSEC.s || 0;
+  const L = [], P = (c, v) => { L.push(c, v); };
+  const n = x => { const r = Math.round(x * 1e6) / 1e6; return Object.is(r, -0) ? 0 : r; };
+  const line = (lay, x1, y1, x2, y2) => { P(0,"LINE");P(8,lay);P(10,n(x1));P(20,n(y1));P(30,0);P(11,n(x2));P(21,n(y2));P(31,0); };
+  const point = (lay, x, y) => { P(0,"POINT");P(8,lay);P(10,n(x));P(20,n(y));P(30,0); };
+  const text = (lay, x, y, h, str, rot, center) => { P(0,"TEXT");P(8,lay);P(10,n(x));P(20,n(y));P(30,0);P(40,n(h));P(1,str);if(rot)P(50,n(rot));if(center){P(72,1);P(73,2);P(11,n(x));P(21,n(y));P(31,0);} };
+  /* polilinea vecchio stile R12 (POLYLINE/VERTEX/SEQEND): un solo oggetto selezionabile. */
+  const polyline = (lay, pts, closed) => { P(0,"POLYLINE");P(8,lay);P(66,1);P(10,0);P(20,0);P(30,0);P(70,closed?1:0); for (const p of pts) { P(0,"VERTEX");P(8,lay);P(10,n(p.u));P(20,n(p.e));P(30,0); } P(0,"SEQEND");P(8,lay); };
+
+  const bw = g.bbox ? g.bbox.umax - g.bbox.umin : 0, bh = g.bbox ? g.bbox.emax - g.bbox.emin : 0;
+  /* altezza testo sul lato PIÙ PICCOLO (di norma l'estensione verticale): la larghezza di una
+     sezione di rilevato è molto maggiore dell'altezza → con max(...) i testi venivano enormi. */
+  const span = Math.min(bw || Infinity, bh || Infinity);
+  let th = span / 15; if (!isFinite(th) || th <= 0) th = 0.5;
+
+  /* quota "grafica": linea di quota + linee di estensione + frecce (a linee) + valore centrato/ruotato.
+     SOLO entità LINE/TEXT → massima compatibilità (apertura DIRETTA in AutoCAD). Le DIMENSION/BLOCKS
+     associative scritte a mano in R12 facevano abortire il caricamento (file vuoto), quindi evitate. */
+  const dimAligned = (lay, p1, p2, label) => {
+    const dx = p2.u - p1.u, dy = p2.e - p1.e, len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len, px = -uy, py = ux;       // direzione + perpendicolare (sinistra)
+    const off = th * 3, a1 = { u: p1.u + px * off, e: p1.e + py * off }, a2 = { u: p2.u + px * off, e: p2.e + py * off };
+    line(lay, a1.u, a1.e, a2.u, a2.e);                           // linea di quota
+    line(lay, p1.u + px * off * 0.08, p1.e + py * off * 0.08, a1.u + px * th * 0.6, a1.e + py * th * 0.6);   // estensione 1
+    line(lay, p2.u + px * off * 0.08, p2.e + py * off * 0.08, a2.u + px * th * 0.6, a2.e + py * th * 0.6);   // estensione 2
+    const al = th * 1.4, aw = th * 0.5;
+    const arw = (tip, du, dv) => { const cx = tip.u + du * al, cy = tip.e + dv * al, qx = -dv, qy = du; line(lay, tip.u, tip.e, cx + qx * aw, cy + qy * aw); line(lay, tip.u, tip.e, cx - qx * aw, cy - qy * aw); };
+    arw(a1, ux, uy); arw(a2, -ux, -uy);                          // frecce (due segmenti) alle estremità
+    let rot = Math.atan2(dy, dx) * 180 / Math.PI; if (rot > 90) rot -= 180; if (rot < -90) rot += 180;
+    const mu = (a1.u + a2.u) / 2 + px * th * 0.8, me = (a1.e + a2.e) / 2 + py * th * 0.8;
+    text(lay, mu, me, th, label, rot, true);                    // valore, centrato sopra la linea
+  };
+
+  /* header minimale */
+  P(0, "SECTION"); P(2, "HEADER"); P(9, "$ACADVER"); P(1, "AC1009"); P(9, "$INSUNITS"); P(70, 6); P(0, "ENDSEC");
+  /* tabella layer */
+  const layers = [["SEZIONE", 7], ["ASSE", 1], ["MISURE", 3], ["QUOTE", 5], ["TESTI", 4]];
+  P(0, "SECTION"); P(2, "TABLES"); P(0, "TABLE"); P(2, "LAYER"); P(70, layers.length);
+  for (const [nm, col] of layers) { P(0, "LAYER"); P(2, nm); P(70, 0); P(62, col); P(6, "CONTINUOUS"); }
+  P(0, "ENDTAB"); P(0, "ENDSEC");
+  /* entità */
+  P(0, "SECTION"); P(2, "ENTITIES");
+  const s = g.segs;
+  for (let i = 0; i < s.length; i += 4) line("SEZIONE", s[i], s[i + 1], s[i + 2], s[i + 3]);
+  if (g.bbox) line("ASSE", 0, g.bbox.emin, 0, g.bbox.emax);   // asse verticale u=0
+  point("ASSE", 0, g.axisElev);                                // quota dell'asse
+  for (const m of DRAW.measures) {
+    if (m.type === "elev") {                                   // quota altimetrica: triangolino (vertice sul punto) + valore
+      const p = m.pts[0], ts = th * 0.6, hh = ts * 1.7;
+      polyline("QUOTE", [{ u: p.u, e: p.e }, { u: p.u - ts, e: p.e + hh }, { u: p.u + ts, e: p.e + hh }], true);
+      text("TESTI", p.u + ts + th * 0.4, p.e + hh * 0.5, th, "Z " + (p.e >= 0 ? "+" : "") + p.e.toFixed(2));
+      continue;
+    }
+    if (m.type === "dist") { const p = m.pts; dimAligned("MISURE", p[0], p[p.length - 1], _s2dLen(p).toFixed(2) + " m"); continue; }
+    const pts = m.pts;                                          // area: polilinea chiusa + testo
+    polyline("MISURE", pts, true);
+    const c = _s2dCentroid(pts); text("TESTI", c.u, c.e, th, _s2dArea(pts).toFixed(2) + " m2", 0, true);
+  }
+  P(0, "ENDSEC"); P(0, "EOF");
+  let out = ""; for (let i = 0; i < L.length; i += 2) out += L[i] + "\r\n" + L[i + 1] + "\r\n";
+  const name = (o && o.name ? o.name : "sezione").replace(/[^\w.-]+/g, "_");
+  triggerDownload(new Blob([out], { type: "application/dxf" }), `sezione_${name}_${Math.round(station)}m.dxf`);
+  toast(tr("toast.dxfOk"));
+}
+
+/* --- geometria di misura --- */
+function _s2dLen(pts) { let L = 0; for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i].u - pts[i - 1].u, pts[i].e - pts[i - 1].e); return L; }
+function _s2dArea(pts) { let a = 0; for (let i = 0, n = pts.length; i < n; i++) { const p = pts[i], q = pts[(i + 1) % n]; a += p.u * q.e - q.u * p.e; } return Math.abs(a) / 2; }
+function _s2dCentroid(pts) { let u = 0, e = 0; for (const p of pts) { u += p.u; e += p.e; } return { u: u / pts.length, e: e / pts.length }; }
+
+/* --- testo del readout (offset laterale + quota + misura corrente) --- */
+function _drawSetReadout(ue) {
+  const el = $("s2dReadout"); if (!el) return;
+  if (!DRAW.geom || !DRAW.geom.count) { el.textContent = tr("sec2d.nodata"); return; }
+  let s = tr("sec2d.hint");
+  if (ue && DRAW.tool === "elev") s = tr("sec2d.levelOnly", { z: (ue.e >= 0 ? "+" : "") + ue.e.toFixed(2) });  // spot elevation: solo quota Z, con segno
+  else if (ue) s = tr("sec2d.coord", { u: _s2dFmt(ue.u), q: ue.e.toFixed(2) });
+  if (DRAW.draft.length) {
+    const pts = ue ? DRAW.draft.concat([{ u: ue.u, e: ue.e }]) : DRAW.draft;
+    if (DRAW.tool === "area" && pts.length >= 3) s += "  ·  " + tr("sec2d.areaLbl", { a: _s2dArea(pts).toFixed(2), p: _s2dLen(pts).toFixed(2) });
+    else if (DRAW.tool === "dist" && pts.length >= 2) s += "  ·  " + tr("sec2d.distVal", { d: _s2dLen(pts).toFixed(2) });
+  }
+  el.textContent = s;
+}
+
+/* --- rendering statico (griglia + assi + linee di taglio) --- */
+function renderSection2D() {
+  const host = $("s2dChart"); if (!host) return;
+  if (!DRAW.view) _drawFit();
+  const W = host.clientWidth || 320, H = host.clientHeight || 220, g = DRAW.geom;
+  if (!g || !g.count) {
+    host.innerHTML = `<svg viewBox="0 0 ${W} ${H}"><text class="s2d-empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">${tr('sec2d.nodata')}</text></svg>`;
+    _drawSetReadout(); return;
+  }
+  /* griglia con passo "tondo" in metri, calibrato sullo zoom corrente */
+  const stepPx = 64, step = _s2dNiceStep(stepPx / DRAW.view.scale);
+  const u0 = (0 - DRAW.view.ox) / DRAW.view.scale, u1 = (W - DRAW.view.ox) / DRAW.view.scale;
+  const e1 = (DRAW.view.oy - 0) / DRAW.view.scale, e0 = (DRAW.view.oy - H) / DRAW.view.scale;
+  let grid = "", ticks = "";
+  for (let u = Math.ceil(u0 / step) * step; u <= u1; u += step) { const x = _s2dP2x(u); grid += `<line x1="${x.toFixed(1)}" y1="0" x2="${x.toFixed(1)}" y2="${H}"/>`; ticks += `<text class="s2d-tick" x="${x.toFixed(1)}" y="${H - 4}" text-anchor="middle">${(+u.toFixed(3))}</text>`; }
+  for (let e = Math.ceil(e0 / step) * step; e <= e1; e += step) { const y = _s2dP2y(e); grid += `<line x1="0" y1="${y.toFixed(1)}" x2="${W}" y2="${y.toFixed(1)}"/>`; ticks += `<text class="s2d-tick" x="3" y="${(y - 3).toFixed(1)}">${(+e.toFixed(3))}</text>`; }
+  /* linea verticale dell'asse (u=0) + marker quota asse */
+  const ax = _s2dP2x(0), ay = _s2dP2y(g.axisElev);
+  let axis = `<line class="s2d-axis" x1="${ax.toFixed(1)}" y1="0" x2="${ax.toFixed(1)}" y2="${H}"/><circle class="s2d-axispt" cx="${ax.toFixed(1)}" cy="${ay.toFixed(1)}" r="3.2"/>`;
+  /* linee di taglio: un solo path con tanti sotto-tratti M..L.. */
+  const segs = g.segs; let d = "";
+  for (let i = 0; i < segs.length; i += 4) d += "M" + _s2dP2x(segs[i]).toFixed(1) + " " + _s2dP2y(segs[i + 1]).toFixed(1) + "L" + _s2dP2x(segs[i + 2]).toFixed(1) + " " + _s2dP2y(segs[i + 3]).toFixed(1);
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}"><g class="s2d-grid">${grid}</g>${axis}<path class="s2d-seg" d="${d}"/>${ticks}<g id="s2dOverlay"></g></svg>`;
+  _s2dRenderOverlay();
+  _drawSetReadout(DRAW.hover);                 // ripristina hint/coordinate (evita "nodata" residuo)
+}
+
+/* --- overlay dinamico (misure confermate + bozza + snap + hover): aggiorna solo il <g> overlay --- */
+function _s2dRenderOverlay() {
+  const host = $("s2dChart"); if (!host) return;
+  const ov = host.querySelector("#s2dOverlay"); if (!ov || !DRAW.view) return;
+  const lab = (x, y, text, big) => {
+    const w = text.length * 6.0 + 10, bx = Math.min(host.clientWidth - w - 2, Math.max(2, x + 8));
+    return `<rect class="s2d-mlabbg" x="${bx.toFixed(1)}" y="${(y - 13).toFixed(1)}" width="${w.toFixed(1)}" height="15" rx="3"/><text class="s2d-mlab${big ? ' big' : ''}" x="${(bx + 5).toFixed(1)}" y="${(y - 2).toFixed(1)}">${text}</text>`;
+  };
+  let s = "";
+  /* misure confermate */
+  for (const m of DRAW.measures) {
+    if (m.type === "elev") {
+      const p = m.pts[0], x = _s2dP2x(p.u), y = _s2dP2y(p.e);
+      s += `<path class="s2d-mtri" d="${_s2dTriPath(x, y, 5.5)}"/>` + lab(x, y, `Z ${(p.e >= 0 ? "+" : "")}${p.e.toFixed(2)}`, true);
+      continue;
+    }
+    let d = "";
+    for (let i = 0; i < m.pts.length; i++) d += (i ? "L" : "M") + _s2dP2x(m.pts[i].u).toFixed(1) + " " + _s2dP2y(m.pts[i].e).toFixed(1);
+    if (m.type === "area") { d += "Z"; s += `<path class="s2d-marea" d="${d}"/>`; const c = _s2dCentroid(m.pts); s += lab(_s2dP2x(c.u), _s2dP2y(c.e), `${_s2dArea(m.pts).toFixed(2)} m²`, true); }
+    else { s += `<path class="s2d-mline" d="${d}"/>`; const last = m.pts[m.pts.length - 1]; s += lab(_s2dP2x(last.u), _s2dP2y(last.e), `${_s2dLen(m.pts).toFixed(2)} m`, true); }
+    for (const p of m.pts) s += `<circle class="s2d-mpt" cx="${_s2dP2x(p.u).toFixed(1)}" cy="${_s2dP2y(p.e).toFixed(1)}" r="2.4"/>`;
+  }
+  /* bozza in corso + segmento live verso il cursore */
+  if (DRAW.draft.length && DRAW.tool !== "elev") {
+    const live = DRAW.hover ? DRAW.draft.concat([{ u: DRAW.hover.u, e: DRAW.hover.e }]) : DRAW.draft;
+    let d = "";
+    for (let i = 0; i < live.length; i++) d += (i ? "L" : "M") + _s2dP2x(live[i].u).toFixed(1) + " " + _s2dP2y(live[i].e).toFixed(1);
+    if (DRAW.tool === "area" && live.length >= 3) d += "Z";
+    s += `<path class="${DRAW.tool === 'area' ? 's2d-marea' : 's2d-mline'}" d="${d}"/>`;
+    for (const p of DRAW.draft) s += `<circle class="s2d-mpt" cx="${_s2dP2x(p.u).toFixed(1)}" cy="${_s2dP2y(p.e).toFixed(1)}" r="2.4"/>`;
+  }
+  /* marker di snap / posizione del cursore (triangolino di anteprima per la quota) */
+  if (DRAW.hover) {
+    const x = _s2dP2x(DRAW.hover.u), y = _s2dP2y(DRAW.hover.e);
+    if (DRAW.tool === "elev") s += `<path class="s2d-snaptri" d="${_s2dTriPath(x, y, 6)}"/>`;
+    else s += `<circle class="s2d-snap" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${DRAW.hover.snapped ? 5 : 3}"/>`;
+  }
+  ov.innerHTML = s;
+}
+
 if (window.ResizeObserver) new ResizeObserver(() => { if (ALIGN.active && !$("profilePanel").hidden) renderProfile(ALIGN.active); }).observe($("profileChart"));
 if (window.ResizeObserver) new ResizeObserver(() => { if (MINI.on && !$("profilePanel").hidden) renderMinimap(); }).observe($("profileMiniChart"));
 $("btnAlign").addEventListener("click", e => { e.stopPropagation(); toggleAlignMenu(); });
@@ -5294,8 +6015,36 @@ $("profileSection").addEventListener("click", () => setAlnSection(!ALNSEC.on));
 $("profileMode").addEventListener("click", e => { const b = e.target.closest(".pf-seg-b"); if (b) setAlnSecMode(b.dataset.mode); });
 $("profileFlip").addEventListener("click", flipAlnSecSide);
 $("profileThick").addEventListener("input", e => { const v = parseFloat(e.target.value); if (isFinite(v) && v > 0) { ALNSEC.thickness = v; if (ALNSEC.on) updateAlnSection(ALNSEC.s); } });
+$("profileDraw").addEventListener("click", () => setDrawMode(!DRAW.on));
+$("dtabInfo").addEventListener("click", () => _drawShowTab("info"));
+$("dtabSection").addEventListener("click", () => { if (DRAW.on) _drawShowTab("section"); });
+if (window.ResizeObserver) new ResizeObserver(() => { if (DRAW.on && !$("sectionBody").hidden) renderSection2D(); }).observe($("sectionBody"));
+document.addEventListener("keydown", e => {
+  if (!DRAW.on || $("sectionBody").hidden || isTyping(e)) return;
+  if (e.key === "Escape") {                                   // esce SOLO dalla misura in corso, mai dal pannello/disegno
+    if (DRAW.draft.length) { DRAW.draft = []; _s2dRenderOverlay(); _drawSetReadout(); }
+    e.stopPropagation(); e.stopImmediatePropagation();        // blocca l'handler globale (clearHighlight/closeDetail)
+  } else if (e.key === "Enter") _s2dCommitDraft();
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.stopPropagation(); _s2dUndo(); }
+});
 $("profileClose").addEventListener("click", closeProfile);
 document.addEventListener("click", e => { if (!e.target.closest("#alignMenu") && !e.target.closest("#btnAlign")) closeAlignMenu(); });
+
+/* ---- pannello dettagli ridimensionabile (trascina il bordo sinistro → larghezza terza colonna) ---- */
+let _detailResizeDrag = false;
+$("detailResize").addEventListener("pointerdown", e => {
+  e.preventDefault(); _detailResizeDrag = true;
+  try { $("detailResize").setPointerCapture(e.pointerId); } catch (_) {}
+});
+$("detailResize").addEventListener("pointermove", e => {
+  if (!_detailResizeDrag) return;
+  const mr = $("main").getBoundingClientRect();
+  const w = Math.max(280, Math.min(mr.width - 360, mr.right - e.clientX));
+  $("main").style.setProperty("--detail-w", w + "px");          // i ResizeObserver (viewport, sezione) si adeguano
+});
+const _detailResizeEnd = e => { if (_detailResizeDrag) { _detailResizeDrag = false; try { $("detailResize").releasePointerCapture(e.pointerId); } catch (_) {} } };
+$("detailResize").addEventListener("pointerup", _detailResizeEnd);
+$("detailResize").addEventListener("pointercancel", _detailResizeEnd);
 
 /* ---- nota versione ---- */
 $("ftVersion").textContent = `v2.0.0 · web-ifc · © Alessandro Perugini`;
