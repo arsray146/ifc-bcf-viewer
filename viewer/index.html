@@ -523,6 +523,10 @@ input[type=file]{display:none}
 .aln-prof{border:none;background:none;cursor:pointer;color:var(--muted);width:26px;height:26px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;flex:none}
 .aln-prof:hover{background:var(--lime-soft);color:var(--lime-deep)}
 .aln-prof svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}
+.aln-row .aln-src{flex:none;font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--faint);border:1px solid var(--line);border-radius:4px;padding:1px 4px}
+.align-menu .aln-ft{display:flex;flex-wrap:wrap;gap:4px 10px;padding:8px 6px 4px;margin-top:4px;border-top:1px solid var(--line)}
+.align-menu .aln-ft button{border:none;background:none;color:var(--lime-deep);font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;cursor:pointer;padding:2px 4px}
+.align-menu .aln-ft button:hover{text-decoration:underline}
 /* finestra profilo altimetrico */
 .profile-panel{position:absolute;left:14px;right:14px;bottom:14px;height:212px;z-index:6;
   background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
@@ -574,6 +578,10 @@ input[type=file]{display:none}
 .pf-thick{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--faint)}
 .pf-thick[hidden]{display:none}
 .pf-thick input{width:52px;padding:3px 5px;border:1px solid var(--line);border-radius:5px;font-family:var(--mono);font-size:11px;background:var(--panel);color:var(--text)}
+.pf-sta{display:inline-flex;align-items:center}
+.pf-sta[hidden]{display:none}
+.pf-sta input{width:88px;padding:3px 6px;border:1px solid var(--line);border-radius:5px;font-family:var(--mono);font-size:11px;background:var(--panel);color:var(--text);text-align:center}
+.pf-sta input:focus{outline:none;border-color:var(--lime-deep)}
 #profileChart.alnsec-on{cursor:ew-resize}
 .profile-body .pf-cut line{stroke:#e0322c;stroke-width:1.6;stroke-dasharray:4 3}
 .profile-body .pf-cut circle{fill:#e0322c}
@@ -611,6 +619,7 @@ input[type=file]{display:none}
   <button id="btnBcf" data-i18n="btn.loadBcf">Carica BCF</button>
   <input type="file" id="fileIfc" accept=".ifc" multiple>
   <input type="file" id="fileBcf" accept=".bcf,.bcfzip,.zip,.xlsx,.xlsm">
+  <input type="file" id="fileLxml" accept=".xml,.landxml">
 </header>
 
 <main id="main">
@@ -696,6 +705,7 @@ input[type=file]{display:none}
         <div class="profile-tools">
           <button class="profile-sbtn" id="profileMiniBtn" data-i18n-title="mini.toggle" title="Apri/chiudi la minimap dei tracciati (vista dall'alto)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg><span data-i18n="mini.btn">Minimap</span></button>
           <button class="profile-sbtn" id="profileSection" data-i18n-title="alnsec.toggle" title="Sezione ortogonale all'asse: nasconde il modello da un lato del piano per vedere il resto del tracciato. Trascina la sezione in 3D o lungo il profilo per spostarla."><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M5 21h14"/></svg><span data-i18n="alnsec.btn">Sezione asse</span></button>
+          <label class="pf-sta" id="profileStaWrap" hidden data-i18n-title="alnsec.sta" title="Vai alla progressiva: scrivi es. 2+873.50 o 2873.5 e premi Invio"><input id="profileSta" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" placeholder="0+000.00"></label>
           <div class="pf-seg" id="profileMode" hidden role="group" data-i18n-title="alnsec.mode" title="Modalità: Taglio (nasconde un lato) o Fetta (slab di spessore dato)">
             <button class="pf-seg-b on" data-mode="clip" data-i18n="alnsec.modeClip">Taglio</button>
             <button class="pf-seg-b" data-mode="slab" data-i18n="alnsec.modeSlab">Fetta</button>
@@ -865,7 +875,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import * as WebIFC from "https://unpkg.com/web-ifc@0.0.77/web-ifc-api.js";
 
 /* ============================ stato globale ============================ */
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "2.1.0";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN (v1.8.0) ============================ */
@@ -922,12 +932,18 @@ const STRINGS = {
     "toast.secPlanePick": "Clicca una faccia per posizionare il piano di sezione.",
     "btn.align": "Asse",
     "title.align": "Scegli l'asse (alignment) da mostrare in rosso e apri il profilo",
-    "align.menuHd": "Assi del modello", "align.all": "tutti", "align.none": "nessuno",
+    "align.menuHd": "Assi", "align.all": "tutti", "align.none": "nessuno",
     "align.show": "Mostra in 3D", "align.profileBtn": "Apri il profilo altimetrico", "align.empty": "Nessun asse",
+    "align.loadLxml": "Carica LandXML…", "align.clearLxml": "Rimuovi assi LandXML",
+    "toast.lxmlLoaded1": "1 asse caricato da {file}", "toast.lxmlLoadedN": "{n} assi caricati da {file}",
+    "toast.lxmlNone": "Nessun tracciato utilizzabile nel LandXML", "toast.lxmlErr": "LandXML non valido o non leggibile",
+    "toast.lxmlRemoved": "Assi LandXML rimossi",
+    "toast.lxmlFar": "Assi LandXML a {d} km dal modello: sistema di coordinate diverso?",
     "profile.close": "Chiudi il profilo", "profile.nodata": "Profilo altimetrico non disponibile",
     "alnsec.btn": "Sezione asse",
     "alnsec.toggle": "Sezione ortogonale all'asse: nasconde il modello da un lato del piano per vedere il resto del tracciato. Trascina la sezione in 3D o lungo il profilo per spostarla.",
     "alnsec.thick": "Spessore della fetta sezionata (m)",
+    "alnsec.sta": "Vai alla progressiva: scrivi es. 2+873.50 o 2873.5 e premi Invio",
     "alnsec.mode": "Modalità: Taglio (nasconde un lato) o Fetta (slab di spessore dato)",
     "alnsec.modeClip": "Taglio", "alnsec.modeSlab": "Fetta", "alnsec.flip": "Inverti il lato sezionato",
     "mini.btn": "Minimap", "mini.toggle": "Apri/chiudi la minimap dei tracciati (vista dall'alto), con la posizione della sezione",
@@ -1092,12 +1108,18 @@ const STRINGS = {
     "toast.secPlanePick": "Click a face to place the section plane.",
     "btn.align": "Alignment",
     "title.align": "Pick the alignment (axis) to show in red and open its profile",
-    "align.menuHd": "Model alignments", "align.all": "all", "align.none": "none",
+    "align.menuHd": "Alignments", "align.all": "all", "align.none": "none",
     "align.show": "Show in 3D", "align.profileBtn": "Open vertical profile", "align.empty": "No alignment",
+    "align.loadLxml": "Load LandXML…", "align.clearLxml": "Remove LandXML alignments",
+    "toast.lxmlLoaded1": "1 alignment loaded from {file}", "toast.lxmlLoadedN": "{n} alignments loaded from {file}",
+    "toast.lxmlNone": "No usable alignment in the LandXML", "toast.lxmlErr": "Invalid or unreadable LandXML",
+    "toast.lxmlRemoved": "LandXML alignments removed",
+    "toast.lxmlFar": "LandXML alignments are {d} km away from the model: different coordinate system?",
     "profile.close": "Close profile", "profile.nodata": "Vertical profile unavailable",
     "alnsec.btn": "Axis section",
     "alnsec.toggle": "Cross-section orthogonal to the axis: hides the model on one side of the plane so you can see the rest of the route. Drag the section in 3D or along the profile to move it.",
     "alnsec.thick": "Sectioned slab thickness (m)",
+    "alnsec.sta": "Go to station: type e.g. 2+873.50 or 2873.5 and press Enter",
     "alnsec.mode": "Mode: Cut (hides one side) or Slab (slice of given thickness)",
     "alnsec.modeClip": "Cut", "alnsec.modeSlab": "Slab", "alnsec.flip": "Flip the cut side",
     "mini.btn": "Minimap", "mini.toggle": "Toggle the top-down minimap of the alignments, showing the section position",
@@ -1599,6 +1621,8 @@ function buildModel(data, name) {
   prewarmModel(model);  // v1.9.4 — costruisce le mappe pset/type in background (idle),
                         // così la PRIMA selezione non paga la scansione del modello
   try { extractAlignments(model, data); } catch (e) { console.warn("alignment:", e); } // v1.9.7
+  try { _lxmlOnModelLoad(); } catch (e) { console.warn("landxml:", e); }  // v2.1.0 — origine cambiata? ricostruisci gli assi LandXML
+  updateAlignUI();   // il bottone Asse ora compare anche senza IfcAlignment (per caricare un LandXML)
   console.info(
     `[APE Viewer] ${name} · ${model.elemCount} elementi · ${model.geoInfo}` +
     (worldOriginMap ? ` · origine condivisa E=${worldOriginMap.x} N=${worldOriginMap.y} H=${worldOriginMap.z}` : "")
@@ -1858,12 +1882,12 @@ function removeModel(model) {
       if (k >= 0) ALIGN.objs.splice(k, 1);
       if (ALIGN.active === o) { ALIGN.active = null; closeProfile(); }
     }
-    updateAlignUI();
   }
   try { ifcApi.CloseModel(model.modelID); } catch (e) { console.warn("CloseModel:", e); }
   const i = models.indexOf(model);
   if (i >= 0) models.splice(i, 1);
   classeCache.clear();   // la risoluzione Classe dipende dai modelli presenti (v1.7.6)
+  updateAlignUI();       // il bottone Asse dipende anche da models.length (LandXML, v2.1.0)
   if (!models.length) {
     /* federazione vuota: il prossimo caricamento ridefinisce origine e riferimento BCF */
     worldOriginMap = null;
@@ -5116,6 +5140,228 @@ function extractAlignments(model, data) {
   updateAlignUI();
 }
 
+/* ============================ Import LandXML — assi esterni (v2.1.0) ============================
+   Gli schemi IFC pre-4x3 non hanno IfcAlignment: un LandXML esterno fornisce gli assi
+   (planimetria <CoordGeom>: Line/Curve/Spiral/IrregularLine + profilo <ProfAlign>: PVI/
+   ParaCurve/CircCurve) e abilita profilo, sezione ⟂, minimap e sezione 2D anche lì.
+   Il parsing produce le STESSE strutture hsegs/vsegs del percorso IFC e riusa _alnBuild con
+   uno pseudo-modello (A = identità, unitFactor da <Units>): le coordinate LandXML sono già
+   in mappa (Z-up) → stessa origine condivisa worldOriginMap, catena invariante non toccata.
+   Ordine coordinate: lo standard scrive "Nord Est"; alcuni produttori invertono → auto-
+   rilevamento confrontando le due interpretazioni con il bbox dei modelli caricati. */
+const LXML = { sources: [], origin: null };   // sources: [{fileName, unitFactor, swap, aligns, objs[]}]
+
+const _LXML_UNITS = { meter: 1, metre: 1, millimeter: .001, millimetre: .001, centimeter: .01, centimetre: .01,
+  kilometer: 1000, kilometre: 1000, foot: .3048, ussurveyfoot: 1200 / 3937, inch: .0254 };
+function _lxmlNum(s, d = 0) { const v = parseFloat(s); return isFinite(v) ? v : d; }
+function _lxmlPair(el, tag) {   // testo "prima seconda [quota]" → coppia grezza (l'ordine N/E si decide dopo)
+  const n = el.getElementsByTagNameNS("*", tag)[0]; if (!n) return null;
+  const t = (n.textContent || "").trim().split(/[\s,]+/).map(Number);
+  return (t.length >= 2 && isFinite(t[0]) && isFinite(t[1])) ? [t[0], t[1]] : null;
+}
+function _lxmlParse(text) {
+  const doc = new DOMParser().parseFromString(text, "application/xml");
+  if (doc.getElementsByTagName("parsererror").length) throw new Error("XML malformato");
+  const root = doc.documentElement;
+  if (!root || root.localName !== "LandXML") throw new Error("radice non LandXML");
+  let uf = 1;
+  const un = root.getElementsByTagNameNS("*", "Units")[0];
+  if (un && un.firstElementChild) uf = _LXML_UNITS[(un.firstElementChild.getAttribute("linearUnit") || "meter").toLowerCase()] || 1;
+  const aligns = [];
+  for (const al of [...root.getElementsByTagNameNS("*", "Alignment")]) {
+    const name = al.getAttribute("name") || ("Alignment " + (aligns.length + 1));
+    const sta0 = _lxmlNum(al.getAttribute("staStart"), 0);
+    const cg = al.getElementsByTagNameNS("*", "CoordGeom")[0]; if (!cg) continue;
+    const els = [];
+    for (const el of [...cg.children]) {
+      const t = el.localName;
+      if (t === "Line") {
+        const S = _lxmlPair(el, "Start"), E = _lxmlPair(el, "End"); if (!S || !E) continue;
+        els.push({ t, S, E, len: _lxmlNum(el.getAttribute("length"), 0) });
+      } else if (t === "Curve") {
+        const S = _lxmlPair(el, "Start"), C = _lxmlPair(el, "Center"), E = _lxmlPair(el, "End"); if (!S || !C || !E) continue;
+        els.push({ t, S, C, E, rot: el.getAttribute("rot") || "ccw", R: _lxmlNum(el.getAttribute("radius"), 0), len: _lxmlNum(el.getAttribute("length"), 0) });
+      } else if (t === "Spiral") {
+        const S = _lxmlPair(el, "Start"), PI = _lxmlPair(el, "PI");
+        if (!S || !PI) { console.warn("[APE Viewer] LandXML: Spiral senza Start/PI, saltata"); continue; }
+        const st = (el.getAttribute("spiType") || "clothoid").toLowerCase();
+        if (st !== "clothoid") console.warn(`[APE Viewer] LandXML: spiType "${st}" approssimato come clotoide`);
+        els.push({ t, S, PI, rot: el.getAttribute("rot") || "ccw", r0: el.getAttribute("radiusStart"), r1: el.getAttribute("radiusEnd"), len: _lxmlNum(el.getAttribute("length"), 0) });
+      } else if (t === "IrregularLine") {
+        const pl = el.getElementsByTagNameNS("*", "PntList2D")[0];
+        const nums = pl ? (pl.textContent || "").trim().split(/[\s,]+/).map(Number) : [];
+        const pts = []; for (let i = 0; i + 1 < nums.length; i += 2) if (isFinite(nums[i]) && isFinite(nums[i + 1])) pts.push([nums[i], nums[i + 1]]);
+        if (pts.length >= 2) els.push({ t, pts });
+        else { const S = _lxmlPair(el, "Start"), E = _lxmlPair(el, "End"); if (S && E) els.push({ t: "Line", S, E, len: 0 }); }
+      } else console.warn(`[APE Viewer] LandXML: elemento <${t}> non supportato, saltato`);
+    }
+    /* profilo: vertici PVI in ordine documento (sta, quota[, raccordo di lunghezza L]) */
+    const pvis = [];
+    const pa = al.getElementsByTagNameNS("*", "ProfAlign")[0];
+    if (pa) for (const el of [...pa.children]) {
+      const t = el.localName;
+      const txt = (el.textContent || "").trim().split(/[\s,]+/).map(Number);
+      if (txt.length < 2 || !isFinite(txt[0]) || !isFinite(txt[1])) continue;
+      if (t === "PVI") pvis.push({ sta: txt[0], z: txt[1], L: 0, R: 0 });
+      else if (t === "ParaCurve") pvis.push({ sta: txt[0], z: txt[1], L: _lxmlNum(el.getAttribute("length"), 0), R: 0 });
+      else if (t === "CircCurve") pvis.push({ sta: txt[0], z: txt[1], L: _lxmlNum(el.getAttribute("length"), 0), R: _lxmlNum(el.getAttribute("radius"), 0) });
+      else if (t === "UnsymParaCurve") pvis.push({ sta: txt[0], z: txt[1], L: _lxmlNum(el.getAttribute("lengthIn"), 0) + _lxmlNum(el.getAttribute("lengthOut"), 0), R: 0 }); // approssimazione simmetrica
+    }
+    if (els.length) aligns.push({ name, sta0, els, pvis });
+  }
+  return { unitFactor: uf, aligns };
+}
+
+/* coppia grezza → [x=Est, y=Nord]: spec = "Nord Est" (prima=N), swap = file scritto "Est Nord" */
+function _lxmlXY(p, swap) { return swap ? [p[0], p[1]] : [p[1], p[0]]; }
+function _lxmlRot(rot) { return /^\s*cw\s*$/i.test(rot || "") ? -1 : 1; }   // ccw = curvatura positiva (come il percorso IFC)
+
+/* elementi planimetrici → hsegs {start,theta,r0,r1,length,ptype} (stesso formato del parser STEP) */
+function _lxmlHsegs(a, swap) {
+  const segs = [];
+  for (const el of a.els) {
+    if (el.t === "Line") {
+      const S = _lxmlXY(el.S, swap), E = _lxmlXY(el.E, swap);
+      const L = el.len > 0 ? el.len : Math.hypot(E[0] - S[0], E[1] - S[1]);
+      if (!(L > 0)) continue;
+      segs.push({ start: S, theta: Math.atan2(E[1] - S[1], E[0] - S[0]), r0: 0, r1: 0, length: L, ptype: "LINE" });
+    } else if (el.t === "Curve") {
+      const S = _lxmlXY(el.S, swap), C = _lxmlXY(el.C, swap), E = _lxmlXY(el.E, swap);
+      const sign = _lxmlRot(el.rot);
+      const rx = S[0] - C[0], ry = S[1] - C[1];
+      const R = el.R > 0 ? el.R : Math.hypot(rx, ry);
+      if (!(R > 0)) continue;
+      const theta = Math.atan2(sign * rx, -sign * ry);            // tangente = radiale ruotato ±90°
+      let L = el.len;
+      if (!(L > 0)) {                                             // senza length: dall'angolo Start→End attorno al centro
+        let d = sign * (Math.atan2(E[1] - C[1], E[0] - C[0]) - Math.atan2(ry, rx));
+        d %= 2 * Math.PI; if (d <= 1e-12) d += 2 * Math.PI;
+        L = R * d;
+      }
+      segs.push({ start: S, theta, r0: sign * R, r1: sign * R, length: L, ptype: "CIRCULARARC" });
+    } else if (el.t === "Spiral") {
+      const S = _lxmlXY(el.S, swap), PI = _lxmlXY(el.PI, swap);
+      const sign = _lxmlRot(el.rot);
+      const rad = v => { const t = String(v == null ? "" : v).trim().toUpperCase();
+        if (t === "" || t === "INF" || t === "INFINITY") return 0;
+        const n = parseFloat(t); return isFinite(n) && n > 0 ? sign * n : 0; };
+      if (!(el.len > 0)) { console.warn("[APE Viewer] LandXML: Spiral senza length, saltata"); continue; }
+      segs.push({ start: S, theta: Math.atan2(PI[1] - S[1], PI[0] - S[0]), r0: rad(el.r0), r1: rad(el.r1), length: el.len, ptype: "CLOTHOID" });
+    } else if (el.t === "IrregularLine") {
+      const pts = el.pts.map(p => _lxmlXY(p, swap));
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const L = Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+        if (L > 1e-9) segs.push({ start: pts[i], theta: Math.atan2(pts[i + 1][1] - pts[i][1], pts[i + 1][0] - pts[i][0]), r0: 0, r1: 0, length: L, ptype: "LINE" });
+      }
+    }
+  }
+  return segs;
+}
+
+/* vertici PVI → vsegs {sta,L,h,g0,g1,t} (stazioni interne: 0 = inizio asse, come il percorso IFC) */
+function _lxmlVsegs(a) {
+  const pv = a.pvis, s0 = a.sta0;
+  if (!pv.length) return [];
+  if (pv.length === 1) return [{ sta: pv[0].sta - s0, L: 0, h: pv[0].z, g0: 0, g1: 0, t: "CONSTANTGRADIENT" }];
+  const out = [];
+  let cur = pv[0].sta, curH = pv[0].z;
+  for (let i = 1; i < pv.length; i++) {
+    const g = (pv[i].z - pv[i - 1].z) / ((pv[i].sta - pv[i - 1].sta) || 1);
+    const isLast = i === pv.length - 1;
+    let gN = g, Lc = 0;
+    if (!isLast) {
+      gN = (pv[i + 1].z - pv[i].z) / ((pv[i + 1].sta - pv[i].sta) || 1);
+      Lc = pv[i].L > 0 ? pv[i].L : (pv[i].R > 0 ? pv[i].R * Math.abs(gN - g) : 0);   // CircCurve senza length: L = R·|Δg|
+    }
+    const tEnd = pv[i].sta - Lc / 2;
+    if (tEnd - cur > 1e-9) out.push({ sta: cur - s0, L: tEnd - cur, h: curH, g0: g, g1: g, t: "CONSTANTGRADIENT" });
+    curH += g * (tEnd - cur); cur = tEnd;
+    if (Lc > 0) {
+      out.push({ sta: cur - s0, L: Lc, h: curH, g0: g, g1: gN, t: "PARABOLICARC" });
+      curH += (g + gN) / 2 * Lc; cur += Lc;
+    }
+  }
+  return out;
+}
+
+/* auto-rilevamento ordine N/E: vince l'interpretazione col 1° punto più vicino al bbox dei modelli */
+function _lxmlPickSwap(parsed) {
+  let p = null;
+  for (const a of parsed.aligns) { for (const el of a.els) { p = el.S || (el.pts && el.pts[0]); if (p) break; } if (p) break; }
+  if (!p || !worldOriginMap || !models.length) return false;      // default: ordine standard (N E)
+  const box = computeGlobalBox(); if (!box || box.isEmpty()) return false;
+  const c = box.getCenter(new THREE.Vector3());
+  const cE = c.x + worldOriginMap.x, cN = worldOriginMap.y - c.z;  // world → mappa (inverso dello swizzle)
+  const uf = parsed.unitFactor;
+  const dSpec = Math.hypot(p[1] * uf - cE, p[0] * uf - cN);
+  const dSwap = Math.hypot(p[0] * uf - cE, p[1] * uf - cN);
+  return dSwap < dSpec * 0.999;                                   // a parità vince lo standard
+}
+
+function _lxmlBuild(src) {
+  /* pseudo-modello: le coordinate LandXML sono già in mappa (metri dopo unitFactor) → A = identità */
+  const model = { A: new THREE.Matrix4(), unitFactor: src.unitFactor, alignObjs: [] };
+  for (const a of src.aligns) {
+    const hsegs = _lxmlHsegs(a, src.swap); if (!hsegs.length) continue;
+    const obj = _alnBuild(model, { name: a.name, hsegs, vsegs: _lxmlVsegs(a) });
+    if (obj) {
+      obj.lxml = src;
+      obj.sta0 = a.sta0 * src.unitFactor;    // progressiva iniziale (m), solo per le etichette
+      if (!a.pvis.length) console.warn(`[APE Viewer] LandXML: "${a.name}" senza profilo → quote a 0`);
+      ALIGN.objs.push(obj); src.objs.push(obj);
+    }
+  }
+}
+function _lxmlRemoveSource(src) {
+  for (const o of src.objs) {
+    rootGroup.remove(o.line); o.line.geometry.dispose(); o.line.material.dispose();
+    const k = ALIGN.objs.indexOf(o); if (k >= 0) ALIGN.objs.splice(k, 1);
+    if (ALIGN.active === o) { ALIGN.active = null; closeProfile(); }
+  }
+  src.objs = [];
+}
+
+/* origine condivisa cambiata (federazione svuotata e ricaricata)? ricostruisci gli assi LandXML */
+function _lxmlOnModelLoad() {
+  if (!LXML.sources.length) return;
+  if (LXML.origin && worldOriginMap && LXML.origin.equals(worldOriginMap)) return;
+  for (const src of LXML.sources) {
+    const vis = src.objs.map(o => o._visible);
+    _lxmlRemoveSource(src);
+    _lxmlBuild(src);
+    src.objs.forEach((o, i) => { if (vis[i] === false) { o._visible = false; o.line.visible = false; } });
+  }
+  LXML.origin = worldOriginMap ? worldOriginMap.clone() : null;
+}
+
+function loadLandXML(text, fileName) {
+  let parsed;
+  try { parsed = _lxmlParse(text); } catch (e) { console.warn("[APE Viewer] LandXML:", e); toast(tr("toast.lxmlErr")); return; }
+  if (!parsed.aligns.length) { toast(tr("toast.lxmlNone")); return; }
+  _lxmlOnModelLoad();   // sorgenti precedenti costruite su un'origine ormai cambiata? riallineale prima
+  const src = { fileName, unitFactor: parsed.unitFactor, swap: _lxmlPickSwap(parsed), aligns: parsed.aligns, objs: [] };
+  _lxmlBuild(src);
+  if (!src.objs.length) { toast(tr("toast.lxmlNone")); return; }
+  LXML.sources.push(src);
+  LXML.origin = worldOriginMap ? worldOriginMap.clone() : null;
+  console.info(`[APE Viewer] LandXML ${fileName}: ${src.objs.length} assi · ordine ${src.swap ? "E,N (invertito)" : "N,E (standard)"} · unitFactor ${src.unitFactor}`);
+  /* asse lontanissimo dal modello? probabile CRS diverso: avvisa ma lascia fare */
+  const box = computeGlobalBox();
+  if (box && !box.isEmpty() && src.objs[0].world.length) {
+    const c = box.getCenter(new THREE.Vector3()), w = src.objs[0].world[0];
+    const dKm = Math.hypot(w.x - c.x, w.z - c.z) / 1000;
+    if (dKm > 50) toast(tr("toast.lxmlFar", { d: Math.round(dKm) }));
+  }
+  updateAlignUI();
+  toast(tn(src.objs.length, "toast.lxmlLoaded1", "toast.lxmlLoadedN", { file: fileName }));
+}
+function clearLandXML() {
+  for (const src of LXML.sources) _lxmlRemoveSource(src);
+  LXML.sources = []; LXML.origin = null;
+  updateAlignUI();
+  toast(tr("toast.lxmlRemoved"));
+}
+
 /* --- UI: selettore asse (tendina) + finestra profilo altimetrico --- */
 function _alnEsc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function _alnFmtSta(s) { const km = Math.floor(s / 1000); const m = Math.round(s - km * 1000); return km + "+" + String(Math.abs(m)).padStart(3, "0"); }
@@ -5130,9 +5376,13 @@ function _alnZat(prof, s) {
 function updateAlignUI() {
   const btn = $("btnAlign"); if (!btn) return;
   const has = ALIGN.objs.length > 0;
-  btn.style.display = has ? "" : "none";
+  /* v2.1.0: visibile anche senza IfcAlignment quando c'è almeno un modello,
+     così da lì si può caricare un LandXML esterno (IFC pre-4x3 senza alignment) */
+  const show = has || models.length > 0 || LXML.sources.length > 0;
+  btn.style.display = show ? "" : "none";
   btn.classList.toggle("al-on", has && ALIGN.objs.some(o => o._visible));
-  if (!has) { closeAlignMenu(); closeProfile(); }
+  if (!has) closeProfile();
+  if (!show) closeAlignMenu();
   renderAlignMenu();
   if (MINI.on) renderMinimap();
 }
@@ -5143,12 +5393,17 @@ function renderAlignMenu() {
     `<input type="checkbox" class="aln-vis"${o._visible ? " checked" : ""} title="${tr('align.show')}">` +
     `<span class="aln-sw"></span>` +
     `<span class="aln-name" title="${_alnEsc(o.name)}">${_alnEsc(o.name)}</span>` +
+    (o.lxml ? `<span class="aln-src" title="${_alnEsc(o.lxml.fileName)}">XML</span>` : "") +
     `<button class="aln-prof" title="${tr('align.profileBtn')}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M19 8l-5 6-4-3-4 5"/></svg></button>` +
     `</div>`).join("");
   menu.innerHTML =
     `<div class="aln-hd"><span>${tr('align.menuHd')}</span>` +
     `<button data-act="all">${tr('align.all')}</button><button data-act="none">${tr('align.none')}</button></div>` +
-    (rows || `<div class="aln-row"><span class="aln-name">${tr('align.empty')}</span></div>`);
+    (rows || `<div class="aln-row"><span class="aln-name">${tr('align.empty')}</span></div>`) +
+    `<div class="aln-ft"><button class="aln-lxml">${tr('align.loadLxml')}</button>` +
+    (LXML.sources.length ? `<button class="aln-lxml-clear">${tr('align.clearLxml')}</button>` : "") + `</div>`;
+  menu.querySelector(".aln-lxml").addEventListener("click", () => $("fileLxml").click());
+  const _cl = menu.querySelector(".aln-lxml-clear"); if (_cl) _cl.addEventListener("click", clearLandXML);
   menu.querySelectorAll(".aln-vis").forEach(cb => cb.addEventListener("change", e => {
     toggleAxis(ALIGN.objs[+e.target.closest(".aln-row").dataset.i], e.target.checked);
   }));
@@ -5297,6 +5552,7 @@ function updateAlnSection(s) {
   _applyClipping();
   _pfPlaceCut();
   _miniPlaceCut();
+  _alnSecStaDisplay();   // campo progressiva sincronizzato col drag (3D/profilo/minimap)
   if (typeof DRAW !== "undefined" && DRAW.on) _drawScheduleRecompute();   // sezione 2D: ricalcolo coalescato
 }
 function _alnSecSyncControls() {
@@ -5305,6 +5561,8 @@ function _alnSecSyncControls() {
   const seg = $("profileMode"); if (seg) { seg.hidden = !on; seg.querySelectorAll(".pf-seg-b").forEach(b => b.classList.toggle("on", b.dataset.mode === ALNSEC.mode)); }
   const flip = $("profileFlip"); if (flip) flip.hidden = !on;
   const tw = $("profileThickWrap"); if (tw) tw.hidden = !(on && slab);
+  const sw = $("profileStaWrap"); if (sw) sw.hidden = !on;
+  _alnSecStaDisplay();
   const draw = $("profileDraw"); if (draw) { draw.hidden = !on; draw.classList.toggle("on", typeof DRAW !== "undefined" && DRAW.on); }
   const chart = $("profileChart"); if (chart) chart.classList.toggle("alnsec-on", on);
 }
@@ -5337,6 +5595,48 @@ function setAlnSecMode(mode) {
 function flipAlnSecSide() { ALNSEC.side = -ALNSEC.side; if (ALNSEC.on) updateAlnSection(ALNSEC.s); }
 function stopAlnSection() { if (ALNSEC.on) setAlnSection(false); }
 
+/* --- progressiva digitabile (#profileSta, v2.1.0): "vai alla chilometrica" ---
+   Le progressive scritte/mostrate sono REALI (includono obj.sta0 dei LandXML);
+   la logica interna resta in s = metri dall'inizio asse. */
+function _alnParseSta(str) {   // "2+873.50" / "2+873,5" / "2873.5" / "K2+873" → metri (NaN se invalido)
+  let t = String(str || "").trim().toUpperCase().replace(/\s+/g, "").replace(",", ".");
+  if (!t) return NaN;
+  if (t[0] === "K") t = t.slice(1);
+  const i = t.indexOf("+");
+  if (i >= 0) {
+    const km = parseFloat(t.slice(0, i)), m = parseFloat(t.slice(i + 1));
+    return (isFinite(km) && isFinite(m)) ? km * 1000 + m : NaN;
+  }
+  const v = parseFloat(t); return isFinite(v) ? v : NaN;
+}
+function _alnFmtStaInput(v) {  // 2873.49 → "2+873.49" (formato del campo, 2 decimali)
+  const sign = v < 0 ? "-" : ""; v = Math.abs(v);
+  let km = Math.floor(v / 1000), ms = (v - km * 1000).toFixed(2);
+  if (parseFloat(ms) >= 1000) { km += 1; ms = "000.00"; }        // 999.996 arrotonda a 1000
+  while (ms.length < 6) ms = "0" + ms;                            // "73.20" → "073.20"
+  return sign + km + "+" + ms;
+}
+function _alnSecStaDisplay() { // riallinea il campo alla sezione corrente (non mentre l'utente digita)
+  const inp = $("profileSta"); if (!inp) return;
+  if (document.activeElement === inp) return;
+  const o = ALNSEC.obj;
+  inp.value = (ALNSEC.on && o) ? _alnFmtStaInput(ALNSEC.s + (o.sta0 || 0)) : "";
+}
+function _alnSecGoToSta(raw) {
+  const o = ALIGN.active; if (!o) return;
+  const v = _alnParseSta(raw);
+  if (!isFinite(v)) {                                             // input invalido: ripristina subito (anche a campo attivo)
+    const inp = $("profileSta");
+    if (inp && ALNSEC.on && ALNSEC.obj) inp.value = _alnFmtStaInput(ALNSEC.s + (ALNSEC.obj.sta0 || 0));
+    return;
+  }
+  const s = Math.max(0, Math.min(o.length, v - (o.sta0 || 0)));   // chilometrica reale → s interna, clamp
+  if (!ALNSEC.on) setAlnSection(true);
+  if (!ALNSEC.on) return;
+  updateAlnSection(s);
+  const inp = $("profileSta"); if (inp) inp.value = _alnFmtStaInput(ALNSEC.s + (o.sta0 || 0));  // normalizza anche a campo attivo
+}
+
 /* marcatore rosso trascinabile sul profilo: posizionato dalla mappa _pfMap del profilo corrente */
 function _pfPlaceCut() {
   const host = $("profileChart"); const cut = host && host.querySelector(".pf-cut");
@@ -5348,7 +5648,7 @@ function _pfPlaceCut() {
         txt = cut.querySelector("text"), aL = cut.querySelector(".pf-aL"), aR = cut.querySelector(".pf-aR");
   ln.setAttribute("x1", x.toFixed(1)); ln.setAttribute("x2", x.toFixed(1));
   cc.setAttribute("cx", x.toFixed(1)); cc.setAttribute("cy", y.toFixed(1));
-  const label = _alnFmtSta(s) + "  ·  " + z.toFixed(2) + " m";
+  const label = _alnFmtSta(s + (m.o.sta0 || 0)) + "  ·  " + z.toFixed(2) + " m";
   const tw = label.length * 6.2 + 16, tx = Math.min(m.W - m.padR - tw, Math.max(m.padL, x - tw / 2)), ty = m.padT + 2;
   rect.setAttribute("x", tx.toFixed(1)); rect.setAttribute("y", ty.toFixed(1)); rect.setAttribute("width", tw.toFixed(1));
   txt.textContent = label; txt.setAttribute("x", (tx + tw / 2).toFixed(1)); txt.setAttribute("y", (ty + 12).toFixed(1));
@@ -5534,7 +5834,7 @@ function renderProfile(o) {
   let d = ""; for (let i = 0; i < prof.length; i++) d += (i ? "L" : "M") + X(prof[i].s).toFixed(1) + " " + Y(prof[i].z).toFixed(1);
   let grid = "", labels = ""; const nY = 4, nX = 6;
   for (let i = 0; i <= nY; i++) { const z = zMin + (zMax - zMin) * i / nY, y = Y(z); grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}"/>`; labels += `<text class="pf-yl" x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end">${z.toFixed(0)}</text>`; }
-  for (let i = 0; i <= nX; i++) { const s = sMin + (sMax - sMin) * i / nX, x = X(s); grid += `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${H - padB}"/>`; labels += `<text class="pf-xl" x="${x.toFixed(1)}" y="${(H - padB + 15).toFixed(1)}" text-anchor="middle">${_alnFmtSta(s)}</text>`; }
+  for (let i = 0; i <= nX; i++) { const s = sMin + (sMax - sMin) * i / nX, x = X(s); grid += `<line x1="${x.toFixed(1)}" y1="${padT}" x2="${x.toFixed(1)}" y2="${H - padB}"/>`; labels += `<text class="pf-xl" x="${x.toFixed(1)}" y="${(H - padB + 15).toFixed(1)}" text-anchor="middle">${_alnFmtSta(s + (o.sta0 || 0))}</text>`; }
   host.innerHTML = `<svg width="${W}" height="${H}">` +
     `<g class="pf-grid">${grid}</g>` +
     `<path class="pf-line" d="${d}"/>` + labels +
@@ -5550,7 +5850,7 @@ function renderProfile(o) {
     const z = _alnZat(prof, s), x = X(s), y = Y(z);
     gl.setAttribute("x1", x.toFixed(1)); gl.setAttribute("x2", x.toFixed(1));
     gc.setAttribute("cx", x.toFixed(1)); gc.setAttribute("cy", y.toFixed(1));
-    const label = _alnFmtSta(s) + "  ·  " + z.toFixed(2) + " m"; gt.textContent = label;
+    const label = _alnFmtSta(s + (o.sta0 || 0)) + "  ·  " + z.toFixed(2) + " m"; gt.textContent = label;
     const tw = label.length * 6.2 + 12, tx = Math.min(W - padR - tw, Math.max(padL, x + 8)), ty = padT + 2;
     gr.setAttribute("x", tx.toFixed(1)); gr.setAttribute("y", ty.toFixed(1)); gr.setAttribute("width", tw.toFixed(1));
     gt.setAttribute("x", (tx + 6).toFixed(1)); gt.setAttribute("y", (ty + 12).toFixed(1));
@@ -5911,7 +6211,7 @@ function exportSection2DDXF() {
   P(0, "ENDSEC"); P(0, "EOF");
   let out = ""; for (let i = 0; i < L.length; i += 2) out += L[i] + "\r\n" + L[i + 1] + "\r\n";
   const name = (o && o.name ? o.name : "sezione").replace(/[^\w.-]+/g, "_");
-  triggerDownload(new Blob([out], { type: "application/dxf" }), `sezione_${name}_${Math.round(station)}m.dxf`);
+  triggerDownload(new Blob([out], { type: "application/dxf" }), `sezione_${name}_${Math.round(station + ((o && o.sta0) || 0))}m.dxf`);
   toast(tr("toast.dxfOk"));
 }
 
@@ -6005,6 +6305,12 @@ function _s2dRenderOverlay() {
 if (window.ResizeObserver) new ResizeObserver(() => { if (ALIGN.active && !$("profilePanel").hidden) renderProfile(ALIGN.active); }).observe($("profileChart"));
 if (window.ResizeObserver) new ResizeObserver(() => { if (MINI.on && !$("profilePanel").hidden) renderMinimap(); }).observe($("profileMiniChart"));
 $("btnAlign").addEventListener("click", e => { e.stopPropagation(); toggleAlignMenu(); });
+$("fileLxml").addEventListener("change", async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = "";
+  if (!f) return;
+  try { loadLandXML(await f.text(), f.name); }
+  catch (err) { console.warn("[APE Viewer] LandXML:", err); toast(tr("toast.lxmlErr")); }
+});
 $("profileMiniBtn").addEventListener("click", toggleMinimap);
 $("profileMiniChart").addEventListener("click", _miniClickJump);
 $("miniResize").addEventListener("pointerdown", _miniResizeStart);
@@ -6015,6 +6321,12 @@ $("profileSection").addEventListener("click", () => setAlnSection(!ALNSEC.on));
 $("profileMode").addEventListener("click", e => { const b = e.target.closest(".pf-seg-b"); if (b) setAlnSecMode(b.dataset.mode); });
 $("profileFlip").addEventListener("click", flipAlnSecSide);
 $("profileThick").addEventListener("input", e => { const v = parseFloat(e.target.value); if (isFinite(v) && v > 0) { ALNSEC.thickness = v; if (ALNSEC.on) updateAlnSection(ALNSEC.s); } });
+$("profileSta").addEventListener("keydown", e => {
+  e.stopPropagation();   // mentre si digita niente scorciatoie globali (Esc chiuderebbe pannelli)
+  if (e.key === "Enter") { e.preventDefault(); _alnSecGoToSta(e.target.value); }
+  else if (e.key === "Escape") { e.preventDefault(); e.target.blur(); _alnSecStaDisplay(); }
+});
+$("profileSta").addEventListener("change", e => _alnSecGoToSta(e.target.value));
 $("profileDraw").addEventListener("click", () => setDrawMode(!DRAW.on));
 $("dtabInfo").addEventListener("click", () => _drawShowTab("info"));
 $("dtabSection").addEventListener("click", () => { if (DRAW.on) _drawShowTab("section"); });
@@ -6047,8 +6359,8 @@ $("detailResize").addEventListener("pointerup", _detailResizeEnd);
 $("detailResize").addEventListener("pointercancel", _detailResizeEnd);
 
 /* ---- nota versione ---- */
-$("ftVersion").textContent = `v2.0.0 · web-ifc · © Alessandro Perugini`;
-console.info(`[APE Viewer] versione 2.0.0 · lingua ${LANG}`);
+$("ftVersion").textContent = `v2.1.0 · web-ifc · © Alessandro Perugini`;
+console.info(`[APE Viewer] versione ${APP_VERSION} · lingua ${LANG}`);
 
 /* ---- i18n: applicazione iniziale e toggle lingua (v1.8.0) ---- */
 document.querySelectorAll("#langSwitch .lang-opt").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang)));
