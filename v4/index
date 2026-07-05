@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="it" class="nojs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Viewer IFC · BCF | BIM coordination in your browser</title>
+<script>document.documentElement.classList.remove('nojs');document.documentElement.classList.add('js');</script>
+
+<!-- ============================ SEO / social / favicon ============================ -->
+<!-- URL canonico: https://viewifc.com/ -->
+<meta name="description" content="Browser-based openBIM coordination suite for IFC and BCF files. Federated models, BCF issues, IFC4x3 alignments, property editing and companion tools. Your models never leave your computer: no upload, no account, privacy by design.">
+<meta name="author" content="Alessandro Perugini">
+<meta name="keywords" content="IFC viewer, BCF viewer, BIM, web-ifc, openBIM, BIM coordination, online IFC viewer, BCF browser, free IFC viewer, IFC4x3 alignment">
+<meta name="theme-color" content="#090c07">
+<meta name="color-scheme" content="dark">
+<link rel="canonical" href="https://viewifc.com/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Viewer IFC · BCF">
+<meta property="og:title" content="Viewer IFC · BCF | BIM coordination in your browser">
+<meta property="og:description" content="Open and coordinate IFC models and BCF issues in your browser. No upload: your models stay on your computer. Free and open source.">
+<meta property="og:url" content="https://viewifc.com/">
+<meta property="og:image" content="https://viewifc.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="it_IT">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Viewer IFC · BCF | BIM coordination in your browser">
+<meta name="twitter:description" content="Open and coordinate IFC models and BCF issues in your browser. No upload: your models stay on your computer.">
+<meta name="twitter:image" content="https://viewifc.com/og-image.png">
+
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- ============================ /SEO ============================ -->
+
+<!-- ============================ structured data (JSON-LD) ============================ -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "name": "Viewer IFC · BCF",
+      "applicationCategory": "DesignApplication",
+      "applicationSubCategory": "BIM / IFC · BCF viewer",
+      "operatingSystem": "Web browser (Chromium-based: Chrome, Edge)",
+      "url": "https://viewifc.com/",
+      "downloadUrl": "https://viewifc.com/viewer/",
+      "image": "https://viewifc.com/og-image.png",
+      "description": "Free and open-source IFC and BCF coordination suite that runs entirely in the browser. Open and federate IFC models, review BCF issues and Solibri reports, inspect elements and property sets, slice with a section box, edit properties and re-export an updated IFC. Open IFC4x3 road and infrastructure alignments with a 3D axis, an interactive vertical profile, an orthogonal cross-section and a top-down minimap. 100% client-side: your models never leave your computer.",
+      "author": { "@type": "Person", "name": "Alessandro Perugini" },
+      "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+      "isAccessibleForFree": true,
+      "inLanguage": ["en", "it"],
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+      "featureList": [
+        "Federated IFC models (IFC2x3, IFC4, IFC4x3)",
+        "BCF issues and Solibri reports with viewpoints, comments and snapshots",
+        "Section box and element inspection with property sets",
+        "IFC4x3 road/infrastructure alignments: 3D axis, interactive vertical profile, orthogonal cross-section and top-down minimap",
+        "Edit IFC properties (including bulk) and re-export an updated IFC",
+        "100% client-side, no upload, no account"
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Is Viewer IFC · BCF free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes: completely free and open source under the AGPL-3.0 license. You can use it, study its code and contribute." } },
+        { "@type": "Question", "name": "Are my models uploaded to a server?", "acceptedAnswer": { "@type": "Answer", "text": "No. The viewer is 100% client-side: IFC and BCF files are read and rendered in your browser and never leave your computer. No upload, no account, no tracking." } },
+        { "@type": "Question", "name": "Which file formats are supported?", "acceptedAnswer": { "@type": "Answer", "text": "IFC2x3, IFC4 and IFC4x3, plus BCF issues and Solibri reports with viewpoints, comments and snapshots." } },
+        { "@type": "Question", "name": "Does it support road and infrastructure alignments (IFC4x3)?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. It opens the IfcAlignment of IFC4x3 files: it shows the 3D axis, an interactive vertical (elevation) profile, a cross-section orthogonal to the axis (cut or slab, movable along the chainage by dragging in 3D or on the profile) and a top-down minimap of the alignments." } },
+        { "@type": "Question", "name": "Do I need to install anything or create an account?", "acceptedAnswer": { "@type": "Answer", "text": "No. It is a single HTML page running in the browser: no install and no login. On first launch it fetches the rendering engine from a CDN, then it works even offline." } },
+        { "@type": "Question", "name": "Can I edit IFC properties and export them?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. You can edit element properties directly in the 3D view, in bulk across multiple elements too, and re-export an updated IFC file." } },
+        { "@type": "Question", "name": "Which browser is recommended?", "acceptedAnswer": { "@type": "Answer", "text": "A Chromium-based browser such as Chrome or Edge, for the best performance." } }
+      ]
+    }
+  ]
+}
+</script>
+<!-- ============================ /structured data ============================ -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   V4 "COORDINATION CINEMA"
+   Deep green-black stage, ambient lime light, glass layers.
+   Motion system: one shared easing, one rAF loop driving
+   parallax, sticky-stack, magnetic CTAs and the scroll chainage.
+   Shape system: buttons 10px, cards/panels 18px, chips pill.
+   ============================================================ */
+:root{
+  --lime:#bfd730; --lime-bright:#cbe23f; --lime-ink:#1c2405;
+  --bg:#090c07; --ink-1:#0f130b; --ink-2:#151a0f;
+  --glass:rgba(237,242,224,.04);
+  --glass-brd:rgba(237,242,224,.10);
+  --line:#262e1b;
+  --text:#eef3e1; --muted:#aeba9d; --faint:#8a9679;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --disp:'Barlow Semi Condensed',var(--sans);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --maxw:1200px;
+  --nav-h:64px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:16px;line-height:1.65;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none;cursor:pointer}
+button{cursor:pointer}
+h1,h2,h3{text-wrap:balance}
+p{text-wrap:pretty}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(20px,4vw,44px)}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px;border-radius:4px}
+::selection{background:var(--lime);color:var(--lime-ink)}
+
+/* ---------- reveal (enhance-only: visible without JS) ---------- */
+.js .rv{opacity:0;transform:translateY(22px);filter:blur(6px);
+  transition:opacity .8s var(--ease),transform .8s var(--ease),filter .8s var(--ease);
+  transition-delay:calc(var(--d,0)*90ms)}
+.js .rv.in{opacity:1;transform:none;filter:none}
+@media print{.js .rv{opacity:1;transform:none;filter:none}}
+
+/* ---------- top bar: glass + chainage scroll ruler ---------- */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:80;
+  background:rgba(9,12,7,.66);backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+  border-bottom:1px solid var(--glass-brd)}
+.topbar .bar{display:flex;align-items:center;gap:18px;height:var(--nav-h);padding:0 clamp(16px,2.5vw,28px)}
+.brand{display:flex;align-items:center;gap:10px;flex:none}
+.hdr-logo{width:30px;height:30px;border-radius:8px;display:block;flex:none}
+.appname{font-family:var(--disp);font-weight:700;font-size:15.5px;letter-spacing:.05em;color:var(--text);line-height:1.15}
+.appname span{display:block;font-family:var(--sans);font-weight:400;font-size:11px;letter-spacing:.03em;color:var(--faint)}
+.spacer{flex:1}
+.navlink{font-size:13.5px;color:var(--muted);padding:10px 6px;transition:color .2s var(--ease)}
+.navlink:hover{color:var(--text)}
+.tb-actions{display:flex;align-items:center;gap:12px}
+.langsw{display:inline-flex;border:1px solid var(--glass-brd);border-radius:10px;overflow:hidden;background:var(--glass)}
+.langsw button{border:none;border-radius:0;background:none;color:var(--faint);font-family:var(--mono);
+  font-size:11.5px;letter-spacing:.06em;padding:8px 10px;min-width:36px;
+  transition:background .2s var(--ease),color .2s var(--ease)}
+.langsw button+button{border-left:1px solid var(--glass-brd)}
+.langsw button:hover{color:var(--text)}
+.langsw button.on{background:var(--lime);color:var(--lime-ink);font-weight:600}
+/* scroll ruler: the page measured in chainage */
+.ruler{position:relative;height:3px;background:rgba(237,242,224,.07)}
+.ruler .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--lime);
+  border-radius:0 2px 2px 0}
+.ruler .chip{position:absolute;top:-24px;transform:translateX(-50%);left:0;
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--lime-ink);
+  background:var(--lime);border-radius:999px;padding:2px 8px;opacity:0;
+  transition:opacity .3s var(--ease);pointer-events:none}
+.js.scrolled .ruler .chip{opacity:1}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:9px;font-family:var(--disp);font-weight:700;font-size:15px;
+  letter-spacing:.02em;color:var(--text);background:var(--glass);
+  border:1px solid var(--glass-brd);border-radius:10px;padding:12px 22px;
+  transition:transform .18s var(--ease),border-color .2s var(--ease),background .2s var(--ease),box-shadow .3s var(--ease);
+  will-change:transform}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+.btn.lg{font-size:17px;padding:16px 30px;border-radius:12px}
+.btn .ar{width:16px;height:16px;transition:transform .25s var(--ease)}
+@media (hover:hover) and (pointer:fine){
+  .btn:hover{border-color:var(--lime)}
+  .btn.primary:hover{background:var(--lime-bright);border-color:var(--lime-bright);
+    box-shadow:0 8px 40px rgba(191,215,48,.25)}
+  .btn:hover .ar{transform:translateX(3px)}
+}
+.ghostlink{font-size:14.5px;color:var(--muted);display:inline-flex;align-items:center;gap:8px;
+  border-bottom:1px solid var(--line);padding-bottom:2px;
+  transition:color .2s var(--ease),border-color .2s var(--ease)}
+.ghostlink:hover{color:var(--text);border-color:var(--lime)}
+
+/* ---------- ambient light (the cinema) ---------- */
+.stage{position:relative;overflow:clip}
+.blob{position:absolute;border-radius:50%;pointer-events:none;filter:blur(70px);opacity:.5;
+  will-change:transform}
+.blob-a{width:560px;height:560px;top:-160px;right:-120px;
+  background:radial-gradient(circle,rgba(191,215,48,.20),transparent 65%)}
+.blob-b{width:480px;height:480px;bottom:-180px;left:-140px;
+  background:radial-gradient(circle,rgba(120,150,40,.16),transparent 65%)}
+.js .blob-a{animation:drift-a 22s ease-in-out infinite alternate}
+.js .blob-b{animation:drift-b 28s ease-in-out infinite alternate}
+@keyframes drift-a{to{transform:translate(-90px,70px) scale(1.12)}}
+@keyframes drift-b{to{transform:translate(80px,-60px) scale(1.08)}}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:100svh;display:flex;align-items:center;
+  padding-top:var(--nav-h);border-bottom:1px solid var(--line)}
+.hero .wrap{display:grid;grid-template-columns:1.06fr .94fr;gap:clamp(36px,5vw,72px);
+  align-items:center;width:100%;padding-top:clamp(28px,5vh,64px);padding-bottom:clamp(40px,7vh,80px)}
+.hero .wrap>*{min-width:0}
+.h1{font-family:var(--disp);font-weight:800;font-size:clamp(40px,4.2vw,58px);line-height:1.02;
+  letter-spacing:-.015em;margin:0;color:var(--text)}
+.h1 .row{display:block;overflow:hidden;padding-bottom:.06em;margin-bottom:-.06em}
+.h1 .row>span{display:block}
+.js .h1 .row>span{transform:translateY(115%);
+  transition:transform .9s var(--ease);transition-delay:calc(var(--w,0)*120ms)}
+.js .h1.in .row>span{transform:none}
+.h1 .dim{color:var(--faint)}
+.h1 .lime{color:var(--lime)}
+.lead{margin:26px 0 0;font-size:clamp(16.5px,1.4vw,18.5px);line-height:1.7;color:var(--muted);max-width:52ch}
+.hero-cta{margin-top:36px;display:flex;flex-wrap:wrap;gap:18px;align-items:center}
+
+/* hero right: floating glass layers with pointer parallax */
+.deck{position:relative;height:clamp(380px,44vw,520px)}
+.layer{position:absolute;border:1px solid var(--glass-brd);border-radius:18px;
+  background:linear-gradient(160deg,rgba(237,242,224,.06),rgba(237,242,224,.02));
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 30px 80px rgba(0,0,0,.5);
+  padding:18px;will-change:transform}
+.layer h4{margin:0 0 10px;font-family:var(--mono);font-weight:500;font-size:10.5px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.layer svg{display:block;width:100%;height:auto}
+.layer .stx{stroke:var(--faint);stroke-width:1.3;fill:none}
+.layer .sta{stroke:var(--lime);fill:none}
+.layer text{font-family:var(--mono);font-size:10px;fill:var(--faint);letter-spacing:.03em}
+.layer-model{width:min(64%,360px);top:4%;left:0;z-index:3}
+.layer-bcf{width:min(52%,300px);top:40%;right:0;z-index:4}
+.layer-prof{width:min(56%,320px);bottom:2%;left:8%;z-index:2}
+.float{animation:none}
+.js .float-i{animation:float 7s ease-in-out infinite alternate}
+@keyframes float{to{translate:0 -10px}}
+.pin{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;
+  white-space:nowrap;color:var(--text);background:rgba(9,12,7,.6);border:1px solid var(--glass-brd);
+  border-radius:999px;padding:6px 12px;margin:4px 0}
+.pin svg{width:12px;height:12px;flex:none}
+
+/* ---------- marquee: chainage ruler of formats ---------- */
+.band{border-bottom:1px solid var(--line);overflow:hidden;padding:18px 0;position:relative;background:var(--ink-1)}
+.band::before,.band::after{content:"";position:absolute;top:0;bottom:0;width:110px;z-index:1;pointer-events:none}
+.band::before{left:0;background:linear-gradient(90deg,var(--ink-1),transparent)}
+.band::after{right:0;background:linear-gradient(270deg,var(--ink-1),transparent)}
+.band-track{display:flex;width:max-content}
+.js .band-track{animation:slide 40s linear infinite}
+.band:hover .band-track{animation-play-state:paused}
+@keyframes slide{to{transform:translateX(-50%)}}
+.band-item{display:inline-flex;align-items:center;gap:28px;padding-right:28px;
+  font-family:var(--mono);font-size:13px;letter-spacing:.1em;color:var(--muted);white-space:nowrap}
+.band-item::after{content:"";width:1px;height:15px;background:var(--line);
+  box-shadow:0 -5px 0 0 var(--lime)}
+
+/* ---------- sections ---------- */
+section{padding:clamp(76px,10vw,128px) 0}
+.sec-head{max-width:64ch;margin-bottom:clamp(34px,5vw,52px)}
+.sec-head h2{font-family:var(--disp);font-weight:700;font-size:clamp(30px,3.6vw,46px);
+  line-height:1.05;margin:0;letter-spacing:-.01em;color:var(--text)}
+.sec-head p{margin:16px 0 0;color:var(--muted);font-size:16.5px;max-width:58ch}
+
+/* ---------- suite: sticky stack (the fluid centerpiece) ---------- */
+#capabilities{padding-bottom:clamp(40px,6vw,80px)}
+.stack{display:flex;flex-direction:column;gap:clamp(28px,4vw,48px)}
+.panel{position:sticky;top:calc(var(--nav-h) + 28px);
+  border:1px solid var(--line);border-radius:18px;background:var(--ink-1);
+  padding:clamp(24px,3.5vw,48px);min-height:min(430px,62vh);
+  display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(24px,4vw,56px);align-items:center;
+  box-shadow:0 -18px 50px rgba(0,0,0,.35);
+  transform-origin:center top;will-change:transform,opacity}
+.panel:nth-child(even){grid-template-columns:.95fr 1.05fr}
+.panel:nth-child(even) .panel-txt{order:2}
+.panel h3{font-family:var(--disp);font-weight:700;font-size:clamp(24px,2.6vw,34px);
+  margin:0 0 12px;letter-spacing:-.005em;color:var(--text)}
+.panel p{margin:0;font-size:16px;color:var(--muted);line-height:1.65;max-width:48ch}
+.panel-art{border:1px solid var(--line);border-radius:12px;background:var(--bg);
+  padding:clamp(14px,2vw,26px);overflow:hidden}
+.panel-art.gridbg{background:
+  linear-gradient(var(--ink-2) 1px,transparent 1px),
+  linear-gradient(90deg,var(--ink-2) 1px,transparent 1px),
+  var(--bg);
+  background-size:32px 32px,32px 32px,auto}
+.panel-art svg{display:block;width:100%;height:auto}
+.panel-art .stx{stroke:var(--faint);stroke-width:1.4;fill:none}
+.panel-art .sta{stroke:var(--lime);fill:none}
+.panel-art text{font-family:var(--mono);font-size:10.5px;fill:var(--faint);letter-spacing:.03em}
+.pset{border:1px solid var(--line);border-radius:10px;overflow:hidden;font-family:var(--mono);font-size:12.5px}
+.pset-row{display:flex;justify-content:space-between;gap:24px;padding:12px 16px;color:var(--muted)}
+.pset-row+.pset-row{border-top:1px solid var(--line)}
+.pset-row.hot{background:var(--lime);color:var(--lime-ink);font-weight:500}
+
+/* ---------- privacy: the lime block, with a live data-flow ---------- */
+.drench{background:var(--lime);color:var(--lime-ink);position:relative;overflow:clip}
+.drench h2{font-family:var(--disp);font-weight:800;font-size:clamp(34px,4.6vw,60px);
+  line-height:1.0;letter-spacing:-.015em;margin:0;max-width:16ch;color:var(--lime-ink)}
+.drench .sec-p{margin:22px 0 0;font-size:17px;line-height:1.65;color:#46521c;max-width:56ch}
+.flowbox{margin-top:clamp(36px,5vw,52px)}
+.flowbox svg{display:block;width:100%;height:auto;max-width:860px}
+.flowbox .wire{stroke:#5a691f;stroke-width:1.6;fill:none}
+.flowbox .wire.cut{stroke-dasharray:6 6}
+.flowbox .nodebox{fill:#0e120a}
+.flowbox .nodebox.ghost{fill:none;stroke:#5a691f;stroke-width:1.6;stroke-dasharray:7 6}
+.flowbox text{font-family:var(--disp);font-weight:600;font-size:15px;fill:#eef3e1;letter-spacing:.02em}
+.flowbox text.sub{font-family:var(--mono);font-weight:400;font-size:10px;fill:#8a9679;letter-spacing:.04em}
+.flowbox text.ghosted{fill:#3d4716;text-decoration:line-through}
+.flowbox text.sub.ghosted{fill:#5a691f;text-decoration:none}
+.flowbox .pulse{fill:var(--lime);stroke:#0e120a;stroke-width:2}
+.js .flowbox .pulse{animation:pulse-run 3.2s var(--ease) infinite}
+@keyframes pulse-run{
+  0%{transform:translateX(0);opacity:0}
+  12%{opacity:1}
+  46%{transform:translateX(258px);opacity:1}
+  58%{transform:translateX(258px);opacity:1}
+  70%{transform:translateX(196px);opacity:.9}   /* bounces back off the cut link */
+  100%{transform:translateX(196px);opacity:0}
+}
+.flowbox .deny{opacity:0;fill:none;stroke:#8f2f23;stroke-width:2.4;stroke-linecap:round}
+.js .flowbox .deny{animation:deny-x 3.2s var(--ease) infinite}
+@keyframes deny-x{0%,42%{opacity:0}52%,72%{opacity:1}86%,100%{opacity:0}}
+.drench .foot-line{margin:30px 0 0;font-size:15.5px;color:var(--lime-ink);font-weight:600}
+
+/* ---------- tools: fluid snap row ---------- */
+.tools-row{display:flex;gap:18px;overflow-x:auto;scroll-snap-type:x proximity;
+  padding:4px 4px 18px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.tool{flex:0 0 min(300px,82vw);scroll-snap-align:start;
+  border:1px solid var(--line);border-radius:18px;background:var(--ink-1);
+  padding:26px 24px;display:flex;flex-direction:column;gap:12px;
+  transition:transform .3s var(--ease),border-color .3s var(--ease),box-shadow .3s var(--ease);
+  will-change:transform}
+@media (hover:hover) and (pointer:fine){
+  a.tool:hover{transform:translateY(-5px);border-color:var(--lime);
+    box-shadow:0 18px 50px rgba(0,0,0,.4)}
+  a.tool:hover .tool-go svg{transform:translateX(3px)}
+}
+.tool-io{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--lime);
+  border:1px solid var(--line);border-radius:999px;padding:5px 12px;align-self:flex-start}
+.tool h3{font-family:var(--disp);font-weight:600;font-size:19.5px;margin:6px 0 0;letter-spacing:.01em;color:var(--text)}
+.tool p{margin:0;font-size:14.5px;color:var(--muted);line-height:1.6;flex:1}
+.tool-go{font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;color:var(--lime);
+  display:inline-flex;align-items:center;gap:7px;margin-top:6px}
+.tool-go svg{width:14px;height:14px;transition:transform .25s var(--ease)}
+.tool.soon{border-style:dashed;background:transparent}
+.tool.soon h3{color:var(--muted)}
+.tool.soon .tool-io{color:var(--faint);border-style:dashed}
+
+/* ---------- faq ---------- */
+.faq-list{max-width:860px;display:flex;flex-direction:column}
+.faq-item{border-bottom:1px solid var(--line)}
+.faq-item:first-child{border-top:1px solid var(--line)}
+.faq-item summary{list-style:none;cursor:pointer;padding:21px 4px;font-family:var(--disp);
+  font-weight:600;font-size:17.5px;letter-spacing:.01em;color:var(--text);
+  display:flex;justify-content:space-between;align-items:center;gap:18px;
+  transition:color .2s var(--ease)}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::after{content:"+";font-family:var(--sans);font-size:24px;font-weight:300;
+  line-height:1;color:var(--lime);flex:none;transition:transform .3s var(--ease)}
+.faq-item[open] summary::after{transform:rotate(45deg)}
+.faq-item summary:hover{color:var(--lime)}
+.faq-a{padding:0 4px 22px;color:var(--muted);font-size:15px;line-height:1.65;max-width:65ch}
+.js .faq-item[open] .faq-a{animation:faq-in .35s var(--ease)}
+@keyframes faq-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+/* ---------- final CTA ---------- */
+.cta-stage{position:relative;overflow:clip;border-top:1px solid var(--line);text-align:center}
+.cta-stage h2{font-family:var(--disp);font-weight:800;font-size:clamp(38px,5.6vw,76px);
+  margin:0;line-height:1.0;letter-spacing:-.015em}
+.cta-stage h2 .lime{color:var(--lime)}
+.cta-stage p{color:var(--muted);font-size:17px;margin:20px auto 0;max-width:46ch}
+.cta-stage .hero-cta{justify-content:center;margin-top:38px}
+.cta-mail{margin-top:26px;font-size:13.5px;color:var(--faint)}
+.cta-mail a{color:var(--muted);border-bottom:1px solid var(--line)}
+.cta-mail a:hover{color:var(--text);border-color:var(--lime)}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid var(--line);padding:44px 0 40px;background:var(--bg)}
+footer .wrap{display:flex;flex-wrap:wrap;gap:22px;align-items:center}
+footer .appname{font-size:14px}
+footer .hdr-logo{width:26px;height:26px}
+.foot-links{display:flex;gap:22px;flex-wrap:wrap}
+.foot-links a{font-size:13.5px;color:var(--muted);transition:color .2s var(--ease)}
+.foot-links a:hover{color:var(--text)}
+.foot-meta{font-family:var(--mono);font-size:12px;color:var(--faint);width:100%;
+  padding-top:22px;margin-top:6px;border-top:1px solid var(--line);
+  display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+.foot-meta a{color:var(--faint);border-bottom:1px solid var(--line)}
+.foot-meta a:hover{color:var(--muted)}
+.foot-disclaimer{font-family:var(--mono);font-size:11px;line-height:1.55;color:var(--faint);
+  width:100%;margin:14px 0 0;max-width:82ch}
+
+/* ---------- responsive ---------- */
+@media (max-width:980px){
+  .hero{min-height:0}
+  .hero .wrap{grid-template-columns:1fr;gap:40px}
+  .deck{height:420px;max-width:520px}
+  .panel,.panel:nth-child(even){grid-template-columns:1fr;min-height:0}
+  .panel:nth-child(even) .panel-txt{order:0}
+  .nav-hide{display:none}
+}
+@media (max-width:560px){
+  .hero-cta{flex-direction:column;align-items:stretch}
+  .btn.lg{justify-content:center}
+  .deck{height:380px}
+  .layer-model{width:78%}
+  .layer-bcf{width:64%}
+  .layer-prof{width:70%}
+  .topbar .appname span{display:none}
+  .topbar .bar{gap:10px}
+  .tb-actions .btn{padding:10px 14px;font-size:13.5px}
+  .langsw button{padding:7px 8px}
+  .foot-meta{flex-direction:column;align-items:flex-start}
+  .ruler .chip{display:none}
+}
+
+/* ---------- reduced motion: everything settles, nothing autoplays ---------- */
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .js .rv{opacity:1;transform:none;filter:none;transition:none}
+  .js .h1 .row>span{transform:none;transition:none}
+  .js .blob-a,.js .blob-b,.js .float-i{animation:none}
+  .js .band-track{animation:none;flex-wrap:wrap;width:auto;justify-content:center;row-gap:12px;padding:0 32px}
+  .js .flowbox .pulse{animation:none;opacity:0}
+  .js .flowbox .deny{animation:none;opacity:1}
+  .js .faq-item[open] .faq-a{animation:none}
+  .btn,.tool,.faq-item summary::after{transition:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ====================== TOP BAR ====================== -->
+<header class="topbar">
+  <div class="bar">
+    <a class="brand" href="#top" aria-label="Viewer IFC · BCF">
+      <img class="hdr-logo" src="favicon-32.png" alt="APE" width="30" height="30">
+      <span class="appname">Viewer IFC · BCF<span data-i18n="appname.sub">Suite di coordinamento openBIM</span></span>
+    </a>
+    <span class="spacer"></span>
+    <a class="navlink nav-hide" href="#capabilities" data-i18n="nav.suite">La suite</a>
+    <a class="navlink nav-hide" href="#privacy" data-i18n="nav.privacy">Privacy</a>
+    <a class="navlink nav-hide" href="#tools" data-i18n="nav.tools">Strumenti</a>
+    <a class="navlink nav-hide" href="guide/" data-i18n="nav.guide">Guida</a>
+    <a class="navlink nav-hide" href="#faq" data-i18n="nav.faq">FAQ</a>
+    <div class="tb-actions">
+      <div class="langsw" role="group" aria-label="Language">
+        <button data-lang="it" class="on">IT</button>
+        <button data-lang="en">EN</button>
+      </div>
+      <a class="btn primary magnetic" href="viewer/" data-i18n="cta.open">Apri il viewer</a>
+    </div>
+  </div>
+  <div class="ruler" aria-hidden="true">
+    <div class="fill" id="rulerFill"></div>
+    <div class="chip" id="rulerChip">0+000</div>
+  </div>
+</header>
+
+<a id="top"></a>
+
+<!-- ====================== HERO ====================== -->
+<section class="hero stage">
+  <div class="blob blob-a" aria-hidden="true"></div>
+  <div class="blob blob-b" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="hero-text">
+      <h1 class="h1" id="heroTitle">
+        <span class="row"><span class="dim" data-i18n="hero.h1a">Non solo un viewer.</span></span>
+        <span class="row"><span style="--w:1"><span data-i18n="hero.h1b">Una suite di </span><span class="lime" data-i18n="hero.h1c">coordinamento.</span></span></span>
+      </h1>
+      <p class="lead rv" style="--d:2" data-i18n="hero.lead">Modelli IFC federati, issue BCF, tracciati IFC4x3, property editabili. Tutto nel browser: i file non escono dal tuo computer.</p>
+      <div class="hero-cta rv" style="--d:3">
+        <a class="btn primary lg magnetic" href="viewer/">
+          <span data-i18n="cta.open">Apri il viewer</span>
+          <svg class="ar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="ghostlink" href="#capabilities" data-i18n="hero.cta2">Scopri la suite</a>
+      </div>
+    </div>
+
+    <!-- floating glass layers: federation, issues, alignment (pointer parallax) -->
+    <div class="deck rv" style="--d:2" id="deck" aria-label="Tre livelli della suite: modello federato, issue BCF, profilo del tracciato">
+      <div class="layer layer-model float-i" data-px="14">
+        <h4 data-i18n="lay.model">Modello federato</h4>
+        <svg viewBox="0 0 330 190" aria-hidden="true">
+          <g class="stx">
+            <path d="M44 138 L44 74 L100 50 L156 74 L156 138 L100 162 Z"/>
+            <path d="M44 74 L100 98 L156 74 M100 98 L100 162"/>
+            <path d="M156 106 L156 80 L204 61 L252 80 L252 106"/>
+            <path d="M156 80 L204 99 L252 80 M204 99 L204 144 M156 106 L204 125 L252 106 L252 138 L204 157 L156 138"/>
+          </g>
+          <g class="sta" stroke-dasharray="5 4" stroke-width="1.4">
+            <path d="M76 122 L76 60 L232 60 L232 122 Z"/>
+          </g>
+          <circle class="sta" cx="76" cy="60" r="3.5" fill="var(--lime)" stroke="none"/>
+          <circle class="sta" cx="232" cy="122" r="3.5" fill="var(--lime)" stroke="none"/>
+          <text x="246" y="54">section box</text>
+        </svg>
+      </div>
+      <div class="layer layer-bcf float-i" data-px="26">
+        <h4 data-i18n="lay.bcf">Issue BCF</h4>
+        <span class="pin"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#bfd730" stroke-width="2.4" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>clash: impalcato / pila P3</span><br>
+        <span class="pin"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#bfd730" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M4 13l5 5L20 7"/></svg>resolved</span>
+      </div>
+      <div class="layer layer-prof float-i" data-px="20">
+        <h4 data-i18n="lay.prof">Profilo · sezione ⟂</h4>
+        <svg viewBox="0 0 300 96" aria-hidden="true">
+          <path class="stx" d="M6 76 L294 76"/>
+          <path class="sta" stroke-width="1.8" d="M6 62 C 62 56, 110 30, 164 28 S 268 42, 294 38"/>
+          <line class="sta" x1="164" y1="16" x2="164" y2="76" stroke-width="1.4"/>
+          <circle cx="164" cy="28" r="4" fill="#bfd730"/>
+          <text x="164" y="92" text-anchor="middle">0+240</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== FORMAT BAND (single marquee) ====================== -->
+<div class="band" aria-hidden="true">
+  <div class="band-track" id="bandTrack">
+    <span class="band-item">IFC2x3</span>
+    <span class="band-item">IFC4</span>
+    <span class="band-item">IFC4x3</span>
+    <span class="band-item">BCF 2.x</span>
+    <span class="band-item" data-i18n="mq.solibri">Report Solibri</span>
+    <span class="band-item">IfcAlignment</span>
+    <span class="band-item">LandXML 1.2</span>
+    <span class="band-item">WebAssembly</span>
+    <span class="band-item" data-i18n="mq.noupload">Zero upload</span>
+    <span class="band-item" data-i18n="mq.noaccount">Zero account</span>
+  </div>
+</div>
+
+<!-- ====================== SUITE: STICKY STACK ====================== -->
+<section id="capabilities">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2 data-i18n="suite.h2">Tutto quello che serve per coordinare.</h2>
+      <p data-i18n="suite.p">Quattro strumenti, un unico ambiente. Scorri: ogni livello della suite si impila sul precedente, come i modelli che federi.</p>
+    </div>
+    <div class="stack" id="stack">
+
+      <article class="panel">
+        <div class="panel-txt">
+          <h3 data-i18n="s1.t">Viewer 3D federato</h3>
+          <p data-i18n="s1.p">Carica più IFC ed esplorali insieme: orbit e walk, section box stile Revit, ispezione di elementi e property set. IFC2x3, IFC4, IFC4x3.</p>
+        </div>
+        <div class="panel-art gridbg">
+          <svg viewBox="0 0 420 220" aria-hidden="true">
+            <g class="stx">
+              <path d="M60 170 L60 90 L130 60 L200 90 L200 170 L130 200 Z"/>
+              <path d="M60 90 L130 120 L200 90 M130 120 L130 200"/>
+              <path d="M200 128 L200 96 L260 72 L320 96 L320 128"/>
+              <path d="M200 96 L260 120 L320 96 M260 120 L260 176 M200 128 L260 152 L320 128 L320 170 L260 194 L200 170"/>
+            </g>
+            <g class="sta" stroke-dasharray="5 4" stroke-width="1.4">
+              <path d="M100 150 L100 74 L292 74 L292 150 Z"/>
+            </g>
+            <circle class="sta" cx="100" cy="74" r="3.5" fill="#bfd730" stroke="none"/>
+            <circle class="sta" cx="292" cy="150" r="3.5" fill="#bfd730" stroke="none"/>
+            <text x="308" y="66">section box</text>
+          </svg>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-txt">
+          <h3 data-i18n="s2.t">Issue BCF &amp; report</h3>
+          <p data-i18n="s2.p">Viewpoint, commenti e snapshot da file BCF e report Solibri, collegati agli elementi presenti nei modelli.</p>
+        </div>
+        <div class="panel-art">
+          <svg viewBox="0 0 420 200" aria-hidden="true">
+            <g class="stx">
+              <rect x="10" y="24" width="250" height="38" rx="10"/>
+              <rect x="40" y="78" width="250" height="38" rx="10"/>
+              <rect x="70" y="132" width="250" height="38" rx="10"/>
+            </g>
+            <circle cx="32" cy="43" r="7" class="sta" stroke-width="1.8"/>
+            <circle cx="62" cy="97" r="7" class="sta" stroke-width="1.8"/>
+            <path class="sta" stroke-width="2" d="M86 148 l8 8 l16 -18" fill="none"/>
+            <text x="50" y="47">clash: impalcato / pila P3</text>
+            <text x="80" y="101">viewpoint + snapshot</text>
+            <text x="122" y="155">resolved</text>
+            <text x="330" y="47">BCF 2.x</text>
+            <text x="330" y="101">Solibri</text>
+          </svg>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-txt">
+          <h3 data-i18n="s3.t">Tracciati IFC4x3</h3>
+          <p data-i18n="s3.p">Asse 3D, profilo altimetrico interattivo, sezione ortogonale spostabile lungo la progressiva e minimap dei tracciati.</p>
+        </div>
+        <div class="panel-art">
+          <svg viewBox="0 0 420 200" aria-hidden="true">
+            <path class="stx" d="M14 158 L406 158"/>
+            <path class="sta" stroke-width="2" d="M14 138 C 96 128, 168 62, 240 58 S 372 84, 406 78"/>
+            <g fill="#bfd730">
+              <circle cx="118" cy="104" r="4"/>
+              <circle cx="240" cy="58" r="4"/>
+              <circle cx="342" cy="76" r="4"/>
+            </g>
+            <g class="stx">
+              <line x1="118" y1="104" x2="118" y2="158"/>
+              <line x1="240" y1="58" x2="240" y2="158"/>
+              <line x1="342" y1="76" x2="342" y2="158"/>
+            </g>
+            <text x="118" y="176" text-anchor="middle">0+120</text>
+            <text x="240" y="176" text-anchor="middle">0+240</text>
+            <text x="342" y="176" text-anchor="middle">0+380</text>
+          </svg>
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-txt">
+          <h3 data-i18n="s4.t">Edita le property. Riesporta l'IFC.</h3>
+          <p data-i18n="s4.p">Modifica le property direttamente nel 3D, anche in massa su più elementi, e scarica un IFC aggiornato pronto per il prossimo round.</p>
+        </div>
+        <div class="panel-art" style="padding:clamp(20px,3vw,36px)">
+          <div class="pset" aria-hidden="true">
+            <div class="pset-row"><span>IfcWall.FireRating</span><span>REI 120</span></div>
+            <div class="pset-row hot"><span>Pset.LoadBearing</span><span>TRUE ✎</span></div>
+            <div class="pset-row"><span>export</span><span>model_r2.ifc</span></div>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ====================== PRIVACY (lime block, live data-flow) ====================== -->
+<section class="drench" id="privacy">
+  <div class="wrap">
+    <h2 class="rv" data-i18n="priv.h2">I tuoi modelli non escono mai dal tuo computer.</h2>
+    <p class="sec-p rv" style="--d:1" data-i18n="priv.p">Parsing e rendering avvengono in locale, via WebAssembly. Niente upload, niente account, niente tracciamento. Ideale quando i modelli sono sotto NDA.</p>
+    <div class="flowbox rv" style="--d:2">
+      <svg viewBox="0 0 860 150" role="img" aria-label="Flusso dati: dal tuo PC a web-ifc in locale; nessun collegamento verso server esterni">
+        <line class="wire" x1="240" y1="75" x2="310" y2="75"/>
+        <line class="wire cut" x1="550" y1="75" x2="620" y2="75"/>
+        <rect class="nodebox" x="20" y="30" width="220" height="90" rx="16"/>
+        <rect class="nodebox" x="310" y="30" width="240" height="90" rx="16"/>
+        <rect class="nodebox ghost" x="620" y="30" width="220" height="90" rx="16"/>
+        <text x="130" y="72" text-anchor="middle" data-i18n-svg="priv.n1t">Il tuo PC</text>
+        <text class="sub" x="130" y="94" text-anchor="middle" data-i18n-svg="priv.n1s">file IFC / BCF</text>
+        <text x="430" y="72" text-anchor="middle">web-ifc</text>
+        <text class="sub" x="430" y="94" text-anchor="middle" data-i18n-svg="priv.n2s">parsing in locale · WASM</text>
+        <text class="ghosted" x="730" y="72" text-anchor="middle" data-i18n-svg="priv.n3t">Nessun server</text>
+        <text class="sub ghosted" x="730" y="94" text-anchor="middle" data-i18n-svg="priv.n3s">niente cloud</text>
+        <path class="deny" d="M576 63 l18 24 M594 63 l-18 24"/>
+        <circle class="pulse" cx="252" cy="75" r="7"/>
+      </svg>
+    </div>
+    <p class="foot-line rv" style="--d:3" data-i18n="priv.foot">Anche offline: una volta aperta la pagina, il viewer continua a funzionare.</p>
+  </div>
+</section>
+
+<!-- ====================== TOOLS ====================== -->
+<section id="tools">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2 data-i18n="tools.h2">La suite cresce.</h2>
+      <p data-i18n="tools.p">Utility mirate per il flusso openBIM. Stessa regola del viewer: tutto client-side.</p>
+    </div>
+    <div class="tools-row rv" style="--d:1">
+      <a class="tool" href="tools/ifc-class-patcher/">
+        <span class="tool-io">IFC → IFC</span>
+        <h3>IFC Class Patcher</h3>
+        <p data-i18n="tool1.p">Riclassifica in massa gli elementi: classe IFC e PredefinedType da una mappatura Excel. Scarichi un IFC corretto.</p>
+        <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+      <a class="tool" href="tools/ifc-progressiva-converter/">
+        <span class="tool-io">m ⇄ K+MMM,CC</span>
+        <h3>IFC Progressiva Converter</h3>
+        <p data-i18n="tool2.p">Converte le progressive tra metri e formato chilometrico K+MMM,CC, in entrambe le direzioni.</p>
+        <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+      <a class="tool" href="tools/ifc-alignment-to-landxml/">
+        <span class="tool-io">IFC4x3 → LandXML</span>
+        <h3>IFC Alignment to LandXML</h3>
+        <p data-i18n="tool3.p">Estrae gli IfcAlignment da un IFC4x3 e li esporta in LandXML 1.2, pronto per Dalux.</p>
+        <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
+      <div class="tool soon">
+        <span class="tool-io">IFC + IFC → IFC</span>
+        <h3>IFC Merge</h3>
+        <p data-i18n="tool4.p">Unisci più file IFC in un unico modello coerente. In lavorazione.</p>
+        <span class="tool-go" style="color:var(--faint)" data-i18n="tool4.tag">In cantiere</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== FAQ ====================== -->
+<section id="faq">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2 data-i18n="faq.h2">Domande frequenti</h2>
+      <p data-i18n="faq.p">Tutto quello che serve sapere prima di aprire il primo modello.</p>
+    </div>
+    <div class="faq-list rv" style="--d:1">
+      <details class="faq-item">
+        <summary data-i18n="faq.q1">Viewer IFC · BCF è gratuito?</summary>
+        <div class="faq-a" data-i18n="faq.a1">Sì, è completamente gratuito e open source, rilasciato sotto licenza AGPL-3.0: puoi usarlo, studiarne il codice e contribuire.</div>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faq.q2">I miei modelli vengono caricati su un server?</summary>
+        <div class="faq-a" data-i18n="faq.a2">No. Il viewer è 100% client-side: i file IFC e BCF vengono letti e renderizzati nel tuo browser e non lasciano mai il tuo computer. Nessun upload, nessun account, nessun tracciamento.</div>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faq.q3">Quali formati sono supportati?</summary>
+        <div class="faq-a" data-i18n="faq.a3">IFC2x3, IFC4 e IFC4x3, più le issue BCF e i report Solibri con viewpoint, commenti e snapshot.</div>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faq.q7">Supporta i tracciati stradali e le infrastrutture (IFC4x3)?</summary>
+        <div class="faq-a" data-i18n="faq.a7">Sì. Apre gli IfcAlignment dei file IFC4x3: mostra l'asse 3D, il profilo altimetrico interattivo, una sezione trasversale ortogonale all'asse (taglio o fetta, spostabile lungo la progressiva trascinando in 3D o sul profilo) e una minimap dei tracciati vista dall'alto.</div>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faq.q4">Devo installare qualcosa o creare un account?</summary>
+        <div class="faq-a" data-i18n="faq.a4">No. È una singola pagina HTML che gira nel browser: nessuna installazione, nessun login. Al primo avvio scarica il motore di rendering da CDN, poi funziona anche offline.</div>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faq.q5">Posso modificare le proprietà IFC ed esportarle?</summary>
+        <div class="faq-a" data-i18n="faq.a5">Sì. Puoi modificare le property degli elementi direttamente nella vista 3D, anche in modo massivo su più elementi, e riesportare un file IFC aggiornato.</div>
+      </details>
+      <details class="faq-item">
+        <summary data-i18n="faq.q6">Quale browser è consigliato?</summary>
+        <div class="faq-a" data-i18n="faq.a6">Un browser basato su Chromium, come Chrome o Edge, per le migliori prestazioni.</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== FINAL CTA ====================== -->
+<section id="contact" class="cta-stage stage">
+  <div class="blob blob-a" aria-hidden="true" style="top:auto;bottom:-220px;right:20%"></div>
+  <div class="wrap">
+    <h2 class="rv"><span data-i18n="band.h2a">Apri un IFC.</span> <span class="lime" data-i18n="band.h2b">Subito.</span></h2>
+    <p class="rv" style="--d:1" data-i18n="band.p">Niente installazione, niente account. Trascina un file e inizia a coordinare.</p>
+    <div class="hero-cta rv" style="--d:2">
+      <a class="btn primary lg magnetic" href="viewer/">
+        <span data-i18n="cta.open">Apri il viewer</span>
+        <svg class="ar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+    <p class="cta-mail rv" style="--d:3"><span data-i18n="band.mail">Domande o segnalazioni? Scrivimi:</span> <a href="mailto:info@viewifc.com">info@viewifc.com</a></p>
+  </div>
+</section>
+
+<!-- ====================== FOOTER ====================== -->
+<footer>
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <img class="hdr-logo" src="favicon-32.png" alt="APE" width="26" height="26">
+      <span class="appname">Viewer IFC · BCF</span>
+    </a>
+    <span class="spacer"></span>
+    <nav class="foot-links">
+      <a href="#capabilities" data-i18n="nav.suite">La suite</a>
+      <a href="#privacy" data-i18n="nav.privacy">Privacy</a>
+      <a href="#tools" data-i18n="nav.tools">Strumenti</a>
+      <a href="guide/" data-i18n="nav.guide">Guida</a>
+      <a href="#faq" data-i18n="nav.faq">FAQ</a>
+      <a href="#contact" data-i18n="nav.contact">Contatti</a>
+      <a href="viewer/" data-i18n="cta.open">Apri il viewer</a>
+    </nav>
+    <div class="foot-meta" id="opensource">
+      <span>© <span id="year">2026</span> Alessandro Perugini</span>
+      <a href="https://github.com/arsray146/ifc-bcf-viewer" target="_blank" rel="noopener" data-i18n="foot.gh">Codice su GitHub</a>
+      <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener" data-i18n="foot.os">Open source, licenza AGPL-3.0</a>
+      <span class="spacer"></span>
+      <span data-i18n="foot.tag">Costruito per il coordinamento openBIM.</span>
+    </div>
+    <p class="foot-disclaimer" data-i18n="foot.warranty">Software fornito "così com'è", senza alcuna garanzia. Verifica sempre i risultati con i tuoi strumenti di authoring prima di usarli per decisioni progettuali.</p>
+  </div>
+</footer>
+
+<script>
+/* ---------------- i18n ---------------- */
+const I18N = {
+  it:{
+    "appname.sub":"Suite di coordinamento openBIM",
+    "nav.suite":"La suite","nav.privacy":"Privacy","nav.tools":"Strumenti","nav.guide":"Guida","nav.faq":"FAQ","nav.contact":"Contatti",
+    "cta.open":"Apri il viewer",
+    "hero.h1a":"Non solo un viewer.","hero.h1b":"Una suite di ","hero.h1c":"coordinamento.",
+    "hero.lead":"Modelli IFC federati, issue BCF, tracciati IFC4x3, property editabili. Tutto nel browser: i file non escono dal tuo computer.",
+    "hero.cta2":"Scopri la suite",
+    "lay.model":"Modello federato","lay.bcf":"Issue BCF","lay.prof":"Profilo · sezione ⟂",
+    "mq.solibri":"Report Solibri","mq.noupload":"Zero upload","mq.noaccount":"Zero account",
+    "suite.h2":"Tutto quello che serve per coordinare.",
+    "suite.p":"Quattro strumenti, un unico ambiente. Scorri: ogni livello della suite si impila sul precedente, come i modelli che federi.",
+    "s1.t":"Viewer 3D federato",
+    "s1.p":"Carica più IFC ed esplorali insieme: orbit e walk, section box stile Revit, ispezione di elementi e property set. IFC2x3, IFC4, IFC4x3.",
+    "s2.t":"Issue BCF & report",
+    "s2.p":"Viewpoint, commenti e snapshot da file BCF e report Solibri, collegati agli elementi presenti nei modelli.",
+    "s3.t":"Tracciati IFC4x3",
+    "s3.p":"Asse 3D, profilo altimetrico interattivo, sezione ortogonale spostabile lungo la progressiva e minimap dei tracciati.",
+    "s4.t":"Edita le property. Riesporta l'IFC.",
+    "s4.p":"Modifica le property direttamente nel 3D, anche in massa su più elementi, e scarica un IFC aggiornato pronto per il prossimo round.",
+    "priv.h2":"I tuoi modelli non escono mai dal tuo computer.",
+    "priv.p":"Parsing e rendering avvengono in locale, via WebAssembly. Niente upload, niente account, niente tracciamento. Ideale quando i modelli sono sotto NDA.",
+    "priv.n1t":"Il tuo PC","priv.n1s":"file IFC / BCF",
+    "priv.n2s":"parsing in locale · WASM",
+    "priv.n3t":"Nessun server","priv.n3s":"niente cloud",
+    "priv.foot":"Anche offline: una volta aperta la pagina, il viewer continua a funzionare.",
+    "tools.h2":"La suite cresce.",
+    "tools.p":"Utility mirate per il flusso openBIM. Stessa regola del viewer: tutto client-side.",
+    "tool1.p":"Riclassifica in massa gli elementi: classe IFC e PredefinedType da una mappatura Excel. Scarichi un IFC corretto.",
+    "tool2.p":"Converte le progressive tra metri e formato chilometrico K+MMM,CC, in entrambe le direzioni.",
+    "tool3.p":"Estrae gli IfcAlignment da un IFC4x3 e li esporta in LandXML 1.2, pronto per Dalux.",
+    "tool4.p":"Unisci più file IFC in un unico modello coerente. In lavorazione.",
+    "tool4.tag":"In cantiere",
+    "tools.open":"Apri lo strumento",
+    "faq.h2":"Domande frequenti",
+    "faq.p":"Tutto quello che serve sapere prima di aprire il primo modello.",
+    "faq.q1":"Viewer IFC · BCF è gratuito?",
+    "faq.a1":"Sì, è completamente gratuito e open source, rilasciato sotto licenza AGPL-3.0: puoi usarlo, studiarne il codice e contribuire.",
+    "faq.q2":"I miei modelli vengono caricati su un server?",
+    "faq.a2":"No. Il viewer è 100% client-side: i file IFC e BCF vengono letti e renderizzati nel tuo browser e non lasciano mai il tuo computer. Nessun upload, nessun account, nessun tracciamento.",
+    "faq.q3":"Quali formati sono supportati?",
+    "faq.a3":"IFC2x3, IFC4 e IFC4x3, più le issue BCF e i report Solibri con viewpoint, commenti e snapshot.",
+    "faq.q4":"Devo installare qualcosa o creare un account?",
+    "faq.a4":"No. È una singola pagina HTML che gira nel browser: nessuna installazione, nessun login. Al primo avvio scarica il motore di rendering da CDN, poi funziona anche offline.",
+    "faq.q5":"Posso modificare le proprietà IFC ed esportarle?",
+    "faq.a5":"Sì. Puoi modificare le property degli elementi direttamente nella vista 3D, anche in modo massivo su più elementi, e riesportare un file IFC aggiornato.",
+    "faq.q6":"Quale browser è consigliato?",
+    "faq.a6":"Un browser basato su Chromium, come Chrome o Edge, per le migliori prestazioni.",
+    "faq.q7":"Supporta i tracciati stradali e le infrastrutture (IFC4x3)?",
+    "faq.a7":"Sì. Apre gli IfcAlignment dei file IFC4x3: mostra l'asse 3D, il profilo altimetrico interattivo, una sezione trasversale ortogonale all'asse (taglio o fetta, spostabile lungo la progressiva trascinando in 3D o sul profilo) e una minimap dei tracciati vista dall'alto.",
+    "band.h2a":"Apri un IFC.","band.h2b":"Subito.",
+    "band.p":"Niente installazione, niente account. Trascina un file e inizia a coordinare.",
+    "band.mail":"Domande o segnalazioni? Scrivimi:",
+    "foot.gh":"Codice su GitHub",
+    "foot.os":"Open source, licenza AGPL-3.0",
+    "foot.tag":"Costruito per il coordinamento openBIM.",
+    "foot.warranty":"Software fornito \"così com'è\", senza alcuna garanzia. Verifica sempre i risultati con i tuoi strumenti di authoring prima di usarli per decisioni progettuali."
+  },
+  en:{
+    "appname.sub":"openBIM coordination suite",
+    "nav.suite":"The suite","nav.privacy":"Privacy","nav.tools":"Tools","nav.guide":"Guide","nav.faq":"FAQ","nav.contact":"Contact",
+    "cta.open":"Open the viewer",
+    "hero.h1a":"Not just a viewer.","hero.h1b":"A ","hero.h1c":"coordination suite.",
+    "hero.lead":"Federated IFC models, BCF issues, IFC4x3 alignments, editable properties. All in your browser: files never leave your computer.",
+    "hero.cta2":"Explore the suite",
+    "lay.model":"Federated model","lay.bcf":"BCF issues","lay.prof":"Profile · section ⟂",
+    "mq.solibri":"Solibri reports","mq.noupload":"Zero upload","mq.noaccount":"Zero account",
+    "suite.h2":"Everything you need to coordinate.",
+    "suite.p":"Four tools, one environment. Scroll: each layer of the suite stacks on the previous one, like the models you federate.",
+    "s1.t":"Federated 3D viewer",
+    "s1.p":"Load multiple IFCs and explore them together: orbit and walk, Revit-style section box, element and property set inspection. IFC2x3, IFC4, IFC4x3.",
+    "s2.t":"BCF issues & reports",
+    "s2.p":"Viewpoints, comments and snapshots from BCF files and Solibri reports, linked to the elements in your models.",
+    "s3.t":"IFC4x3 alignments",
+    "s3.p":"3D axis, interactive vertical profile, orthogonal section movable along the chainage, and a minimap of the alignments.",
+    "s4.t":"Edit properties. Re-export the IFC.",
+    "s4.p":"Edit properties right in the 3D view, in bulk across elements too, and download an updated IFC ready for the next round.",
+    "priv.h2":"Your models never leave your computer.",
+    "priv.p":"Parsing and rendering happen locally, via WebAssembly. No upload, no account, no tracking. Ideal when models are under NDA.",
+    "priv.n1t":"Your computer","priv.n1s":"IFC / BCF files",
+    "priv.n2s":"local parsing · WASM",
+    "priv.n3t":"No server","priv.n3s":"no cloud",
+    "priv.foot":"Even offline: once the page is open, the viewer keeps working.",
+    "tools.h2":"The suite keeps growing.",
+    "tools.p":"Focused utilities for the openBIM workflow. Same rule as the viewer: everything client-side.",
+    "tool1.p":"Bulk-reclassify elements: IFC class and PredefinedType from an Excel mapping. You download a corrected IFC.",
+    "tool2.p":"Converts chainage values between metres and the kilometric K+MMM,CC format, both ways.",
+    "tool3.p":"Extracts IfcAlignment entities from an IFC4x3 file and exports LandXML 1.2, ready for Dalux.",
+    "tool4.p":"Merge multiple IFC files into one coherent model. In the works.",
+    "tool4.tag":"In progress",
+    "tools.open":"Open the tool",
+    "faq.h2":"Frequently asked questions",
+    "faq.p":"Everything you need to know before opening your first model.",
+    "faq.q1":"Is Viewer IFC · BCF free?",
+    "faq.a1":"Yes, completely free and open source under the AGPL-3.0 license: you can use it, study its code and contribute.",
+    "faq.q2":"Are my models uploaded to a server?",
+    "faq.a2":"No. The viewer is 100% client-side: IFC and BCF files are read and rendered in your browser and never leave your computer. No upload, no account, no tracking.",
+    "faq.q3":"Which file formats are supported?",
+    "faq.a3":"IFC2x3, IFC4 and IFC4x3, plus BCF issues and Solibri reports with viewpoints, comments and snapshots.",
+    "faq.q4":"Do I need to install anything or create an account?",
+    "faq.a4":"No. It is a single HTML page running in the browser: no install and no login. On first launch it fetches the rendering engine from a CDN, then it works even offline.",
+    "faq.q5":"Can I edit IFC properties and export them?",
+    "faq.a5":"Yes. You can edit element properties directly in the 3D view, in bulk across multiple elements too, and re-export an updated IFC file.",
+    "faq.q6":"Which browser is recommended?",
+    "faq.a6":"A Chromium-based browser such as Chrome or Edge, for the best performance.",
+    "faq.q7":"Does it support road and infrastructure alignments (IFC4x3)?",
+    "faq.a7":"Yes. It opens the IfcAlignment of IFC4x3 files: it shows the 3D axis, an interactive vertical (elevation) profile, a cross-section orthogonal to the axis (cut or slab, movable along the chainage by dragging in 3D or on the profile) and a top-down minimap of the alignments.",
+    "band.h2a":"Open an IFC.","band.h2b":"Right now.",
+    "band.p":"No install, no account. Drop a file and start coordinating.",
+    "band.mail":"Questions or bug reports? Write me:",
+    "foot.gh":"Code on GitHub",
+    "foot.os":"Open source, AGPL-3.0 license",
+    "foot.tag":"Built for openBIM coordination.",
+    "foot.warranty":"Software provided \"as is\", without warranty of any kind. Always verify results against your authoring tools before relying on them for design decisions."
+  }
+};
+
+function applyLang(lang){
+  const dict = I18N[lang] || I18N.it;
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    const k = el.getAttribute("data-i18n");
+    if(dict[k] != null) el.textContent = dict[k];
+  });
+  document.querySelectorAll("[data-i18n-svg]").forEach(el=>{
+    const k = el.getAttribute("data-i18n-svg");
+    if(dict[k] != null) el.textContent = dict[k];
+  });
+  document.querySelectorAll(".langsw button").forEach(b=>{
+    b.classList.toggle("on", b.dataset.lang === lang);
+  });
+  try{ localStorage.setItem("viewer_landing_lang", lang); }catch(e){}
+}
+
+(function initLang(){
+  let lang = "it";
+  try{ lang = localStorage.getItem("viewer_landing_lang") || (navigator.language||"it").slice(0,2); }catch(e){}
+  if(!I18N[lang]) lang = "it";
+  document.querySelectorAll(".langsw button").forEach(b=>{
+    b.addEventListener("click", ()=>applyLang(b.dataset.lang));
+  });
+  applyLang(lang);
+})();
+
+/* year */
+document.getElementById("year").textContent = new Date().getFullYear();
+
+const REDUCE = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* hero title: masked line rise, right after first paint */
+requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  document.getElementById("heroTitle").classList.add("in");
+}));
+
+/* marquee: duplicate track once for a seamless loop */
+(function marquee(){
+  const track = document.getElementById("bandTrack");
+  if(!track || REDUCE) return;
+  track.innerHTML += track.innerHTML;
+})();
+
+/* scroll reveal */
+const io = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
+},{threshold:0.12, rootMargin:"0px 0px -40px 0px"});
+document.querySelectorAll(".rv").forEach(el=>io.observe(el));
+
+/* ================================================================
+   MOTION ENGINE: one rAF loop, transform/opacity only.
+   Drives: chainage scroll ruler, pointer parallax on hero layers,
+   sticky-stack settle, magnetic CTAs. Lerp gives the spring feel.
+   ================================================================ */
+(function engine(){
+  const fill = document.getElementById("rulerFill");
+  const chip = document.getElementById("rulerChip");
+  const deck = document.getElementById("deck");
+  const layers = deck ? [...deck.querySelectorAll(".layer")] : [];
+  const panels = [...document.querySelectorAll("#stack .panel")];
+  const magnets = [...document.querySelectorAll(".magnetic")];
+  const navH = 64;
+
+  /* pointer state for parallax + magnetic buttons */
+  let px = 0, py = 0, tx = 0, ty = 0;
+  if(deck && !REDUCE){
+    deck.addEventListener("pointermove", (e)=>{
+      const r = deck.getBoundingClientRect();
+      tx = ((e.clientX - r.left) / r.width - .5) * 2;   /* -1 .. 1 */
+      ty = ((e.clientY - r.top) / r.height - .5) * 2;
+    });
+    deck.addEventListener("pointerleave", ()=>{ tx = 0; ty = 0; });
+  }
+
+  const mags = magnets.map(el=>({el, mx:0, my:0, gx:0, gy:0}));
+  if(!REDUCE){
+    mags.forEach(m=>{
+      m.el.addEventListener("pointermove", (e)=>{
+        const r = m.el.getBoundingClientRect();
+        m.gx = (e.clientX - r.left - r.width/2) * .18;
+        m.gy = (e.clientY - r.top - r.height/2) * .3;
+      });
+      m.el.addEventListener("pointerleave", ()=>{ m.gx = 0; m.gy = 0; });
+    });
+  }
+
+  let scrolledFlag = false;
+
+  function frame(){
+    const doc = document.documentElement;
+    const max = doc.scrollHeight - window.innerHeight;
+    const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+
+    /* chainage ruler */
+    if(fill){
+      fill.style.width = (p*100).toFixed(2) + "%";
+      const m = Math.round(p*1000);
+      chip.textContent = (m < 1000 ? "0+" + String(m).padStart(3,"0") : "1+000");
+      chip.style.left = (p*100).toFixed(2) + "%";
+    }
+    const sc = window.scrollY > 40;
+    if(sc !== scrolledFlag){ scrolledFlag = sc; document.documentElement.classList.toggle("scrolled", sc); }
+
+    if(!REDUCE){
+      /* hero layer parallax (lerp toward pointer) */
+      px += (tx - px) * .07;
+      py += (ty - py) * .07;
+      layers.forEach(l=>{
+        const f = parseFloat(l.dataset.px || 14);
+        l.style.transform = "translate(" + (px*f).toFixed(2) + "px," + (py*f*.7).toFixed(2) + "px)";
+      });
+
+      /* sticky-stack: previous panels settle back and dim as the next arrives */
+      panels.forEach((panel, i)=>{
+        if(i === panels.length-1) { panel.style.transform=""; return; }
+        const next = panels[i+1];
+        const r = next.getBoundingClientRect();
+        const start = window.innerHeight, end = navH + 28;
+        const prog = Math.min(1, Math.max(0, (start - r.top) / (start - end)));
+        panel.style.transform = "scale(" + (1 - prog*.05).toFixed(4) + ") translateY(" + (-prog*10).toFixed(1) + "px)";
+        panel.style.opacity = (1 - prog*.35).toFixed(3);
+      });
+
+      /* magnetic CTAs */
+      mags.forEach(m=>{
+        m.mx += (m.gx - m.mx) * .16;
+        m.my += (m.gy - m.my) * .16;
+        if(Math.abs(m.mx) > .1 || Math.abs(m.my) > .1){
+          m.el.style.translate = m.mx.toFixed(1) + "px " + m.my.toFixed(1) + "px";
+        } else if(m.el.style.translate){ m.el.style.translate = ""; }
+      });
+    }
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
