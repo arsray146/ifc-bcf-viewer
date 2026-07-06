@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<!--
+  IFC Merge (federazione) — strumento accessorio di viewifc.com
+  Autore: Alessandro Perugini — BIM Coordinator. Licenza AGPL-3.0.
+  100% client-side: nessun file viene caricato su un server.
+  Porting in JavaScript della logica del tool desktop Python (IFC_Merger_v1.py),
+  origine: ANAS SS106 Jonica · 3TI Progetti. Unisce più file IFC in un unico
+  file federato: un solo IfcProject, un IfcSite dedicato per ogni modello.
+  Rispetto al Python (ifcopenshell.add, che segue solo i riferimenti diretti)
+  la copia qui include anche le relazioni inverse utili: property set, tipi,
+  materiali, classificazioni, stili (colori), aperture e assiemi.
+-->
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IFC Merge — viewifc.com</title>
+
+<meta name="description" content="Unisce più file IFC in un unico modello federato: un solo IfcProject, un IfcSite per ogni file, con property set, tipi, materiali e colori mantenuti. Gira interamente nel browser: nessun upload.">
+<meta name="author" content="Alessandro Perugini">
+<meta name="theme-color" content="#0c110a">
+<link rel="canonical" href="https://viewifc.com/tools/ifc-merge/">
+<link rel="icon" type="image/png" href="../../favicon-32.png">
+<script>try{ if(localStorage.getItem("viewer_landing_theme")==="light") document.documentElement.setAttribute("data-theme","light"); }catch(e){}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* Tema v2 condiviso con landing e viewer: dark di default, toggle light,
+   chiave localStorage viewer_landing_theme comune a tutto il sito. */
+:root{
+  --lime:#bfd730; --lime-deep:#9ab313; --lime-ink:#23310a; --lime-soft:rgba(191,215,48,.14);
+  --acc:#bfd730; --glass:rgba(12,17,10,.72);
+  --bg:#0c110a; --bg2:#10160d; --card:#141b10; --card-2:#171f12;
+  --line:#232d1b; --line-2:#313d24;
+  --text:#edf2e2; --muted:#a9b59b; --faint:#79856c;
+  --ok:#a8e05f; --warn:#ffd36b; --err:#ff8d7a;
+  --shadow-lg:0 10px 40px rgba(0,0,0,.5);
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --disp:'Barlow Semi Condensed',var(--sans);
+  --maxw:1040px;
+}
+html[data-theme="light"]{
+  --acc:var(--lime-deep);
+  --bg:#f1f3ee; --bg2:#f6f8f3; --card:#ffffff; --card-2:#f6f8f3;
+  --line:#dfe5d8; --line-2:#ccd4c4;
+  --text:#212a23; --muted:#68756a; --faint:#9aa69c;
+  --glass:rgba(241,243,238,.82);
+  --ok:#5a8a1e; --warn:#b8860b; --err:#c0392b;
+  --shadow-lg:0 6px 24px rgba(30,40,28,.10),0 24px 60px rgba(30,40,28,.10);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--lime);color:var(--lime-ink)}
+:focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:4px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;position:relative;z-index:1}
+.eyebrow{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--acc)}
+
+/* ambient glow, come la landing */
+.ambient{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(900px 520px at 18% -5%, rgba(191,215,48,.10), transparent 60%),
+    radial-gradient(760px 480px at 85% 12%, rgba(191,215,48,.05), transparent 60%)}
+html[data-theme="light"] .ambient{background:
+  radial-gradient(900px 520px at 18% -5%, rgba(191,215,48,.18), transparent 60%),
+  radial-gradient(760px 480px at 85% 12%, rgba(191,215,48,.09), transparent 60%)}
+
+/* ---------- top bar (glass, come landing/viewer) ---------- */
+.topbar{position:sticky;top:0;z-index:20;background:var(--glass);
+  backdrop-filter:blur(14px) saturate(1.25);-webkit-backdrop-filter:blur(14px) saturate(1.25);
+  border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:16px;height:58px;max-width:none;padding:0 18px}
+.brand{display:flex;align-items:center;gap:9px}
+.brand-link{margin:-6px -8px;padding:6px 8px;border-radius:8px;transition:background .15s}
+.brand-link:hover{background:rgba(191,215,48,.08)}
+.hdr-logo{width:30px;height:30px;border-radius:7px;display:block;flex:none}
+.appname{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.06em;color:var(--text);line-height:1.2}
+.appname span{display:block;font-family:var(--sans);font-weight:400;font-size:11px;letter-spacing:.04em;color:var(--muted)}
+.spacer{flex:1}
+.navlink{font-size:13px;color:var(--muted);padding:6px 4px;font-family:var(--sans);transition:color .15s}
+.navlink:hover{color:var(--text)}
+.tb-actions{display:flex;align-items:center;gap:12px}
+.langsw{display:inline-flex;border:1px solid var(--line-2);border-radius:6px;overflow:hidden;background:var(--card)}
+.langsw button{border:none;border-radius:0;background:none;color:var(--faint);font-family:var(--mono);
+  font-size:11.5px;letter-spacing:.06em;padding:7px 9px;min-width:32px;cursor:pointer;transition:background .12s,color .12s}
+.langsw button+button{border-left:1px solid var(--line-2)}
+.langsw button:hover{color:var(--text);background:var(--card-2)}
+.langsw button.on{background:var(--lime-soft);color:var(--acc);font-weight:600}
+/* theme toggle */
+.thm{width:34px;height:34px;flex:none;border-radius:7px;border:1px solid var(--line-2);background:var(--card);
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);
+  transition:color .15s,border-color .15s}
+.thm:hover{color:var(--text);border-color:var(--lime-deep)}
+.thm svg{width:16px;height:16px}
+html[data-theme="light"] .thm .moon{display:none}
+html:not([data-theme="light"]) .thm .sun{display:none}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--disp);font-weight:600;font-size:13.5px;
+  letter-spacing:.05em;text-transform:uppercase;color:var(--text);background:var(--card);
+  border:1px solid var(--line-2);border-radius:7px;padding:8px 15px;cursor:pointer;
+  transition:border-color .15s,background .15s,box-shadow .2s}
+.btn:hover{border-color:var(--lime-deep);background:var(--card-2)}
+.btn.primary{background:var(--lime);border-color:var(--lime);color:var(--lime-ink);
+  font-weight:700;font-size:15px;letter-spacing:.02em;text-transform:none}
+.btn.primary:hover{background:#cae23f;border-color:#cae23f;box-shadow:0 4px 32px rgba(191,215,48,.35)}
+.btn.lg{padding:12px 26px;font-size:16px}
+.btn:disabled{opacity:.5;cursor:not-allowed;background:var(--card-2);border-color:var(--line);box-shadow:none}
+.btn.primary:disabled{background:var(--line-2);border-color:var(--line-2);color:var(--muted)}
+
+/* ---------- hero ---------- */
+.hero{padding:48px 0 24px;border-bottom:1px solid var(--line)}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:9px}
+.hero-eyebrow .dot{width:7px;height:7px;border-radius:2px;background:var(--lime);box-shadow:0 0 0 4px var(--lime-soft)}
+.h1{font-family:var(--disp);font-weight:800;font-size:clamp(32px,4.2vw,50px);line-height:1.04;margin:16px 0 0;letter-spacing:-.01em}
+.h1 .lime{color:var(--acc)}
+.lead{margin:16px 0 0;font-size:clamp(15px,1.3vw,17.5px);line-height:1.62;color:var(--muted);max-width:66ch}
+.hero-note{margin-top:18px;font-family:var(--mono);font-size:12.5px;color:var(--faint);display:flex;align-items:center;gap:8px}
+.hero-note svg{width:15px;height:15px;color:var(--acc);flex:none}
+
+/* ---------- main ---------- */
+main{padding:28px 0 70px}
+.card{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--line);border-radius:14px;
+  padding:22px 22px;margin-top:18px}
+html[data-theme="light"] .card{box-shadow:0 1px 3px rgba(30,40,28,.05)}
+.card-h{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);
+  display:flex;align-items:center;gap:9px;margin:0 0 14px}
+.card-h .n{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;
+  background:var(--lime-soft);color:var(--acc);font-weight:600;font-size:11px;flex:none}
+.card-h .badge{margin-left:auto;font-size:11px;color:var(--acc);text-transform:none;letter-spacing:.04em}
+
+/* file list */
+.file-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.file-tools .hint{font-size:12.5px;color:var(--muted);flex-basis:100%;line-height:1.5;margin:4px 0 0}
+.drop{border:1px dashed var(--line-2);border-radius:10px;background:var(--card-2);transition:border-color .15s,background .15s}
+.drop.drag{border-color:var(--lime-deep);background:var(--lime-soft)}
+.file-empty{padding:26px 16px;text-align:center;color:var(--faint);font-size:14px}
+.file-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.file-item:last-child{border-bottom:none}
+.file-item .idx{font-family:var(--mono);font-size:12px;color:var(--faint);min-width:22px;text-align:right}
+.file-item .fname{flex:1;min-width:0;font-family:var(--mono);font-size:12.5px;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-item .fsize{font-family:var(--mono);font-size:11.5px;color:var(--faint);flex:none}
+.base-tag{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;flex:none;
+  color:var(--acc);background:var(--lime-soft);border-radius:5px;padding:2px 7px}
+.fbtn{width:28px;height:28px;flex:none;border-radius:6px;border:1px solid var(--line-2);background:var(--card);
+  color:var(--muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+  font-size:13px;line-height:1;padding:0;transition:color .12s,border-color .12s}
+.fbtn:hover{color:var(--text);border-color:var(--lime-deep)}
+.fbtn:disabled{opacity:.35;cursor:default}
+.fbtn:disabled:hover{color:var(--muted);border-color:var(--line-2)}
+.fbtn.rm:hover{color:var(--err);border-color:var(--err)}
+
+/* options */
+.opt-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 16px}
+.opt-row:last-child{margin-bottom:0}
+.opt-lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);min-width:150px}
+.opt-input{font-family:var(--mono);font-size:13px;color:var(--text);background:var(--card);
+  border:1px solid var(--line-2);border-radius:7px;padding:8px 10px;flex:1;min-width:220px;max-width:420px}
+.opt-input:focus{outline:none;border-color:var(--lime-deep)}
+.opt-hint{font-size:12.5px;color:var(--muted);line-height:1.5;margin:6px 0 0;flex-basis:100%}
+.opt-hint code{font-family:var(--mono);font-size:11.5px;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+
+/* tables */
+.tbl-wrap{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px}
+.tbl-scroll{max-height:320px;overflow:auto}
+table{width:100%;border-collapse:collapse;font-family:var(--sans);font-size:14px}
+thead th{position:sticky;top:0;background:var(--card-2);color:var(--text);text-align:left;
+  font-family:var(--disp);font-weight:600;font-size:14px;letter-spacing:.02em;
+  padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody td{padding:8px 12px;border-bottom:1px solid var(--line);color:var(--text)}
+tbody td.code{font-family:var(--mono);font-size:12.5px}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--card-2)}
+td.num,th.num{text-align:right}
+.empty{padding:22px 12px;text-align:center;color:var(--faint);font-size:14px}
+tr.r-ok td.num.hl{color:var(--ok);font-weight:600}
+tr.r-none td{color:var(--faint)}
+td.note{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+
+/* run */
+.run-bar{display:flex;flex-direction:column;align-items:center;gap:14px;margin-top:22px}
+.progress{width:100%;height:8px;border-radius:5px;background:var(--line);overflow:hidden;display:none}
+.progress.on{display:block}
+.progress .bar{height:100%;width:0%;background:var(--lime);border-radius:5px;transition:width .25s ease}
+.progress-label{display:none;font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:2px}
+.progress-label.on{display:block}
+
+/* log */
+.log{font-family:var(--mono);font-size:12px;line-height:1.55;background:#10160d;color:#dfe7d3;
+  border:1px solid var(--line-2);border-radius:10px;padding:14px 16px;max-height:320px;overflow:auto;
+  white-space:pre-wrap;word-break:break-word}
+.log .ok{color:#a8e05f}.log .warn{color:#ffd36b}.log .err{color:#ff8d7a}
+.log .info{color:#9fb38c}.log .head{color:#cfe89a;font-weight:600}
+.log:empty::before{content:attr(data-empty);color:#6f7d63}
+
+/* total banner */
+.total{margin-top:16px;display:none;align-items:center;gap:12px;padding:14px 16px;border-radius:10px;
+  background:var(--lime-soft);border:1px solid var(--lime-deep);font-family:var(--disp);font-weight:600;font-size:16px;color:var(--text)}
+.total.on{display:flex}
+.total svg{width:22px;height:22px;color:var(--acc);flex:none}
+.total .sub{font-family:var(--mono);font-weight:400;font-size:12px;color:var(--muted);margin-left:auto}
+
+/* footer */
+footer{border-top:1px solid var(--line);background:var(--bg2);padding:26px 0}
+footer .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+footer .appname{font-size:14px}footer .hdr-logo{width:26px;height:26px}
+.foot-meta{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.foot-meta .badge{border:1px solid var(--line-2);border-radius:5px;padding:2px 8px;color:var(--faint)}
+.foot-disclaimer{flex-basis:100%;margin:6px 0 0;font-size:12px;color:var(--faint);line-height:1.5}
+
+@media(max-width:680px){
+  .topbar .navlink.nav-hide{display:none}
+  .topbar .appname span{display:none}
+  .wrap{padding:0 18px}
+  .opt-lbl{min-width:100%}
+  .file-item .fsize{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true"></div>
+
+<!-- ================= TOP BAR ================= -->
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand brand-link" href="../../" data-i18n-title="appname.back" title="Vai a viewifc.com" aria-label="viewifc.com">
+      <img class="hdr-logo" src="data:image/png;base64,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" alt="APE" width="30" height="30">
+      <span class="appname">IFC Merge<span data-i18n="appname.sub">viewifc.com · strumento</span></span>
+    </a>
+    <span class="spacer"></span>
+    <a class="navlink nav-hide" href="../../" data-i18n="nav.site">← viewifc.com</a>
+    <a class="navlink nav-hide" href="../../viewer/" data-i18n="nav.viewer">Viewer</a>
+    <div class="tb-actions">
+      <button class="thm" id="thmBtn" aria-label="Light / dark" title="Light / dark">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <div class="langsw" role="group" aria-label="Lingua">
+        <button data-lang="it" class="on">IT</button>
+        <button data-lang="en">EN</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+  <div class="wrap">
+    <span class="hero-eyebrow eyebrow"><span class="dot"></span><span data-i18n="hero.eyebrow">Strumento IFC · client-side</span></span>
+    <h1 class="h1" data-i18n="hero.h1">IFC <span class="lime">Merge</span></h1>
+    <p class="lead" data-i18n="hero.lead">Unisce più file IFC in un unico <em>modello federato</em>: un solo <em>IfcProject</em>, un <em>IfcSite</em> dedicato e riconoscibile per ogni file. Geometrie, property set, tipi, materiali e colori restano al loro posto.</p>
+    <div class="hero-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span data-i18n="hero.note">100% nel tuo browser — nessun file viene caricato su un server.</span>
+    </div>
+  </div>
+</section>
+
+<main>
+  <div class="wrap">
+
+    <!-- STEP 1 — file -->
+    <section class="card">
+      <p class="card-h"><span class="n">1</span><span data-i18n="step.file">File IFC da unire (l'ordine conta: il primo fa da base)</span><span class="badge" id="fileCount"></span></p>
+      <div class="file-tools">
+        <button class="btn" id="addBtn" data-i18n="f.add">Aggiungi…</button>
+        <button class="btn" id="clearBtn" data-i18n="f.clear">Svuota</button>
+        <input type="file" id="fileInput" accept=".ifc" multiple hidden>
+        <p class="hint" data-i18n="f.hint">Il primo file mantiene intera la sua struttura spaziale (Site/Building/Storey) e presta a tutti il proprio IfcProject; ogni file successivo viene ricollegato sotto un nuovo IfcSite col nome del file. Trascina qui i file o usa i pulsanti per riordinarli.</p>
+      </div>
+      <div class="drop" id="dropZone">
+        <div id="fileList"><div class="file-empty" data-i18n="f.none">Nessun file selezionato — servono almeno due IFC.</div></div>
+      </div>
+    </section>
+
+    <!-- STEP 2 — opzioni -->
+    <section class="card">
+      <p class="card-h"><span class="n">2</span><span data-i18n="opt.title">Opzioni</span></p>
+      <div class="opt-row">
+        <span class="opt-lbl" data-i18n="opt.pname.lbl">Nome IfcProject</span>
+        <input class="opt-input" id="pnameInput" autocomplete="off" spellcheck="false" value="Modello Federato" data-i18n-placeholder="opt.pname.ph" placeholder="Modello Federato">
+      </div>
+      <div class="opt-row">
+        <span class="opt-lbl" data-i18n="opt.out.lbl">Nome file di output</span>
+        <input class="opt-input" id="outInput" autocomplete="off" spellcheck="false" value="modello_federato.ifc">
+        <p class="opt-hint" data-i18n="opt.out.hint">I file dovrebbero condividere schema e unità di lunghezza (es. tutti in metri): in caso contrario il log lo segnala. Sistemi e zone (<code>IfcRelAssignsToGroup</code>) non vengono ricreati nel federato.</p>
+      </div>
+    </section>
+
+    <!-- RUN -->
+    <div class="run-bar">
+      <button class="btn primary lg" id="runBtn" disabled>▶&nbsp;&nbsp;<span data-i18n="run.btn">Unisci</span></button>
+      <div class="progress" id="progress"><div class="bar" id="progressBar"></div></div>
+      <div class="progress-label" id="progressLabel"></div>
+    </div>
+
+    <div class="total" id="total">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+      <span id="totalText"></span>
+      <span class="sub" id="totalFile"></span>
+    </div>
+
+    <!-- STEP 3 — summary -->
+    <section class="card">
+      <p class="card-h"><span class="n">3</span><span data-i18n="sum.title">Riepilogo per modello</span></p>
+      <div class="tbl-wrap">
+        <div class="tbl-scroll">
+          <table>
+            <thead><tr>
+              <th>#</th>
+              <th data-i18n="sum.c.file">File</th>
+              <th data-i18n="sum.c.site">IfcSite</th>
+              <th class="num" data-i18n="sum.c.el">Elementi</th>
+              <th data-i18n="sum.c.note">Note</th>
+            </tr></thead>
+            <tbody id="sumBody">
+              <tr><td colspan="5" class="empty" data-i18n="sum.empty">Il riepilogo appare dopo l'unione.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- LOG -->
+    <section class="card">
+      <p class="card-h"><span class="n">4</span><span data-i18n="log.title">Log dettagliato</span></p>
+      <div class="log" id="log" data-empty="—"></div>
+    </section>
+
+  </div>
+</main>
+
+<!-- ================= FOOTER ================= -->
+<footer>
+  <div class="wrap">
+    <a class="brand" href="../../">
+      <img class="hdr-logo" src="data:image/png;base64,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" alt="APE" width="26" height="26">
+      <span class="appname">viewifc.com</span>
+    </a>
+    <span class="spacer"></span>
+    <div class="foot-meta">
+      <span>© <span id="year">2026</span> Alessandro Perugini</span>
+      <span class="badge">AGPL-3.0</span>
+      <span class="badge" data-i18n="foot.local">100% client-side</span>
+    </div>
+    <p class="foot-disclaimer" data-i18n="foot.warranty">Software fornito "così com'è", senza alcuna garanzia. Verifica sempre i risultati con i tuoi strumenti di authoring prima di usarli per decisioni progettuali.</p>
+  </div>
+</footer>
+
+<script>
+/* =========================================================================
+   i18n — parità chiavi IT/EN
+   ========================================================================= */
+const I18N = {
+  it:{
+    "appname.sub":"viewifc.com · strumento","appname.back":"Vai a viewifc.com",
+    "nav.site":"← viewifc.com","nav.viewer":"Viewer",
+    "hero.eyebrow":"Strumento IFC · client-side",
+    "hero.h1html":'IFC <span class="lime">Merge</span>',
+    "hero.lead":'Unisce più file IFC in un unico <em>modello federato</em>: un solo <em>IfcProject</em>, un <em>IfcSite</em> dedicato e riconoscibile per ogni file. Geometrie, property set, tipi, materiali e colori restano al loro posto.',
+    "hero.note":"100% nel tuo browser — nessun file viene caricato su un server.",
+    "step.file":"File IFC da unire (l'ordine conta: il primo fa da base)",
+    "f.add":"Aggiungi…","f.clear":"Svuota",
+    "f.hint":"Il primo file mantiene intera la sua struttura spaziale (Site/Building/Storey) e presta a tutti il proprio IfcProject; ogni file successivo viene ricollegato sotto un nuovo IfcSite col nome del file. Trascina qui i file o usa i pulsanti per riordinarli.",
+    "f.none":"Nessun file selezionato — servono almeno due IFC.",
+    "f.base":"base","f.count":"{n} file",
+    "f.up":"Sposta su","f.down":"Sposta giù","f.rm":"Rimuovi",
+    "opt.title":"Opzioni",
+    "opt.pname.lbl":"Nome IfcProject","opt.pname.ph":"Modello Federato",
+    "opt.out.lbl":"Nome file di output",
+    "opt.out.hint":'I file dovrebbero condividere schema e unità di lunghezza (es. tutti in metri): in caso contrario il log lo segnala. Sistemi e zone (<code>IfcRelAssignsToGroup</code>) non vengono ricreati nel federato.',
+    "run.btn":"Unisci",
+    "sum.title":"Riepilogo per modello","sum.empty":"Il riepilogo appare dopo l'unione.",
+    "sum.c.file":"File","sum.c.site":"IfcSite","sum.c.el":"Elementi","sum.c.note":"Note",
+    "sum.base":"base · struttura mantenuta","sum.site":"nuovo IfcSite","sum.skip":"nessun elemento contenuto",
+    "log.title":"Log dettagliato",
+    "foot.local":"100% client-side",
+    "foot.warranty":"Software fornito \"così com'è\", senza alcuna garanzia. Verifica sempre i risultati con i tuoi strumenti di authoring prima di usarli per decisioni progettuali.",
+    /* runtime */
+    "m.needTwo":"Aggiungi almeno due file IFC da unire.",
+    "m.readErr":"Errore nella lettura del file: ",
+    "m.start":"── Avvio unione ────────────────────────────────",
+    "m.reading":"Lettura di {name}… {p}%",
+    "m.baseOpen":"Apertura file base…",
+    "m.schemaBase":"Schema base: {s}",
+    "m.noProject":"Il primo file non contiene un IfcProject valido.",
+    "m.noData":"Sezione DATA non trovata in {name}: il file non sembra un IFC (STEP) valido.",
+    "m.baseSite":"[1/{n}] {name}  →  Site '{label}' (struttura originale mantenuta)",
+    "m.baseNoSite":"[1/{n}] {name}: nessun IfcSite da rinominare (struttura mantenuta com'è)",
+    "m.srcHead":"[{i}/{n}] {name}",
+    "m.schemaWarn":"   ! schema {s} diverso dal base {b}: possibili incompatibilità.",
+    "m.unitWarn":"   ! unità di lunghezza '{u}' diversa dal base '{b}': geometrie a scale diverse.",
+    "m.scan":"Analisi delle entità… {p}%",
+    "m.closure":"Raccolta delle dipendenze…",
+    "m.emit":"Riscrittura delle entità…",
+    "m.noContained":"   ! nessun elemento contenuto nella struttura spaziale: Site vuoto.",
+    "m.siteDone":"   Site '{label}': {n} elementi ({tot} entità copiate)",
+    "m.rels":"   relazioni: {p} pset · {t} tipi · {m} materiali · {c} classificazioni · {s} stili",
+    "m.guidFix":"   {n} GlobalId duplicati rigenerati.",
+    "m.spatialLeak":"   ! {n} entità spaziali trovate tra gli elementi contenuti: modello sorgente anomalo.",
+    "m.building":"Composizione del file federato…",
+    "m.done":"Completato: {f} modelli uniti → 1 file federato.",
+    "m.stats":"Site creati: {s} · elementi totali: {e}",
+    "m.out":"→ scaricato: ",
+    "m.totalText":"{f} modelli → 1 file federato · {e} elementi",
+    "m.err":"ERRORE: "
+  },
+  en:{
+    "appname.sub":"viewifc.com · tool","appname.back":"Go to viewifc.com",
+    "nav.site":"← viewifc.com","nav.viewer":"Viewer",
+    "hero.eyebrow":"IFC tool · client-side",
+    "hero.h1html":'IFC <span class="lime">Merge</span>',
+    "hero.lead":'Merges multiple IFC files into a single <em>federated model</em>: one <em>IfcProject</em>, one dedicated, recognisable <em>IfcSite</em> per file. Geometry, property sets, types, materials and colours stay in place.',
+    "hero.note":"100% in your browser — no file is ever uploaded to a server.",
+    "step.file":"IFC files to merge (order matters: the first is the base)",
+    "f.add":"Add…","f.clear":"Clear",
+    "f.hint":"The first file keeps its whole spatial structure (Site/Building/Storey) and lends its IfcProject to everyone; each following file is re-linked under a new IfcSite named after the file. Drop files here or use the buttons to reorder them.",
+    "f.none":"No file selected — at least two IFCs are needed.",
+    "f.base":"base","f.count":"{n} files",
+    "f.up":"Move up","f.down":"Move down","f.rm":"Remove",
+    "opt.title":"Options",
+    "opt.pname.lbl":"IfcProject name","opt.pname.ph":"Federated Model",
+    "opt.out.lbl":"Output file name",
+    "opt.out.hint":'Files should share the same schema and length unit (e.g. all in metres): if they don\'t, the log flags it. Systems and zones (<code>IfcRelAssignsToGroup</code>) are not recreated in the federated file.',
+    "run.btn":"Merge",
+    "sum.title":"Summary by model","sum.empty":"The summary appears after the merge.",
+    "sum.c.file":"File","sum.c.site":"IfcSite","sum.c.el":"Elements","sum.c.note":"Notes",
+    "sum.base":"base · structure kept","sum.site":"new IfcSite","sum.skip":"no contained element",
+    "log.title":"Detailed log",
+    "foot.local":"100% client-side",
+    "foot.warranty":"Software provided \"as is\", without warranty of any kind. Always verify results against your authoring tools before relying on them for design decisions.",
+    "m.needTwo":"Add at least two IFC files to merge.",
+    "m.readErr":"Error reading the file: ",
+    "m.start":"── Merge started ───────────────────────────────",
+    "m.reading":"Reading {name}… {p}%",
+    "m.baseOpen":"Opening the base file…",
+    "m.schemaBase":"Base schema: {s}",
+    "m.noProject":"The first file does not contain a valid IfcProject.",
+    "m.noData":"DATA section not found in {name}: the file does not look like a valid IFC (STEP) file.",
+    "m.baseSite":"[1/{n}] {name}  →  Site '{label}' (original structure kept)",
+    "m.baseNoSite":"[1/{n}] {name}: no IfcSite to rename (structure kept as is)",
+    "m.srcHead":"[{i}/{n}] {name}",
+    "m.schemaWarn":"   ! schema {s} differs from base {b}: possible incompatibilities.",
+    "m.unitWarn":"   ! length unit '{u}' differs from base '{b}': geometries at different scales.",
+    "m.scan":"Parsing the entities… {p}%",
+    "m.closure":"Collecting the dependencies…",
+    "m.emit":"Rewriting the entities…",
+    "m.noContained":"   ! no element contained in the spatial structure: empty Site.",
+    "m.siteDone":"   Site '{label}': {n} elements ({tot} entities copied)",
+    "m.rels":"   relations: {p} psets · {t} types · {m} materials · {c} classifications · {s} styles",
+    "m.guidFix":"   {n} duplicate GlobalIds regenerated.",
+    "m.spatialLeak":"   ! {n} spatial entities found among the contained elements: anomalous source model.",
+    "m.building":"Assembling the federated file…",
+    "m.done":"Done: {f} models merged → 1 federated file.",
+    "m.stats":"Sites created: {s} · total elements: {e}",
+    "m.out":"→ downloaded: ",
+    "m.totalText":"{f} models → 1 federated file · {e} elements",
+    "m.err":"ERROR: "
+  }
+};
+let LANG = "it";
+function tr(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : (I18N.it[k] ?? k); }
+function fmtMsg(k, vars){ let s = tr(k); for(const p in vars) s = s.replace("{"+p+"}", vars[p]); return s; }
+
+function applyLang(lang){
+  LANG = I18N[lang] ? lang : "it";
+  document.documentElement.lang = LANG;
+  const dict = I18N[LANG];
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    const k = el.getAttribute("data-i18n");
+    if(dict[k] != null) el.textContent = dict[k];
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach(el=>{
+    const k = el.getAttribute("data-i18n-title");
+    if(dict[k] != null) el.title = dict[k];
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>{
+    const k = el.getAttribute("data-i18n-placeholder");
+    if(dict[k] != null) el.placeholder = dict[k];
+  });
+  document.querySelector(".h1").innerHTML = tr("hero.h1html");
+  document.querySelector(".lead").innerHTML = tr("hero.lead");
+  document.querySelectorAll(".opt-hint").forEach(el=>{
+    const k = el.getAttribute("data-i18n");
+    if(dict[k] != null) el.innerHTML = dict[k];
+  });
+  document.querySelectorAll(".langsw button").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
+  renderFiles();
+  try{ localStorage.setItem("viewifc_tool_lang", LANG); }catch(e){}
+}
+
+/* =========================================================================
+   PARSER STEP — scanner sequenziale quote/parentesi-aware (tutte le entità)
+   ========================================================================= */
+function tick(){ return new Promise(r=> setTimeout(r, 0)); }
+
+const WS = c => c===32 || c===9 || c===13 || c===10;
+
+/* Cattura gli argomenti di un'entità a partire dall'indice della '(' aperta.
+   Ritorna {argStart, argEnd, next} con next = indice dopo il ';'. */
+function captureArgs(text, openIdx, stop){
+  let depth = 1, p = openIdx + 1, inStr = false;
+  while(p < stop && depth > 0){
+    const c = text.charCodeAt(p);
+    if(inStr){
+      if(c === 39){ if(text.charCodeAt(p+1) === 39) p++; else inStr = false; }
+    }else{
+      if(c === 39) inStr = true;
+      else if(c === 40) depth++;
+      else if(c === 41) depth--;
+    }
+    p++;
+  }
+  const argEnd = p - 1;
+  let q = p;
+  while(q < stop && text.charCodeAt(q) !== 59 && q - p < 40) q++;   // ';'
+  return {argStart: openIdx + 1, argEnd, next: q + 1};
+}
+
+/* Scansione completa della sezione DATA di un sorgente: mappa id → entità
+   e indici per i tipi di relazione che interessano al merge. */
+async function scanSource(text, name, onProgress){
+  const ents = new Map();
+  const idx = { contained:[], refd:[], voids:[], fills:[], agg:[], nests:[],
+                pdef:[], tdef:[], mat:[], cls:[], styled:[], layer:[] };
+  let maxId = 0;
+  let i = text.indexOf("DATA;");
+  if(i < 0) throw new Error(fmtMsg("m.noData", {name}));
+  i += 5;
+  const endIso = text.lastIndexOf("END-ISO-10303-21");
+  const stop = endIso > 0 ? endIso : text.length;
+  let lastYield = performance.now();
+
+  while(i < stop){
+    const ch = text.charCodeAt(i);
+    if(ch === 35){                                     // '#'
+      let j = i + 1, id = 0, any = false;
+      while(j < stop){ const c = text.charCodeAt(j); if(c >= 48 && c <= 57){ id = id*10 + (c-48); j++; any = true; } else break; }
+      let k = j;
+      while(k < stop && WS(text.charCodeAt(k))) k++;
+      if(any && text.charCodeAt(k) === 61){            // '='
+        k++;
+        while(k < stop && WS(text.charCodeAt(k))) k++;
+        const t0 = k;
+        while(k < stop){ const c = text.charCodeAt(k);
+          if((c>=65&&c<=90)||(c>=97&&c<=122)||(c>=48&&c<=57)||c===95) k++; else break; }
+        const type = text.slice(t0, k).toUpperCase();
+        while(k < stop && WS(text.charCodeAt(k))) k++;
+        if(text.charCodeAt(k) === 40){                 // '('
+          const cap = captureArgs(text, k, stop);
+          ents.set(id, {t:type, s:cap.argStart, e:cap.argEnd});
+          if(id > maxId) maxId = id;
+          switch(type){
+            case "IFCRELCONTAINEDINSPATIALSTRUCTURE": idx.contained.push(id); break;
+            case "IFCRELREFERENCEDINSPATIALSTRUCTURE":idx.refd.push(id); break;
+            case "IFCRELVOIDSELEMENT":                idx.voids.push(id); break;
+            case "IFCRELFILLSELEMENT":                idx.fills.push(id); break;
+            case "IFCRELAGGREGATES":                  idx.agg.push(id); break;
+            case "IFCRELNESTS":                       idx.nests.push(id); break;
+            case "IFCRELDEFINESBYPROPERTIES":         idx.pdef.push(id); break;
+            case "IFCRELDEFINESBYTYPE":               idx.tdef.push(id); break;
+            case "IFCRELASSOCIATESMATERIAL":          idx.mat.push(id); break;
+            case "IFCRELASSOCIATESCLASSIFICATION":    idx.cls.push(id); break;
+            case "IFCSTYLEDITEM":                     idx.styled.push(id); break;
+            case "IFCPRESENTATIONLAYERASSIGNMENT":    idx.layer.push(id); break;
+          }
+          i = cap.next;
+          if(performance.now() - lastYield > 45){
+            onProgress(i / stop);
+            await tick();
+            lastYield = performance.now();
+          }
+          continue;
+        }
+      }
+      i = j;
+      continue;
+    }
+    i++;
+  }
+  return {ents, idx, maxId};
+}
+
+/* Split degli argomenti STEP di primo livello (stringhe e liste annidate). */
+function splitTop(s){
+  const out = []; let depth = 0, inStr = false, cur = "";
+  for(let i = 0; i < s.length; i++){
+    const ch = s[i];
+    if(inStr){
+      if(ch === "'"){ if(s[i+1] === "'"){ cur += "''"; i++; } else { inStr = false; cur += ch; } }
+      else cur += ch;
+    }else{
+      if(ch === "'"){ inStr = true; cur += ch; }
+      else if(ch === "("){ depth++; cur += ch; }
+      else if(ch === ")"){ depth--; cur += ch; }
+      else if(ch === "," && depth === 0){ out.push(cur.trim()); cur = ""; }
+      else cur += ch;
+    }
+  }
+  if(cur.trim() !== "") out.push(cur.trim());
+  return out;
+}
+
+/* Tutti i #ref di una stringa argomenti, opzionalmente saltando un argomento
+   di primo livello (skipArg = indice OwnerHistory delle entità IfcRoot). */
+function collectRefs(raw, skipArg, out){
+  out = out || [];
+  let depth = 0, inStr = false, argIdx = 0;
+  for(let i = 0; i < raw.length; i++){
+    const c = raw.charCodeAt(i);
+    if(inStr){ if(c === 39){ if(raw.charCodeAt(i+1) === 39) i++; else inStr = false; } continue; }
+    if(c === 39){ inStr = true; continue; }
+    if(c === 40){ depth++; continue; }
+    if(c === 41){ depth--; continue; }
+    if(c === 44 && depth === 0){ argIdx++; continue; }
+    if(c === 35){
+      let j = i + 1, id = 0, any = false;
+      while(j < raw.length){ const d = raw.charCodeAt(j); if(d >= 48 && d <= 57){ id = id*10 + (d-48); j++; any = true; } else break; }
+      if(any && argIdx !== skipArg) out.push(id);
+      i = j - 1;
+    }
+  }
+  return out;
+}
+
+/* Riscrive tutti i #ref applicando l'offset (quote-aware). */
+function remapRefs(raw, offset){
+  let out = "", last = 0, depth = 0, inStr = false;
+  for(let i = 0; i < raw.length; i++){
+    const c = raw.charCodeAt(i);
+    if(inStr){ if(c === 39){ if(raw.charCodeAt(i+1) === 39) i++; else inStr = false; } continue; }
+    if(c === 39){ inStr = true; continue; }
+    if(c === 35){
+      let j = i + 1, id = 0, any = false;
+      while(j < raw.length){ const d = raw.charCodeAt(j); if(d >= 48 && d <= 57){ id = id*10 + (d-48); j++; any = true; } else break; }
+      if(any){
+        out += raw.slice(last, i) + "#" + (id + offset);
+        last = j;
+        i = j - 1;
+      }
+    }
+  }
+  return out + raw.slice(last);
+}
+
+function refOf(a){ if(!a || a[0] !== "#") return null; const v = parseInt(a.slice(1), 10); return isFinite(v) ? v : null; }
+function listRefs(a){ return collectRefs(a || "", -1, []); }
+
+/* =========================================================================
+   GUID IFC (22 caratteri base64 con alfabeto IFC) e stringhe STEP
+   ========================================================================= */
+const G64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$";
+function newGuid(){
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  let num = 0n;
+  for(const x of b) num = (num << 8n) | BigInt(x);
+  let out = "";
+  for(let i = 0; i < 22; i++){ out = G64[Number(num & 63n)] + out; num >>= 6n; }
+  return out;
+}
+/* Codifica una stringa JS come stringa STEP: apostrofi raddoppiati,
+   backslash raddoppiati, caratteri non-ASCII in blocchi \X2\..\X0\. */
+function stepStr(s){
+  let out = "";
+  let uni = "";
+  const flush = ()=>{ if(uni){ out += "\\X2\\" + uni + "\\X0\\"; uni = ""; } };
+  for(const ch of String(s)){
+    const cp = ch.codePointAt(0);
+    if(cp >= 32 && cp <= 126){
+      flush();
+      if(ch === "'") out += "''";
+      else if(ch === "\\") out += "\\\\";
+      else out += ch;
+    }else if(cp > 126){
+      uni += cp.toString(16).toUpperCase().padStart(4, "0");
+    }
+  }
+  flush();
+  return "'" + out + "'";
+}
+const GUID_RE = /^'[0-9A-Za-z_$]{22}'$/;
+
+/* =========================================================================
+   MOTORE DI MERGE — porting di merge_ifc() (IFC_Merger_v1.py)
+   ========================================================================= */
+const SPATIAL_TYPES = new Set(["IFCPROJECT","IFCSITE","IFCBUILDING","IFCBUILDINGSTOREY","IFCSPACE",
+  "IFCFACILITY","IFCROAD","IFCBRIDGE","IFCRAILWAY","IFCMARINEFACILITY","IFCFACILITYPARTCOMMON",
+  "IFCROADPART","IFCBRIDGEPART","IFCRAILWAYPART","IFCMARINEPART"]);
+
+function findFirstEntity(text, type){
+  const re = new RegExp("#(\\d+)\\s*=\\s*" + type + "\\s*\\(", "i");
+  const m = re.exec(text);
+  if(!m) return null;
+  const open = m.index + m[0].length - 1;
+  const cap = captureArgs(text, open, text.length);
+  return {id:+m[1], argStart:cap.argStart, argEnd:cap.argEnd};
+}
+function schemaOf(text){
+  const m = /FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'/i.exec(text);
+  return m ? m[1].toUpperCase() : "?";
+}
+/* Unità di lunghezza del progetto: prefisso SI ('m', 'mm', …) o '?' */
+function lengthUnitOf(text){
+  const m = /IFCSIUNIT\s*\([^;]*\.LENGTHUNIT\.[^;]*;/i.exec(text);
+  if(!m) return "?";
+  const pm = /\.([A-Z]+)\.\s*,\s*\.METRE\.\s*\)/i.exec(m[0]);
+  if(!pm) return /\.METRE\./i.test(m[0]) ? "m" : "?";
+  const pref = {"EXA":"Em","PETA":"Pm","TERA":"Tm","GIGA":"Gm","MEGA":"Mm","KILO":"km",
+    "HECTO":"hm","DECA":"dam","DECI":"dm","CENTI":"cm","MILLI":"mm","MICRO":"µm","NANO":"nm"}[pm[1].toUpperCase()];
+  return pref || "m";
+}
+
+/* Federazione: elabora un file sorgente e ritorna le righe STEP rimappate. */
+async function mergeSource(text, name, ctx, onProgress){
+  const scanned = await scanSource(text, name, p => onProgress(p * 0.45));
+  const {ents, idx} = scanned;
+  const offset = ctx.nextId;                 // gli id sorgente diventano id+offset
+
+  // -- semina: prodotti agganciati alla struttura spaziale del sorgente ----
+  // 1) contenuti (IfcRelContainedInSpatialStructure)
+  // 2) referenziati (IfcRelReferencedInSpatialStructure — via canonica IFC4x3
+  //    per gli IfcAlignment)
+  // 3) figli non-spaziali aggregati a entità spaziali (alcuni exporter
+  //    agganciano gli alignment con IfcRelAggregates a Project/Site):
+  //    normalizzati come contenuti nel nuovo Site.
+  const products = new Set();
+  const refdOnly = new Set();
+  for(const rid of idx.contained){
+    const rel = ents.get(rid);
+    const args = splitTop(text.slice(rel.s, rel.e));
+    for(const r of listRefs(args[4])) if(ents.has(r)) products.add(r);
+  }
+  for(const rid of idx.refd){
+    const rel = ents.get(rid);
+    const args = splitTop(text.slice(rel.s, rel.e));
+    for(const r of listRefs(args[4])) if(ents.has(r)) refdOnly.add(r);
+  }
+  for(const rid of idx.agg){
+    const rel = ents.get(rid);
+    const args = splitTop(text.slice(rel.s, rel.e));
+    const relating = refOf(args[4]);
+    const rEnt = relating != null ? ents.get(relating) : null;
+    if(rEnt && SPATIAL_TYPES.has(rEnt.t)){
+      for(const r of listRefs(args[5])){
+        const c = ents.get(r);
+        if(c && !SPATIAL_TYPES.has(c.t)) products.add(r);
+      }
+    }
+  }
+  for(const r of products) refdOnly.delete(r);
+  for(const r of refdOnly) products.add(r);
+
+  // -- chiusura sui riferimenti diretti + relazioni inverse utili ----------
+  const inSet = new Set();                   // tutte le entità da copiare
+  const rooted = new Set(products);          // entità IfcRoot: arg1 (OwnerHistory) da reindirizzare
+  const aggregated = new Set();              // elementi figli di assiemi/nesting: non contenuti nel Site
+  const relEmits = new Map();                // rel da emettere con trattamento speciale
+  const queue = [...products];
+  const stats = {p:0, t:0, m:0, c:0, s:0};
+
+  onProgress(0.5, tr("m.closure"));
+  let qi = 0, processed = 0;
+  const drain = async ()=>{
+    while(qi < queue.length){
+      const id = queue[qi++];
+      if(inSet.has(id)) continue;
+      const ent = ents.get(id);
+      if(!ent) continue;
+      inSet.add(id);
+      const refs = collectRefs(text.slice(ent.s, ent.e), rooted.has(id) ? 1 : -1, []);
+      for(const r of refs) if(!inSet.has(r)) queue.push(r);
+      if(++processed % 20000 === 0){ onProgress(0.5 + 0.25 * Math.min(1, processed / Math.max(1, ents.size))); await tick(); }
+    }
+  };
+  await drain();
+
+  const include6 = (rid, kind, filtered)=>{ rooted.add(rid); relEmits.set(rid, {kind, filtered}); };
+
+  let changed = true;
+  while(changed){
+    changed = false;
+
+    for(const rid of idx.voids){
+      if(relEmits.has(rid)) continue;
+      const args = splitTop(text.slice(ents.get(rid).s, ents.get(rid).e));
+      const relating = refOf(args[4]), opening = refOf(args[5]);
+      if(relating != null && inSet.has(relating) && opening != null && ents.has(opening)){
+        include6(rid, "full");
+        if(!inSet.has(opening)){ rooted.add(opening); queue.push(opening); changed = true; }
+      }
+    }
+    for(const rid of idx.fills){
+      if(relEmits.has(rid)) continue;
+      const args = splitTop(text.slice(ents.get(rid).s, ents.get(rid).e));
+      const opening = refOf(args[4]), filler = refOf(args[5]);
+      if(opening != null && inSet.has(opening) && filler != null && inSet.has(filler)){
+        include6(rid, "full"); changed = true;
+      }
+    }
+    for(const bucket of [idx.agg, idx.nests]){
+      for(const rid of bucket){
+        if(relEmits.has(rid)) continue;
+        const args = splitTop(text.slice(ents.get(rid).s, ents.get(rid).e));
+        const relating = refOf(args[4]);
+        if(relating != null && products.has(relating)){
+          include6(rid, "full");
+          for(const ch of listRefs(args[5])){
+            if(!ents.has(ch)) continue;
+            products.add(ch); aggregated.add(ch); rooted.add(ch);
+            if(!inSet.has(ch)){ queue.push(ch); changed = true; }
+          }
+        }
+      }
+    }
+    const relFamilies = [
+      {list:idx.pdef, rootedTarget:true,  stat:"p"},
+      {list:idx.tdef, rootedTarget:true,  stat:"t"},
+      {list:idx.mat,  rootedTarget:false, stat:"m"},
+      {list:idx.cls,  rootedTarget:false, stat:"c"}
+    ];
+    for(const fam of relFamilies){
+      for(const rid of fam.list){
+        if(relEmits.has(rid)) continue;
+        const args = splitTop(text.slice(ents.get(rid).s, ents.get(rid).e));
+        const targets = listRefs(args[4]).filter(r => inSet.has(r));
+        if(!targets.length) continue;
+        include6(rid, "filter4", targets);
+        stats[fam.stat]++;
+        for(const r of listRefs(args[5])){
+          if(!ents.has(r)) continue;
+          if(fam.rootedTarget) rooted.add(r);
+          if(!inSet.has(r)){ queue.push(r); changed = true; }
+        }
+      }
+    }
+    for(const sid of idx.styled){
+      if(inSet.has(sid)) continue;
+      const args = splitTop(text.slice(ents.get(sid).s, ents.get(sid).e));
+      const item = refOf(args[0]);
+      if(item != null && inSet.has(item)){ queue.push(sid); stats.s++; changed = true; }
+    }
+    for(const lid of idx.layer){
+      if(relEmits.has(lid)) continue;
+      const args = splitTop(text.slice(ents.get(lid).s, ents.get(lid).e));
+      const items = listRefs(args[2]).filter(r => inSet.has(r));
+      if(items.length) relEmits.set(lid, {kind:"layer2", filtered:items});
+    }
+    if(changed) await drain();
+  }
+
+  // -- emissione: righe rimappate in ordine di file -------------------------
+  onProgress(0.78, tr("m.emit"));
+  const lines = [];
+  let guidFixed = 0, spatialLeak = 0, emitted = 0, count = 0;
+  const ohTok = ctx.ohRef;
+
+  for(const [id, ent] of ents){
+    const spec = relEmits.get(id);
+    const walked = inSet.has(id);
+    if(!spec && !walked) continue;
+    if(SPATIAL_TYPES.has(ent.t)) spatialLeak++;
+    const raw = text.slice(ent.s, ent.e);
+    let body;
+    if(spec && spec.kind === "layer2"){
+      const a = splitTop(raw);
+      a[2] = "(" + spec.filtered.map(r => "#" + (r + offset)).join(",") + ")";
+      for(let i = 0; i < a.length; i++) if(i !== 2) a[i] = remapRefs(a[i], offset);
+      body = a.join(",");
+    }else if(spec || rooted.has(id)){
+      const a = splitTop(raw);
+      if(GUID_RE.test(a[0])){
+        const g = a[0].slice(1, -1);
+        if(ctx.guidSet.has(g)){ a[0] = "'" + newGuid() + "'"; guidFixed++; }
+        ctx.guidSet.add(a[0].slice(1, -1));
+      }
+      if(a.length > 1) a[1] = ohTok;
+      const filterIdx = spec && spec.kind === "filter4" ? 4 : -1;
+      for(let i = 2; i < a.length; i++){
+        if(i === filterIdx) a[i] = "(" + spec.filtered.map(r => "#" + (r + offset)).join(",") + ")";
+        else a[i] = remapRefs(a[i], offset);
+      }
+      body = a.join(",");
+    }else{
+      body = remapRefs(raw, offset);
+    }
+    lines.push("#" + (id + offset) + "=" + ent.t + "(" + body + ");");
+    emitted++;
+    if(++count % 20000 === 0){ onProgress(0.78 + 0.2 * count / Math.max(1, ents.size)); await tick(); }
+  }
+
+  // -- nuovo IfcSite + aggancio al progetto base ----------------------------
+  const label = name.replace(/\.ifc$/i, "");
+  let nid = offset + scanned.maxId + 1;
+  const siteId = nid++;
+  const gSite = newGuid(), gAgg = newGuid();
+  ctx.guidSet.add(gSite); ctx.guidSet.add(gAgg);
+  lines.push("#" + siteId + "=IFCSITE('" + gSite + "'," + ohTok + "," + stepStr(label) + ",$,$,$,$,$,.ELEMENT.,$,$,$,$,$);");
+  lines.push("#" + (nid++) + "=IFCRELAGGREGATES('" + gAgg + "'," + ohTok + ",$,$,#" + ctx.projectId + ",(#" + siteId + "));");
+
+  const containIds = [...products].filter(id => !aggregated.has(id) && !refdOnly.has(id) && ents.has(id)).sort((a,b)=>a-b);
+  const refdIds = [...refdOnly].filter(id => !aggregated.has(id) && ents.has(id)).sort((a,b)=>a-b);
+  if(containIds.length){
+    const gCont = newGuid();
+    ctx.guidSet.add(gCont);
+    lines.push("#" + (nid++) + "=IFCRELCONTAINEDINSPATIALSTRUCTURE('" + gCont + "'," + ohTok + ",$,$,(" +
+      containIds.map(r => "#" + (r + offset)).join(",") + "),#" + siteId + ");");
+  }
+  if(refdIds.length){
+    const gRef = newGuid();
+    ctx.guidSet.add(gRef);
+    lines.push("#" + (nid++) + "=IFCRELREFERENCEDINSPATIALSTRUCTURE('" + gRef + "'," + ohTok + ",$,$,(" +
+      refdIds.map(r => "#" + (r + offset)).join(",") + "),#" + siteId + ");");
+  }
+  ctx.nextId = nid;
+
+  onProgress(1);
+  return {
+    lines, label,
+    nElems: containIds.length + refdIds.length,
+    nCopied: emitted,
+    guidFixed, spatialLeak, stats,
+    schema: schemaOf(text),
+    unit: lengthUnitOf(text)
+  };
+}
+
+/* Preparazione del file base: rinomina project/site, raccoglie id e GUID. */
+async function prepareBase(text, name, projectName, onProgress){
+  if(text.indexOf("DATA;") < 0) throw new Error(fmtMsg("m.noData", {name}));
+  const project = findFirstEntity(text, "IFCPROJECT");
+  if(!project) throw new Error(tr("m.noProject"));
+  const site = findFirstEntity(text, "IFCSITE");
+  const oh = findFirstEntity(text, "IFCOWNERHISTORY");
+
+  // maxId + set dei GlobalId esistenti (prima stringa 22-char delle entità)
+  let maxId = 0;
+  const guidSet = new Set();
+  const re = /#(\d+)\s*=\s*[A-Za-z0-9_]+\s*\(\s*('[0-9A-Za-z_$]{22}')?/g;
+  let m, seen = 0;
+  while((m = re.exec(text)) !== null){
+    const id = +m[1];
+    if(id > maxId) maxId = id;
+    if(m[2]) guidSet.add(m[2].slice(1, -1));
+    if(++seen % 50000 === 0){ onProgress(Math.min(1, re.lastIndex / text.length)); await tick(); }
+  }
+
+  // conteggio elementi contenuti (solo per il riepilogo)
+  let baseElems = 0;
+  const cre = /#\d+\s*=\s*IFCRELCONTAINEDINSPATIALSTRUCTURE\s*\(/gi;
+  const uniq = new Set();
+  while((m = cre.exec(text)) !== null){
+    const cap = captureArgs(text, m.index + m[0].length - 1, text.length);
+    const args = splitTop(text.slice(cap.argStart, cap.argEnd));
+    for(const r of listRefs(args[4])) uniq.add(r);
+    cre.lastIndex = cap.next;
+  }
+  baseElems = uniq.size;
+
+  // riscritture puntuali: Name (arg 2) di project e primo site
+  const label = name.replace(/\.ifc$/i, "");
+  const edits = [];
+  const renameArg2 = (ent, value)=>{
+    const raw = text.slice(ent.argStart, ent.argEnd);
+    const a = splitTop(raw);
+    if(a.length > 2){
+      a[2] = stepStr(value);
+      edits.push({start: ent.argStart, end: ent.argEnd, text: a.join(",")});
+    }
+  };
+  renameArg2(project, projectName);
+  if(site) renameArg2(site, label);
+  edits.sort((x,y)=> x.start - y.start);
+
+  const insertPos = text.lastIndexOf("ENDSEC");
+  if(insertPos < 0) throw new Error(fmtMsg("m.noData", {name}));
+
+  // parti del file base con le riscritture applicate
+  const parts = [];
+  let cursor = 0;
+  for(const ed of edits){
+    parts.push(text.slice(cursor, ed.start), ed.text);
+    cursor = ed.end;
+  }
+  parts.push(text.slice(cursor, insertPos));
+  const tail = text.slice(insertPos);
+
+  return {
+    parts, tail,
+    projectId: project.id,
+    ohRef: oh ? "#" + oh.id : "$",
+    guidSet,
+    nextId: maxId + 1,
+    label, baseElems,
+    hasSite: !!site,
+    schema: schemaOf(text),
+    unit: lengthUnitOf(text)
+  };
+}
+
+/* =========================================================================
+   UI
+   ========================================================================= */
+const FILES = [];
+const ui = {
+  fileInput: document.getElementById("fileInput"),
+  addBtn: document.getElementById("addBtn"), clearBtn: document.getElementById("clearBtn"),
+  fileList: document.getElementById("fileList"), dropZone: document.getElementById("dropZone"),
+  fileCount: document.getElementById("fileCount"),
+  pnameInput: document.getElementById("pnameInput"), outInput: document.getElementById("outInput"),
+  runBtn: document.getElementById("runBtn"),
+  progress: document.getElementById("progress"), progressBar: document.getElementById("progressBar"),
+  progressLabel: document.getElementById("progressLabel"), log: document.getElementById("log"),
+  sumBody: document.getElementById("sumBody"),
+  total: document.getElementById("total"), totalText: document.getElementById("totalText"), totalFile: document.getElementById("totalFile")
+};
+
+function esc(s){ return String(s).replace(/[&<>]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function logLine(msg, cls){
+  const span = document.createElement("span");
+  span.className = cls || "info";
+  span.textContent = msg + "\n";
+  ui.log.appendChild(span);
+  ui.log.scrollTop = ui.log.scrollHeight;
+}
+function clearLog(){ ui.log.innerHTML = ""; }
+function setProgress(p, label){
+  ui.progressBar.style.width = Math.max(0, Math.min(100, p)) + "%";
+  if(label != null) ui.progressLabel.textContent = label;
+}
+function fmtSize(b){ return (b/1048576).toFixed(1) + " MB"; }
+
+function renderFiles(){
+  ui.fileList.innerHTML = "";
+  ui.fileCount.textContent = FILES.length ? fmtMsg("f.count", {n: FILES.length}) : "";
+  if(!FILES.length){
+    const d = document.createElement("div");
+    d.className = "file-empty";
+    d.setAttribute("data-i18n", "f.none");
+    d.textContent = tr("f.none");
+    ui.fileList.appendChild(d);
+  }else{
+    FILES.forEach((f, i)=>{
+      const row = document.createElement("div");
+      row.className = "file-item";
+      row.innerHTML =
+        '<span class="idx">' + (i+1) + '.</span>' +
+        '<span class="fname">' + esc(f.name) + '</span>' +
+        (i === 0 ? '<span class="base-tag">' + esc(tr("f.base")) + '</span>' : '') +
+        '<span class="fsize">' + fmtSize(f.size) + '</span>' +
+        '<button class="fbtn" data-act="up" data-i="' + i + '" title="' + esc(tr("f.up")) + '"' + (i === 0 ? " disabled" : "") + '>↑</button>' +
+        '<button class="fbtn" data-act="down" data-i="' + i + '" title="' + esc(tr("f.down")) + '"' + (i === FILES.length-1 ? " disabled" : "") + '>↓</button>' +
+        '<button class="fbtn rm" data-act="rm" data-i="' + i + '" title="' + esc(tr("f.rm")) + '">✕</button>';
+      ui.fileList.appendChild(row);
+    });
+  }
+  ui.runBtn.disabled = FILES.length < 2;
+}
+function addFiles(list){
+  for(const f of list){
+    if(!/\.ifc$/i.test(f.name)) continue;
+    if(FILES.some(x => x.name === f.name && x.size === f.size)) continue;
+    FILES.push(f);
+  }
+  renderFiles();
+}
+ui.addBtn.addEventListener("click", ()=> ui.fileInput.click());
+ui.fileInput.addEventListener("change", e=>{ addFiles(e.target.files); e.target.value = ""; });
+ui.clearBtn.addEventListener("click", ()=>{ FILES.length = 0; renderFiles(); });
+ui.fileList.addEventListener("click", e=>{
+  const b = e.target.closest("button.fbtn");
+  if(!b) return;
+  const i = +b.dataset.i, act = b.dataset.act;
+  if(act === "rm") FILES.splice(i, 1);
+  else if(act === "up" && i > 0) [FILES[i-1], FILES[i]] = [FILES[i], FILES[i-1]];
+  else if(act === "down" && i < FILES.length-1) [FILES[i+1], FILES[i]] = [FILES[i], FILES[i+1]];
+  renderFiles();
+});
+["dragenter","dragover"].forEach(ev=> ui.dropZone.addEventListener(ev, e=>{ e.preventDefault(); ui.dropZone.classList.add("drag"); }));
+["dragleave","drop"].forEach(ev=> ui.dropZone.addEventListener(ev, e=>{ e.preventDefault(); ui.dropZone.classList.remove("drag"); }));
+ui.dropZone.addEventListener("drop", e=> addFiles(e.dataTransfer.files));
+
+function readFileText(f, onPct){
+  return new Promise((resolve, reject)=>{
+    const r = new FileReader();
+    r.onprogress = e=>{ if(e.lengthComputable && onPct) onPct(Math.round(100 * e.loaded / e.total)); };
+    r.onload = ()=> resolve(r.result);
+    r.onerror = ()=> reject(new Error(tr("m.readErr") + (r.error ? r.error.message : f.name)));
+    r.readAsText(f);
+  });
+}
+
+/* ---- RUN ---- */
+ui.runBtn.addEventListener("click", ()=>{
+  if(FILES.length < 2){ alert(tr("m.needTwo")); return; }
+  clearLog();
+  ui.sumBody.innerHTML = "";
+  ui.total.classList.remove("on");
+  ui.runBtn.disabled = true;
+  ui.progress.classList.add("on");
+  ui.progressLabel.classList.add("on");
+  setProgress(0, "");
+  logLine(tr("m.start"), "head");
+  setTimeout(runWork, 40);
+});
+
+async function runWork(){
+  try{
+    const n = FILES.length;
+    const rows = [];
+    const projectName = ui.pnameInput.value.trim() || "Modello Federato";
+    let outName = ui.outInput.value.trim() || "modello_federato.ifc";
+    if(!/\.ifc$/i.test(outName)) outName += ".ifc";
+
+    // finestra di progresso per file: base 0-14, sorgenti 14-92, composizione 92-100
+    const winStart = i => i === 0 ? 0 : 14 + 78 * (i - 1) / (n - 1);
+    const winEnd   = i => i === 0 ? 14 : 14 + 78 * i / (n - 1);
+
+    // ---- 1. file base ---------------------------------------------------
+    logLine(tr("m.baseOpen"), "head");
+    let text = await readFileText(FILES[0], p => setProgress(winStart(0) + 4 * p / 100, fmtMsg("m.reading", {name: FILES[0].name, p})));
+    const base = await prepareBase(text, FILES[0].name, projectName,
+      p => setProgress(winStart(0) + 4 + 10 * p, fmtMsg("m.scan", {p: Math.round(100 * p)})));
+    text = null;
+    logLine(fmtMsg("m.schemaBase", {s: base.schema}), "info");
+    if(base.hasSite) logLine(fmtMsg("m.baseSite", {n, name: FILES[0].name, label: base.label}), "ok");
+    else logLine(fmtMsg("m.baseNoSite", {n, name: FILES[0].name}), "warn");
+    rows.push({i: 1, file: FILES[0].name, site: base.hasSite ? base.label : "—", el: base.baseElems, note: tr("sum.base"), ok: true});
+
+    // ---- 2. file successivi ----------------------------------------------
+    const ctx = { nextId: base.nextId, projectId: base.projectId, ohRef: base.ohRef, guidSet: base.guidSet };
+    const chunks = [];
+    let totalElems = base.baseElems, totalSites = base.hasSite ? 1 : 0;
+
+    for(let i = 1; i < n; i++){
+      const f = FILES[i];
+      logLine(fmtMsg("m.srcHead", {i: i+1, n, name: f.name}), "head");
+      const w0 = winStart(i), w1 = winEnd(i), span = w1 - w0;
+      let src = await readFileText(f, p => setProgress(w0 + span * 0.18 * p / 100, fmtMsg("m.reading", {name: f.name, p})));
+
+      const res = await mergeSource(src, f.name, ctx, (p, label)=>{
+        setProgress(w0 + span * (0.18 + 0.82 * p), label != null ? label : fmtMsg("m.scan", {p: Math.round(100 * p)}));
+      });
+      src = null;
+
+      if(res.schema !== base.schema) logLine(fmtMsg("m.schemaWarn", {s: res.schema, b: base.schema}), "warn");
+      if(res.unit !== "?" && base.unit !== "?" && res.unit !== base.unit)
+        logLine(fmtMsg("m.unitWarn", {u: res.unit, b: base.unit}), "warn");
+
+      if(!res.nElems) logLine(tr("m.noContained"), "warn");
+      logLine(fmtMsg("m.siteDone", {label: res.label, n: res.nElems, tot: res.nCopied}), "ok");
+      logLine(fmtMsg("m.rels", {p: res.stats.p, t: res.stats.t, m: res.stats.m, c: res.stats.c, s: res.stats.s}), "info");
+      if(res.guidFixed) logLine(fmtMsg("m.guidFix", {n: res.guidFixed}), "warn");
+      if(res.spatialLeak) logLine(fmtMsg("m.spatialLeak", {n: res.spatialLeak}), "warn");
+
+      chunks.push(res.lines.join("\r\n") + "\r\n");
+      res.lines.length = 0;
+      totalElems += res.nElems;
+      totalSites += 1;
+      rows.push({i: i+1, file: f.name, site: res.label, el: res.nElems, note: res.nElems ? tr("sum.site") : tr("sum.skip"), ok: !!res.nElems});
+      await tick();
+    }
+
+    // ---- 3. composizione e download --------------------------------------
+    setProgress(94, tr("m.building"));
+    await tick();
+    const blobParts = [...base.parts, ...chunks, base.tail];
+    const blob = new Blob(blobParts, {type: "application/x-step"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = outName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 4000);
+
+    // ---- 4. riepilogo -----------------------------------------------------
+    ui.sumBody.innerHTML = "";
+    for(const r of rows){
+      const tr2 = document.createElement("tr");
+      tr2.className = r.ok ? "r-ok" : "r-none";
+      tr2.innerHTML =
+        '<td class="code">' + r.i + '</td>' +
+        '<td class="code">' + esc(r.file) + '</td>' +
+        '<td class="code">' + esc(r.site) + '</td>' +
+        '<td class="num hl">' + r.el + '</td>' +
+        '<td class="note">' + esc(r.note) + '</td>';
+      ui.sumBody.appendChild(tr2);
+    }
+
+    setProgress(100, "");
+    logLine("", "info");
+    logLine(fmtMsg("m.done", {f: n}), "ok");
+    logLine(fmtMsg("m.stats", {s: totalSites, e: totalElems}), "ok");
+    logLine(tr("m.out") + outName, "ok");
+
+    ui.totalText.textContent = fmtMsg("m.totalText", {f: n, e: totalElems});
+    ui.totalFile.textContent = outName;
+    ui.total.classList.add("on");
+
+  }catch(err){
+    logLine(tr("m.err") + (err && err.message ? err.message : err), "err");
+  }finally{
+    setTimeout(()=>{ ui.progress.classList.remove("on"); ui.progressLabel.classList.remove("on"); }, 400);
+    ui.runBtn.disabled = FILES.length < 2;
+  }
+}
+
+/* ---- init ---- */
+document.getElementById("year").textContent = new Date().getFullYear();
+document.querySelectorAll(".langsw button").forEach(b=> b.addEventListener("click", ()=> applyLang(b.dataset.lang)));
+(function initLang(){
+  let lang = "it";
+  try{ lang = localStorage.getItem("viewifc_tool_lang") || (navigator.language || "it").slice(0,2); }catch(e){}
+  applyLang(I18N[lang] ? lang : "it");
+})();
+/* tema (default: dark) — chiave condivisa con landing e viewer */
+(function initTheme(){
+  const meta = document.querySelector('meta[name="theme-color"]');
+  function setTheme(t){
+    if(t === "light") document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+    if(meta) meta.setAttribute("content", t === "light" ? "#f1f3ee" : "#0c110a");
+    try{ localStorage.setItem("viewer_landing_theme", t); }catch(e){}
+  }
+  let t = "dark";
+  try{ t = localStorage.getItem("viewer_landing_theme") || "dark"; }catch(e){}
+  setTheme(t);
+  const b = document.getElementById("thmBtn");
+  if(b) b.addEventListener("click", ()=>{
+    setTheme(document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light");
+  });
+})();
+</script>
+</body>
+</html>
