@@ -771,11 +771,12 @@ html[data-theme="light"] .tool-card::after{background:radial-gradient(520px circ
         <p data-i18n="tools.t3d">Estrae gli IfcAlignment da un file IFC4x3 e li esporta in LandXML 1.2 (planimetria Line/Curve/Spiral e profilo PVI/ParaCurve), pronto da caricare su Dalux.</p>
         <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
-      <div class="tool-card soon rv" style="--d:.18s">
-        <div class="tool-num"><span>04</span><span class="soon-tag" data-i18n="tools.soon">In arrivo</span></div>
+      <a class="tool-card rv" style="--d:.18s" href="tools/ifc-merge/">
+        <div class="tool-num"><span>04</span><span class="tool-tag" data-i18n="tools.tag">Client-side</span></div>
         <h3 data-i18n="tools.t4t">IFC Merge</h3>
-        <p data-i18n="tools.t4d">Unisci più file IFC in un unico modello federato, da riaprire in qualunque strumento openBIM.</p>
-      </div>
+        <p data-i18n="tools.t4d">Unisce più file IFC in un unico modello federato: un IfcProject, un IfcSite riconoscibile per ogni file; property set, tipi, materiali e colori mantenuti. Scarichi un IFC pronto per qualunque strumento openBIM.</p>
+        <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      </a>
     </div>
   </div>
 </section>
@@ -913,7 +914,7 @@ const I18N = {
     "tools.t1t":"IFC Class Patcher","tools.t1d":"Riclassifica in massa gli elementi IFC: cambia classe IFC e PredefinedType da una mappatura Excel (Classe → Entità → ENUMTYPE). Scegli tu le colonne; scarichi un IFC corretto.",
     "tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converte le progressive degli elementi IFC tra metri e formato chilometrico K+MMM,CC, in entrambe le direzioni. Scegli quali parametri convertire; scarichi un IFC aggiornato.",
     "tools.t3t":"IFC Alignment to LandXML","tools.t3d":"Estrae gli IfcAlignment da un file IFC4x3 e li esporta in LandXML 1.2 (planimetria Line/Curve/Spiral e profilo PVI/ParaCurve), pronto da caricare su Dalux.",
-    "tools.t4t":"IFC Merge","tools.t4d":"Unisci più file IFC in un unico modello federato, da riaprire in qualunque strumento openBIM.",
+    "tools.t4t":"IFC Merge","tools.t4d":"Unisce più file IFC in un unico modello federato: un IfcProject, un IfcSite riconoscibile per ogni file; property set, tipi, materiali e colori mantenuti. Scarichi un IFC pronto per qualunque strumento openBIM.",
     "faq.eyebrow":"FAQ",
     "faq.h2":"Domande frequenti",
     "faq.p":"Tutto quello che serve sapere prima di aprire il primo modello.",
@@ -983,7 +984,7 @@ const I18N = {
     "tools.t1t":"IFC Class Patcher","tools.t1d":"Bulk-reclassify IFC elements: change the IFC class and PredefinedType from an Excel mapping (Class → Entity → ENUMTYPE). You pick the columns; you download a corrected IFC.",
     "tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converts IFC chainage values between metres and the kilometric format K+MMM,CC, both ways. You choose which parameters to convert; you download an updated IFC.",
     "tools.t3t":"IFC Alignment to LandXML","tools.t3d":"Extracts the IfcAlignment entities from an IFC4x3 file and exports them as LandXML 1.2 (horizontal Line/Curve/Spiral and vertical PVI/ParaCurve), ready to load into Dalux.",
-    "tools.t4t":"IFC Merge","tools.t4d":"Merge multiple IFC files into a single federated model you can reopen in any openBIM tool.",
+    "tools.t4t":"IFC Merge","tools.t4d":"Merges multiple IFC files into a single federated model: one IfcProject, one recognisable IfcSite per file; property sets, types, materials and colours kept. You download an IFC ready for any openBIM tool.",
     "faq.eyebrow":"FAQ",
     "faq.h2":"Frequently asked questions",
     "faq.p":"Everything you need to know before opening your first model.",
