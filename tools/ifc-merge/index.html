@@ -399,9 +399,12 @@ const I18N = {
     "m.srcHead":"[{i}/{n}] {name}",
     "m.schemaWarn":"   ! schema {s} diverso dal base {b}: possibili incompatibilità.",
     "m.unitWarn":"   ! unità di lunghezza '{u}' diversa dal base '{b}': geometrie a scale diverse.",
+    "m.unitConv":"   unità '{u}' convertita nel base '{b}' (×{f}): geometrie riscalate in copia.",
+    "m.unitNonSI":"   ! unità di lunghezza non-SI nel file: conversione non supportata, geometrie a scale diverse.",
     "m.scan":"Analisi delle entità… {p}%",
     "m.closure":"Raccolta delle dipendenze…",
     "m.emit":"Riscrittura delle entità…",
+    "m.emitPct":"Riscrittura… {p}% · {done} / ~{tot} MB",
     "m.noContained":"   ! nessun elemento contenuto nella struttura spaziale: Site vuoto.",
     "m.siteDone":"   Site '{label}': {n} elementi ({tot} entità copiate)",
     "m.rels":"   relazioni: {p} pset · {t} tipi · {m} materiali · {c} classificazioni · {s} stili",
@@ -411,6 +414,7 @@ const I18N = {
     "m.done":"Completato: {f} modelli uniti → 1 file federato.",
     "m.stats":"Site creati: {s} · elementi totali: {e}",
     "m.out":"→ scaricato: ",
+    "m.outStream":"→ scritto su disco: ",
     "m.totalText":"{f} modelli → 1 file federato · {e} elementi",
     "m.err":"ERRORE: "
   },
@@ -451,9 +455,12 @@ const I18N = {
     "m.srcHead":"[{i}/{n}] {name}",
     "m.schemaWarn":"   ! schema {s} differs from base {b}: possible incompatibilities.",
     "m.unitWarn":"   ! length unit '{u}' differs from base '{b}': geometries at different scales.",
+    "m.unitConv":"   unit '{u}' converted to the base '{b}' (×{f}): geometry rescaled while copying.",
+    "m.unitNonSI":"   ! non-SI length unit in the file: conversion not supported, geometries at different scales.",
     "m.scan":"Parsing the entities… {p}%",
     "m.closure":"Collecting the dependencies…",
     "m.emit":"Rewriting the entities…",
+    "m.emitPct":"Rewriting… {p}% · {done} / ~{tot} MB",
     "m.noContained":"   ! no element contained in the spatial structure: empty Site.",
     "m.siteDone":"   Site '{label}': {n} elements ({tot} entities copied)",
     "m.rels":"   relations: {p} psets · {t} types · {m} materials · {c} classifications · {s} styles",
@@ -463,6 +470,7 @@ const I18N = {
     "m.done":"Done: {f} models merged → 1 federated file.",
     "m.stats":"Sites created: {s} · total elements: {e}",
     "m.out":"→ downloaded: ",
+    "m.outStream":"→ written to disk: ",
     "m.totalText":"{f} models → 1 federated file · {e} elements",
     "m.err":"ERROR: "
   }
@@ -497,22 +505,74 @@ function applyLang(lang){
   renderFiles();
   try{ localStorage.setItem("viewifc_tool_lang", LANG); }catch(e){}
 }
+</script>
 
+<!-- ============================================================
+     MOTORE DI MERGE — vive in questo blocco text/worker (Fase 4):
+     il main thread lo istanzia come Web Worker da Blob URL (vincolo
+     single-file), o lo valuta inline come fallback se Worker manca.
+     Niente tr()/fmtMsg qui: progress/log/errori viaggiano come
+     chiavi i18n + variabili, formattate dal main thread.
+     ============================================================ -->
+<script type="text/worker" id="mergeEngine">
 /* =========================================================================
-   PARSER STEP — scanner sequenziale quote/parentesi-aware (tutte le entità)
+   PARSER STEP — scanner sequenziale quote/parentesi-aware su byte.
+   Il file NON viene mai materializzato come stringa JS intera (limite V8
+   ~512 MB): si lavora sulla Uint8Array e si decodificano solo i piccoli
+   slice di argomenti che servono davvero (Bug A del piano).
    ========================================================================= */
-function tick(){ return new Promise(r=> setTimeout(r, 0)); }
+/* Nel worker gli yield con timer non servono (il main thread è libero):
+   basta un microtask. Nel fallback sul main thread il timer tiene viva la UI. */
+const IS_WORKER = typeof document === "undefined" && typeof self !== "undefined" && typeof importScripts === "function";
+function tick(){ return IS_WORKER ? Promise.resolve() : new Promise(r=> setTimeout(r, 0)); }
+
+/* Errore con chiave i18n: chi orchestra lo formatta con fmtMsg (i dizionari
+   vivono solo nel main thread). */
+function mkErr(k, v){ const e = new Error(k); e.k = k; e.v = v || {}; return e; }
 
 const WS = c => c===32 || c===9 || c===13 || c===10;
+const TDEC = new TextDecoder();
+const TENC = new TextEncoder();
+
+/* Ricerca di una stringa ASCII nella Uint8Array (avanti / indietro). */
+function bytesIndexOf(buf, str, from){
+  const n = str.length, end = buf.length - n, c0 = str.charCodeAt(0);
+  for(let i = Math.max(0, from|0); i <= end; i++){
+    if(buf[i] !== c0) continue;
+    let k = 1;
+    while(k < n && buf[i+k] === str.charCodeAt(k)) k++;
+    if(k === n) return i;
+  }
+  return -1;
+}
+function bytesLastIndexOf(buf, str){
+  const n = str.length, c0 = str.charCodeAt(0);
+  for(let i = buf.length - n; i >= 0; i--){
+    if(buf[i] !== c0) continue;
+    let k = 1;
+    while(k < n && buf[i+k] === str.charCodeAt(k)) k++;
+    if(k === n) return i;
+  }
+  return -1;
+}
+/* Slice ASCII corto (nomi di tipo, GUID) senza passare da TextDecoder. */
+function asciiSlice(buf, s, e){
+  let r = "";
+  for(let i = s; i < e; i++) r += String.fromCharCode(buf[i]);
+  return r;
+}
+/* Argomenti di un'entità come stringa (slice piccolo, decodifica mirata).
+   I confini cadono su parentesi strutturali: mai dentro un multibyte. */
+function argStr(buf, ent){ return TDEC.decode(buf.subarray(ent.s, ent.e)); }
 
 /* Cattura gli argomenti di un'entità a partire dall'indice della '(' aperta.
    Ritorna {argStart, argEnd, next} con next = indice dopo il ';'. */
-function captureArgs(text, openIdx, stop){
+function captureArgs(buf, openIdx, stop){
   let depth = 1, p = openIdx + 1, inStr = false;
   while(p < stop && depth > 0){
-    const c = text.charCodeAt(p);
+    const c = buf[p];
     if(inStr){
-      if(c === 39){ if(text.charCodeAt(p+1) === 39) p++; else inStr = false; }
+      if(c === 39){ if(buf[p+1] === 39) p++; else inStr = false; }
     }else{
       if(c === 39) inStr = true;
       else if(c === 40) depth++;
@@ -522,41 +582,43 @@ function captureArgs(text, openIdx, stop){
   }
   const argEnd = p - 1;
   let q = p;
-  while(q < stop && text.charCodeAt(q) !== 59 && q - p < 40) q++;   // ';'
+  while(q < stop && buf[q] !== 59 && q - p < 40) q++;   // ';'
   return {argStart: openIdx + 1, argEnd, next: q + 1};
 }
 
 /* Scansione completa della sezione DATA di un sorgente: mappa id → entità
    e indici per i tipi di relazione che interessano al merge. */
-async function scanSource(text, name, onProgress){
+async function scanSource(buf, name, onProgress){
   const ents = new Map();
   const idx = { contained:[], refd:[], voids:[], fills:[], agg:[], nests:[],
-                pdef:[], tdef:[], mat:[], cls:[], styled:[], layer:[] };
+                pdef:[], tdef:[], mat:[], cls:[], styled:[], layer:[],
+                siunit:[], convunit:[], first:{project:0, site:0, oh:0} };
   let maxId = 0;
-  let i = text.indexOf("DATA;");
-  if(i < 0) throw new Error(fmtMsg("m.noData", {name}));
+  let i = bytesIndexOf(buf, "DATA;", 0);
+  if(i < 0) throw mkErr("m.noData", {name});
+  const dataIdx = i;
   i += 5;
-  const endIso = text.lastIndexOf("END-ISO-10303-21");
-  const stop = endIso > 0 ? endIso : text.length;
+  const endIso = bytesLastIndexOf(buf, "END-ISO-10303-21");
+  const stop = endIso > 0 ? endIso : buf.length;
   let lastYield = performance.now();
 
   while(i < stop){
-    const ch = text.charCodeAt(i);
+    const ch = buf[i];
     if(ch === 35){                                     // '#'
       let j = i + 1, id = 0, any = false;
-      while(j < stop){ const c = text.charCodeAt(j); if(c >= 48 && c <= 57){ id = id*10 + (c-48); j++; any = true; } else break; }
+      while(j < stop){ const c = buf[j]; if(c >= 48 && c <= 57){ id = id*10 + (c-48); j++; any = true; } else break; }
       let k = j;
-      while(k < stop && WS(text.charCodeAt(k))) k++;
-      if(any && text.charCodeAt(k) === 61){            // '='
+      while(k < stop && WS(buf[k])) k++;
+      if(any && buf[k] === 61){                        // '='
         k++;
-        while(k < stop && WS(text.charCodeAt(k))) k++;
+        while(k < stop && WS(buf[k])) k++;
         const t0 = k;
-        while(k < stop){ const c = text.charCodeAt(k);
+        while(k < stop){ const c = buf[k];
           if((c>=65&&c<=90)||(c>=97&&c<=122)||(c>=48&&c<=57)||c===95) k++; else break; }
-        const type = text.slice(t0, k).toUpperCase();
-        while(k < stop && WS(text.charCodeAt(k))) k++;
-        if(text.charCodeAt(k) === 40){                 // '('
-          const cap = captureArgs(text, k, stop);
+        const type = asciiSlice(buf, t0, k).toUpperCase();
+        while(k < stop && WS(buf[k])) k++;
+        if(buf[k] === 40){                             // '('
+          const cap = captureArgs(buf, k, stop);
           ents.set(id, {t:type, s:cap.argStart, e:cap.argEnd});
           if(id > maxId) maxId = id;
           switch(type){
@@ -572,6 +634,11 @@ async function scanSource(text, name, onProgress){
             case "IFCRELASSOCIATESCLASSIFICATION":    idx.cls.push(id); break;
             case "IFCSTYLEDITEM":                     idx.styled.push(id); break;
             case "IFCPRESENTATIONLAYERASSIGNMENT":    idx.layer.push(id); break;
+            case "IFCSIUNIT":                         idx.siunit.push(id); break;
+            case "IFCCONVERSIONBASEDUNIT":            idx.convunit.push(id); break;
+            case "IFCPROJECT":      if(!idx.first.project) idx.first.project = id; break;
+            case "IFCSITE":         if(!idx.first.site) idx.first.site = id; break;
+            case "IFCOWNERHISTORY": if(!idx.first.oh) idx.first.oh = id; break;
           }
           i = cap.next;
           if(performance.now() - lastYield > 45){
@@ -587,7 +654,7 @@ async function scanSource(text, name, onProgress){
     }
     i++;
   }
-  return {ents, idx, maxId};
+  return {ents, idx, maxId, dataIdx};
 }
 
 /* Split degli argomenti STEP di primo livello (stringhe e liste annidate). */
@@ -614,6 +681,14 @@ function splitTop(s){
    di primo livello (skipArg = indice OwnerHistory delle entità IfcRoot). */
 function collectRefs(raw, skipArg, out){
   out = out || [];
+  // fast-path: la stragrande maggioranza delle righe (punti, placement,
+  // geometrie) non contiene stringhe — regex nativa, niente loop char-by-char
+  if(skipArg === -1 && raw.indexOf("'") < 0){
+    const re = /#(\d+)/g;
+    let m;
+    while((m = re.exec(raw)) !== null) out.push(+m[1]);
+    return out;
+  }
   let depth = 0, inStr = false, argIdx = 0;
   for(let i = 0; i < raw.length; i++){
     const c = raw.charCodeAt(i);
@@ -634,6 +709,9 @@ function collectRefs(raw, skipArg, out){
 
 /* Riscrive tutti i #ref applicando l'offset (quote-aware). */
 function remapRefs(raw, offset){
+  // fast-path senza apostrofi (vedi collectRefs)
+  if(raw.indexOf("'") < 0)
+    return raw.replace(/#(\d+)/g, (m, d) => "#" + (+d + offset));
   let out = "", last = 0, depth = 0, inStr = false;
   for(let i = 0; i < raw.length; i++){
     const c = raw.charCodeAt(i);
@@ -697,34 +775,121 @@ const SPATIAL_TYPES = new Set(["IFCPROJECT","IFCSITE","IFCBUILDING","IFCBUILDING
   "IFCFACILITY","IFCROAD","IFCBRIDGE","IFCRAILWAY","IFCMARINEFACILITY","IFCFACILITYPARTCOMMON",
   "IFCROADPART","IFCBRIDGEPART","IFCRAILWAYPART","IFCMARINEPART"]);
 
-function findFirstEntity(text, type){
-  const re = new RegExp("#(\\d+)\\s*=\\s*" + type + "\\s*\\(", "i");
-  const m = re.exec(text);
-  if(!m) return null;
-  const open = m.index + m[0].length - 1;
-  const cap = captureArgs(text, open, text.length);
-  return {id:+m[1], argStart:cap.argStart, argEnd:cap.argEnd};
-}
-function schemaOf(text){
-  const m = /FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'/i.exec(text);
+/* Schema dall'header (piccolo: si decodifica solo fino a DATA;). */
+function schemaOf(buf, dataIdx){
+  const head = TDEC.decode(buf.subarray(0, Math.min(dataIdx, 1048576)));
+  const m = /FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'/i.exec(head);
   return m ? m[1].toUpperCase() : "?";
 }
-/* Unità di lunghezza del progetto: prefisso SI ('m', 'mm', …) o '?' */
-function lengthUnitOf(text){
-  const m = /IFCSIUNIT\s*\([^;]*\.LENGTHUNIT\.[^;]*;/i.exec(text);
-  if(!m) return "?";
-  const pm = /\.([A-Z]+)\.\s*,\s*\.METRE\.\s*\)/i.exec(m[0]);
-  if(!pm) return /\.METRE\./i.test(m[0]) ? "m" : "?";
-  const pref = {"EXA":"Em","PETA":"Pm","TERA":"Tm","GIGA":"Gm","MEGA":"Mm","KILO":"km",
-    "HECTO":"hm","DECA":"dam","DECI":"dm","CENTI":"cm","MILLI":"mm","MICRO":"µm","NANO":"nm"}[pm[1].toUpperCase()];
-  return pref || "m";
+/* Unità di lunghezza del progetto: prefisso SI ('m', 'mm', …) o '?',
+   dagli IFCSIUNIT raccolti dalla scansione (niente regex sul file intero). */
+function lengthUnitOfScan(buf, ents, idx){
+  for(const id of idx.siunit){
+    const raw = argStr(buf, ents.get(id));
+    if(raw.toUpperCase().indexOf(".LENGTHUNIT.") < 0) continue;
+    const pm = /\.([A-Z]+)\.\s*,\s*\.METRE\./i.exec(raw);
+    if(!pm) return /\.METRE\./i.test(raw) ? "m" : "?";
+    const pref = {"EXA":"Em","PETA":"Pm","TERA":"Tm","GIGA":"Gm","MEGA":"Mm","KILO":"km",
+      "HECTO":"hm","DECA":"dam","DECI":"dm","CENTI":"cm","MILLI":"mm","MICRO":"µm","NANO":"nm"}[pm[1].toUpperCase()];
+    return pref || "m";
+  }
+  return "?";
+}
+/* Unità di lunghezza non-SI (es. piedi via IfcConversionBasedUnit): non convertibile. */
+function hasNonSILengthUnitScan(buf, ents, idx){
+  for(const id of idx.convunit){
+    if(argStr(buf, ents.get(id)).toUpperCase().indexOf(".LENGTHUNIT.") >= 0) return true;
+  }
+  return false;
 }
 
-/* Federazione: elabora un file sorgente e ritorna le righe STEP rimappate. */
-async function mergeSource(text, name, ctx, onProgress){
-  const scanned = await scanSource(text, name, p => onProgress(p * 0.45));
+/* =========================================================================
+   CONVERSIONE UNITÀ — scaling delle lunghezze in fase di copia quando il
+   sorgente usa un prefisso SI diverso dal base (es. mm → m). La scala è
+   sempre una potenza di 10: exp negativi applicati come divisione per non
+   introdurre rumore di precisione (1000 mm → esattamente 1 m).
+   ========================================================================= */
+const SI_EXP = {"Em":18,"Pm":15,"Tm":12,"Gm":9,"Mm":6,"km":3,"hm":2,"dam":1,"m":0,
+  "dm":-1,"cm":-2,"mm":-3,"µm":-6,"nm":-9};
+const NUM_TOKEN_RE = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/;
+const NUM_SCAN_RE = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g;
+/* Reale in notazione STEP: punto decimale obbligatorio anche con esponente. */
+function stepReal(v){
+  if(!isFinite(v)) return "0.";
+  let s = String(v);
+  if(s.indexOf("e") >= 0){
+    s = s.replace("e","E");
+    const i = s.indexOf("E");
+    if(s.slice(0, i).indexOf(".") < 0) s = s.slice(0, i) + "." + s.slice(i);
+  }else if(s.indexOf(".") < 0) s += ".";
+  return s;
+}
+function scaleVal(v, exp){ return exp >= 0 ? v * Math.pow(10, exp) : v / Math.pow(10, -exp); }
+function scaleTok(tok, exp){
+  const t = tok.trim();
+  return NUM_TOKEN_RE.test(t) ? stepReal(scaleVal(parseFloat(t), exp)) : tok;
+}
+function scaleNumList(s, exp){ return s.replace(NUM_SCAN_RE, m => stepReal(scaleVal(parseFloat(m), exp))); }
+function fmtPow10(exp){ return exp >= 0 ? "1" + "0".repeat(exp) : "0." + "0".repeat(-exp - 1) + "1"; }
+
+/* Tabella curata: argomenti scalari di lunghezza per entità (indici di primo
+   livello). MAI qui: angoli (StartDirection, FlangeSlope, pendenze), direzioni,
+   rapporti dei transformation operator, parametri adimensionali di curve. */
+const LENGTH_ARGS = {
+  "IFCEXTRUDEDAREASOLID":[3], "IFCEXTRUDEDAREASOLIDTAPERED":[3],
+  "IFCCIRCLE":[1], "IFCCYLINDRICALSURFACE":[1], "IFCSWEPTDISKSOLID":[1,2],
+  "IFCBOUNDINGBOX":[1,2,3], "IFCMATERIALLAYER":[1], "IFCVECTOR":[1],
+  "IFCBLOCK":[1,2,3], "IFCRECTANGULARPYRAMID":[1,2,3],
+  "IFCRIGHTCIRCULARCYLINDER":[1,2], "IFCRIGHTCIRCULARCONE":[1,2], "IFCSPHERE":[1],
+  "IFCRECTANGLEPROFILEDEF":[3,4], "IFCROUNDEDRECTANGLEPROFILEDEF":[3,4,5],
+  "IFCRECTANGLEHOLLOWPROFILEDEF":[3,4,5,6,7],
+  "IFCCIRCLEPROFILEDEF":[3], "IFCCIRCLEHOLLOWPROFILEDEF":[3,4], "IFCELLIPSEPROFILEDEF":[3,4],
+  "IFCISHAPEPROFILEDEF":[3,4,5,6,7,8], "IFCUSHAPEPROFILEDEF":[3,4,5,6,7,8],
+  "IFCLSHAPEPROFILEDEF":[3,4,5,6,7], "IFCTSHAPEPROFILEDEF":[3,4,5,6,7,8,9],
+  "IFCZSHAPEPROFILEDEF":[3,4,5,6,7,8], "IFCCSHAPEPROFILEDEF":[3,4,5,6,7],
+  "IFCASYMMETRICISHAPEPROFILEDEF":[3,4,5,6,7,8,9,10,11,13],
+  "IFCALIGNMENTHORIZONTALSEGMENT":[4,5,6,7],
+  "IFCALIGNMENTVERTICALSEGMENT":[2,3,4,7],
+  "IFCALIGNMENTCANTSEGMENT":[2,3,4,5,6,7],
+  "IFCPOINTBYDISTANCEEXPRESSION":[1,2,3], "IFCDISTANCEEXPRESSION":[0,1,2,3]
+};
+const COORD_TYPES = new Set(["IFCCARTESIANPOINT","IFCCARTESIANPOINTLIST2D","IFCCARTESIANPOINTLIST3D"]);
+const WRAP_LEN_RE = /\bIFC(POSITIVELENGTHMEASURE|NONNEGATIVELENGTHMEASURE|LENGTHMEASURE)\s*\(\s*([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)\s*\)/g;
+
+/* Riscala gli argomenti di lunghezza di un'entità: coordinate dei punti,
+   misure di lunghezza wrappate (anche nei pset) e la tabella qui sopra.
+   Gli IFCREAL nudi nei pset restano com'erano: non sappiamo cosa misurano. */
+function scaleEntityArgs(type, raw, exp){
+  let out = raw.indexOf("LENGTHMEASURE") >= 0
+    ? raw.replace(WRAP_LEN_RE, (m, t, num) => "IFC" + t + "(" + stepReal(scaleVal(parseFloat(num), exp)) + ")")
+    : raw;
+  if(COORD_TYPES.has(type)){
+    const a = splitTop(out);
+    a[0] = scaleNumList(a[0], exp);
+    return a.join(",");
+  }
+  const cols = LENGTH_ARGS[type];
+  if(cols){
+    const a = splitTop(out);
+    for(const i of cols) if(i < a.length) a[i] = scaleTok(a[i], exp);
+    return a.join(",");
+  }
+  return out;
+}
+
+/* Federazione: elabora un file sorgente e ritorna i blocchi STEP rimappati
+   già codificati in byte (pronti per il Blob, mai una stringa gigante). */
+async function mergeSource(buf, name, ctx, onProgress){
+  const tm0 = performance.now();
+  const scanned = await scanSource(buf, name, p => onProgress(p * 0.45));
+  const tmScan = performance.now();
   const {ents, idx} = scanned;
   const offset = ctx.nextId;                 // gli id sorgente diventano id+offset
+
+  // conversione unità: esponente 10^exp rispetto al base (mm→m: exp = -3)
+  const srcUnit = lengthUnitOfScan(buf, ents, idx);
+  let unitExp = 0;
+  if(srcUnit in SI_EXP && ctx.baseUnit in SI_EXP) unitExp = SI_EXP[srcUnit] - SI_EXP[ctx.baseUnit];
 
   // -- semina: prodotti agganciati alla struttura spaziale del sorgente ----
   // 1) contenuti (IfcRelContainedInSpatialStructure)
@@ -733,58 +898,61 @@ async function mergeSource(text, name, ctx, onProgress){
   // 3) figli non-spaziali aggregati a entità spaziali (alcuni exporter
   //    agganciano gli alignment con IfcRelAggregates a Project/Site):
   //    normalizzati come contenuti nel nuovo Site.
-  const products = new Set();
-  const refdOnly = new Set();
+  // Fase 3 (bitmap): gli id STEP sono densi — flag in una Uint8Array al posto
+  // dei Set, lookup O(1) diretto senza hashing (la chiusura pesava ~36%).
+  const F_IN = 1, F_ROOT = 2, F_AGG = 4, F_PROD = 8, F_REFD = 16;
+  const flags = new Uint8Array(scanned.maxId + 2);
+  const queue = [];
+  const refdSeed = [];
+  const addProduct = r => { if(!(flags[r] & F_PROD)){ flags[r] |= F_PROD | F_ROOT; queue.push(r); } };
   for(const rid of idx.contained){
-    const rel = ents.get(rid);
-    const args = splitTop(text.slice(rel.s, rel.e));
-    for(const r of listRefs(args[4])) if(ents.has(r)) products.add(r);
+    const args = splitTop(argStr(buf, ents.get(rid)));
+    for(const r of listRefs(args[4])) if(ents.has(r)) addProduct(r);
   }
   for(const rid of idx.refd){
-    const rel = ents.get(rid);
-    const args = splitTop(text.slice(rel.s, rel.e));
-    for(const r of listRefs(args[4])) if(ents.has(r)) refdOnly.add(r);
+    const args = splitTop(argStr(buf, ents.get(rid)));
+    for(const r of listRefs(args[4]))
+      if(ents.has(r) && !(flags[r] & F_REFD)){ flags[r] |= F_REFD; refdSeed.push(r); }
   }
   for(const rid of idx.agg){
-    const rel = ents.get(rid);
-    const args = splitTop(text.slice(rel.s, rel.e));
+    const args = splitTop(argStr(buf, ents.get(rid)));
     const relating = refOf(args[4]);
     const rEnt = relating != null ? ents.get(relating) : null;
     if(rEnt && SPATIAL_TYPES.has(rEnt.t)){
       for(const r of listRefs(args[5])){
         const c = ents.get(r);
-        if(c && !SPATIAL_TYPES.has(c.t)) products.add(r);
+        if(c && !SPATIAL_TYPES.has(c.t)) addProduct(r);
       }
     }
   }
-  for(const r of products) refdOnly.delete(r);
-  for(const r of refdOnly) products.add(r);
+  // i referenziati che sono anche contenuti perdono il marchio REFD;
+  // gli altri diventano prodotti a tutti gli effetti (Site via Referenced)
+  for(const r of refdSeed){
+    if(flags[r] & F_PROD) flags[r] &= ~F_REFD;
+    else { flags[r] |= F_PROD | F_ROOT; queue.push(r); }
+  }
 
   // -- chiusura sui riferimenti diretti + relazioni inverse utili ----------
-  const inSet = new Set();                   // tutte le entità da copiare
-  const rooted = new Set(products);          // entità IfcRoot: arg1 (OwnerHistory) da reindirizzare
-  const aggregated = new Set();              // elementi figli di assiemi/nesting: non contenuti nel Site
   const relEmits = new Map();                // rel da emettere con trattamento speciale
-  const queue = [...products];
   const stats = {p:0, t:0, m:0, c:0, s:0};
 
-  onProgress(0.5, tr("m.closure"));
+  onProgress(0.5, {k:"m.closure"});
   let qi = 0, processed = 0;
   const drain = async ()=>{
     while(qi < queue.length){
       const id = queue[qi++];
-      if(inSet.has(id)) continue;
+      if(flags[id] & F_IN) continue;
       const ent = ents.get(id);
       if(!ent) continue;
-      inSet.add(id);
-      const refs = collectRefs(text.slice(ent.s, ent.e), rooted.has(id) ? 1 : -1, []);
-      for(const r of refs) if(!inSet.has(r)) queue.push(r);
+      flags[id] |= F_IN;
+      const refs = collectRefs(argStr(buf, ent), (flags[id] & F_ROOT) ? 1 : -1, []);
+      for(const r of refs) if(!(flags[r] & F_IN)) queue.push(r);
       if(++processed % 20000 === 0){ onProgress(0.5 + 0.25 * Math.min(1, processed / Math.max(1, ents.size))); await tick(); }
     }
   };
   await drain();
 
-  const include6 = (rid, kind, filtered)=>{ rooted.add(rid); relEmits.set(rid, {kind, filtered}); };
+  const include6 = (rid, kind, filtered)=>{ flags[rid] |= F_ROOT; relEmits.set(rid, {kind, filtered}); };
 
   let changed = true;
   while(changed){
@@ -792,32 +960,32 @@ async function mergeSource(text, name, ctx, onProgress){
 
     for(const rid of idx.voids){
       if(relEmits.has(rid)) continue;
-      const args = splitTop(text.slice(ents.get(rid).s, ents.get(rid).e));
+      const args = splitTop(argStr(buf, ents.get(rid)));
       const relating = refOf(args[4]), opening = refOf(args[5]);
-      if(relating != null && inSet.has(relating) && opening != null && ents.has(opening)){
+      if(relating != null && (flags[relating] & F_IN) && opening != null && ents.has(opening)){
         include6(rid, "full");
-        if(!inSet.has(opening)){ rooted.add(opening); queue.push(opening); changed = true; }
+        if(!(flags[opening] & F_IN)){ flags[opening] |= F_ROOT; queue.push(opening); changed = true; }
       }
     }
     for(const rid of idx.fills){
       if(relEmits.has(rid)) continue;
-      const args = splitTop(text.slice(ents.get(rid).s, ents.get(rid).e));
+      const args = splitTop(argStr(buf, ents.get(rid)));
       const opening = refOf(args[4]), filler = refOf(args[5]);
-      if(opening != null && inSet.has(opening) && filler != null && inSet.has(filler)){
+      if(opening != null && (flags[opening] & F_IN) && filler != null && (flags[filler] & F_IN)){
         include6(rid, "full"); changed = true;
       }
     }
     for(const bucket of [idx.agg, idx.nests]){
       for(const rid of bucket){
         if(relEmits.has(rid)) continue;
-        const args = splitTop(text.slice(ents.get(rid).s, ents.get(rid).e));
+        const args = splitTop(argStr(buf, ents.get(rid)));
         const relating = refOf(args[4]);
-        if(relating != null && products.has(relating)){
+        if(relating != null && (flags[relating] & F_PROD)){
           include6(rid, "full");
           for(const ch of listRefs(args[5])){
             if(!ents.has(ch)) continue;
-            products.add(ch); aggregated.add(ch); rooted.add(ch);
-            if(!inSet.has(ch)){ queue.push(ch); changed = true; }
+            flags[ch] |= F_PROD | F_AGG | F_ROOT;
+            if(!(flags[ch] & F_IN)){ queue.push(ch); changed = true; }
           }
         }
       }
@@ -831,52 +999,72 @@ async function mergeSource(text, name, ctx, onProgress){
     for(const fam of relFamilies){
       for(const rid of fam.list){
         if(relEmits.has(rid)) continue;
-        const args = splitTop(text.slice(ents.get(rid).s, ents.get(rid).e));
-        const targets = listRefs(args[4]).filter(r => inSet.has(r));
+        const args = splitTop(argStr(buf, ents.get(rid)));
+        const targets = listRefs(args[4]).filter(r => flags[r] & F_IN);
         if(!targets.length) continue;
         include6(rid, "filter4", targets);
         stats[fam.stat]++;
         for(const r of listRefs(args[5])){
           if(!ents.has(r)) continue;
-          if(fam.rootedTarget) rooted.add(r);
-          if(!inSet.has(r)){ queue.push(r); changed = true; }
+          if(fam.rootedTarget) flags[r] |= F_ROOT;
+          if(!(flags[r] & F_IN)){ queue.push(r); changed = true; }
         }
       }
     }
     for(const sid of idx.styled){
-      if(inSet.has(sid)) continue;
-      const args = splitTop(text.slice(ents.get(sid).s, ents.get(sid).e));
+      if(flags[sid] & F_IN) continue;
+      const args = splitTop(argStr(buf, ents.get(sid)));
       const item = refOf(args[0]);
-      if(item != null && inSet.has(item)){ queue.push(sid); stats.s++; changed = true; }
+      if(item != null && (flags[item] & F_IN)){ queue.push(sid); stats.s++; changed = true; }
     }
     for(const lid of idx.layer){
       if(relEmits.has(lid)) continue;
-      const args = splitTop(text.slice(ents.get(lid).s, ents.get(lid).e));
-      const items = listRefs(args[2]).filter(r => inSet.has(r));
+      const args = splitTop(argStr(buf, ents.get(lid)));
+      const items = listRefs(args[2]).filter(r => flags[r] & F_IN);
       if(items.length) relEmits.set(lid, {kind:"layer2", filtered:items});
     }
     if(changed) await drain();
   }
 
-  // -- emissione: righe rimappate in ordine di file -------------------------
-  onProgress(0.78, tr("m.emit"));
-  const lines = [];
-  let guidFixed = 0, spatialLeak = 0, emitted = 0, count = 0;
+  const tmClos = performance.now();
+
+  // -- emissione: righe rimappate in ordine di file, codificate a blocchi ---
+  // I byte vanno dritti nel sink (scrittura streaming su disco, F5) se c'è,
+  // altrimenti nelle parti del Blob: mai una stringa unica per file.
+  onProgress(0.78, {k:"m.emit"});
+  const parts = [];
+  const pend = [];
+  let guidFixed = 0, spatialLeak = 0, emitted = 0, count = 0, pendChars = 0;
   const ohTok = ctx.ohRef;
+  const flush = async ()=>{
+    if(!pend.length) return;
+    const u = TENC.encode(pend.join("\r\n") + "\r\n");
+    if(ctx.sink) await ctx.sink(u); else parts.push(u);
+    ctx.bytesDone = (ctx.bytesDone || 0) + u.length;
+    pend.length = 0;
+    pendChars = 0;
+  };
+  const emitLabel = ()=>{
+    if(!ctx.totalEstBytes) return {k:"m.emit"};
+    const pct = Math.min(99, Math.round(100 * ctx.bytesDone / ctx.totalEstBytes));
+    return {k:"m.emitPct", v:{p: pct, done: Math.round(ctx.bytesDone / 1048576),
+      tot: Math.round(ctx.totalEstBytes / 1048576)}};
+  };
 
   for(const [id, ent] of ents){
     const spec = relEmits.get(id);
-    const walked = inSet.has(id);
+    const walked = flags[id] & F_IN;
     if(!spec && !walked) continue;
     if(SPATIAL_TYPES.has(ent.t)) spatialLeak++;
-    const raw = text.slice(ent.s, ent.e);
+    let raw = argStr(buf, ent);
+    if(unitExp !== 0) raw = scaleEntityArgs(ent.t, raw, unitExp);
     let body;
     if(spec && spec.kind === "layer2"){
       const a = splitTop(raw);
       a[2] = "(" + spec.filtered.map(r => "#" + (r + offset)).join(",") + ")";
       for(let i = 0; i < a.length; i++) if(i !== 2) a[i] = remapRefs(a[i], offset);
       body = a.join(",");
-    }else if(spec || rooted.has(id)){
+    }else if(spec || (flags[id] & F_ROOT)){
       const a = splitTop(raw);
       if(GUID_RE.test(a[0])){
         const g = a[0].slice(1, -1);
@@ -893,9 +1081,18 @@ async function mergeSource(text, name, ctx, onProgress){
     }else{
       body = remapRefs(raw, offset);
     }
-    lines.push("#" + (id + offset) + "=" + ent.t + "(" + body + ");");
+    const line = "#" + (id + offset) + "=" + ent.t + "(" + body + ");";
+    pend.push(line);
+    pendChars += line.length;
     emitted++;
-    if(++count % 20000 === 0){ onProgress(0.78 + 0.2 * count / Math.max(1, ents.size)); await tick(); }
+    count++;
+    // flush a budget di byte (~8 MB) oltre che a conteggio: mai stringhe
+    // intermedie gigantesche né UI congelata con entità grasse (mesh)
+    if(pendChars > 8000000 || count % 20000 === 0){
+      await flush();
+      onProgress(0.78 + 0.2 * count / Math.max(1, ents.size), emitLabel());
+      await tick();
+    }
   }
 
   // -- nuovo IfcSite + aggancio al progetto base ----------------------------
@@ -904,109 +1101,233 @@ async function mergeSource(text, name, ctx, onProgress){
   const siteId = nid++;
   const gSite = newGuid(), gAgg = newGuid();
   ctx.guidSet.add(gSite); ctx.guidSet.add(gAgg);
-  lines.push("#" + siteId + "=IFCSITE('" + gSite + "'," + ohTok + "," + stepStr(label) + ",$,$,$,$,$,.ELEMENT.,$,$,$,$,$);");
-  lines.push("#" + (nid++) + "=IFCRELAGGREGATES('" + gAgg + "'," + ohTok + ",$,$,#" + ctx.projectId + ",(#" + siteId + "));");
+  pend.push("#" + siteId + "=IFCSITE('" + gSite + "'," + ohTok + "," + stepStr(label) + ",$,$,$,$,$,.ELEMENT.,$,$,$,$,$);");
+  pend.push("#" + (nid++) + "=IFCRELAGGREGATES('" + gAgg + "'," + ohTok + ",$,$,#" + ctx.projectId + ",(#" + siteId + "));");
 
-  const containIds = [...products].filter(id => !aggregated.has(id) && !refdOnly.has(id) && ents.has(id)).sort((a,b)=>a-b);
-  const refdIds = [...refdOnly].filter(id => !aggregated.has(id) && ents.has(id)).sort((a,b)=>a-b);
+  // scansione ascendente della bitmap: già in ordine di id, niente sort
+  const containIds = [], refdIds = [];
+  for(let i = 1; i < flags.length; i++){
+    const f = flags[i];
+    if(!(f & F_PROD) || (f & F_AGG) || !ents.has(i)) continue;
+    if(f & F_REFD) refdIds.push(i); else containIds.push(i);
+  }
   if(containIds.length){
     const gCont = newGuid();
     ctx.guidSet.add(gCont);
-    lines.push("#" + (nid++) + "=IFCRELCONTAINEDINSPATIALSTRUCTURE('" + gCont + "'," + ohTok + ",$,$,(" +
+    pend.push("#" + (nid++) + "=IFCRELCONTAINEDINSPATIALSTRUCTURE('" + gCont + "'," + ohTok + ",$,$,(" +
       containIds.map(r => "#" + (r + offset)).join(",") + "),#" + siteId + ");");
   }
   if(refdIds.length){
     const gRef = newGuid();
     ctx.guidSet.add(gRef);
-    lines.push("#" + (nid++) + "=IFCRELREFERENCEDINSPATIALSTRUCTURE('" + gRef + "'," + ohTok + ",$,$,(" +
+    pend.push("#" + (nid++) + "=IFCRELREFERENCEDINSPATIALSTRUCTURE('" + gRef + "'," + ohTok + ",$,$,(" +
       refdIds.map(r => "#" + (r + offset)).join(",") + "),#" + siteId + ");");
   }
   ctx.nextId = nid;
+  await flush();
+
+  // profiling per fase (Fase 0 del piano perf): solo in console
+  const tmEnd = performance.now();
+  console.debug("[ifc-merge] " + name + ": scan " + Math.round(tmScan - tm0) +
+    "ms · chiusura " + Math.round(tmClos - tmScan) + "ms · emit " +
+    Math.round(tmEnd - tmClos) + "ms · " + ents.size + " entità");
 
   onProgress(1);
   return {
-    lines, label,
+    parts, label,
     nElems: containIds.length + refdIds.length,
     nCopied: emitted,
     guidFixed, spatialLeak, stats,
-    schema: schemaOf(text),
-    unit: lengthUnitOf(text)
+    schema: schemaOf(buf, scanned.dataIdx),
+    unit: srcUnit, unitExp,
+    nonSI: hasNonSILengthUnitScan(buf, ents, idx)
   };
 }
 
-/* Preparazione del file base: rinomina project/site, raccoglie id e GUID. */
-async function prepareBase(text, name, projectName, onProgress){
-  if(text.indexOf("DATA;") < 0) throw new Error(fmtMsg("m.noData", {name}));
-  const project = findFirstEntity(text, "IFCPROJECT");
-  if(!project) throw new Error(tr("m.noProject"));
-  const site = findFirstEntity(text, "IFCSITE");
-  const oh = findFirstEntity(text, "IFCOWNERHISTORY");
+/* Preparazione del file base: rinomina project/site, raccoglie id e GUID.
+   Anche il base è una Uint8Array: le parti del Blob sono slice zero-copy
+   del buffer originale più i due argomenti riscritti. */
+async function prepareBase(buf, name, projectName, onProgress){
+  const scanned = await scanSource(buf, name, p => onProgress(p * 0.85));
+  const {ents, idx, maxId} = scanned;
+  if(!idx.first.project) throw mkErr("m.noProject");
+  const projectId = idx.first.project;
+  const siteEnt = idx.first.site ? ents.get(idx.first.site) : null;
 
-  // maxId + set dei GlobalId esistenti (prima stringa 22-char delle entità)
-  let maxId = 0;
+  // set dei GlobalId esistenti (prima stringa 22-char, alfabeto IFC)
   const guidSet = new Set();
-  const re = /#(\d+)\s*=\s*[A-Za-z0-9_]+\s*\(\s*('[0-9A-Za-z_$]{22}')?/g;
-  let m, seen = 0;
-  while((m = re.exec(text)) !== null){
-    const id = +m[1];
-    if(id > maxId) maxId = id;
-    if(m[2]) guidSet.add(m[2].slice(1, -1));
-    if(++seen % 50000 === 0){ onProgress(Math.min(1, re.lastIndex / text.length)); await tick(); }
+  let seen = 0;
+  for(const [, ent] of ents){
+    let p = ent.s;
+    while(p < ent.e && WS(buf[p])) p++;
+    if(buf[p] === 39 && p + 23 < ent.e + 1 && buf[p+23] === 39){
+      let ok = true;
+      for(let q = p + 1; q <= p + 22; q++){
+        const c = buf[q];
+        if(!((c>=48&&c<=57)||(c>=65&&c<=90)||(c>=97&&c<=122)||c===95||c===36)){ ok = false; break; }
+      }
+      if(ok) guidSet.add(asciiSlice(buf, p + 1, p + 23));
+    }
+    if(++seen % 100000 === 0){ onProgress(0.85 + 0.1 * seen / Math.max(1, ents.size)); await tick(); }
   }
 
   // conteggio elementi contenuti (solo per il riepilogo)
-  let baseElems = 0;
-  const cre = /#\d+\s*=\s*IFCRELCONTAINEDINSPATIALSTRUCTURE\s*\(/gi;
   const uniq = new Set();
-  while((m = cre.exec(text)) !== null){
-    const cap = captureArgs(text, m.index + m[0].length - 1, text.length);
-    const args = splitTop(text.slice(cap.argStart, cap.argEnd));
+  for(const rid of idx.contained){
+    const args = splitTop(argStr(buf, ents.get(rid)));
     for(const r of listRefs(args[4])) uniq.add(r);
-    cre.lastIndex = cap.next;
   }
-  baseElems = uniq.size;
 
   // riscritture puntuali: Name (arg 2) di project e primo site
   const label = name.replace(/\.ifc$/i, "");
   const edits = [];
   const renameArg2 = (ent, value)=>{
-    const raw = text.slice(ent.argStart, ent.argEnd);
-    const a = splitTop(raw);
+    const a = splitTop(argStr(buf, ent));
     if(a.length > 2){
       a[2] = stepStr(value);
-      edits.push({start: ent.argStart, end: ent.argEnd, text: a.join(",")});
+      edits.push({start: ent.s, end: ent.e, text: a.join(",")});
     }
   };
-  renameArg2(project, projectName);
-  if(site) renameArg2(site, label);
+  renameArg2(ents.get(projectId), projectName);
+  if(siteEnt) renameArg2(siteEnt, label);
   edits.sort((x,y)=> x.start - y.start);
 
-  const insertPos = text.lastIndexOf("ENDSEC");
-  if(insertPos < 0) throw new Error(fmtMsg("m.noData", {name}));
+  const insertPos = bytesLastIndexOf(buf, "ENDSEC");
+  if(insertPos < 0) throw mkErr("m.noData", {name});
 
-  // parti del file base con le riscritture applicate
+  // parti del file base con le riscritture applicate (slice zero-copy)
   const parts = [];
   let cursor = 0;
   for(const ed of edits){
-    parts.push(text.slice(cursor, ed.start), ed.text);
+    parts.push(buf.subarray(cursor, ed.start), ed.text);
     cursor = ed.end;
   }
-  parts.push(text.slice(cursor, insertPos));
-  const tail = text.slice(insertPos);
+  parts.push(buf.subarray(cursor, insertPos));
+  const tail = buf.subarray(insertPos);
 
   return {
     parts, tail,
-    projectId: project.id,
-    ohRef: oh ? "#" + oh.id : "$",
+    projectId,
+    ohRef: idx.first.oh ? "#" + idx.first.oh : "$",
     guidSet,
     nextId: maxId + 1,
-    label, baseElems,
-    hasSite: !!site,
-    schema: schemaOf(text),
-    unit: lengthUnitOf(text)
+    label, baseElems: uniq.size,
+    hasSite: !!siteEnt,
+    schema: schemaOf(buf, scanned.dataIdx),
+    unit: lengthUnitOfScan(buf, ents, idx),
+    nonSI: hasNonSILengthUnitScan(buf, ents, idx)
   };
 }
 
+/* =========================================================================
+   ORCHESTRAZIONE — identica nel worker e nel fallback sul main thread.
+   emit({t,…}) è postMessage nel worker, callback diretta nel fallback.
+   handle (opzionale, Fase 5): FileSystemFileHandle → i blocchi vanno su
+   disco man mano che escono, il federato non vive mai tutto in memoria.
+   ========================================================================= */
+/* Lettura a slice da 32 MB con progress (File.arrayBuffer non ne dà). */
+async function readFile(f, onPct){
+  const CH = 33554432;
+  const out = new Uint8Array(f.size);
+  let o = 0;
+  while(o < f.size){
+    const end = Math.min(f.size, o + CH);
+    out.set(new Uint8Array(await f.slice(o, end).arrayBuffer()), o);
+    o = end;
+    onPct(Math.round(100 * o / f.size));
+  }
+  return out;
+}
+
+async function runMerge(files, projectName, handle, emit){
+  const n = files.length;
+  const prog = (pct, k, v) => emit({t:"prog", pct, k, v});
+  const log = (k, v, cls) => emit({t:"log", k, v, cls});
+  const winStart = i => i === 0 ? 0 : 14 + 78 * (i - 1) / (n - 1);
+  const winEnd   = i => i === 0 ? 14 : 14 + 78 * i / (n - 1);
+
+  // ---- 1. file base -------------------------------------------------------
+  log("m.baseOpen", null, "head");
+  const baseBuf = await readFile(files[0], p => prog(winStart(0) + 4 * p / 100, "m.reading", {name: files[0].name, p}));
+  const base = await prepareBase(baseBuf, files[0].name, projectName,
+    p => prog(winStart(0) + 4 + 10 * p, "m.scan", {p: Math.round(100 * p)}));
+  // baseBuf resta vivo: base.parts/tail sono slice zero-copy del buffer
+  log("m.schemaBase", {s: base.schema}, "info");
+  if(base.nonSI) log("m.unitNonSI", null, "warn");
+  if(base.hasSite) log("m.baseSite", {n, name: files[0].name, label: base.label}, "ok");
+  else log("m.baseNoSite", {n, name: files[0].name}, "warn");
+  emit({t:"row", i: 1, file: files[0].name, site: base.hasSite ? base.label : "—",
+        el: base.baseElems, noteK: "sum.base", ok: true});
+
+  // ---- 2. uscita: streaming su disco (F5) o parti per il Blob --------------
+  let writer = null;
+  if(handle) writer = await handle.createWritable();
+  const blobParts = writer ? null : [];
+  const sink = async u => { if(writer) await writer.write(u); else blobParts.push(u); };
+  for(const p of base.parts) await sink(p);
+
+  const ctx = { nextId: base.nextId, projectId: base.projectId, ohRef: base.ohRef,
+    guidSet: base.guidSet, baseUnit: base.unit,
+    totalEstBytes: files.reduce((s, f) => s + f.size, 0), bytesDone: files[0].size,
+    sink };
+  let totalElems = base.baseElems, totalSites = base.hasSite ? 1 : 0;
+
+  for(let i = 1; i < n; i++){
+    const f = files[i];
+    log("m.srcHead", {i: i + 1, n, name: f.name}, "head");
+    const w0 = winStart(i), span = winEnd(i) - w0;
+    let src = await readFile(f, p => prog(w0 + span * 0.18 * p / 100, "m.reading", {name: f.name, p}));
+    const res = await mergeSource(src, f.name, ctx, (p, label)=>{
+      const L = (label && label.k) ? label : {k:"m.scan", v:{p: Math.round(100 * p)}};
+      prog(w0 + span * (0.18 + 0.82 * p), L.k, L.v);
+    });
+    src = null;
+
+    if(res.schema !== base.schema) log("m.schemaWarn", {s: res.schema, b: base.schema}, "warn");
+    if(res.unitExp){
+      log("m.unitConv", {u: res.unit, b: base.unit, f: fmtPow10(res.unitExp)}, "ok");
+    }else if(res.unit !== base.unit){
+      log("m.unitWarn", {u: res.unit, b: base.unit}, "warn");
+      if(res.nonSI) log("m.unitNonSI", null, "warn");
+    }
+    if(!res.nElems) log("m.noContained", null, "warn");
+    log("m.siteDone", {label: res.label, n: res.nElems, tot: res.nCopied}, "ok");
+    log("m.rels", {p: res.stats.p, t: res.stats.t, m: res.stats.m, c: res.stats.c, s: res.stats.s}, "info");
+    if(res.guidFixed) log("m.guidFix", {n: res.guidFixed}, "warn");
+    if(res.spatialLeak) log("m.spatialLeak", {n: res.spatialLeak}, "warn");
+
+    totalElems += res.nElems;
+    totalSites += 1;
+    emit({t:"row", i: i + 1, file: f.name, site: res.label, el: res.nElems,
+          noteK: res.nElems ? "sum.site" : "sum.skip", ok: !!res.nElems});
+    await tick();
+  }
+
+  // ---- 3. chiusura ----------------------------------------------------------
+  prog(94, "m.building");
+  await sink(base.tail);
+  let blob = null;
+  if(writer) await writer.close();
+  else blob = new Blob(blobParts, {type: "application/x-step"});
+  emit({t:"done", files: n, sites: totalSites, elems: totalElems, blob, streamed: !!writer});
+}
+
+/* Protocollo worker: {cmd:"run", files, projectName, handle} → prog/log/row/done/err */
+if(IS_WORKER){
+  self.onmessage = async e => {
+    const d = e.data;
+    if(!d || d.cmd !== "run") return;
+    try{
+      await runMerge(d.files, d.projectName, d.handle || null, m => self.postMessage(m));
+    }catch(err){
+      self.postMessage({t:"err", k: err && err.k, v: err && err.v,
+        msg: err && err.message ? err.message : String(err)});
+    }
+  };
+}
+</script>
+
+<script>
 /* =========================================================================
    UI
    ========================================================================= */
@@ -1089,19 +1410,24 @@ ui.fileList.addEventListener("click", e=>{
 ["dragleave","drop"].forEach(ev=> ui.dropZone.addEventListener(ev, e=>{ e.preventDefault(); ui.dropZone.classList.remove("drag"); }));
 ui.dropZone.addEventListener("drop", e=> addFiles(e.dataTransfer.files));
 
-function readFileText(f, onPct){
-  return new Promise((resolve, reject)=>{
-    const r = new FileReader();
-    r.onprogress = e=>{ if(e.lengthComputable && onPct) onPct(Math.round(100 * e.loaded / e.total)); };
-    r.onload = ()=> resolve(r.result);
-    r.onerror = ()=> reject(new Error(tr("m.readErr") + (r.error ? r.error.message : f.name)));
-    r.readAsText(f);
-  });
+/* ---- RUN ---- */
+/* F5: se il browser ha showSaveFilePicker si scrive in streaming su disco.
+   Va chiesto dentro il gesto utente; annullato o assente → download Blob. */
+async function askSaveHandle(outName){
+  if(!window.showSaveFilePicker) return null;
+  try{
+    return await window.showSaveFilePicker({
+      suggestedName: outName,
+      types: [{description: "IFC", accept: {"application/x-step": [".ifc"]}}]
+    });
+  }catch(e){ return null; }
 }
 
-/* ---- RUN ---- */
-ui.runBtn.addEventListener("click", ()=>{
+ui.runBtn.addEventListener("click", async ()=>{
   if(FILES.length < 2){ alert(tr("m.needTwo")); return; }
+  let outName = ui.outInput.value.trim() || "modello_federato.ifc";
+  if(!/\.ifc$/i.test(outName)) outName += ".ifc";
+  const handle = await askSaveHandle(outName);
   clearLog();
   ui.sumBody.innerHTML = "";
   ui.total.classList.remove("on");
@@ -1110,106 +1436,91 @@ ui.runBtn.addEventListener("click", ()=>{
   ui.progressLabel.classList.add("on");
   setProgress(0, "");
   logLine(tr("m.start"), "head");
-  setTimeout(runWork, 40);
+  setTimeout(()=> runWork(handle, handle ? handle.name : outName), 40);
 });
 
-async function runWork(){
-  try{
-    const n = FILES.length;
-    const rows = [];
-    const projectName = ui.pnameInput.value.trim() || "Modello Federato";
-    let outName = ui.outInput.value.trim() || "modello_federato.ifc";
-    if(!/\.ifc$/i.test(outName)) outName += ".ifc";
+/* Il motore gira in un Web Worker (Fase 4): la UI resta libera e gli yield
+   con timer spariscono. Fallback: stesso identico codice sul main thread. */
+async function runWork(handle, outName){
+  const rows = [];
+  const projectName = ui.pnameInput.value.trim() || "Modello Federato";
+  let worker = null, workerUrl = null;
 
-    // finestra di progresso per file: base 0-14, sorgenti 14-92, composizione 92-100
-    const winStart = i => i === 0 ? 0 : 14 + 78 * (i - 1) / (n - 1);
-    const winEnd   = i => i === 0 ? 14 : 14 + 78 * i / (n - 1);
-
-    // ---- 1. file base ---------------------------------------------------
-    logLine(tr("m.baseOpen"), "head");
-    let text = await readFileText(FILES[0], p => setProgress(winStart(0) + 4 * p / 100, fmtMsg("m.reading", {name: FILES[0].name, p})));
-    const base = await prepareBase(text, FILES[0].name, projectName,
-      p => setProgress(winStart(0) + 4 + 10 * p, fmtMsg("m.scan", {p: Math.round(100 * p)})));
-    text = null;
-    logLine(fmtMsg("m.schemaBase", {s: base.schema}), "info");
-    if(base.hasSite) logLine(fmtMsg("m.baseSite", {n, name: FILES[0].name, label: base.label}), "ok");
-    else logLine(fmtMsg("m.baseNoSite", {n, name: FILES[0].name}), "warn");
-    rows.push({i: 1, file: FILES[0].name, site: base.hasSite ? base.label : "—", el: base.baseElems, note: tr("sum.base"), ok: true});
-
-    // ---- 2. file successivi ----------------------------------------------
-    const ctx = { nextId: base.nextId, projectId: base.projectId, ohRef: base.ohRef, guidSet: base.guidSet };
-    const chunks = [];
-    let totalElems = base.baseElems, totalSites = base.hasSite ? 1 : 0;
-
-    for(let i = 1; i < n; i++){
-      const f = FILES[i];
-      logLine(fmtMsg("m.srcHead", {i: i+1, n, name: f.name}), "head");
-      const w0 = winStart(i), w1 = winEnd(i), span = w1 - w0;
-      let src = await readFileText(f, p => setProgress(w0 + span * 0.18 * p / 100, fmtMsg("m.reading", {name: f.name, p})));
-
-      const res = await mergeSource(src, f.name, ctx, (p, label)=>{
-        setProgress(w0 + span * (0.18 + 0.82 * p), label != null ? label : fmtMsg("m.scan", {p: Math.round(100 * p)}));
-      });
-      src = null;
-
-      if(res.schema !== base.schema) logLine(fmtMsg("m.schemaWarn", {s: res.schema, b: base.schema}), "warn");
-      if(res.unit !== "?" && base.unit !== "?" && res.unit !== base.unit)
-        logLine(fmtMsg("m.unitWarn", {u: res.unit, b: base.unit}), "warn");
-
-      if(!res.nElems) logLine(tr("m.noContained"), "warn");
-      logLine(fmtMsg("m.siteDone", {label: res.label, n: res.nElems, tot: res.nCopied}), "ok");
-      logLine(fmtMsg("m.rels", {p: res.stats.p, t: res.stats.t, m: res.stats.m, c: res.stats.c, s: res.stats.s}), "info");
-      if(res.guidFixed) logLine(fmtMsg("m.guidFix", {n: res.guidFixed}), "warn");
-      if(res.spatialLeak) logLine(fmtMsg("m.spatialLeak", {n: res.spatialLeak}), "warn");
-
-      chunks.push(res.lines.join("\r\n") + "\r\n");
-      res.lines.length = 0;
-      totalElems += res.nElems;
-      totalSites += 1;
-      rows.push({i: i+1, file: f.name, site: res.label, el: res.nElems, note: res.nElems ? tr("sum.site") : tr("sum.skip"), ok: !!res.nElems});
-      await tick();
-    }
-
-    // ---- 3. composizione e download --------------------------------------
-    setProgress(94, tr("m.building"));
-    await tick();
-    const blobParts = [...base.parts, ...chunks, base.tail];
-    const blob = new Blob(blobParts, {type: "application/x-step"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = outName;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=> URL.revokeObjectURL(url), 4000);
-
-    // ---- 4. riepilogo -----------------------------------------------------
-    ui.sumBody.innerHTML = "";
-    for(const r of rows){
-      const tr2 = document.createElement("tr");
-      tr2.className = r.ok ? "r-ok" : "r-none";
-      tr2.innerHTML =
-        '<td class="code">' + r.i + '</td>' +
-        '<td class="code">' + esc(r.file) + '</td>' +
-        '<td class="code">' + esc(r.site) + '</td>' +
-        '<td class="num hl">' + r.el + '</td>' +
-        '<td class="note">' + esc(r.note) + '</td>';
-      ui.sumBody.appendChild(tr2);
-    }
-
-    setProgress(100, "");
-    logLine("", "info");
-    logLine(fmtMsg("m.done", {f: n}), "ok");
-    logLine(fmtMsg("m.stats", {s: totalSites, e: totalElems}), "ok");
-    logLine(tr("m.out") + outName, "ok");
-
-    ui.totalText.textContent = fmtMsg("m.totalText", {f: n, e: totalElems});
-    ui.totalFile.textContent = outName;
-    ui.total.classList.add("on");
-
-  }catch(err){
-    logLine(tr("m.err") + (err && err.message ? err.message : err), "err");
-  }finally{
+  const finish = ()=>{
+    if(worker){ worker.terminate(); worker = null; }
+    if(workerUrl){ URL.revokeObjectURL(workerUrl); workerUrl = null; }
     setTimeout(()=>{ ui.progress.classList.remove("on"); ui.progressLabel.classList.remove("on"); }, 400);
     ui.runBtn.disabled = FILES.length < 2;
+  };
+
+  const onMsg = (m)=>{
+    switch(m.t){
+      case "prog":
+        setProgress(m.pct, m.k ? fmtMsg(m.k, m.v || {}) : "");
+        break;
+      case "log":
+        logLine(m.k ? fmtMsg(m.k, m.v || {}) : (m.msg || ""), m.cls || "info");
+        break;
+      case "row":
+        rows.push(m);
+        break;
+      case "done": {
+        if(m.blob){
+          const url = URL.createObjectURL(m.blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = outName;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(()=> URL.revokeObjectURL(url), 4000);
+        }
+        ui.sumBody.innerHTML = "";
+        for(const r of rows){
+          const tr2 = document.createElement("tr");
+          tr2.className = r.ok ? "r-ok" : "r-none";
+          tr2.innerHTML =
+            '<td class="code">' + r.i + '</td>' +
+            '<td class="code">' + esc(r.file) + '</td>' +
+            '<td class="code">' + esc(r.site) + '</td>' +
+            '<td class="num hl">' + r.el + '</td>' +
+            '<td class="note">' + esc(tr(r.noteK)) + '</td>';
+          ui.sumBody.appendChild(tr2);
+        }
+        setProgress(100, "");
+        logLine("", "info");
+        logLine(fmtMsg("m.done", {f: m.files}), "ok");
+        logLine(fmtMsg("m.stats", {s: m.sites, e: m.elems}), "ok");
+        logLine((m.streamed ? tr("m.outStream") : tr("m.out")) + outName, "ok");
+        ui.totalText.textContent = fmtMsg("m.totalText", {f: m.files, e: m.elems});
+        ui.totalFile.textContent = outName;
+        ui.total.classList.add("on");
+        finish();
+        break;
+      }
+      case "err":
+        logLine(tr("m.err") + (m.k ? fmtMsg(m.k, m.v || {}) : (m.msg || "?")), "err");
+        finish();
+        break;
+    }
+  };
+
+  const engineText = document.getElementById("mergeEngine").textContent;
+  if(window.Worker){
+    try{
+      workerUrl = URL.createObjectURL(new Blob([engineText], {type: "text/javascript"}));
+      worker = new Worker(workerUrl);
+    }catch(e){ worker = null; }
+  }
+  if(worker){
+    worker.onmessage = e => onMsg(e.data);
+    worker.onerror = e => onMsg({t: "err", msg: e.message || String(e)});
+    worker.postMessage({cmd: "run", files: FILES.slice(), projectName, handle});
+  }else{
+    // fallback senza Worker: motore valutato sul main thread (tick() attivi)
+    try{
+      const eng = new Function(engineText + "\n;return {runMerge};")();
+      await eng.runMerge(FILES.slice(), projectName, handle, onMsg);
+    }catch(err){
+      onMsg({t: "err", k: err && err.k, v: err && err.v, msg: err && err.message ? err.message : String(err)});
+    }
   }
 }
 
