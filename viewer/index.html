@@ -37,8 +37,12 @@
 <!-- ============================ /SEO ============================ -->
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- preconnect a cdnjs (JSZip): three e web-ifc sono vendorizzati in ./vendor/ -->
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- defer: JSZip serve solo al caricamento/export BCF (azioni utente), non deve bloccare il parsing -->
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root{
   --lime:#bfd730; --lime-deep:#9ab313; --lime-soft:#bfd73026; --lime-ink:#23310a;
@@ -589,11 +593,14 @@ input[type=file]{display:none}
 .profile-body .pf-cut text{font-family:var(--mono);font-size:10.5px;fill:#fff}
 .profile-body .pf-cut path{fill:#e0322c}
 </style>
+<!-- v2.1.1 — vendoring locale: three e web-ifc serviti da ./vendor/ (stesse versioni pinnate
+     0.160.0 / 0.0.77 di prima, scaricate da unpkg). Niente più dipendenza dalla latenza CDN
+     per i moduli; restano su CDN solo font e JSZip. -->
 <script type="importmap">
 {
   "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    "three": "./vendor/three.module.js",
+    "three/addons/": "./vendor/three-addons/"
   }
 }
 </script>
@@ -872,7 +879,7 @@ input[type=file]{display:none}
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as WebIFC from "https://unpkg.com/web-ifc@0.0.77/web-ifc-api.js";
+import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================ stato globale ============================ */
 const APP_VERSION = "2.1.0";
@@ -1056,7 +1063,43 @@ const STRINGS = {
     "src.removeBcf": "Rimuovi questo file BCF", "src.removeReport": "Rimuovi questo report",
     "confirm.unloadDirtyBcf": "Questo BCF ha modifiche di stato non ancora scaricate. Rimuoverlo comunque?",
     "toast.bcfUnloaded": "{name}: BCF rimosso ({n} issues).", "toast.reportUnloaded": "{name}: report rimosso ({n} issues).",
-    "alert.exportIfcFailed": "Export IFC fallito: {e}"
+    "alert.exportIfcFailed": "Export IFC fallito: {e}",
+    /* v2.1.1 — parità i18n delle superfici dinamiche (elenco modelli, albero, bulk, navHelp) */
+    "model.rowTitle": "Clic: apri/chiudi struttura IFC · Doppio clic: inquadra il modello",
+    "model.hide": "Nascondi modello", "model.show": "Mostra modello",
+    "model.dirtyDot": "{n} modifiche non scaricate — clic per il dettaglio",
+    "model.dlIfc": "Scarica IFC aggiornato", "model.remove": "Rimuovi modello", "model.el": "el.",
+    "confirm.removeModel": "Rimuovere {name} dalla federazione?",
+    "confirm.removeModelDirty": "Rimuovere {name} dalla federazione?\n\nATTENZIONE: {n} modifiche non scaricate andranno perse.",
+    "tree.nodeTitle": "Clic: proprietà e selezione · Doppio clic: zoom · ▸: espandi",
+    "tree.nodeTitleNoGeo": "▸ o clic: espandi",
+    "tree.catTitle": "Clic: seleziona tutti gli elementi della categoria · Doppio clic: zoom · ▸: espandi",
+    "tree.more": "… mostra altri {n} di {tot}",
+    "navHelp.walk": "WALK · W/A/S/D o frecce: muovi · Q/E: giù/su · Maiusc: corri · trascina: guarda · rotella: velocità ({v} m/s) · Esc: esci",
+    "navHelp.orbit": "Orbita: tasto sx · Pan: rotella premuta · Zoom: scroll · Frecce: muovi (Maiusc+↑↓: alza/abbassa) · 2× clic rotella: zoom esteso",
+    "sel.count": "{n} elementi selezionati — {label}",
+    "sel.noneFed": "Nessun elemento con {k} = \"{v}\" nella federazione.",
+    "sel.noneModel": "Nessun elemento con {k} = \"{v}\" nel modello.",
+    "multi.title": "Selezione multipla",
+    "multi.badge1": "{n} elementi · 1 modello", "multi.badgeN": "{n} elementi · {m} modelli",
+    "multi.extendFed": "Estendi alla federazione",
+    "multi.bulkOpen": "✎ Modifica in bulk", "multi.bulkClose": "Chiudi modifica bulk",
+    "multi.backElem": "↩ Torna all'elemento",
+    "blk.pset": "Property set", "blk.prop": "Proprietà", "blk.newValue": "Nuovo valore",
+    "blk.newPsetOpt": "— nuovo pset —", "blk.newPropOpt": "— nuova proprietà —",
+    "blk.newPsetPh": "Nome nuovo pset (es. Anas_IfcTecnico)", "blk.newPropPh": "Nome nuova proprietà",
+    "blk.valuePh": "Valore", "blk.create": "Crea proprietà/pset dove mancanti",
+    "blk.apply": "Applica a {n} elementi",
+    "blk.curValues": "Valori attuali ({c}/{n} elementi hanno la proprietà):",
+    "blk.empty": "(vuoto)", "blk.moreValues": "… altri {n} valori",
+    "blk.errNames": "Indica nome pset e proprietà.",
+    "blk.errNum": "Valore numerico non valido.", "blk.errInt": "Valore intero non valido.",
+    "blk.flash": "✓ {u} aggiornati · {p} proprietà create · {s} pset creati{skip} — scarica gli IFC dal pannello Modelli",
+    "blk.flashSkip": " · {n} saltati",
+    "blk.jrnStats": "{u} agg. · {p} prop. create · {s} pset creati",
+    "edit.errNum": "{n} valori numerici non validi — correggi le righe evidenziate.",
+    "edit.flash1": "✓ 1 modifica applicata — scarica l'IFC dal pannello Modelli per non perderla",
+    "edit.flashN": "✓ {n} modifiche applicate — scarica l'IFC dal pannello Modelli per non perderle"
   },
   en: {
     "appname.sub": "Model & issue coordination",
@@ -1225,7 +1268,43 @@ const STRINGS = {
     "src.removeBcf": "Remove this BCF file", "src.removeReport": "Remove this report",
     "confirm.unloadDirtyBcf": "This BCF has unsaved status changes. Remove it anyway?",
     "toast.bcfUnloaded": "{name}: BCF removed ({n} issues).", "toast.reportUnloaded": "{name}: report removed ({n} issues).",
-    "alert.exportIfcFailed": "IFC export failed: {e}"
+    "alert.exportIfcFailed": "IFC export failed: {e}",
+    /* v2.1.1 — i18n parity for dynamic surfaces (model list, tree, bulk, navHelp) */
+    "model.rowTitle": "Click: open/close IFC structure · Double-click: frame the model",
+    "model.hide": "Hide model", "model.show": "Show model",
+    "model.dirtyDot": "{n} changes not downloaded — click for details",
+    "model.dlIfc": "Download updated IFC", "model.remove": "Remove model", "model.el": "el.",
+    "confirm.removeModel": "Remove {name} from the federation?",
+    "confirm.removeModelDirty": "Remove {name} from the federation?\n\nWARNING: {n} unsaved changes will be lost.",
+    "tree.nodeTitle": "Click: properties and selection · Double-click: zoom · ▸: expand",
+    "tree.nodeTitleNoGeo": "▸ or click: expand",
+    "tree.catTitle": "Click: select all elements in the category · Double-click: zoom · ▸: expand",
+    "tree.more": "… show {n} more of {tot}",
+    "navHelp.walk": "WALK · W/A/S/D or arrows: move · Q/E: down/up · Shift: run · drag: look · wheel: speed ({v} m/s) · Esc: exit",
+    "navHelp.orbit": "Orbit: left button · Pan: press wheel · Zoom: scroll · Arrows: move (Shift+↑↓: raise/lower) · Wheel double-click: fit all",
+    "sel.count": "{n} elements selected — {label}",
+    "sel.noneFed": "No element with {k} = \"{v}\" in the federation.",
+    "sel.noneModel": "No element with {k} = \"{v}\" in the model.",
+    "multi.title": "Multiple selection",
+    "multi.badge1": "{n} elements · 1 model", "multi.badgeN": "{n} elements · {m} models",
+    "multi.extendFed": "Extend to the federation",
+    "multi.bulkOpen": "✎ Bulk edit", "multi.bulkClose": "Close bulk edit",
+    "multi.backElem": "↩ Back to element",
+    "blk.pset": "Property set", "blk.prop": "Property", "blk.newValue": "New value",
+    "blk.newPsetOpt": "— new pset —", "blk.newPropOpt": "— new property —",
+    "blk.newPsetPh": "New pset name (e.g. Anas_IfcTecnico)", "blk.newPropPh": "New property name",
+    "blk.valuePh": "Value", "blk.create": "Create property/pset where missing",
+    "blk.apply": "Apply to {n} elements",
+    "blk.curValues": "Current values ({c}/{n} elements have the property):",
+    "blk.empty": "(empty)", "blk.moreValues": "… {n} more values",
+    "blk.errNames": "Enter pset and property names.",
+    "blk.errNum": "Invalid numeric value.", "blk.errInt": "Invalid integer value.",
+    "blk.flash": "✓ {u} updated · {p} properties created · {s} psets created{skip} — download the IFCs from the Models panel",
+    "blk.flashSkip": " · {n} skipped",
+    "blk.jrnStats": "{u} upd. · {p} props created · {s} psets created",
+    "edit.errNum": "{n} invalid numeric values — fix the highlighted rows.",
+    "edit.flash1": "✓ 1 change applied — download the IFC from the Models panel to keep it",
+    "edit.flashN": "✓ {n} changes applied — download the IFC from the Models panel to keep them"
   }
 };
 function tr(key, p) {
@@ -1245,6 +1324,8 @@ function refreshDynamicI18n() {
   /* ri-renderizza le superfici dinamiche aperte dopo un cambio lingua */
   try { renderStatusChips(); renderSevChips(); } catch (e) {}
   try { renderIssueList(); renderReportList(); } catch (e) {}
+  try { if (models.length) renderModelList(); } catch (e) {}   /* tooltip e conteggi delle righe modello */
+  try { updateNavHelp(); } catch (e) {}
   if (typeof statsOpen !== "undefined" && statsOpen) { try { openReportStats(); } catch (e) {} }
   else if (typeof activeTopic !== "undefined" && activeTopic) { try { renderTopicDetail(activeTopic); } catch (e) {} }
   else if (typeof activeReport !== "undefined" && activeReport) { try { openReportTopic(activeReport); } catch (e) {} }
@@ -1382,7 +1463,7 @@ renderer.setAnimationLoop((now) => {
 
 /* ============================ web-ifc ============================ */
 const ifcApi = new WebIFC.IfcAPI();
-ifcApi.SetWasmPath("https://unpkg.com/web-ifc@0.0.77/", true);
+ifcApi.SetWasmPath("./vendor/", true);   // web-ifc.wasm locale (v2.1.1 — vendoring)
 const ifcReady = ifcApi.Init()
   .then(() => { $("ftHint").textContent = tr("ft.ready"); })
   .catch((e) => { toast(tr("toast.ifcInitErr", { e: e.message })); });
@@ -1529,6 +1610,9 @@ async function loadIfcFiles(files) {
     fitBox(box, wasEmpty ? 0 : 750); /* al primo caricamento: inquadratura immediata */
   }
   if (activeTopic) applyTopicSelection(activeTopic);
+  /* i materiali dei modelli appena creati nascono senza clippingPlanes:
+     se una sezione è attiva (box, asse o piano) va riapplicata a tutti */
+  if (sectionBoxOn || ALNSEC.on || SECPL.on) _applyClipping();
 }
 
 function buildModel(data, name) {
@@ -1595,9 +1679,10 @@ function buildModel(data, name) {
 
   for (const b of buckets.values()) {
     const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(b.pos, 3));
-    g.setAttribute("normal", new THREE.Float32BufferAttribute(b.nor, 3));
-    g.setIndex(b.ind);
+    /* slice: rilascia la capacità in eccesso della crescita a raddoppio */
+    g.setAttribute("position", new THREE.BufferAttribute(b.pos.slice(0, b.len), 3));
+    g.setAttribute("normal", new THREE.BufferAttribute(b.nor.slice(0, b.len), 3));
+    g.setIndex(new THREE.BufferAttribute(b.ind.slice(0, b.indLen), 1));
     g.computeBoundingBox();
     g.computeBoundingSphere();
     const mat = new THREE.MeshLambertMaterial({
@@ -1629,30 +1714,51 @@ function buildModel(data, name) {
   );
 }
 
+/* v2.1.1 — accumulo dei bucket in typed array con crescita a raddoppio: rispetto agli
+   array JS (double + boxing) dimezza la memoria di picco sui modelli grandi ed evita
+   la conversione double→float finale di Float32BufferAttribute. La matematica dei
+   vertici resta in doppia precisione: cambia solo il contenitore di accumulo. */
+function _bucketGrow(arr, len, add) {
+  if (len + add <= arr.length) return arr;
+  let cap = arr.length * 2;
+  while (cap < len + add) cap *= 2;
+  const out = new arr.constructor(cap);
+  out.set(arr.subarray(0, len));
+  return out;
+}
 function appendToBucket(buckets, pg, verts, idx, expressID, mMap) {
   const c = pg.color;
   const key = c.x.toFixed(3) + "_" + c.y.toFixed(3) + "_" + c.z.toFixed(3) + "_" + c.w.toFixed(3);
   let b = buckets.get(key);
   if (!b) {
-    b = { color: new THREE.Color(c.x, c.y, c.z), opacity: c.w, pos: [], nor: [], ind: [], ranges: [], vcount: 0 };
+    b = { color: new THREE.Color(c.x, c.y, c.z), opacity: c.w,
+          pos: new Float32Array(4096), nor: new Float32Array(4096), len: 0,
+          ind: new Uint32Array(4096), indLen: 0, ranges: [], vcount: 0 };
     buckets.set(key, b);
   }
   _nm3.getNormalMatrix(mMap);
   const base = b.vcount;
-  for (let i = 0; i < verts.length; i += 6) {
+  const nFloats = verts.length / 2;   // 6 componenti in ingresso per vertice → 3 pos + 3 nor
+  b.pos = _bucketGrow(b.pos, b.len, nFloats);
+  b.nor = _bucketGrow(b.nor, b.len, nFloats);
+  let o = b.len;
+  for (let i = 0; i < verts.length; i += 6, o += 3) {
     // coordinate mappa Z-up in doppia precisione
     _v3.set(verts[i], verts[i + 1], verts[i + 2]).applyMatrix4(mMap);
     if (worldOriginMap === null) {
       worldOriginMap = new THREE.Vector3(Math.round(_v3.x), Math.round(_v3.y), Math.round(_v3.z));
     }
     // ribasamento sull'origine condivisa + swizzle finale Z-up → Y-up: (x, y, z) → (x, z, −y)
-    b.pos.push(_v3.x - worldOriginMap.x, _v3.z - worldOriginMap.z, -(_v3.y - worldOriginMap.y));
+    b.pos[o] = _v3.x - worldOriginMap.x; b.pos[o + 1] = _v3.z - worldOriginMap.z; b.pos[o + 2] = -(_v3.y - worldOriginMap.y);
     _v3.set(verts[i + 3], verts[i + 4], verts[i + 5]).applyMatrix3(_nm3).normalize();
-    b.nor.push(_v3.x, _v3.z, -_v3.y);
+    b.nor[o] = _v3.x; b.nor[o + 1] = _v3.z; b.nor[o + 2] = -_v3.y;
   }
+  b.len = o;
   b.vcount += verts.length / 6;
-  const startTri = b.ind.length / 3;
-  for (let i = 0; i < idx.length; i++) b.ind.push(idx[i] + base);
+  const startTri = b.indLen / 3;
+  b.ind = _bucketGrow(b.ind, b.indLen, idx.length);
+  for (let i = 0; i < idx.length; i++) b.ind[b.indLen + i] = idx[i] + base;
+  b.indLen += idx.length;
   b.ranges.push({ start: startTri, count: idx.length / 3, expressID });
 }
 
@@ -1771,7 +1877,7 @@ function toggleModelVisibility(m) {
   document.querySelectorAll(`button.eye[data-muid="${m.uid}"]`).forEach(btn => {
     btn.innerHTML = m.visible ? EYE_ON : EYE_OFF;
     btn.classList.toggle("off", !m.visible);
-    btn.title = (m.visible ? "Nascondi" : "Mostra") + " modello";
+    btn.title = tr(m.visible ? "model.hide" : "model.show");
   });
   document.querySelectorAll(`.model-row[data-muid="${m.uid}"]`).forEach(r => r.classList.toggle("hidden-model", !m.visible));
 }
@@ -1781,7 +1887,7 @@ function renderModelList() {
   list.innerHTML = "";
   selTreeRow = null;
   if (!models.length) {
-    list.innerHTML = `<div class="empty-note">Nessun modello.<br>Carica uno o più file <b>.ifc</b>: le coordinate vengono allineate al primo modello.</div>`;
+    list.innerHTML = `<div class="empty-note">${tr("empty.noModels")}</div>`;
     return;
   }
   if (treeMode === "category") renderCategoryList(list);
@@ -1808,14 +1914,14 @@ function renderModelRows(list) {
     const row = document.createElement("div");
     row.className = "model-row" + (m.visible ? "" : " hidden-model");
     row.dataset.muid = m.uid;
-    row.title = "Clic: apri/chiudi struttura IFC · Doppio clic: inquadra il modello\n" + m.geoInfo;
+    row.title = tr("model.rowTitle") + "\n" + m.geoInfo;
     row.innerHTML = `
       <button class="chevbtn${m.uiExpanded ? " open" : ""}" title="Struttura IFC">${CHEV_SVG}</button>
-      <button class="eye${m.visible ? "" : " off"}" data-muid="${m.uid}" title="${m.visible ? "Nascondi" : "Mostra"} modello">${m.visible ? EYE_ON : EYE_OFF}</button>
+      <button class="eye${m.visible ? "" : " off"}" data-muid="${m.uid}" title="${tr(m.visible ? "model.hide" : "model.show")}">${m.visible ? EYE_ON : EYE_OFF}</button>
       <span class="nm"></span>
-      ${m.dirty ? `<button class="dirty-dot" title="${m.edits.length} modifiche non scaricate — clic per il dettaglio">●</button><button class="dlbtn" title="Scarica IFC aggiornato">⤓</button>` : ""}
-      <span class="cnt">${m.elemCount.toLocaleString("it-IT")} el.</span>
-      <button class="rm" title="Rimuovi modello">✕</button>`;
+      ${m.dirty ? `<button class="dirty-dot" title="${tr("model.dirtyDot", { n: m.edits.length })}">●</button><button class="dlbtn" title="${tr("model.dlIfc")}">⤓</button>` : ""}
+      <span class="cnt">${m.elemCount.toLocaleString("it-IT")} ${tr("model.el")}</span>
+      <button class="rm" title="${tr("model.remove")}">✕</button>`;
     row.querySelector(".nm").textContent = m.name;
     const dd = row.querySelector(".dirty-dot");
     if (dd) dd.addEventListener("click", (e) => { e.stopPropagation(); showEditJournal(m); });
@@ -1848,7 +1954,7 @@ function renderModelRows(list) {
     });
     row.querySelector(".rm").addEventListener("click", (e) => {
       e.stopPropagation();
-      if (confirm(`Rimuovere ${m.name} dalla federazione?${m.dirty ? `\n\nATTENZIONE: ${m.edits.length} modifiche non scaricate andranno perse.` : ""}`)) removeModel(m);
+      if (confirm(m.dirty ? tr("confirm.removeModelDirty", { name: m.name, n: m.edits.length }) : tr("confirm.removeModel", { name: m.name }))) removeModel(m);
     });
     row.addEventListener("dblclick", (e) => {
       if (e.target.closest("button")) return;
@@ -2083,7 +2189,7 @@ function treeNodeEl(model, node, depth) {
   head.innerHTML = `<span class="chev">▸</span><span class="t-ico">${spatialIcon(node.typeName)}</span><span class="t-label"></span><span class="t-count">${node.total}</span>`;
   head.querySelector(".t-label").textContent = node.label;
   head.title = (node.typeName ? node.typeName + "\n" : "") +
-    (node.eid > 0 ? "Clic: proprietà e selezione · Doppio clic: zoom · ▸: espandi" : "▸ o clic: espandi");
+    (node.eid > 0 ? tr("tree.nodeTitle") : tr("tree.nodeTitleNoGeo"));
   const box = document.createElement("div");
   box.style.display = "none";
   const toggle = () => {
@@ -2156,7 +2262,7 @@ function appendTreeItems(model, cl, depth, box, start) {
     const more = document.createElement("div");
     more.className = "tree-more";
     more.style.paddingLeft = ((depth + 1) * 13 + 14) + "px";
-    more.textContent = `… mostra altri ${Math.min(TREE_CHUNK, cl.items.length - end)} di ${cl.items.length - end}`;
+    more.textContent = tr("tree.more", { n: Math.min(TREE_CHUNK, cl.items.length - end), tot: cl.items.length - end });
     more.addEventListener("click", () => { more.remove(); appendTreeItems(model, cl, depth, box, end); });
     box.appendChild(more);
   }
@@ -2204,7 +2310,7 @@ function selectItems(pairs, row, label) {
   }
   buildHighlight(sel);
   if (row) { row.classList.add("sel"); selTreeRow = row; }
-  if (label) $("ftHint").textContent = `${sel.length} elementi selezionati — ${label}`;
+  if (label) $("ftHint").textContent = tr("sel.count", { n: sel.length, label });
   if (items.length > 1) {
     bulkFormOpen = false;
     showMultiDetail({ items, label: label || `${items.length} elementi`, criterion: null, federation: false, index: null });
@@ -2229,7 +2335,7 @@ function renderCategoryList(list) {
     head.style.cursor = "pointer";
     head.innerHTML = `<span class="chev${catOpen.has(tn) ? " open" : ""}">▸</span><span class="t-ico">${ICON_CLASS}</span><span class="t-label"></span><span class="t-count">${total} · ${groups.length} mod.</span>`;
     head.querySelector(".t-label").textContent = tn;
-    head.title = "Clic: seleziona tutti gli elementi della categoria · Doppio clic: zoom · ▸: espandi";
+    head.title = tr("tree.catTitle");
     const box = document.createElement("div");
     box.style.display = catOpen.has(tn) ? "" : "none";
     const fill = () => { for (const g of groups) box.appendChild(catModelEl(tn, g)); };
@@ -2264,7 +2370,7 @@ function catModelEl(tn, g) {
   head.className = "tree-row tree-node";
   head.style.paddingLeft = "13px";
   head.style.cursor = "pointer";
-  head.innerHTML = `<span class="chev">▸</span><button class="eye${m.visible ? "" : " off"}" data-muid="${m.uid}" title="${m.visible ? "Nascondi" : "Mostra"} modello">${m.visible ? EYE_ON : EYE_OFF}</button><span class="t-label"></span><span class="t-count">${g.items.length}</span>`;
+  head.innerHTML = `<span class="chev">▸</span><button class="eye${m.visible ? "" : " off"}" data-muid="${m.uid}" title="${tr(m.visible ? "model.hide" : "model.show")}">${m.visible ? EYE_ON : EYE_OFF}</button><span class="t-label"></span><span class="t-count">${g.items.length}</span>`;
   head.querySelector(".t-label").textContent = m.name;
   head.title = `Clic: seleziona i ${tn} di questo modello · Doppio clic: zoom · ▸: elementi`;
   const box = document.createElement("div");
@@ -2472,8 +2578,8 @@ renderer.domElement.addEventListener("wheel", (e) => {
 
 function updateNavHelp() {
   $("navHelp").textContent = walkMode
-    ? `WALK · W/A/S/D o frecce: muovi · Q/E: giù/su · Maiusc: corri · trascina: guarda · rotella: velocità (${walkSpeed.toFixed(1)} m/s) · Esc: esci`
-    : "Orbita: tasto sx · Pan: rotella premuta · Zoom: scroll · Frecce: muovi (Maiusc+↑↓: alza/abbassa) · 2× clic rotella: zoom esteso";
+    ? tr("navHelp.walk", { v: walkSpeed.toFixed(1) })
+    : tr("navHelp.orbit");
 }
 updateNavHelp();
 
@@ -2564,6 +2670,12 @@ function resolveGuids(guids) {
 /* ============================ picking elemento ============================ */
 const raycaster = new THREE.Raycaster();
 const mouseNdc = new THREE.Vector2();
+/* NDC del puntatore rispetto al canvas, scritte nel Vector2 dato */
+function setNdcFromClient(v, cx, cy) {
+  const r = renderer.domElement.getBoundingClientRect();
+  v.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+  return v;
+}
 let downXY = null;
 renderer.domElement.addEventListener("pointerdown", (e) => { if (e.button === 0) downXY = [e.clientX, e.clientY]; });
 renderer.domElement.addEventListener("pointerup", (e) => {
@@ -2571,8 +2683,7 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   const moved = Math.hypot(e.clientX - downXY[0], e.clientY - downXY[1]);
   downXY = null;
   if (moved > 4 || e.button !== 0) return;
-  const r = renderer.domElement.getBoundingClientRect();
-  mouseNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  setNdcFromClient(mouseNdc, e.clientX, e.clientY);
   raycaster.setFromCamera(mouseNdc, camera);
   if (typeof SECPL !== "undefined" && SECPL.on && !e.shiftKey) { _spPickFaceFromRay(); return; }   // modalità piano: il clic posiziona il piano sulla faccia
   const visible = allBaseMeshes().filter(m => m.visible);
@@ -2631,8 +2742,7 @@ function expressFromFace(mesh, faceIndex) {
    MINORI dell'elemento (la sezione), non alla lunghezza: su barriere o pavimentazioni
    lunghe centinaia di metri un fit dell'intero bounding box allontanerebbe la camera. */
 renderer.domElement.addEventListener("dblclick", (e) => {
-  const r = renderer.domElement.getBoundingClientRect();
-  mouseNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  setNdcFromClient(mouseNdc, e.clientX, e.clientY);
   raycaster.setFromCamera(mouseNdc, camera);
   const hits = raycaster.intersectObjects(allBaseMeshes().filter(m => m.visible), false);
   if (!hits.length) return;
@@ -3315,8 +3425,7 @@ function openReportTopic(t) {
     ? tr("ft.reportFound", { name: t.name, found: nFound, tot: t.components.length })
     : tr("ft.noModelForReport");
   renderReportDetail(t, t.components.length - nFound);
-  $("main").classList.add("with-detail");$("main").classList.remove("detail-collapsed");
-  resize();
+  openDetailPane();
 }
 
 function renderReportDetail(t, nMissing) {
@@ -3472,8 +3581,7 @@ function openReportStats() {
   body.oninput = null; body.onchange = null;
   body.innerHTML = html;
   body.scrollTop = 0;
-  $("main").classList.add("with-detail");$("main").classList.remove("detail-collapsed");
-  resize();
+  openDetailPane();
 }
 
 /* ============================ apertura topic ============================ */
@@ -3483,8 +3591,7 @@ function openTopic(topic) {
   renderIssueList();
   renderTopicDetail(topic);
   applyTopicSelection(topic);
-  $("main").classList.add("with-detail");$("main").classList.remove("detail-collapsed");
-  resize();
+  openDetailPane();
 }
 
 function applyTopicSelection(topic, vpIndex = 0, keepCamera = false) {
@@ -3756,6 +3863,24 @@ function triggerDownload(blob, filename) {
 /* ---- editing parametri: tipi wrapper supportati (token verificati su web-ifc 0.0.57 e 0.0.77) ---- */
 const PV_TYPES = [["IFCLABEL", 1], ["IFCTEXT", 1], ["IFCIDENTIFIER", 1], ["IFCREAL", 4], ["IFCINTEGER", 10], ["IFCBOOLEAN", 3]];
 const pvTok = name => { const f = PV_TYPES.find(o => o[0] === name); return f ? f[1] : 1; };
+/* parsing del valore secondo il token IFC (3=bool, 4=real, 10=int, altrimenti testo) */
+function pvParse(tok, raw) {
+  if (tok === 3) return { ok: true, v: String(raw).trim().toLowerCase() === "true" };
+  if (tok === 4) { const v = Number(String(raw).trim().replace(",", ".")); return { ok: isFinite(v), v }; }
+  if (tok === 10) { const v = parseInt(String(raw).trim(), 10); return { ok: isFinite(v), v }; }
+  return { ok: true, v: String(raw) };
+}
+/* riscrive NominalValue di una IfcPropertySingleValue preservando il tipo quando invariato;
+   ritorna valore e tipo precedenti per il journal delle modifiche */
+function writeNominal(mid, pid, tok, typeName, v) {
+  const line = ifcApi.GetLine(mid, pid);
+  const oldV = unwrap(line.NominalValue);
+  const oldT = (line.NominalValue && line.NominalValue.name) || "";
+  if (typeName === oldT) line.NominalValue.value = v;
+  else line.NominalValue = { value: v, type: tok, name: typeName };
+  ifcApi.WriteLine(mid, line);
+  return { oldV, oldT };
+}
 let curDetail = null;       // {model, eid, label}
 let detailEditMode = false;
 let detailFlash = "";       // messaggio one-shot dopo Applica
@@ -3782,32 +3907,24 @@ function applyDetailEdits() {
     r.classList.remove("pv-err");
     if (!changed) continue;
     const tok = newType === r.dataset.origtype ? +r.dataset.tok : pvTok(newType);
-    let v;
-    if (tok === 3) v = newVal === "true";
-    else if (tok === 4) { v = Number(String(newVal).trim().replace(",", ".")); if (!isFinite(v)) { nErr++; r.classList.add("pv-err"); continue; } }
-    else if (tok === 10) { v = parseInt(String(newVal).trim(), 10); if (!isFinite(v)) { nErr++; r.classList.add("pv-err"); continue; } }
-    else v = String(newVal);
-    staged.push({ pid: +r.dataset.pid, tok, newType, v, pset: r.dataset.pset, prop: r.dataset.pname });
+    const p = pvParse(tok, newVal);
+    if (!p.ok) { nErr++; r.classList.add("pv-err"); continue; }
+    staged.push({ pid: +r.dataset.pid, tok, newType, v: p.v, pset: r.dataset.pset, prop: r.dataset.pname });
   }
   const msg = $("editMsg");
-  if (nErr) { if (msg) msg.textContent = `${nErr} valori numerici non validi — correggi le righe evidenziate.`; return; }
+  if (nErr) { if (msg) msg.textContent = tr("edit.errNum", { n: nErr }); return; }
   if (!staged.length) { detailEditMode = false; showElementDetail(model, curDetail.eid); return; }
   let nOk = 0;
   for (const e of staged) {
     try {
-      const line = ifcApi.GetLine(mid, e.pid);
-      const oldDisp = unwrap(line.NominalValue);
-      const oldType = (line.NominalValue && line.NominalValue.name) || "";
-      if (e.newType === oldType) line.NominalValue.value = e.v;
-      else line.NominalValue = { value: e.v, type: e.tok, name: e.newType };
-      ifcApi.WriteLine(mid, line);
-      model.edits.push({ eid: curDetail.eid, el: curDetail.label, pid: e.pid, pset: e.pset, prop: e.prop, oldV: oldDisp, newV: String(e.v), oldT: oldType, newT: e.newType, ts: Date.now() });
+      const { oldV, oldT } = writeNominal(mid, e.pid, e.tok, e.newType, e.v);
+      model.edits.push({ eid: curDetail.eid, el: curDetail.label, pid: e.pid, pset: e.pset, prop: e.prop, oldV, newV: String(e.v), oldT, newT: e.newType, ts: Date.now() });
       nOk++;
     } catch (ex) { console.warn("Modifica fallita su #" + e.pid, ex); }
   }
   if (nOk) { model.dirty = true; renderModelList(); }
   detailEditMode = false;
-  detailFlash = nOk ? `✓ ${nOk} modifich${nOk === 1 ? "a applicata" : "e applicate"} — scarica l'IFC dal pannello Modelli per non perderle` : "";
+  detailFlash = nOk ? tn(nOk, "edit.flash1", "edit.flashN") : "";
   showElementDetail(model, curDetail.eid);
 }
 
@@ -3870,10 +3987,10 @@ function selectByValue(psetName, propName, value, federation, baseModel, origin)
       for (const g of geoIdsOf(m, eid)) hl.push({ model: m, eid: g });
     }
     hideLoading();
-    if (!items.length) { $("ftHint").textContent = `Nessun elemento con ${psetName}.${propName} = "${value}"${federation ? " nella federazione" : " nel modello"}.`; return; }
+    if (!items.length) { $("ftHint").textContent = tr(federation ? "sel.noneFed" : "sel.noneModel", { k: psetName + "." + propName, v: value }); return; }
     buildHighlight(hl);
     const label = `${propName} = "${value}"`;
-    $("ftHint").textContent = `${items.length} elementi selezionati — ${label}`;
+    $("ftHint").textContent = tr("sel.count", { n: items.length, label });
     bulkFormOpen = false;
     showMultiDetail({ items, label, criterion: { psetName, propName, value, baseModel }, federation, index: null, origin });
   }, 30);
@@ -3882,24 +3999,23 @@ function selectByValue(psetName, propName, value, federation, baseModel, origin)
 function showMultiDetail(sel) {
   curMultiSel = sel;
   const nM = new Set(sel.items.map(i => i.model)).size;
-  $("detailTitle").textContent = "Selezione multipla";
+  $("detailTitle").textContent = tr("multi.title");
   const body = $("detailBody");
   body.oninput = null; body.onchange = null;
   body.innerHTML = `
-    <span class="d-status" style="background:var(--st-other)">${sel.items.length} elementi · ${nM} modell${nM === 1 ? "o" : "i"}</span>
+    <span class="d-status" style="background:var(--st-other)">${tr(nM === 1 ? "multi.badge1" : "multi.badgeN", { n: sel.items.length, m: nM })}</span>
     <div class="d-title">${esc(sel.label)}</div>
     ${bulkFlash ? `<div class="edit-flash">${esc(bulkFlash)}</div>` : ""}
     <div class="d-actions">
-      <button id="btnZoomElem">Zoom su selezione</button>
-      ${sel.criterion && !sel.federation && models.length > 1 ? `<button id="btnExtFed">Estendi alla federazione</button>` : ""}
-      <button id="btnBulk">${bulkFormOpen ? "Chiudi modifica bulk" : "✎ Modifica in bulk"}</button>
-      ${sel.origin ? `<button id="btnBackElem">↩ Torna all'elemento</button>` : ""}
+      <button id="btnZoomElem">${tr("btn.zoomSel")}</button>
+      ${sel.criterion && !sel.federation && models.length > 1 ? `<button id="btnExtFed">${tr("multi.extendFed")}</button>` : ""}
+      <button id="btnBulk">${tr(bulkFormOpen ? "multi.bulkClose" : "multi.bulkOpen")}</button>
+      ${sel.origin ? `<button id="btnBackElem">${tr("multi.backElem")}</button>` : ""}
     </div>
     <div id="bulkBox"></div>`;
   bulkFlash = "";
   body.scrollTop = 0;
-  $("main").classList.add("with-detail");$("main").classList.remove("detail-collapsed");
-  resize();
+  openDetailPane();
   $("btnZoomElem").addEventListener("click", zoomSelection);
   const ef = $("btnExtFed");
   if (ef) ef.addEventListener("click", () => {
@@ -3965,20 +4081,20 @@ function renderBulkForm(sel) {
   const box = $("bulkBox");
   box.innerHTML = `
     <div class="blk-form">
-      <label class="blk-lbl">Property set</label>
-      <select id="blkPset">${psetNames.map(n => `<option value="${esc(n)}">${esc(n)} (${agg.get(n).count}/${N})</option>`).join("")}<option value="__new__">— nuovo pset —</option></select>
-      <input id="blkPsetNew" class="blk-newname" placeholder="Nome nuovo pset (es. Anas_IfcTecnico)" hidden>
-      <label class="blk-lbl">Proprietà</label>
+      <label class="blk-lbl">${tr("blk.pset")}</label>
+      <select id="blkPset">${psetNames.map(n => `<option value="${esc(n)}">${esc(n)} (${agg.get(n).count}/${N})</option>`).join("")}<option value="__new__">${tr("blk.newPsetOpt")}</option></select>
+      <input id="blkPsetNew" class="blk-newname" placeholder="${esc(tr("blk.newPsetPh"))}" hidden>
+      <label class="blk-lbl">${tr("blk.prop")}</label>
       <select id="blkProp"></select>
-      <input id="blkPropNew" class="blk-newname" placeholder="Nome nuova proprietà" hidden>
+      <input id="blkPropNew" class="blk-newname" placeholder="${esc(tr("blk.newPropPh"))}" hidden>
       <div id="blkDist" class="blk-dist"></div>
-      <label class="blk-lbl">Nuovo valore</label>
+      <label class="blk-lbl">${tr("blk.newValue")}</label>
       <div class="blk-valrow">
-        <input id="blkVal" placeholder="Valore">
+        <input id="blkVal" placeholder="${esc(tr("blk.valuePh"))}">
         <select id="blkType">${PV_TYPES.map(o => `<option value="${o[0]}">${o[0]}</option>`).join("")}</select>
       </div>
-      <label class="blk-chk"><input type="checkbox" id="blkCreate" checked> Crea proprietà/pset dove mancanti</label>
-      <div class="edit-bar"><span id="bulkMsg"></span><button id="btnApplyBulk">Applica a ${N} elementi</button></div>
+      <label class="blk-chk"><input type="checkbox" id="blkCreate" checked> ${tr("blk.create")}</label>
+      <div class="edit-bar"><span id="bulkMsg"></span><button id="btnApplyBulk">${tr("blk.apply", { n: N })}</button></div>
     </div>`;
 
   const selPset = $("blkPset"), selProp = $("blkProp");
@@ -3986,10 +4102,10 @@ function renderBulkForm(sel) {
     const pn = selPset.value;
     $("blkPsetNew").hidden = pn !== "__new__";
     if (pn === "__new__") {
-      selProp.innerHTML = `<option value="__new__">— nuova proprietà —</option>`;
+      selProp.innerHTML = `<option value="__new__">${tr("blk.newPropOpt")}</option>`;
     } else {
       const a = agg.get(pn);
-      selProp.innerHTML = [...a.props.keys()].sort().map(p => `<option value="${esc(p)}">${esc(p)} (${a.props.get(p).count}/${N})</option>`).join("") + `<option value="__new__">— nuova proprietà —</option>`;
+      selProp.innerHTML = [...a.props.keys()].sort().map(p => `<option value="${esc(p)}">${esc(p)} (${a.props.get(p).count}/${N})</option>`).join("") + `<option value="__new__">${tr("blk.newPropOpt")}</option>`;
     }
     refreshDist();
   };
@@ -4000,9 +4116,9 @@ function renderBulkForm(sel) {
     if (pn === "__new__" || pr === "__new__" || !agg.get(pn) || !agg.get(pn).props.get(pr)) { d.innerHTML = ""; $("blkType").value = "IFCLABEL"; return; }
     const ap = agg.get(pn).props.get(pr);
     const vals = [...ap.values.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
-    d.innerHTML = `<div class="blk-dist-t">Valori attuali (${ap.count}/${N} elementi hanno la proprietà):</div>` +
-      vals.map(([v, c]) => `<div class="blk-dist-r"><span>${esc(v === "" ? "(vuoto)" : v)}</span><b>×${c}</b></div>`).join("") +
-      (ap.values.size > 8 ? `<div class="blk-dist-r"><span>… altri ${ap.values.size - 8} valori</span></div>` : "");
+    d.innerHTML = `<div class="blk-dist-t">${tr("blk.curValues", { c: ap.count, n: N })}</div>` +
+      vals.map(([v, c]) => `<div class="blk-dist-r"><span>${esc(v === "" ? tr("blk.empty") : v)}</span><b>×${c}</b></div>`).join("") +
+      (ap.values.size > 8 ? `<div class="blk-dist-r"><span>${tr("blk.moreValues", { n: ap.values.size - 8 })}</span></div>` : "");
     const domType = [...ap.types.entries()].sort((a, b) => b[1] - a[1])[0];
     if (domType && PV_TYPES.some(o => o[0] === domType[0])) $("blkType").value = domType[0];
   };
@@ -4019,13 +4135,11 @@ function applyBulk(sel) {
   const typeName = $("blkType").value, raw = $("blkVal").value;
   const create = $("blkCreate").checked;
   const msg = $("bulkMsg");
-  if (!psetName || !propName) { msg.textContent = "Indica nome pset e proprietà."; return; }
+  if (!psetName || !propName) { msg.textContent = tr("blk.errNames"); return; }
   const tok = pvTok(typeName);
-  let v;
-  if (tok === 3) v = String(raw).trim().toLowerCase() === "true";
-  else if (tok === 4) { v = Number(String(raw).trim().replace(",", ".")); if (!isFinite(v)) { msg.textContent = "Valore numerico non valido."; return; } }
-  else if (tok === 10) { v = parseInt(String(raw).trim(), 10); if (!isFinite(v)) { msg.textContent = "Valore intero non valido."; return; } }
-  else v = String(raw);
+  const p = pvParse(tok, raw);
+  if (!p.ok) { msg.textContent = tr(tok === 10 ? "blk.errInt" : "blk.errNum"); return; }
+  const v = p.v;
 
   let upd = 0, cProp = 0, cPset = 0, skip = 0;
   const perModel = new Map();
@@ -4037,11 +4151,7 @@ function applyBulk(sel) {
     try {
       if (pr) {
         if (!pr.editable) { skip++; continue; }
-        const line = ifcApi.GetLine(mid, pr.pid);
-        const oldType = (line.NominalValue && line.NominalValue.name) || "";
-        if (typeName === oldType) line.NominalValue.value = v;
-        else line.NominalValue = { value: v, type: tok, name: typeName };
-        ifcApi.WriteLine(mid, line);
+        writeNominal(mid, pr.pid, tok, typeName, v);
         upd++; stat.upd++;
       } else if (create) {
         const propId = nextExpressId(e.model);
@@ -4088,14 +4198,14 @@ function applyBulk(sel) {
     m.edits.push({
       eid: 0, el: `BULK · ${sel.label}`, pid: 0,
       pset: psetName, prop: propName,
-      oldV: `${s.upd} agg. · ${s.cProp} prop. create · ${s.cPset} pset creati`,
+      oldV: tr("blk.jrnStats", { u: s.upd, p: s.cProp, s: s.cPset }),
       newV: String(raw), oldT: "", newT: typeName, ts: Date.now()
     });
   }
   renderModelList();
   bulkFormOpen = false;
   sel.index = null; /* distribuzione da ricalcolare */
-  bulkFlash = `✓ ${upd} aggiornati · ${cProp} proprietà create · ${cPset} pset creati${skip ? ` · ${skip} saltati` : ""} — scarica gli IFC dal pannello Modelli`;
+  bulkFlash = tr("blk.flash", { u: upd, p: cProp, s: cPset, skip: skip ? tr("blk.flashSkip", { n: skip }) : "" });
   showMultiDetail(sel);
 }
 
@@ -4130,8 +4240,7 @@ function showEditJournal(model) {
     <div class="d-actions"><button id="btnDlIfc">${tr("btn.dlIfc")}</button></div>
     ${rows || `<div class="empty-note">${tr("empty.noEdits")}</div>`}`;
   body.scrollTop = 0;
-  $("main").classList.add("with-detail");$("main").classList.remove("detail-collapsed");
-  resize();
+  openDetailPane();
   $("btnDlIfc").addEventListener("click", () => exportModelIFC(model));
 }
 
@@ -4237,8 +4346,7 @@ function showElementDetail(model, eid) {
     body.oninput = null;
     body.onchange = null;
   }
-  $("main").classList.add("with-detail");$("main").classList.remove("detail-collapsed");
-  resize();
+  openDetailPane();
   $("btnZoomElem").addEventListener("click", () => {
     if (currentSelectionBox) fitBox(currentSelectionBox.clone().expandByScalar(Math.max(2, currentSelectionBox.getSize(new THREE.Vector3()).length() * 0.6)));
   });
@@ -4256,8 +4364,7 @@ function returnToActiveDetail() {
   if (activeTopic) {
     applyTopicSelection(activeTopic, 0, true); // keepCamera = true
     renderTopicDetail(activeTopic);
-    $("main").classList.add("with-detail"); $("main").classList.remove("detail-collapsed");
-    resize();
+    openDetailPane();
   } else if (activeReport) {
     // ripristina l'highlight di tutti i componenti del report senza spostare la camera
     const t = activeReport;
@@ -4275,11 +4382,16 @@ function returnToActiveDetail() {
     }
     if (found.length) buildHighlight(found); else clearHighlight();
     renderReportDetail(t, t.components.filter(c => !models.some(m => m.expressByGuid.get(c.guid) !== undefined)).length);
-    $("main").classList.add("with-detail"); $("main").classList.remove("detail-collapsed");
-    resize();
+    openDetailPane();
   }
 }
 
+/* apre/riespande la colonna dettagli e riadatta il viewport */
+function openDetailPane() {
+  $("main").classList.add("with-detail");
+  $("main").classList.remove("detail-collapsed");
+  resize();
+}
 function closeDetail() {
   $("main").classList.remove("with-detail");
   $("main").classList.remove("detail-collapsed");
@@ -4421,11 +4533,7 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   if (walkMode) return;            /* in walk il tasto destro non serve al menu */
 
   /* picking elemento (identico alla logica del clic sinistro) */
-  const r = renderer.domElement.getBoundingClientRect();
-  mouseNdc.set(
-    ((e.clientX - r.left) / r.width) * 2 - 1,
-    -((e.clientY - r.top) / r.height) * 2 + 1
-  );
+  setNdcFromClient(mouseNdc, e.clientX, e.clientY);
   raycaster.setFromCamera(mouseNdc, camera);
   const visible = allBaseMeshes().filter(m => m.visible);
   const hits = raycaster.intersectObjects(visible, false);
@@ -4653,8 +4761,7 @@ function _rebuildSbVisual() {
 /* ---- picking handle: restituisce faceIdx (0-5) o -1 ---- */
 function _pickSbHandle(cx, cy) {
   if (!sectionBoxOn || !sbHandles.length) return -1;
-  const r = renderer.domElement.getBoundingClientRect();
-  _sbNdc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+  setNdcFromClient(_sbNdc, cx, cy);
   _sbRay.setFromCamera(_sbNdc, camera);
   const hits = _sbRay.intersectObjects(sbHandles, false);
   return hits.length ? hits[0].object.userData.faceIdx : -1;
@@ -4680,8 +4787,7 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
   const camDir = camera.getWorldDirection(new THREE.Vector3());
   const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(camDir, hPos);
 
-  const r = renderer.domElement.getBoundingClientRect();
-  _sbNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  setNdcFromClient(_sbNdc, e.clientX, e.clientY);
   _sbRay.setFromCamera(_sbNdc, camera);
   const startPt = new THREE.Vector3();
   _sbRay.ray.intersectPlane(dragPlane, startPt);
@@ -4694,8 +4800,7 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
 /* ---- drag move ---- */
 renderer.domElement.addEventListener("pointermove", (e) => {
   if (!sbDrag) return;
-  const r = renderer.domElement.getBoundingClientRect();
-  _sbNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  setNdcFromClient(_sbNdc, e.clientX, e.clientY);
   _sbRay.setFromCamera(_sbNdc, camera);
   const pt = new THREE.Vector3();
   if (!_sbRay.ray.intersectPlane(sbDrag.plane, pt)) return;
@@ -4760,16 +4865,6 @@ function toggleSectionBox() {
     if (!b || b.isEmpty()) toast(tr("toast.loadModelFirst"));
     else setSectionBoxToBox(b);
   }
-}
-
-/* ---- patch loadIfcFiles: applica il clipping ai nuovi modelli caricati
-   (monkey-patch sul binding mutabile della function declaration)          ---- */
-{
-  const _olf = loadIfcFiles;
-  loadIfcFiles = async function(files) {
-    await _olf(files);
-    if (sectionBoxOn || (typeof ALNSEC !== "undefined" && ALNSEC.on) || (typeof SECPL !== "undefined" && SECPL.on)) _applyClipping();
-  };
 }
 
 /* ============================ Section plane (piano di sezione su faccia) ============================
@@ -4869,8 +4964,7 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
   e.stopPropagation(); controls.enabled = false;
   const camDir = camera.getWorldDirection(new THREE.Vector3());
   const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(camDir, SECPL.P.clone());
-  const r = renderer.domElement.getBoundingClientRect();
-  _spNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  setNdcFromClient(_spNdc, e.clientX, e.clientY);
   _spRay.setFromCamera(_spNdc, camera);
   const startPt = new THREE.Vector3(); _spRay.ray.intersectPlane(dragPlane, startPt);
   _spDrag = { plane: dragPlane, startPt, startP: SECPL.P.clone() };
@@ -4879,8 +4973,7 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
 }, { capture: true });
 renderer.domElement.addEventListener("pointermove", (e) => {
   if (!_spDrag) return;
-  const r = renderer.domElement.getBoundingClientRect();
-  _spNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  setNdcFromClient(_spNdc, e.clientX, e.clientY);
   _spRay.setFromCamera(_spNdc, camera);
   const pt = new THREE.Vector3();
   if (!_spRay.ray.intersectPlane(_spDrag.plane, pt)) return;
@@ -5774,8 +5867,7 @@ function _miniClickJump(e) {
 let _alnSecDrag = null;
 function _alnSecHit(cx, cy) {
   if (!ALNSEC.on || !ALNSEC.pickMesh) return false;
-  const r = renderer.domElement.getBoundingClientRect();
-  _sbNdc.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
+  setNdcFromClient(_sbNdc, cx, cy);
   _sbRay.setFromCamera(_sbNdc, camera);
   return _sbRay.intersectObject(ALNSEC.pickMesh, false).length > 0;
 }
@@ -5785,8 +5877,7 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
   if (!_alnSecHit(e.clientX, e.clientY)) return;
   const o = ALNSEC.obj, P = _alnPosAt(o, ALNSEC.s), T = _alnTangentAt(o, ALNSEC.s);
   const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(new THREE.Vector3(0, 1, 0), P);
-  const r = renderer.domElement.getBoundingClientRect();
-  _sbNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  setNdcFromClient(_sbNdc, e.clientX, e.clientY);
   _sbRay.setFromCamera(_sbNdc, camera);
   const startPt = new THREE.Vector3();
   if (!_sbRay.ray.intersectPlane(plane, startPt)) return;
@@ -5797,8 +5888,7 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
 }, { capture: true });
 renderer.domElement.addEventListener("pointermove", (e) => {
   if (!_alnSecDrag) return;
-  const r = renderer.domElement.getBoundingClientRect();
-  _sbNdc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  setNdcFromClient(_sbNdc, e.clientX, e.clientY);
   _sbRay.setFromCamera(_sbNdc, camera);
   const pt = new THREE.Vector3();
   if (!_sbRay.ray.intersectPlane(_alnSecDrag.plane, pt)) return;
@@ -6013,7 +6103,7 @@ function setDrawMode(on) {
   const b2 = $("btnSecDraw"); if (b2) b2.classList.toggle("on", on);
   const tab = $("dtabSection"); if (tab) tab.hidden = !on;
   if (on) {
-    $("main").classList.add("with-detail"); $("main").classList.remove("detail-collapsed");
+    openDetailPane();
     _s2dEnsureDom();
     _drawShowTab("section");                 // rendi visibile il canvas PRIMA del fit (serve clientWidth reale)
     computeSection2D();
@@ -6359,7 +6449,7 @@ $("detailResize").addEventListener("pointerup", _detailResizeEnd);
 $("detailResize").addEventListener("pointercancel", _detailResizeEnd);
 
 /* ---- nota versione ---- */
-$("ftVersion").textContent = `v2.1.0 · web-ifc · © Alessandro Perugini`;
+$("ftVersion").textContent = `v${APP_VERSION} · web-ifc · © Alessandro Perugini`;
 console.info(`[APE Viewer] versione ${APP_VERSION} · lingua ${LANG}`);
 
 /* ---- i18n: applicazione iniziale e toggle lingua (v1.8.0) ---- */
