@@ -189,6 +189,32 @@ main.with-detail.detail-collapsed #detailPanel{display:none}
 .model-row .rm{flex:0 0 auto;width:22px;height:22px;border:none;background:none;color:var(--faint);font-size:13px;padding:0;border-radius:4px;cursor:pointer}
 .model-row .rm:hover{color:var(--st-open);background:var(--panel-2);border:none}
 .model-row.hidden-model .nm{color:var(--faint)}
+/* nuvole di punti (studio import PointCloud) — registry separato dai modelli IFC */
+.pc-block{margin-top:8px;border-top:1px solid var(--line);padding-top:6px}
+.pc-head{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 4px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.pc-add{width:22px;height:22px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--fg);cursor:pointer;font-size:14px;line-height:1;padding:0}
+.pc-add:hover{border-color:var(--lime-deep)}
+.pc-row{display:flex;align-items:center;gap:7px;padding:6px;border-radius:6px}
+.pc-row:hover{background:var(--panel-2)}
+.pc-row .eye{flex:0 0 auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:5px;background:var(--panel);cursor:pointer;padding:0}
+.pc-row .eye svg{width:15px;height:15px;stroke:var(--muted);fill:none;stroke-width:1.8}
+.pc-row .eye.off svg{stroke:var(--faint)}
+.pc-row .eye.off{background:var(--panel-2)}
+.pc-row .nm{flex:1;min-width:0;font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-row .cnt{font-family:var(--mono);font-size:11px;color:var(--muted);flex:0 0 auto}
+.pc-row .rm{flex:0 0 auto;width:22px;height:22px;border:none;background:none;color:var(--faint);font-size:13px;padding:0;border-radius:4px;cursor:pointer}
+.pc-row .rm:hover{color:var(--st-open);background:var(--panel-2)}
+.pc-row.hidden-pc .nm{color:var(--faint)}
+/* modale "nuvola grande" (integrata nel tema, sostituisce il confirm nativo) */
+.pc-modal-ov{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(3px)}
+.pc-modal{width:min(440px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.5);overflow:hidden}
+.pc-modal-h{padding:14px 18px 4px;font-weight:700;font-size:15px;color:var(--fg)}
+.pc-modal-b{padding:4px 18px 14px;font-size:13px;line-height:1.5;color:var(--muted)}
+.pc-modal-b b{color:var(--fg)}
+.pc-modal-f{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line);background:var(--panel-2)}
+.pc-modal-f button{padding:8px 14px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
+.pc-modal-sub{border-color:var(--lime-deep)!important;background:var(--lime-soft)!important}
+.pc-modal-all:hover,.pc-modal-sub:hover{border-color:var(--lime)}
 /* albero struttura IFC */
 .model-tree{margin:0 0 4px 13px;border-left:2px solid var(--line);padding:2px 0 4px 4px}
 .tree-row{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:4px;font-size:12px;min-width:0}
@@ -720,6 +746,7 @@ input[type=file]{display:none}
   <input type="file" id="fileIfc" accept=".ifc" multiple>
   <input type="file" id="fileBcf" accept=".bcf,.bcfzip,.zip,.xlsx,.xlsm">
   <input type="file" id="fileLxml" accept=".xml,.landxml">
+  <input type="file" id="filePc" accept=".las,.laz,.e57" multiple>
 </header>
 
 <main id="main">
@@ -736,6 +763,13 @@ input[type=file]{display:none}
       </div>
       <div id="modelList">
         <div class="empty-note" data-i18n-html="empty.noModels">Nessun modello.<br>Carica uno o più file <b>.ifc</b>: le coordinate vengono allineate al primo modello.</div>
+      </div>
+      <div id="pcBlock" class="pc-block">
+        <div class="pc-head">
+          <span data-i18n="pc.title">Nuvole di punti</span>
+          <button id="btnPc" class="pc-add" data-i18n-title="pc.load" title="Carica nuvola di punti (LAS/E57)">＋</button>
+        </div>
+        <div id="pcList"></div>
       </div>
     </div>
     <div id="issuesBlock" class="ltab-page" style="display:none">
@@ -971,10 +1005,12 @@ input[type=file]{display:none}
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { parseLASHeader, parseLASPoints } from "./las.js";   // studio import PointCloud (LAS)
+import { parseE57, e57PointCount } from "./e57.js";           // studio import PointCloud (E57)
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================ stato globale ============================ */
-const APP_VERSION = "2.2.0";
+const APP_VERSION = "2.3.0";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN (v1.8.0) ============================ */
@@ -1042,6 +1078,19 @@ const STRINGS = {
     "toast.lxmlNone": "Nessun tracciato utilizzabile nel LandXML", "toast.lxmlErr": "LandXML non valido o non leggibile",
     "toast.lxmlRemoved": "Assi LandXML rimossi",
     "toast.lxmlFar": "Assi LandXML a {d} km dal modello: sistema di coordinate diverso?",
+    "pc.title": "Nuvole di punti", "pc.load": "Carica nuvola di punti (LAS/E57)",
+    "pc.pts": "punti", "pc.show": "Mostra nuvola", "pc.hide": "Nascondi nuvola",
+    "pc.remove": "Rimuovi nuvola", "pc.subNote": "sottocampionata",
+    "pc.loading": "Lettura nuvola {f}… (i file grandi richiedono qualche secondo)",
+    "toast.pcLoaded": "{n} punti caricati da {f}",
+    "toast.pcSubsampled": "{f}: {n} punti (sottocampionati da {tot} per sicurezza)",
+    "toast.pcNoColor": "{f}: nessun colore nel file, uso una tinta neutra",
+    "toast.pcLaz": "{f}: LAZ compresso non ancora supportato in questo studio — esporta in LAS non compresso",
+    "toast.pcErr": "Errore lettura nuvola {f}: {e}",
+    "toast.pcRemoved": "{f}: nuvola rimossa",
+    "pc.modalTitle": "Nuvola di punti molto grande",
+    "pc.modalBody": "«<b>{f}</b>» contiene <b>{n}</b> punti. Caricarli tutti usa molta memoria e può rallentare il browser. Puoi sottocampionare a ~{m} milioni per una navigazione più fluida.",
+    "pc.modalSub": "Sottocampiona a ~{m} mln", "pc.modalAll": "Carica tutto",
     "profile.close": "Chiudi il profilo", "profile.nodata": "Profilo altimetrico non disponibile",
     "alnsec.btn": "Sezione asse",
     "alnsec.toggle": "Sezione ortogonale all'asse: nasconde il modello da un lato del piano per vedere il resto del tracciato. Trascina la sezione in 3D o lungo il profilo per spostarla.",
@@ -1147,7 +1196,7 @@ const STRINGS = {
     "toast.bcfExported": "{nt} stati scritti · {nf} file BCF scaricati.",
     "toast.dxfOk": "Sezione esportata in DXF.",
     "toast.dxfNodata": "Nessuna sezione da esportare.",
-    "toast.unknownFormat": "Formato non riconosciuto: trascina file .ifc, .bcf/.bcfzip o report .xlsx.",
+    "toast.unknownFormat": "Formato non riconosciuto: trascina file .ifc, .bcf/.bcfzip, report .xlsx o nuvole .las/.e57.",
     "ft.reportFound": "Report «{name}» — componenti trovati {found}/{tot}",
     "ft.noModelForReport": "Nessun modello IFC caricato: la issue è visibile solo come scheda.",
     "ft.issueFound": "Issue «{title}» — elementi trovati {found}/{tot}",
@@ -1256,6 +1305,19 @@ const STRINGS = {
     "toast.lxmlNone": "No usable alignment in the LandXML", "toast.lxmlErr": "Invalid or unreadable LandXML",
     "toast.lxmlRemoved": "LandXML alignments removed",
     "toast.lxmlFar": "LandXML alignments are {d} km away from the model: different coordinate system?",
+    "pc.title": "Point clouds", "pc.load": "Load point cloud (LAS/E57)",
+    "pc.pts": "points", "pc.show": "Show cloud", "pc.hide": "Hide cloud",
+    "pc.remove": "Remove cloud", "pc.subNote": "subsampled",
+    "pc.loading": "Reading cloud {f}… (large files take a few seconds)",
+    "toast.pcLoaded": "{n} points loaded from {f}",
+    "toast.pcSubsampled": "{f}: {n} points (subsampled from {tot} for safety)",
+    "toast.pcNoColor": "{f}: no color in file, using a neutral tint",
+    "toast.pcLaz": "{f}: compressed LAZ not yet supported in this study — export to uncompressed LAS",
+    "toast.pcErr": "Error reading cloud {f}: {e}",
+    "toast.pcRemoved": "{f}: cloud removed",
+    "pc.modalTitle": "Very large point cloud",
+    "pc.modalBody": "\"<b>{f}</b>\" has <b>{n}</b> points. Loading them all uses a lot of memory and may slow the browser down. You can subsample to ~{m} million for smoother navigation.",
+    "pc.modalSub": "Subsample to ~{m}M", "pc.modalAll": "Load all",
     "profile.close": "Close profile", "profile.nodata": "Vertical profile unavailable",
     "alnsec.btn": "Axis section",
     "alnsec.toggle": "Cross-section orthogonal to the axis: hides the model on one side of the plane so you can see the rest of the route. Drag the section in 3D or along the profile to move it.",
@@ -1354,7 +1416,7 @@ const STRINGS = {
     "toast.bcfExported": "{nt} statuses written · {nf} BCF files downloaded.",
     "toast.dxfOk": "Section exported to DXF.",
     "toast.dxfNodata": "No section to export.",
-    "toast.unknownFormat": "Unrecognized format: drag .ifc, .bcf/.bcfzip or .xlsx report files.",
+    "toast.unknownFormat": "Unrecognized format: drag .ifc, .bcf/.bcfzip, .xlsx report or .las/.e57 point-cloud files.",
     "ft.reportFound": "Report «{name}» — components found {found}/{tot}",
     "ft.noModelForReport": "No IFC model loaded: the issue is visible only as a card.",
     "ft.issueFound": "Issue «{title}» — elements found {found}/{tot}",
@@ -1556,6 +1618,7 @@ renderer.setAnimationLoop((now) => {
     updateOrbitKeys(dt);
     controls.update();
   }
+  _pcUpdateLOD();   // LOD nuvole: decima durante il movimento, pieno dettaglio da fermo
   renderer.render(scene, camera);
 });
 
@@ -2092,8 +2155,9 @@ function removeModel(model) {
   if (i >= 0) models.splice(i, 1);
   classeCache.clear();   // la risoluzione Classe dipende dai modelli presenti (v1.7.6)
   updateAlignUI();       // il bottone Asse dipende anche da models.length (LandXML, v2.1.0)
-  if (!models.length) {
-    /* federazione vuota: il prossimo caricamento ridefinisce origine e riferimento BCF */
+  if (!models.length && !PCLOUD.sources.length) {
+    /* federazione vuota: il prossimo caricamento ridefinisce origine e riferimento BCF.
+       NB: non azzerare l'origine se resta una nuvola di punti agganciata a worldOriginMap */
     worldOriginMap = null;
     bcfGeoMatrix = null;
     $("dropHint").style.display = "";
@@ -2519,6 +2583,16 @@ function computeGlobalBox() {
   for (const m of models) {
     const b = computeModelBox(m);
     if (!b.isEmpty()) box.union(b);
+  }
+  /* includi le nuvole di punti: così box di sezione, quad del piano e inquadrature
+     si dimensionano anche attorno ad esse */
+  if (typeof PCLOUD !== "undefined") {
+    for (const src of PCLOUD.sources) {
+      if (!src.visible) continue;
+      const geo = src.points.geometry;
+      if (!geo.boundingBox) geo.computeBoundingBox();
+      if (geo.boundingBox && !geo.boundingBox.isEmpty()) box.union(geo.boundingBox);
+    }
   }
   return box;
 }
@@ -4538,10 +4612,12 @@ window.addEventListener("drop", async (e) => {
   const ifcs = files.filter(f => /\.ifc$/i.test(f.name));
   const bcfs = files.filter(f => /\.(bcf|bcfzip|zip)$/i.test(f.name));
   const reps = files.filter(f => /\.(xlsx|xlsm)$/i.test(f.name));
+  const pcs = files.filter(f => /\.(las|laz|e57)$/i.test(f.name));
   if (ifcs.length) await loadIfcFiles(ifcs);
   for (const b of bcfs) await loadBcf(b);
   for (const r of reps) await loadReport(r);
-  if (!ifcs.length && !bcfs.length && !reps.length) toast(tr("toast.unknownFormat"));
+  for (const p of pcs) await loadPointCloud(p);
+  if (!ifcs.length && !bcfs.length && !reps.length && !pcs.length) toast(tr("toast.unknownFormat"));
 });
 
 /* ============================ utilità UI ============================ */
@@ -4556,7 +4632,7 @@ document.querySelectorAll(".ltab").forEach(b => b.addEventListener("click", () =
 function dismissLanding() { const l = $("landing"); if (l) l.classList.add("hide"); }
 function showLandingIfEmpty() {
   /* il landing torna solo se non c'è proprio nulla caricato (modelli, BCF, report) */
-  const empty = (!models.length) && (!topics || !topics.length) && (typeof reportTopics === "undefined" || !reportTopics || !reportTopics.length);
+  const empty = (!models.length) && (!PCLOUD.sources.length) && (!topics || !topics.length) && (typeof reportTopics === "undefined" || !reportTopics || !reportTopics.length);
   const l = $("landing"); if (l) l.classList.toggle("hide", !empty);
 }
 $("lpLoadIfc").addEventListener("click", () => $("fileIfc").click());
@@ -4830,7 +4906,7 @@ function _activeClipPlanes() {
   if (typeof SECPL !== "undefined" && SECPL.on && SECPL.P) arr.push(SECPL.plane);
   return arr;
 }
-/* ---- applica i piani attivi a tutti i materiali IFC (meshes + spigoli + highlight) ---- */
+/* ---- applica i piani attivi a tutti i materiali IFC (meshes + spigoli + highlight) e alle nuvole ---- */
 function _applyClipping() {
   const planes = _activeClipPlanes();
   for (const m of models) {
@@ -4838,6 +4914,10 @@ function _applyClipping() {
     for (const ed of m.edges)    { ed.material.clippingPlanes   = planes; ed.material.needsUpdate = true; }
   }
   hlMaterial.clippingPlanes = planes; hlMaterial.needsUpdate = true;
+  /* Le nuvole si clippano ESATTAMENTE come l'IFC (semipiano): dopo il taglio si vedono
+     TUTTI i punti del lato tenuto. La fetta sottile PC_SLAB resta solo per la proiezione
+     nel disegno 2D (computeSection2D), non per la resa 3D. */
+  for (const src of PCLOUD.sources) { src.points.material.clippingPlanes = planes; src.points.material.needsUpdate = true; }
   renderer.localClippingEnabled = planes.length > 0;
 }
 function _applySbClipping() { _updateSbPlanes(); _applyClipping(); }
@@ -5582,6 +5662,238 @@ function clearLandXML() {
   toast(tr("toast.lxmlRemoved"));
 }
 
+/* ============================ Nuvole di punti — import LAS/LAZ (studio) ============================
+   Registry SEPARATO dai modelli IFC (models[]): le nuvole sono "riferimenti", fuori da
+   picking/misure/albero, come gli assi LandXML. Le coordinate LAS sono già in mappa (E,N,H):
+   il parser (viewer/las.js) le ribasa su worldOriginMap + swizzle Z-up→Y-up in un solo
+   passaggio → catena di trasformazione invariante non toccata. */
+const PCLOUD = { sources: [] };            // {name, points:THREE.Points, count, visible, subsampled}
+const PC_SIZE_WARN = 15000000;             // oltre questa soglia il full-load può bloccare il browser: chiedi conferma
+const PC_MOTION_BUDGET = 2500000;          // punti disegnati DURANTE il movimento camera (LOD): da fermo si torna al pieno
+const PC_SLAB = 0.02;                       // spessore (m) della fetta di punti proiettata nel DISEGNO 2D (i punti sono discreti:
+                                            // una lastra sottile ~2cm dà una sezione 2D pulita). In 3D i punti si clippano a semipiano come l'IFC.
+const PC_2D_SCAN_CAP = 6000000;            // max punti esaminati per la proiezione 2D (tetto di lavoro per recompute)
+
+/* Porta un campione casuale UNIFORME di PC_MOTION_BUDGET punti nei primi slot
+   dell'array (Fisher-Yates PARZIALE su posizioni+colori insieme): così il LOD di
+   movimento ("primi N") è spazialmente uniforme invece di una fetta contigua della
+   scansione. Parziale = O(budget), non O(count): resta veloce anche a 40M+ punti.
+   La coda oltre il budget resta tutta presente (serve al pieno dettaglio da fermo). */
+function _pcShuffle(position, color, count) {
+  const m = Math.min(count - 1, PC_MOTION_BUDGET);
+  for (let s = 0; s < m; s++) {
+    const j = s + ((Math.random() * (count - s)) | 0);   // j uniforme in [s, count-1]
+    const pi = s * 3, pj = j * 3;
+    let t;
+    t = position[pi]; position[pi] = position[pj]; position[pj] = t;
+    t = position[pi + 1]; position[pi + 1] = position[pj + 1]; position[pj + 1] = t;
+    t = position[pi + 2]; position[pi + 2] = position[pj + 2]; position[pj + 2] = t;
+    if (color) {
+      t = color[pi]; color[pi] = color[pj]; color[pj] = t;
+      t = color[pi + 1]; color[pi + 1] = color[pj + 1]; color[pj + 1] = t;
+      t = color[pi + 2]; color[pi + 2] = color[pj + 2]; color[pj + 2] = t;
+    }
+  }
+}
+
+/* LOD adattivo: mentre la camera si muove disegna solo PC_MOTION_BUDGET punti
+   (fluido); ferma da ~180ms torna al pieno dettaglio. Chiamata nel loop di render. */
+const _pcCamPrev = new THREE.Vector3(), _pcTgtPrev = new THREE.Vector3();
+let _pcMovingUntil = 0, _pcLastMoving = null;
+function _pcUpdateLOD() {
+  if (!PCLOUD.sources.length) return;
+  const moved = camera.position.distanceToSquared(_pcCamPrev) > 1e-8 ||
+                controls.target.distanceToSquared(_pcTgtPrev) > 1e-8;
+  _pcCamPrev.copy(camera.position); _pcTgtPrev.copy(controls.target);
+  const now = performance.now();
+  if (moved) _pcMovingUntil = now + 180;
+  const moving = now < _pcMovingUntil;
+  if (moving === _pcLastMoving) return;            // stato invariato → niente da aggiornare
+  _pcLastMoving = moving;
+  for (const src of PCLOUD.sources) {
+    if (src.count > PC_MOTION_BUDGET)
+      src.points.geometry.setDrawRange(0, moving ? PC_MOTION_BUDGET : src.count);
+  }
+}
+
+async function loadPointCloud(file) {
+  const name = file.name, lower = name.toLowerCase();
+  try {
+    if (lower.endsWith(".laz")) { toast(tr("toast.pcLaz", { f: name })); return; }   // LAZ: tappa futura (WASM)
+    showLoading(tr("pc.loading", { f: name }));
+    await new Promise(r => setTimeout(r));               // lascia dipingere l'indicatore prima della lettura pesante
+    const buf = new Uint8Array(await file.arrayBuffer()); // file grande (anche 1-2 GB): può richiedere secondi
+    const res = lower.endsWith(".e57") ? await _pcParseE57(buf, name) : await _pcParseLAS(buf, name);
+    if (res) _pcBuild(name, res);
+  } catch (e) {
+    console.error("[APE Viewer] point cloud:", e);
+    toast(tr("toast.pcErr", { f: name, e: e.message || e }));
+  } finally {
+    hideLoading();
+  }
+}
+
+/* modale "nuvola grande" integrata nel tema (sostituisce il confirm nativo).
+   Risolve true = carica tutto, false = sottocampiona. */
+function _pcSizeModal(name, total) {
+  return new Promise(resolve => {
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const ov = document.createElement("div");
+    ov.className = "pc-modal-ov";
+    ov.innerHTML =
+      `<div class="pc-modal" role="dialog" aria-modal="true">` +
+      `<div class="pc-modal-h">${tr("pc.modalTitle")}</div>` +
+      `<div class="pc-modal-b">${tr("pc.modalBody", { f: esc(name), n: total.toLocaleString("it-IT"), m: Math.round(PC_SIZE_WARN / 1e6) })}</div>` +
+      `<div class="pc-modal-f"><button class="pc-modal-sub">${tr("pc.modalSub", { m: Math.round(PC_SIZE_WARN / 1e6) })}</button>` +
+      `<button class="pc-modal-all">${tr("pc.modalAll")}</button></div></div>`;
+    document.body.appendChild(ov);
+    const done = v => { ov.remove(); document.removeEventListener("keydown", onKey); resolve(v); };
+    const onKey = e => { if (e.key === "Escape") done(false); };
+    ov.querySelector(".pc-modal-all").addEventListener("click", () => done(true));
+    ov.querySelector(".pc-modal-sub").addEventListener("click", () => done(false));
+    ov.addEventListener("click", e => { if (e.target === ov) done(false); });   // click fuori = scelta sicura
+    document.addEventListener("keydown", onKey);
+    ov.querySelector(".pc-modal-sub").focus();
+  });
+}
+
+/* guardia dimensione comune: sopra soglia apre la modale; se l'utente sceglie di non
+   caricare tutto, ritorna il tetto (sottocampionamento) invece di rischiare il crash */
+async function _pcSizeGuard(name, total) {
+  if (total > PC_SIZE_WARN) {
+    hideLoading();                                    // togli l'indicatore: la modale dev'essere interattiva
+    const all = await _pcSizeModal(name, total);
+    showLoading(tr("pc.loading", { f: name }));       // rimetti l'indicatore per il parsing (sincrono, pesante)
+    await new Promise(r => setTimeout(r));            // ridipingi prima del parse
+    if (!all) return PC_SIZE_WARN;
+  }
+  return Infinity;
+}
+
+async function _pcParseLAS(buf, name) {
+  let header;
+  try { header = parseLASHeader(buf); }
+  catch (e) { toast(tr("toast.pcErr", { f: name, e: e.message })); return null; }
+  if (header.compressed) { toast(tr("toast.pcLaz", { f: name })); return null; }
+  const maxPoints = await _pcSizeGuard(name, header.pointCount);
+  /* origine condivisa dal centro bbox (coord. mappa E,N,H arrotondate) se è la 1ª geometria */
+  if (worldOriginMap === null) {
+    worldOriginMap = new THREE.Vector3(
+      Math.round((header.mapMin[0] + header.mapMax[0]) / 2),
+      Math.round((header.mapMin[1] + header.mapMax[1]) / 2),
+      Math.round((header.mapMin[2] + header.mapMax[2]) / 2));
+  }
+  const O = worldOriginMap;
+  const res = parseLASPoints(buf, header, { origin: { x: O.x, y: O.y, z: O.z }, swizzle: true, maxPoints });
+  res.pointCount = header.pointCount;
+  res.label = `LAS 1.${header.versionMinor} · fmt ${header.pointFormat}`;
+  return res;
+}
+
+async function _pcParseE57(buf, name) {
+  let total;
+  try { total = e57PointCount(buf); }
+  catch (e) { toast(tr("toast.pcErr", { f: name, e: e.message })); return null; }
+  const maxPoints = await _pcSizeGuard(name, total);
+  /* E57: se worldOriginMap è già fissata (es. IFC caricato prima) la passo; altrimenti il
+     parser la deriva dal 1° punto e la restituisco → la fisso qui, catena invariante intatta */
+  const originOpt = worldOriginMap ? { x: worldOriginMap.x, y: worldOriginMap.y, z: worldOriginMap.z } : null;
+  let res;
+  try { res = parseE57(buf, { origin: originOpt, swizzle: true, maxPoints }); }
+  catch (e) { toast(tr("toast.pcErr", { f: name, e: e.message })); return null; }
+  if (worldOriginMap === null) worldOriginMap = new THREE.Vector3(res.origin.x, res.origin.y, res.origin.z);
+  res.label = `E57 · ${res.scanCount} scan`;
+  return res;
+}
+
+/* costruzione THREE.Points + registrazione + UI + inquadratura + toast, comune a LAS/E57 */
+function _pcBuild(name, res) {
+  if (!res.count) { toast(tr("toast.pcErr", { f: name, e: "0 punti" })); return; }
+  if (res.count > PC_MOTION_BUDGET) _pcShuffle(res.position, res.color, res.count);  // per il LOD di movimento
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(res.position, 3));
+  let mat;
+  if (res.color) {
+    g.setAttribute("color", new THREE.BufferAttribute(res.color, 3, true));   // Uint8 normalizzato
+    mat = new THREE.PointsMaterial({ size: 2.0, sizeAttenuation: false, vertexColors: true });
+  } else {
+    mat = new THREE.PointsMaterial({ size: 2.0, sizeAttenuation: false, color: 0xb4bcc6 });
+    toast(tr("toast.pcNoColor", { f: name }));
+  }
+  g.computeBoundingSphere();
+  const pts = new THREE.Points(g, mat);
+  pts.renderOrder = 1;
+  rootGroup.add(pts);
+
+  PCLOUD.sources.push({ name, points: pts, count: res.count, visible: true, subsampled: res.subsampled });
+  if (sectionBoxOn || SECPL.on || ALNSEC.on) { _applyClipping(); if (typeof DRAW !== "undefined" && DRAW.on) _drawScheduleRecompute(); }
+
+  dismissLanding();
+  const dh = $("dropHint"); if (dh) dh.style.display = "none";
+  renderPcList();
+  updateAlignUI();   // il bottone Asse può comparire anche con sola nuvola (origine ora definita)
+
+  /* inquadra solo se è la prima cosa caricata: non strappare la camera se ci sono già modelli */
+  if (models.length === 0 && PCLOUD.sources.length === 1 && res.worldBounds) {
+    const b = res.worldBounds;
+    const box = new THREE.Box3(
+      new THREE.Vector3(b.min[0], b.min[1], b.min[2]),
+      new THREE.Vector3(b.max[0], b.max[1], b.max[2]));
+    if (!box.isEmpty()) fitBox(box);
+  }
+  console.info(`[APE Viewer] nuvola ${name}: ${res.count} punti${res.subsampled ? " (sottocampionati)" : ""} · ${res.label}`);
+  if (res.subsampled) toast(tr("toast.pcSubsampled", { f: name, n: res.count.toLocaleString("it-IT"), tot: res.pointCount.toLocaleString("it-IT") }));
+  else toast(tr("toast.pcLoaded", { f: name, n: res.count.toLocaleString("it-IT") }));
+}
+
+function togglePcVisibility(src) {
+  src.visible = !src.visible;
+  src.points.visible = src.visible;
+  renderPcList();
+}
+
+function removePointCloud(src) {
+  rootGroup.remove(src.points);
+  src.points.geometry.dispose();
+  src.points.material.dispose();
+  const i = PCLOUD.sources.indexOf(src);
+  if (i >= 0) PCLOUD.sources.splice(i, 1);
+  /* federazione vuota (né modelli né nuvole): il prossimo caricamento ridefinisce l'origine */
+  if (!models.length && !PCLOUD.sources.length) { worldOriginMap = null; bcfGeoMatrix = null; }
+  renderPcList();
+  updateAlignUI();
+  showLandingIfEmpty();
+  if (!models.length && !PCLOUD.sources.length) { const dh = $("dropHint"); if (dh) dh.style.display = ""; }
+  toast(tr("toast.pcRemoved", { f: src.name }));
+}
+
+function renderPcList() {
+  const list = $("pcList");
+  if (!list) return;
+  /* il blocco (con il pulsante ＋) resta sempre visibile: è l'unico punto
+     d'ingresso per caricare la prima nuvola. Nascondo solo la lista se vuota. */
+  list.innerHTML = "";
+  for (const src of PCLOUD.sources) {
+    const row = document.createElement("div");
+    row.className = "pc-row" + (src.visible ? "" : " hidden-pc");
+    row.innerHTML =
+      `<button class="eye${src.visible ? "" : " off"}" title="${tr(src.visible ? "pc.hide" : "pc.show")}">${src.visible ? EYE_ON : EYE_OFF}</button>` +
+      `<span class="nm"></span>` +
+      `<span class="cnt">${src.count.toLocaleString("it-IT")} ${tr("pc.pts")}</span>` +
+      `<button class="rm" title="${tr("pc.remove")}">✕</button>`;
+    const nm = row.querySelector(".nm");
+    nm.textContent = src.name + (src.subsampled ? " ~" : "");
+    nm.title = src.name + (src.subsampled ? " · " + tr("pc.subNote") : "");
+    row.querySelector(".eye").addEventListener("click", (e) => { e.stopPropagation(); togglePcVisibility(src); });
+    row.querySelector(".rm").addEventListener("click", (e) => { e.stopPropagation(); removePointCloud(src); });
+    row.addEventListener("dblclick", () => { const box = new THREE.Box3().setFromObject(src.points); if (!box.isEmpty()) fitBox(box); });
+    list.appendChild(row);
+  }
+}
+
+$("btnPc").addEventListener("click", () => $("filePc").click());
+$("filePc").addEventListener("change", async (e) => { for (const f of e.target.files) await loadPointCloud(f); e.target.value = ""; });
+
 /* --- UI: selettore asse (tendina) + finestra profilo altimetrico --- */
 function _alnEsc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function _alnFmtSta(s) { const km = Math.floor(s / 1000); const m = Math.round(s - km * 1000); return km + "+" + String(Math.abs(m)).padStart(3, "0"); }
@@ -6183,10 +6495,31 @@ function computeSection2D() {
       }
     }
   }
+  /* --- nuvole di punti: proiezione della fetta (spessore PC_SLAB) sul piano di sezione ---
+     I punti geometria sono già in coord. world (rootGroup identità), come le mesh sopra.
+     Scansione con passo per limitare il lavoro a ~PC_2D_SCAN_CAP punti per recompute. */
+  const pcPts = [], halfSlab = PC_SLAB / 2;
+  for (const src of PCLOUD.sources) {
+    if (!src.visible) continue;
+    const attr = src.points.geometry.attributes;
+    const pos = attr.position.array, col = attr.color ? attr.color.array : null;
+    const total = src.count, stride = Math.max(1, Math.floor(total / PC_2D_SCAN_CAP));
+    for (let i = 0; i < total; i += stride) {
+      const o = i * 3;
+      const X = pos[o], Y = pos[o + 1], Z = pos[o + 2];
+      const fd = nx * X + ny * Y + nz * Z - d;
+      if (fd < -halfSlab || fd > halfSlab) continue;             // fuori dalla fetta
+      const rx = X - px, ry = Y - py, rz = Z - pz;
+      const u = rx * ux + ry * uy + rz * uz, e = rx * vx + ry * vy + rz * vz + baseElev;
+      pcPts.push(u, e, col ? col[o] : 180, col ? col[o + 1] : 180, col ? col[o + 2] : 180);
+      if (u < umin) umin = u; if (u > umax) umax = u; if (e < emin) emin = e; if (e > emax) emax = e;
+    }
+  }
   DRAW._heavy = (performance.now() - t0) > 40;
-  DRAW.geom = segs.length
-    ? { segs, pts, bbox: { umin, umax, emin, emax }, axisElev: baseElev, count: segs.length / 2 }
-    : { segs: [], pts: [], bbox: null, axisElev: baseElev, count: 0 };
+  const hasContent = segs.length || pcPts.length;
+  DRAW.geom = hasContent
+    ? { segs, pts, pcPts, bbox: { umin, umax, emin, emax }, axisElev: baseElev, count: segs.length / 2, pcCount: pcPts.length / 5 }
+    : { segs: [], pts: [], pcPts: [], bbox: null, axisElev: baseElev, count: 0, pcCount: 0 };
 }
 
 /* --- inquadratura iniziale (fit) sulla bbox della sezione --- */
@@ -6453,11 +6786,39 @@ function _drawSetReadout(ue) {
 }
 
 /* --- rendering statico (griglia + assi + linee di taglio) --- */
+/* Rende la fetta di nuvola su un canvas offscreen e la restituisce come <image> SVG
+   (incorporata DIETRO griglia e linee di taglio). Canvas + ImageData: regge decine di
+   migliaia di punti senza creare elementi SVG (che sarebbero ingestibili). */
+let _s2dPcCv = null;
+function _s2dPx(data, W, H, x, y, r, g, b) {
+  if (x < 0 || x >= W || y < 0 || y >= H) return;
+  const k = (y * W + x) * 4; data[k] = r; data[k + 1] = g; data[k + 2] = b; data[k + 3] = 255;
+}
+function _s2dPcImage(W, H) {
+  const g = DRAW.geom;
+  if (!g || !g.pcCount || !DRAW.view || W < 1 || H < 1) return "";
+  if (!_s2dPcCv) _s2dPcCv = document.createElement("canvas");
+  _s2dPcCv.width = W; _s2dPcCv.height = H;
+  const ctx = _s2dPcCv.getContext("2d");
+  const img = ctx.createImageData(W, H), data = img.data;
+  const pc = g.pcPts, sc = DRAW.view.scale, ox = DRAW.view.ox, oy = DRAW.view.oy;
+  for (let i = 0; i < pc.length; i += 5) {
+    const x = (ox + pc[i] * sc) | 0, y = (oy - pc[i + 1] * sc) | 0;
+    const r = pc[i + 2], gg = pc[i + 3], b = pc[i + 4];
+    _s2dPx(data, W, H, x, y, r, gg, b);                 // 2×2 per un punto ben visibile
+    _s2dPx(data, W, H, x + 1, y, r, gg, b);
+    _s2dPx(data, W, H, x, y + 1, r, gg, b);
+    _s2dPx(data, W, H, x + 1, y + 1, r, gg, b);
+  }
+  ctx.putImageData(img, 0, 0);
+  return `<image x="0" y="0" width="${W}" height="${H}" href="${_s2dPcCv.toDataURL()}" preserveAspectRatio="none"/>`;
+}
+
 function renderSection2D() {
   const host = $("s2dChart"); if (!host) return;
   if (!DRAW.view) _drawFit();
   const W = host.clientWidth || 320, H = host.clientHeight || 220, g = DRAW.geom;
-  if (!g || !g.count) {
+  if (!g || (!g.count && !g.pcCount)) {
     host.innerHTML = `<svg viewBox="0 0 ${W} ${H}"><text class="s2d-empty" x="${W / 2}" y="${H / 2}" text-anchor="middle">${tr('sec2d.nodata')}</text></svg>`;
     _drawSetReadout(); return;
   }
@@ -6474,7 +6835,7 @@ function renderSection2D() {
   /* linee di taglio: un solo path con tanti sotto-tratti M..L.. */
   const segs = g.segs; let d = "";
   for (let i = 0; i < segs.length; i += 4) d += "M" + _s2dP2x(segs[i]).toFixed(1) + " " + _s2dP2y(segs[i + 1]).toFixed(1) + "L" + _s2dP2x(segs[i + 2]).toFixed(1) + " " + _s2dP2y(segs[i + 3]).toFixed(1);
-  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}"><g class="s2d-grid">${grid}</g>${axis}<path class="s2d-seg" d="${d}"/>${ticks}<g id="s2dOverlay"></g></svg>`;
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${_s2dPcImage(W, H)}<g class="s2d-grid">${grid}</g>${axis}<path class="s2d-seg" d="${d}"/>${ticks}<g id="s2dOverlay"></g></svg>`;
   _s2dRenderOverlay();
   _drawSetReadout(DRAW.hover);                 // ripristina hint/coordinate (evita "nodata" residuo)
 }
