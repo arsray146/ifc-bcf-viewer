@@ -5035,7 +5035,18 @@ function _spApply() {
 /* posiziona il piano parallelo a una faccia: punto = hit, normale = normale world della faccia */
 function setSectionPlaneAt(P, N) {
   SECPL.P = P.clone(); SECPL.N = N.clone().normalize();
-  _spComputeBasis(); _spVisual(); _spApply();
+  _spComputeBasis();
+  /* Anti-mirror: la sezione 2D del piano risultava specchiata rispetto alla sezione
+     asse. La causa è il segno della normale: la sezione asse ha la tangente sempre
+     coerente (U = n×V, sguardo "dentro lo schermo"), mentre qui N è la normale della
+     faccia cliccata, che punta SEMPRE verso la camera (clicchi la faccia che vedi) →
+     U = N×V invertito. Allineiamo alla convenzione della sezione asse orientando N
+     "dentro lo schermo": se al posizionamento N punta verso la camera, invertiamo U
+     una sola volta. Stabile in orbita; non tocca clipping (usa N/side) né il quad
+     visivo (simmetrico in ±U); _spComputeBasis è chiamato solo qui, non lo annulla. */
+  const camDir = camera.getWorldDirection(new THREE.Vector3());
+  if (SECPL.N.dot(camDir) < 0) SECPL.U.negate();
+  _spVisual(); _spApply();
   _secDrawSync();
 }
 
