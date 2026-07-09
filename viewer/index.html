@@ -124,36 +124,40 @@ html[data-theme="light"] .thm .moon{display:none}
 html:not([data-theme="light"]) .thm .sun{display:none}
 
 /* ---------- layout ---------- */
-main{flex:1;display:grid;grid-template-columns:340px 1fr;min-height:0}
-main.with-detail{grid-template-columns:340px 1fr var(--detail-w,390px)}
+main{flex:1;display:grid;grid-template-columns:var(--left-w,340px) 1fr;min-height:0}
+main.with-detail{grid-template-columns:var(--left-w,340px) 1fr var(--detail-w,390px)}
 main.left-off{grid-template-columns:1fr}
 main.left-off.with-detail{grid-template-columns:1fr var(--detail-w,390px)}
 main.left-off #leftPanel{display:none}
 /* dettaglio collassato: la 3ª colonna scompare ma il contenuto è conservato */
-main.with-detail.detail-collapsed{grid-template-columns:340px 1fr}
+main.with-detail.detail-collapsed{grid-template-columns:var(--left-w,340px) 1fr}
 main.left-off.with-detail.detail-collapsed{grid-template-columns:1fr}
 main.with-detail.detail-collapsed #detailPanel{display:none}
 
 /* finestre strette: riduco le larghezze fisse dei pannelli così il viewport
    centrale (e la sua toolbar) mantiene spazio utilizzabile.                */
 @media(max-width:1100px){
-  main{grid-template-columns:288px 1fr}
-  main.with-detail{grid-template-columns:288px 1fr var(--detail-w,320px)}
+  main{grid-template-columns:var(--left-w,288px) 1fr}
+  main.with-detail{grid-template-columns:var(--left-w,288px) 1fr var(--detail-w,320px)}
   main.left-off.with-detail{grid-template-columns:1fr var(--detail-w,320px)}
-  main.with-detail.detail-collapsed{grid-template-columns:288px 1fr}
+  main.with-detail.detail-collapsed{grid-template-columns:var(--left-w,288px) 1fr}
   main.left-off #toolbar,
   main.with-detail.detail-collapsed #toolbar,
   main.left-off.with-detail.detail-collapsed #toolbar{max-width:calc(100% - 260px)}
 }
 @media(max-width:820px){
-  main{grid-template-columns:252px 1fr}
-  main.with-detail{grid-template-columns:252px 1fr var(--detail-w,288px)}
+  main{grid-template-columns:var(--left-w,252px) 1fr}
+  main.with-detail{grid-template-columns:var(--left-w,252px) 1fr var(--detail-w,288px)}
   main.left-off.with-detail{grid-template-columns:1fr var(--detail-w,288px)}
-  main.with-detail.detail-collapsed{grid-template-columns:252px 1fr}
+  main.with-detail.detail-collapsed{grid-template-columns:var(--left-w,252px) 1fr}
 }
 
 /* ---------- sidebar sinistra ---------- */
-#leftPanel{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+#leftPanel{position:relative;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.left-resize{position:absolute;right:-3px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:7;touch-action:none}
+.left-resize::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:2px;height:30px;border-radius:2px;background:var(--line-2)}
+.left-resize:hover::after{background:var(--lime-deep);height:46px}
+main.left-off .left-resize{display:none}
 .panel-head{padding:13px 15px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
 .panel-head h2{font-family:var(--disp);font-weight:700;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:7px}
 .panel-head h2::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--lime)}
@@ -243,8 +247,8 @@ main.with-detail.detail-collapsed #detailPanel{display:none}
 .tree-more:hover{text-decoration:underline}
 
 /* issues */
-#issueSearch,#reportSearch{width:100%;margin-top:9px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--text);font:inherit;font-size:13px;padding:6px 10px}
-#issueSearch:focus,#reportSearch:focus{outline:none;border-color:var(--lime-deep)}
+#issueSearch,#reportSearch,#idsSearch{width:100%;margin-top:9px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--text);font:inherit;font-size:13px;padding:6px 10px}
+#issueSearch:focus,#reportSearch:focus,#idsSearch:focus{outline:none;border-color:var(--lime-deep)}
 .only-loaded{display:flex;align-items:center;gap:7px;margin-top:9px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none}
 .only-loaded input{accent-color:var(--lime-deep)}
 .hidden-issues-note{font-family:var(--mono);font-size:11px;color:var(--faint);padding:4px 8px 8px;border-bottom:1px dashed var(--line);margin-bottom:6px}
@@ -268,8 +272,8 @@ main.with-detail.detail-collapsed #detailPanel{display:none}
 .d-statusrow .d-type{font-family:var(--mono);font-size:11px;color:var(--muted)}
 #issueList{flex:1;overflow-y:auto;padding:9px}
 #issueModeBar{display:flex;padding:8px 8px 0;flex:0 0 auto}
-#bcfPane,#reportPane{flex:1;display:flex;flex-direction:column;min-height:0}
-#reportList{flex:1;overflow-y:auto;padding:9px}
+#bcfPane,#reportPane,#idsPane{flex:1;display:flex;flex-direction:column;min-height:0}
+#reportList,#idsList{flex:1;overflow-y:auto;padding:9px}
 #repStats{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:6px}
 /* statistiche report (v1.7.6) */
 #reportActions{margin-top:9px}
@@ -313,6 +317,34 @@ main.with-detail.detail-collapsed #detailPanel{display:none}
 .issue-card .title{font-weight:600;font-size:13px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .issue-card .meta{margin-top:5px;font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
 .empty-note{color:var(--faint);font-size:12.5px;padding:16px 14px;line-height:1.6}
+/* ---- controlli IDS (feature/ids-checks) ---- */
+.ids-head{width:100%}
+.ids-title-row{display:flex;align-items:center;gap:8px}
+.ids-doc-title{flex:1;font-family:var(--disp);font-weight:700;font-size:14px;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ids-doc-title:empty::before{content:"IDS";color:var(--faint)}
+.ids-doc-meta{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:4px}
+.ids-doc-meta:empty{display:none}
+.ids-summary{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px}
+.ids-summary:empty{display:none}
+.ids-summary b{font-weight:700}
+.issue-card.ids{grid-template-columns:4px 1fr}
+.ids-desc{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px}
+.ids-fail-h{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin:6px 0 4px}
+.ids-el{border-bottom:1px solid var(--line)}
+.ids-el .rc-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ids-el .rc-model{color:var(--faint);font-family:var(--mono);font-size:10.5px}
+.ids-reasons{margin:0 0 6px;padding:2px 8px 4px 26px;list-style:disc}
+.ids-reasons li{font-size:11.5px;line-height:1.5;margin:2px 0;color:var(--muted)}
+.ids-reasons li.bad{color:#C0392B}
+.ids-export{margin-top:9px}
+.ids-export button{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:7px 10px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);color:var(--text);cursor:pointer}
+.ids-export button:hover:not(:disabled){border-color:var(--lime-deep)}
+.ids-export button:disabled{opacity:.5;cursor:not-allowed}
+.ids-run{width:100%;margin-top:9px;padding:8px 12px;border:1px solid var(--lime-deep);border-radius:6px;background:var(--lime);color:#1a1f12;font-family:var(--disp);font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.ids-run:hover:not(:disabled){background:var(--lime-deep)}
+.ids-run:disabled{opacity:.55;cursor:not-allowed;background:var(--panel-2);color:var(--muted);border-color:var(--line)}
+.ids-run .spin{width:13px;height:13px;border:2px solid rgba(0,0,0,.28);border-top-color:#1a1f12;border-radius:50%;animation:idsspin .7s linear infinite}
+@keyframes idsspin{to{transform:rotate(360deg)}}
 
 /* ---------- viewport ---------- */
 #viewportWrap{position:relative;min-width:0;background:var(--canvas)}
@@ -747,10 +779,12 @@ input[type=file]{display:none}
   <input type="file" id="fileBcf" accept=".bcf,.bcfzip,.zip,.xlsx,.xlsm">
   <input type="file" id="fileLxml" accept=".xml,.landxml">
   <input type="file" id="filePc" accept=".las,.laz,.e57" multiple>
+  <input type="file" id="fileIds" accept=".ids">
 </header>
 
 <main id="main">
   <aside id="leftPanel">
+    <div class="left-resize" id="leftResize" data-i18n-title="detail.resize" title="Trascina per ridimensionare il pannello"></div>
     <div id="leftTabs">
       <button class="ltab on" data-tab="models"><span data-i18n="tab.models">Modelli</span> <span class="tbadge" id="tabModelsCount">0</span></button>
       <button class="ltab" data-tab="issues"><span data-i18n="tab.issues">Issues</span> <span class="tbadge" id="tabIssuesCount">0</span></button>
@@ -776,6 +810,7 @@ input[type=file]{display:none}
       <div id="issueModeBar">
         <button class="tmode on" data-imode="bcf" data-i18n-title="title.bcfMode" title="Issues da file BCF (.bcf/.bcfzip)">BCF <span class="tbadge" id="bcfModeCount">0</span></button>
         <button class="tmode" data-imode="report" data-i18n-title="title.reportMode" title="Issues da report di verifica Solibri (.xlsx Checking Summary)">Report <span class="tbadge" id="repModeCount">0</span></button>
+        <button class="tmode" data-imode="ids" data-i18n-title="title.idsMode" title="Verifica requisiti informativi da file IDS (buildingSMART)">IDS <span class="tbadge" id="idsModeCount">0</span></button>
       </div>
       <div id="bcfPane">
         <div class="panel-head">
@@ -810,6 +845,29 @@ input[type=file]{display:none}
         </div>
         <div id="reportList">
           <div class="empty-note" data-i18n-html="empty.noReport">Nessun report caricato.<br>Carica un file <b>.xlsx</b> Checking Summary esportato da Solibri (Issue + Components + Model).</div>
+        </div>
+      </div>
+      <div id="idsPane" style="display:none">
+        <div class="panel-head">
+          <div class="ids-head">
+            <div class="ids-title-row">
+              <span id="idsTitle" class="ids-doc-title"></span>
+              <button id="btnIds" class="pc-add" data-i18n-title="ids.load" title="Carica file IDS (.ids)">＋</button>
+            </div>
+            <div id="idsMeta" class="ids-doc-meta"></div>
+          </div>
+          <input id="idsSearch" type="text" data-i18n-ph="ph.searchIds" placeholder="Cerca per specifica, requisito…">
+          <div id="idsSources" class="src-strip"></div>
+          <button id="btnIdsRun" class="ids-run" data-i18n="ids.run">▶ Esegui verifica</button>
+          <div id="idsSummary" class="ids-summary"></div>
+          <div id="idsChips"></div>
+          <div id="idsExportBar" class="ids-export" style="display:none">
+            <!-- Predisposizione fase 2: export delle non conformità come issue BCF -->
+            <button id="btnIdsExportBcf" data-i18n="ids.exportBcf" data-i18n-title="ids.exportBcfT" title="Disponibile in una prossima versione" disabled>⤓ Esporta non conformità (BCF)</button>
+          </div>
+        </div>
+        <div id="idsList">
+          <div class="empty-note" data-i18n-html="empty.noIds">Nessun IDS caricato.<br>Carica un file <b>.ids</b> (buildingSMART) per verificare i requisiti informativi sui modelli aperti.</div>
         </div>
       </div>
     </div>
@@ -887,7 +945,7 @@ input[type=file]{display:none}
   <div class="lp-wrap">
     <div class="lp-hero">
       <div class="lp-copy">
-        <div class="lp-chip lp-in"><span class="pulse"></span><span><b>v2.2</b>&nbsp;·&nbsp;<span data-i18n="lp.chip">Tema scuro con toggle è online</span></span></div>
+        <div class="lp-chip lp-in"><span class="pulse"></span><span><b>v2.4</b>&nbsp;·&nbsp;<span data-i18n="lp.chip">Tema scuro con toggle è online</span></span></div>
         <h1 class="lp-h1 lp-in" style="--d:.06s"><span data-i18n="lp.h1a">Esplora. Verifica.</span><br><span data-i18n="lp.h1b">Costruisci </span><span class="accent" data-i18n="lp.h1c">meglio.</span></h1>
         <p class="lp-sub lp-in" style="--d:.12s" data-i18n="lp.sub">Il viewer BIM per IFC e BCF. Visualizza i modelli, coordina le issue ed edita i parametri direttamente nel 3D.</p>
         <div class="lp-cta lp-in" style="--d:.18s">
@@ -1007,10 +1065,11 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { parseLASHeader, parseLASPoints } from "./las.js";   // studio import PointCloud (LAS)
 import { parseE57, e57PointCount } from "./e57.js";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js";             // feature Controlli IDS
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================ stato globale ============================ */
-const APP_VERSION = "2.3.0";
+const APP_VERSION = "2.4.0";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN (v1.8.0) ============================ */
@@ -1041,6 +1100,47 @@ const STRINGS = {
     "empty.noBcf": "Nessun BCF caricato.<br>Carica un file <b>.bcf / .bcfzip</b> esportato da Solibri per popolare il registro.",
     "btn.reportStats": "📊 Statistiche", "title.reportStats": "Statistiche aggregate del report: gravità, ruleset, regole, modelli e Classe",
     "empty.noReport": "Nessun report caricato.<br>Carica un file <b>.xlsx</b> Checking Summary esportato da Solibri (Issue + Components + Model).",
+    "title.idsMode": "Verifica requisiti informativi da file IDS (buildingSMART)",
+    "ph.searchIds": "Cerca per specifica, requisito…",
+    "empty.noIds": "Nessun IDS caricato.<br>Carica un file <b>.ids</b> (buildingSMART) per verificare i requisiti informativi sui modelli aperti.",
+    "ids.load": "Carica file IDS (.ids)",
+    "ids.remove": "Rimuovi l'IDS caricato",
+    "ids.running": "Verifica IDS in corso…",
+    "ids.run": "▶ Esegui verifica",
+    "ids.rerun": "↻ Riesegui verifica",
+    "ids.checking": "Verifica in corso…",
+    "ids.pressRun": "Premi «Esegui verifica» per controllare i modelli aperti.",
+    "ids.noModels": "Carica almeno un modello IFC per eseguire la verifica IDS.",
+    "ids.noMatch": "Nessuna specifica corrisponde ai filtri.",
+    "ids.untitled": "IDS senza titolo",
+    "ids.untitledSpec": "(specifica senza nome)",
+    "ids.nspec": "{n} specifiche",
+    "ids.applN": "{n} applicabili",
+    "ids.passN": "{n} conformi",
+    "ids.failN": "{n} non conformi",
+    "ids.fFail": "Non conformi", "ids.fPass": "Conformi", "ids.fNa": "Non applicabili",
+    "ids.pass": "Conforme", "ids.fail": "Non conforme", "ids.na": "Non applicabile",
+    "ids.detailTitle": "Specifica IDS",
+    "ids.failList": "Elementi non conformi",
+    "ids.allPass": "Tutti gli elementi applicabili sono conformi. ✓",
+    "ids.notApplicable": "Nessun elemento applicabile nei modelli caricati.",
+    "ids.clickIsolate": "Clic: isola e inquadra l'elemento",
+    "ids.specHint": "IDS · {name}: {fail} non conformi su {appl} applicabili",
+    "ids.rMissing": "Manca: {label}",
+    "ids.rProhibited": "Presente ma vietato: {label}",
+    "ids.rBadValue": "{label}: valore «{got}» non ammesso (atteso: {expected})",
+    "ids.exportBcf": "⤓ Esporta non conformità (BCF)",
+    "ids.exportBcfT": "Esporta le non conformità come file BCF (.bcf), una issue per specifica",
+    "ids.bcfDesc": "Verifica IDS non superata — {n} elementi non conformi. Motivi:",
+    "ids.bcfBuilding": "Creazione BCF in corso…",
+    "ids.bcfSnap": "Cattura anteprime… ({i}/{n})",
+    "ids.bcfElemsHdr": "Elementi non conformi:",
+    "ids.bcfMore": "… e altri {n}",
+    "ids.bcfExported": "BCF creato: {n} issue scaricate.",
+    "ids.bcfNoFail": "Nessuna non conformità da esportare.",
+    "toast.idsLoaded": "IDS «{f}» caricato: {n} specifiche.",
+    "toast.idsErr": "Errore lettura IDS: {e}",
+    "toast.idsUnloaded": "IDS rimosso.",
     "btn.panel": "» Pannello", "title.panel": "Mostra il pannello laterale",
     "btn.detailReopen": "« Dettagli", "title.detailReopen": "Mostra il pannello dettagli",
     "title.collapseDetail": "Comprimi il pannello dettagli",
@@ -1050,7 +1150,7 @@ const STRINGS = {
     "navHelp": "Orbita: tasto sx &nbsp;·&nbsp; Pan: rotella premuta &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× clic rotella: zoom esteso",
     "drop.big": "Trascina qui i file IFC e BCF",
     "drop.small": "Oppure usa i pulsanti in alto. Clic su un elemento nel 3D per leggerne le proprietà, <kbd>Esc</kbd> per deselezionare. Doppio clic su un modello in elenco per inquadrarlo.",
-    "lp.chip": "Tema scuro con toggle è online",
+    "lp.chip": "I controlli IDS sono online",
     "lp.h1a": "Esplora. Verifica.", "lp.h1b": "Costruisci ", "lp.h1c": "meglio.",
     "lp.sub": "Il viewer BIM per IFC e BCF. Visualizza i modelli, coordina le issue ed edita i parametri direttamente nel 3D.",
     "lp.ctaIfc": "Carica IFC", "lp.ctaIfcSub": "Supporta IFC2x3, IFC4, IFC4x3",
@@ -1196,7 +1296,7 @@ const STRINGS = {
     "toast.bcfExported": "{nt} stati scritti · {nf} file BCF scaricati.",
     "toast.dxfOk": "Sezione esportata in DXF.",
     "toast.dxfNodata": "Nessuna sezione da esportare.",
-    "toast.unknownFormat": "Formato non riconosciuto: trascina file .ifc, .bcf/.bcfzip, report .xlsx o nuvole .las/.e57.",
+    "toast.unknownFormat": "Formato non riconosciuto: trascina file .ifc, .bcf/.bcfzip, report .xlsx, nuvole .las/.e57 o specifiche .ids.",
     "ft.reportFound": "Report «{name}» — componenti trovati {found}/{tot}",
     "ft.noModelForReport": "Nessun modello IFC caricato: la issue è visibile solo come scheda.",
     "ft.issueFound": "Issue «{title}» — elementi trovati {found}/{tot}",
@@ -1268,6 +1368,47 @@ const STRINGS = {
     "empty.noBcf": "No BCF loaded.<br>Load a <b>.bcf / .bcfzip</b> file exported from Solibri to populate the register.",
     "btn.reportStats": "📊 Statistics", "title.reportStats": "Aggregate report statistics: severity, ruleset, rules, models and Classe",
     "empty.noReport": "No report loaded.<br>Load a <b>.xlsx</b> Checking Summary exported from Solibri (Issue + Components + Model).",
+    "title.idsMode": "Check information requirements from an IDS file (buildingSMART)",
+    "ph.searchIds": "Search by specification, requirement…",
+    "empty.noIds": "No IDS loaded.<br>Load an <b>.ids</b> file (buildingSMART) to check information requirements against the open models.",
+    "ids.load": "Load IDS file (.ids)",
+    "ids.remove": "Remove the loaded IDS",
+    "ids.running": "Running IDS check…",
+    "ids.run": "▶ Run check",
+    "ids.rerun": "↻ Re-run check",
+    "ids.checking": "Checking…",
+    "ids.pressRun": "Press “Run check” to check the open models.",
+    "ids.noModels": "Load at least one IFC model to run the IDS check.",
+    "ids.noMatch": "No specification matches the filters.",
+    "ids.untitled": "Untitled IDS",
+    "ids.untitledSpec": "(unnamed specification)",
+    "ids.nspec": "{n} specifications",
+    "ids.applN": "{n} applicable",
+    "ids.passN": "{n} pass",
+    "ids.failN": "{n} fail",
+    "ids.fFail": "Fail", "ids.fPass": "Pass", "ids.fNa": "Not applicable",
+    "ids.pass": "Pass", "ids.fail": "Fail", "ids.na": "Not applicable",
+    "ids.detailTitle": "IDS specification",
+    "ids.failList": "Non-conforming elements",
+    "ids.allPass": "All applicable elements pass. ✓",
+    "ids.notApplicable": "No applicable element in the loaded models.",
+    "ids.clickIsolate": "Click: isolate and frame the element",
+    "ids.specHint": "IDS · {name}: {fail} failing of {appl} applicable",
+    "ids.rMissing": "Missing: {label}",
+    "ids.rProhibited": "Present but prohibited: {label}",
+    "ids.rBadValue": "{label}: value “{got}” not allowed (expected: {expected})",
+    "ids.exportBcf": "⤓ Export non-conformities (BCF)",
+    "ids.exportBcfT": "Export non-conformities as a BCF file (.bcf), one topic per specification",
+    "ids.bcfDesc": "IDS check failed — {n} non-conforming elements. Reasons:",
+    "ids.bcfBuilding": "Building BCF…",
+    "ids.bcfSnap": "Capturing snapshots… ({i}/{n})",
+    "ids.bcfElemsHdr": "Non-conforming elements:",
+    "ids.bcfMore": "… and {n} more",
+    "ids.bcfExported": "BCF created: {n} topics downloaded.",
+    "ids.bcfNoFail": "No non-conformity to export.",
+    "toast.idsLoaded": "IDS “{f}” loaded: {n} specifications.",
+    "toast.idsErr": "Error reading IDS: {e}",
+    "toast.idsUnloaded": "IDS removed.",
     "btn.panel": "» Panel", "title.panel": "Show the side panel",
     "btn.detailReopen": "« Details", "title.detailReopen": "Show the details panel",
     "title.collapseDetail": "Collapse the details panel",
@@ -1277,7 +1418,7 @@ const STRINGS = {
     "navHelp": "Orbit: left button &nbsp;·&nbsp; Pan: wheel pressed &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× wheel click: zoom to fit",
     "drop.big": "Drag IFC and BCF files here",
     "drop.small": "Or use the buttons above. Click an element in 3D to read its properties, <kbd>Esc</kbd> to deselect. Double-click a model in the list to frame it.",
-    "lp.chip": "Dark theme with toggle is live",
+    "lp.chip": "IDS checks are now live",
     "lp.h1a": "Explore. Review.", "lp.h1b": "Build ", "lp.h1c": "better.",
     "lp.sub": "The BIM viewer for IFC and BCF. Visualize models, coordinate issues and edit parameters right in the 3D view.",
     "lp.ctaIfc": "Upload IFC", "lp.ctaIfcSub": "Supports IFC2x3, IFC4, IFC4x3",
@@ -1416,7 +1557,7 @@ const STRINGS = {
     "toast.bcfExported": "{nt} statuses written · {nf} BCF files downloaded.",
     "toast.dxfOk": "Section exported to DXF.",
     "toast.dxfNodata": "No section to export.",
-    "toast.unknownFormat": "Unrecognized format: drag .ifc, .bcf/.bcfzip, .xlsx report or .las/.e57 point-cloud files.",
+    "toast.unknownFormat": "Unrecognized format: drag .ifc, .bcf/.bcfzip, .xlsx report, .las/.e57 point clouds or .ids specifications.",
     "ft.reportFound": "Report «{name}» — components found {found}/{tot}",
     "ft.noModelForReport": "No IFC model loaded: the issue is visible only as a card.",
     "ft.issueFound": "Issue «{title}» — elements found {found}/{tot}",
@@ -1484,6 +1625,7 @@ function refreshDynamicI18n() {
   /* ri-renderizza le superfici dinamiche aperte dopo un cambio lingua */
   try { renderStatusChips(); renderSevChips(); } catch (e) {}
   try { renderIssueList(); renderReportList(); } catch (e) {}
+  try { renderIdsChips(); renderIdsList(); } catch (e) {}
   try { if (models.length) renderModelList(); } catch (e) {}   /* tooltip e conteggi delle righe modello */
   try { updateNavHelp(); } catch (e) {}
   if (typeof statsOpen !== "undefined" && statsOpen) { try { openReportStats(); } catch (e) {} }
@@ -1527,7 +1669,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x262b24);   /* sincronizzato col token --canvas da applyTheme() */
 const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 50000);
 camera.position.set(40, 30, 40);
-const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true, preserveDrawingBuffer: true }); // preserveDrawingBuffer: consente la cattura canvas→PNG per gli snapshot BCF
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 vpEl.appendChild(renderer.domElement);
 
@@ -1808,6 +1950,7 @@ function buildModel(data, name) {
     mModelIfc, A: A.clone(), unitFactor, geoInfo: describeGeoref(geo),
     guidByExpress: new Map(), expressByGuid: new Map(), typeByExpress: new Map(),
     psetMap: null, typeOfElem: null, typePsetIds: null,
+    classMap: null, materialMap: null, partOfMap: null,   // indici IDS (classificazioni/materiali/partOf), lazy
     alignObjs: null,
     dirty: false, edits: []
   };
@@ -1864,6 +2007,7 @@ function buildModel(data, name) {
   }
   models.push(model);
   classeCache.clear();   // i nuovi GUID possono ora risolvere la Classe (v1.7.6)
+  idsInvalidate();       // l'universo elementi è cambiato: l'esito IDS va ricalcolato
   prewarmModel(model);  // v1.9.4 — costruisce le mappe pset/type in background (idle),
                         // così la PRIMA selezione non paga la scansione del modello
   try { extractAlignments(model, data); } catch (e) { console.warn("alignment:", e); } // v1.9.7
@@ -2154,6 +2298,7 @@ function removeModel(model) {
   const i = models.indexOf(model);
   if (i >= 0) models.splice(i, 1);
   classeCache.clear();   // la risoluzione Classe dipende dai modelli presenti (v1.7.6)
+  idsInvalidate();       // l'universo elementi è cambiato: l'esito IDS va ricalcolato
   updateAlignUI();       // il bottone Asse dipende anche da models.length (LandXML, v2.1.0)
   if (!models.length && !PCLOUD.sources.length) {
     /* federazione vuota: il prossimo caricamento ridefinisce origine e riferimento BCF.
@@ -3079,6 +3224,183 @@ function getElementInfo(model, eid) {
   return info;
 }
 
+/* ============================ controlli IDS — lettura modello ============================
+   Unica parte legata a web-ifc: costruisce la "vista" normalizzata di un elemento (shape in
+   viewer/ids.js) e gli indici classificazioni/materiali/partOf. ids.js resta puro e
+   data-driven: qui NON c'è logica specifica di pset/proprietà. */
+
+const _ifcTypeName = (line) => {
+  let t = ""; try { t = ifcApi.GetNameFromTypeCode ? ifcApi.GetNameFromTypeCode(line.type) : ""; } catch (e) {}
+  return (t || ("IFC" + line.type)).toUpperCase();
+};
+
+/* eid → [{system, value}] da IfcRelAssociatesClassification */
+function ensureClassMap(model) {
+  if (model.classMap) return;
+  model.classMap = new Map();
+  try {
+    const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELASSOCIATESCLASSIFICATION);
+    for (let i = 0; i < rels.size(); i++) {
+      try {
+        const rel = ifcApi.GetLine(model.modelID, rels.get(i));
+        const cid = rel.RelatingClassification && rel.RelatingClassification.value;
+        if (!cid || !rel.RelatedObjects) continue;
+        const info = _classRefInfo(model, cid);
+        for (const ro of rel.RelatedObjects) {
+          if (!model.classMap.has(ro.value)) model.classMap.set(ro.value, []);
+          model.classMap.get(ro.value).push(info);
+        }
+      } catch (e) { /* skip rel */ }
+    }
+  } catch (e) { /* schema senza classificazioni */ }
+}
+function _classRefInfo(model, refId) {
+  let value = "", system = "";
+  try {
+    const ref = ifcApi.GetLine(model.modelID, refId);
+    value = unwrap(ref.Identification) || unwrap(ref.ItemReference) || unwrap(ref.Name) || "";
+    let srcId = ref.ReferencedSource && ref.ReferencedSource.value, guard = 0;
+    while (srcId && guard++ < 8) {                 // risali la catena fino a IfcClassification (radice)
+      const s = ifcApi.GetLine(model.modelID, srcId);
+      const nm = unwrap(s.Name);
+      if (s.ReferencedSource && s.ReferencedSource.value) { srcId = s.ReferencedSource.value; if (nm) system = nm; }
+      else { if (nm) system = nm; break; }
+    }
+    if (!system) system = unwrap(ref.Name) || "";
+  } catch (e) { /* ref illeggibile */ }
+  return { system, value };
+}
+
+/* eid → [nomi materiale] da IfcRelAssociatesMaterial (Material/List/LayerSet(Usage)/Profile/Constituent) */
+function ensureMaterialMap(model) {
+  if (model.materialMap) return;
+  model.materialMap = new Map();
+  try {
+    const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELASSOCIATESMATERIAL);
+    for (let i = 0; i < rels.size(); i++) {
+      try {
+        const rel = ifcApi.GetLine(model.modelID, rels.get(i));
+        const mid = rel.RelatingMaterial && rel.RelatingMaterial.value;
+        if (!mid || !rel.RelatedObjects) continue;
+        const names = _materialNames(model, mid, 0);
+        for (const ro of rel.RelatedObjects) {
+          if (!model.materialMap.has(ro.value)) model.materialMap.set(ro.value, []);
+          const bag = model.materialMap.get(ro.value);
+          for (const nm of names) if (nm && !bag.includes(nm)) bag.push(nm);
+        }
+      } catch (e) { /* skip */ }
+    }
+  } catch (e) { /* schema senza materiali */ }
+}
+function _materialNames(model, id, depth) {
+  const out = [];
+  if (depth > 6) return out;
+  let m; try { m = ifcApi.GetLine(model.modelID, id); } catch (e) { return out; }
+  const tn = _ifcTypeName(m);
+  const descend = (arr) => { if (!arr) return; for (const x of arr) { const k = x && (x.value !== undefined ? x.value : x.expressID); if (k !== undefined) for (const nm of _materialNames(model, k, depth + 1)) out.push(nm); } };
+  const one = (h) => { const k = h && h.value; if (k !== undefined) for (const nm of _materialNames(model, k, depth + 1)) out.push(nm); };
+  if (tn === "IFCMATERIAL") { const s = unwrap(m.Name); if (s) out.push(s); }
+  else if (tn === "IFCMATERIALLIST") descend(m.Materials);
+  else if (tn === "IFCMATERIALLAYERSETUSAGE") one(m.ForLayerSet);
+  else if (tn === "IFCMATERIALLAYERSET") descend(m.MaterialLayers);
+  else if (tn === "IFCMATERIALLAYER") one(m.Material);
+  else if (tn === "IFCMATERIALPROFILESETUSAGE") one(m.ForProfileSet);
+  else if (tn === "IFCMATERIALPROFILESET") descend(m.MaterialProfiles);
+  else if (tn === "IFCMATERIALPROFILE") one(m.Material);
+  else if (tn === "IFCMATERIALCONSTITUENTSET") descend(m.MaterialConstituents);
+  else if (tn === "IFCMATERIALCONSTITUENT") one(m.Material);
+  else { const s = unwrap(m.Name); if (s) out.push(s); }   // fallback: entità con Name
+  return [...new Set(out)];
+}
+
+/* eid → [{relation, wholeType, wholePredefinedType}] */
+function ensurePartOfMap(model) {
+  if (model.partOfMap) return;
+  model.partOfMap = new Map();
+  const wcache = new Map();
+  const winfo = (id) => {
+    if (wcache.has(id)) return wcache.get(id);
+    let info = { wholeType: "", wholePredefinedType: "" };
+    try { const w = ifcApi.GetLine(model.modelID, id); info = { wholeType: _ifcTypeName(w), wholePredefinedType: unwrap(w.PredefinedType) || "" }; } catch (e) {}
+    wcache.set(id, info); return info;
+  };
+  const scan = (typeCode, relation, wf, pf) => {
+    if (typeof typeCode !== "number") return;
+    try {
+      const rels = ifcApi.GetLineIDsWithType(model.modelID, typeCode);
+      for (let i = 0; i < rels.size(); i++) {
+        try {
+          const rel = ifcApi.GetLine(model.modelID, rels.get(i));
+          const w = rel[wf] && rel[wf].value; const parts = rel[pf];
+          if (!w || !parts) continue;
+          const info = winfo(w);
+          for (const ro of parts) {
+            if (!model.partOfMap.has(ro.value)) model.partOfMap.set(ro.value, []);
+            model.partOfMap.get(ro.value).push(Object.assign({ relation }, info));
+          }
+        } catch (e) { /* skip rel */ }
+      }
+    } catch (e) { /* tipo assente nello schema */ }
+  };
+  scan(WebIFC.IFCRELAGGREGATES, "IFCRELAGGREGATES", "RelatingObject", "RelatedObjects");
+  scan(WebIFC.IFCRELNESTS, "IFCRELNESTS", "RelatingObject", "RelatedObjects");
+  scan(WebIFC.IFCRELCONTAINEDINSPATIALSTRUCTURE, "IFCRELCONTAINEDINSPATIALSTRUCTURE", "RelatingStructure", "RelatedElements");
+  scan(WebIFC.IFCRELASSIGNSTOGROUP, "IFCRELASSIGNSTOGROUP", "RelatingGroup", "RelatedObjects");
+}
+
+/* elemento → vista normalizzata per ids.js (attributi diretti + pset istanza/Type + class/mat/partOf) */
+function buildElementView(model, eid) {
+  let line; try { line = ifcApi.GetLine(model.modelID, eid); } catch (e) { return null; }
+  const v = {
+    model, eid,
+    ifcType: _ifcTypeName(line),
+    predefinedType: unwrap(line.PredefinedType) || "",
+    name: unwrap(line.Name) || "",
+    globalId: unwrap(line.GlobalId) || "",
+    attributes: {}, psets: {}, classifications: [], materials: [], partOf: []
+  };
+  for (const k in line) {                          // solo attributi scalari (no handle type=5, no liste)
+    if (k === "expressID" || k === "type") continue;
+    const val = line[k];
+    if (val == null) { v.attributes[k] = ""; continue; }
+    if (typeof val === "object") { if (!Array.isArray(val) && "value" in val && val.type !== 5) v.attributes[k] = unwrap(val); }
+    else v.attributes[k] = String(val);
+  }
+  const addPset = (ps) => { const bag = v.psets[ps.name] || (v.psets[ps.name] = {}); for (const pr of ps.props) if (pr.k) bag[pr.k] = { value: pr.v, dataType: pr.tname || "" }; };
+  ensurePsetMap(model);
+  for (const pid of model.psetMap.get(eid) || []) { try { addPset(readPset(model, pid)); } catch (e) {} }
+  ensureTypeMap(model);
+  const tId = model.typeOfElem.get(eid);
+  if (tId !== undefined) for (const pid of model.typePsetIds.get(tId) || []) { try { addPset(readPset(model, pid)); } catch (e) {} }
+  ensureClassMap(model); for (const c of model.classMap.get(eid) || []) v.classifications.push(c);
+  ensureMaterialMap(model); for (const nm of model.materialMap.get(eid) || []) v.materials.push(nm);
+  ensurePartOfMap(model); for (const p of model.partOfMap.get(eid) || []) v.partOf.push(p);
+  return v;
+}
+
+/* universo candidati (geometrici ∪ con-pset ∪ istanze dei tipi entità citati dall'IDS) → viste */
+function buildIdsViews() {
+  if (idsViewsCache) return idsViewsCache;
+  const wantTypes = new Set();
+  const collectNames = (m) => { if (!m) return; if (m.kind === "simple" && m.value) wantTypes.add(m.value.toUpperCase()); else if (m.enumeration) for (const e of m.enumeration) if (e) wantTypes.add(String(e).toUpperCase()); };
+  if (idsDoc) for (const s of idsDoc.specs) for (const fs of [s.applicability.facets, s.requirements.facets]) for (const f of fs) {
+    if (f.type === "entity") collectNames(f.name);
+    if (f.type === "partOf" && f.entity) collectNames(f.entity.name);
+  }
+  const views = [];
+  for (const m of models) {
+    const cand = new Set(m.guidByExpress.keys());
+    ensurePsetMap(m); for (const eid of m.psetMap.keys()) cand.add(eid);
+    for (const tn of wantTypes) {
+      const code = WebIFC[tn];
+      if (typeof code === "number") { try { const ids = ifcApi.GetLineIDsWithType(m.modelID, code); for (let i = 0; i < ids.size(); i++) cand.add(ids.get(i)); } catch (e) {} }
+    }
+    for (const eid of cand) { const v = buildElementView(m, eid); if (v) views.push(v); }
+  }
+  idsViewsCache = views;
+  return views;
+}
+
 /* ============================ BCF 2.1 ============================ */
 const STATUS_COLORS = [
   [/(reopen|riapert)/i, "var(--st-open)"],
@@ -3321,6 +3643,18 @@ let activeReport = null;
 const sevFilter = new Set();
 let issueMode = "bcf";
 
+/* ===================== controlli IDS (feature/ids-checks) ===================== */
+let idsDoc = null;          // IDS caricato: { info, specs }
+let idsSource = null;       // { name } del file .ids caricato
+let idsResults = null;      // esito: evaluateIds(idsDoc, views)
+let idsViewsCache = null;   // viste elemento pre-costruite per run; invalidate al cambio modello
+let activeIdsSpec = null;   // risultato-spec aperto nel pannello dettagli
+const idsOutcomeFilter = new Set();   // filtro card per esito: 'fail' | 'pass' | 'na'
+function idsInvalidate() {
+  idsViewsCache = null; idsResults = null;
+  if (idsDoc && typeof renderIdsList === "function" && issueMode === "ids") { renderIdsChips(); renderIdsList(); }
+}
+
 const SEV_COLOR = { critical: "#C0392B", moderate: "#E0A100", low: "#3E7CB1", rejected: "#8E8E8E", other: "#7A7A7A" };
 function sevKeyOf(s) {
   s = (s || "").toLowerCase();
@@ -3424,9 +3758,11 @@ async function loadReport(file) {
 }
 
 function updateIssuesBadge() {
-  $("tabIssuesCount").textContent = topics.length + reportTopics.length;
+  const nIds = idsDoc ? idsDoc.specs.length : 0;
+  $("tabIssuesCount").textContent = topics.length + reportTopics.length + nIds;
   $("bcfModeCount").textContent = topics.length;
   $("repModeCount").textContent = reportTopics.length;
+  $("idsModeCount").textContent = nIds;
 }
 
 /* ===================== unload sorgenti BCF / report (v1.8.1) ===================== */
@@ -3486,8 +3822,430 @@ function setIssueMode(m) {
   document.querySelectorAll("#issueModeBar .tmode").forEach(b => b.classList.toggle("on", b.dataset.imode === m));
   $("bcfPane").style.display = m === "bcf" ? "" : "none";
   $("reportPane").style.display = m === "report" ? "" : "none";
+  $("idsPane").style.display = m === "ids" ? "" : "none";
+  if (m === "ids") renderIdsList();     // la verifica parte solo dal pulsante, mai in automatico
 }
 document.querySelectorAll("#issueModeBar .tmode").forEach(b => b.addEventListener("click", () => setIssueMode(b.dataset.imode)));
+
+/* ===================== controlli IDS — caricamento & UI ===================== */
+const IDS_COLOR = { pass: "#3E8E5A", fail: "#C0392B", na: "#9AA0A6" };
+const specOutcome = (r) => !r.applicable.length ? "na" : (r.failed.length ? "fail" : "pass");
+let idsRunning = false;
+
+async function loadIds(file) {
+  showLoading(tr("load.reading", { f: file.name }));
+  try {
+    idsDoc = parseIds(await file.text());
+    idsSource = { name: file.name };
+    idsInvalidate();
+    activeIdsSpec = null; idsOutcomeFilter.clear();
+    dismissLanding();
+    toast(tr("toast.idsLoaded", { f: file.name, n: idsDoc.specs.length }));
+    updateIssuesBadge();
+    setLeftTab("issues");
+    setIssueMode("ids");     // mostra il pannello; la verifica parte SOLO su richiesta (pulsante)
+    renderIdsSources(); renderIdsSummary(); renderIdsChips(); renderIdsList();
+    hideLoading();
+  } catch (e) {
+    idsDoc = null; idsSource = null;
+    toast(tr("toast.idsErr", { e: e.message })); console.warn(e);
+    hideLoading();
+  }
+}
+
+function runIds() {
+  if (!idsDoc || !models.length || idsRunning) return;
+  idsRunning = true; updateIdsRunBtn(); renderIdsList();
+  showLoading(tr("ids.running"));
+  setTimeout(() => {                    // lascia dipingere l'overlay prima del lavoro sincrono
+    try {
+      idsResults = evaluateIds(idsDoc, buildIdsViews());
+      setDefaultIdsFilter();
+    } catch (e) { idsResults = null; toast(tr("toast.idsErr", { e: e.message })); console.warn(e); }
+    idsRunning = false;
+    updateIssuesBadge();
+    renderIdsSummary(); renderIdsChips(); renderIdsList(); renderIdsSources();
+    hideLoading();
+  }, 30);
+}
+/* Filtri di default: i non-applicabili sono SEMPRE spenti; se c'è almeno un fail si
+   mostrano i fail, altrimenti si mostrano i pass. Poi l'utente accende/spegne i chip. */
+function setDefaultIdsFilter() {
+  idsOutcomeFilter.clear();
+  if (!idsResults) return;
+  idsOutcomeFilter.add(idsResults.specs.some(r => specOutcome(r) === "fail") ? "fail" : "pass");
+}
+function updateIdsRunBtn() {
+  const b = $("btnIdsRun"); if (!b) return;
+  b.classList.toggle("busy", idsRunning);
+  b.disabled = !idsRunning && (!idsDoc || !models.length);
+  if (idsRunning) b.innerHTML = `<span class="spin"></span>${esc(tr("ids.checking"))}`;
+  else b.textContent = idsResults ? tr("ids.rerun") : tr("ids.run");
+}
+
+function renderIdsSources() {
+  const box = $("idsSources"); if (!box) return;
+  box.innerHTML = "";
+  if (!idsSource) return;
+  const chip = document.createElement("span");
+  chip.className = "src-chip";
+  chip.innerHTML = `<span class="nm"></span><button class="src-x" title="${esc(tr("ids.remove"))}">×</button>`;
+  chip.querySelector(".nm").textContent = idsSource.name;
+  chip.querySelector(".src-x").addEventListener("click", unloadIds);
+  box.appendChild(chip);
+}
+function unloadIds() {
+  const wasActive = !!activeIdsSpec;
+  idsDoc = null; idsSource = null; idsResults = null; idsViewsCache = null; activeIdsSpec = null;
+  idsOutcomeFilter.clear();
+  if (wasActive) { clearHighlight(); closeDetail(); }
+  updateIssuesBadge();
+  renderIdsSources(); renderIdsSummary(); renderIdsChips(); renderIdsList();
+  showLandingIfEmpty();
+  toast(tr("toast.idsUnloaded"));
+}
+
+function renderIdsSummary() {
+  const t = $("idsTitle"), m = $("idsMeta"), box = $("idsSummary");
+  if (!box) return;
+  if (t) t.textContent = idsDoc ? ((idsDoc.info && idsDoc.info.title) || tr("ids.untitled")) : "";
+  if (m) {
+    if (!idsDoc) { m.textContent = ""; }
+    else {
+      const p = [];
+      if (idsDoc.info.author) p.push(idsDoc.info.author);
+      if (idsDoc.info.date) p.push(idsDoc.info.date);
+      p.push(tr("ids.nspec", { n: idsDoc.specs.length }));
+      m.textContent = p.join(" · ");
+    }
+  }
+  if (!idsResults) { box.innerHTML = ""; return; }
+  const s = idsResults.summary;
+  box.innerHTML =
+    `<span style="color:${IDS_COLOR.pass}">${tr("ids.passN", { n: s.passed })}</span>` +
+    `<span style="color:${IDS_COLOR.fail}">${tr("ids.failN", { n: s.failed })}</span>` +
+    `<span>${tr("ids.applN", { n: s.applicable })}</span>`;
+}
+
+function renderIdsChips() {
+  const box = $("idsChips"); if (!box) return;
+  box.innerHTML = "";
+  if (!idsResults) return;
+  const counts = { fail: 0, pass: 0, na: 0 };
+  for (const r of idsResults.specs) counts[specOutcome(r)]++;
+  for (const [k, lbl] of [["fail", tr("ids.fFail")], ["pass", tr("ids.fPass")], ["na", tr("ids.fNa")]]) {
+    const chip = document.createElement("button");
+    chip.className = "chip" + (idsOutcomeFilter.has(k) ? " on" : "");
+    chip.style.borderColor = IDS_COLOR[k];
+    chip.textContent = `${lbl} · ${counts[k]}`;
+    chip.addEventListener("click", () => {
+      idsOutcomeFilter.has(k) ? idsOutcomeFilter.delete(k) : idsOutcomeFilter.add(k);
+      renderIdsChips(); renderIdsList();
+    });
+    box.appendChild(chip);
+  }
+}
+
+function renderIdsList() {
+  const list = $("idsList"); if (!list) return;
+  renderIdsSummary(); updateIdsRunBtn(); updateIdsExportBar();
+  if (!idsDoc) { list.innerHTML = `<div class="empty-note">${tr("empty.noIds")}</div>`; return; }
+  if (!models.length) { list.innerHTML = `<div class="empty-note">${tr("ids.noModels")}</div>`; return; }
+  if (idsRunning) { list.innerHTML = `<div class="empty-note">${tr("ids.running")}</div>`; return; }
+  if (!idsResults) { list.innerHTML = `<div class="empty-note">${tr("ids.pressRun")}</div>`; return; }
+  const q = ($("idsSearch").value || "").trim().toLowerCase();
+  const rows = idsResults.specs.filter(r => {
+    if (!idsOutcomeFilter.has(specOutcome(r))) return false;   // filtro a membership (i chip accesi = esiti mostrati)
+    if (!q) return true;
+    return (r.spec.name + " " + r.spec.identifier + " " + r.spec.description).toLowerCase().includes(q);
+  });
+  list.innerHTML = "";
+  if (!rows.length) { list.innerHTML = `<div class="empty-note">${tr("ids.noMatch")}</div>`; return; }
+  for (const r of rows) {
+    const oc = specOutcome(r);
+    const card = document.createElement("div");
+    card.className = "issue-card ids" + (r === activeIdsSpec ? " active" : "");
+    card.tabIndex = 0;
+    card.innerHTML = `
+      <div class="spine" style="background:${IDS_COLOR[oc]}"></div>
+      <div class="body">
+        <div class="title"></div>
+        <div class="meta">
+          <span>${tr("ids.applN", { n: r.applicable.length })}</span>
+          <span style="color:${IDS_COLOR.pass}">${tr("ids.passN", { n: r.passed.length })}</span>
+          <span style="color:${IDS_COLOR.fail}">${tr("ids.failN", { n: r.failed.length })}</span>
+        </div>
+      </div>`;
+    card.querySelector(".title").textContent = r.spec.name || r.spec.identifier || tr("ids.untitledSpec");
+    const open = () => openIdsSpec(r);
+    card.addEventListener("click", open);
+    card.addEventListener("keydown", e => { if (e.key === "Enter") open(); });
+    list.appendChild(card);
+  }
+}
+
+function openIdsSpec(r) {
+  activeIdsSpec = r;
+  renderIdsList();
+  const found = [], seen = new Set();
+  for (const f of r.failed) {
+    const m = f.view.model;
+    for (const g of geoIdsOf(m, f.view.eid)) { const k = m.uid + ":" + g; if (!seen.has(k)) { seen.add(k); found.push({ model: m, eid: g }); } }
+  }
+  if (found.length) { const box = buildHighlight(found); if (box) fitBox(box.clone().expandByScalar(box.getSize(new THREE.Vector3()).length() * 0.3 + 2)); }
+  else clearHighlight();
+  $("ftHint").textContent = tr("ids.specHint", { name: r.spec.name || r.spec.identifier || "IDS", fail: r.failed.length, appl: r.applicable.length });
+  renderIdsDetail(r);
+  openDetailPane();
+}
+
+function reasonText(rs) {
+  if (rs.code === "missing") return tr("ids.rMissing", { label: rs.label });
+  if (rs.code === "prohibited") return tr("ids.rProhibited", { label: rs.label });
+  return tr("ids.rBadValue", { label: rs.label, expected: rs.expected || "—", got: rs.got || "∅" });
+}
+
+function renderIdsDetail(r) {
+  $("detailTitle").textContent = tr("ids.detailTitle");
+  const body = $("detailBody");
+  body.oninput = null; body.onchange = null;
+  const oc = specOutcome(r);
+  let html = `<span class="d-status" style="background:${IDS_COLOR[oc]}">${esc(tr("ids." + oc))}</span>`;
+  html += `<div class="d-title">${esc(r.spec.name || r.spec.identifier || tr("ids.untitledSpec"))}</div>`;
+  if (r.spec.description) html += `<div class="ids-desc">${esc(r.spec.description)}</div>`;
+  html += `<div class="ids-summary" style="margin:8px 0 12px">
+      <span style="color:${IDS_COLOR.pass}">${tr("ids.passN", { n: r.passed.length })}</span>
+      <span style="color:${IDS_COLOR.fail}">${tr("ids.failN", { n: r.failed.length })}</span>
+      <span>${tr("ids.applN", { n: r.applicable.length })}</span></div>`;
+  if (!r.failed.length) {
+    html += `<div class="empty-note">${r.applicable.length ? tr("ids.allPass") : tr("ids.notApplicable")}</div>`;
+  } else {
+    html += `<div class="ids-fail-h">${tr("ids.failList")}</div>`;
+    r.failed.forEach((f, i) => {
+      const nm = f.view.name || f.view.globalId || ("#" + f.view.eid);
+      const reasons = f.reasons.map(rs => `<li class="bad">${esc(reasonText(rs))}</li>`).join("");
+      html += `<div class="ids-el">
+          <div class="rep-comp" data-i="${i}" title="${esc(tr("ids.clickIsolate"))}"><span class="rc-name">${esc(nm)}</span><span class="rc-model">${esc(f.view.model.name)}</span><span class="rc-st">▸</span></div>
+          <ul class="ids-reasons">${reasons}</ul></div>`;
+    });
+  }
+  body.innerHTML = html;
+  body.querySelectorAll(".rep-comp[data-i]").forEach(el => el.addEventListener("click", () => {
+    const f = r.failed[+el.dataset.i]; if (!f) return;
+    const m = f.view.model, sel = geoIdsOf(m, f.view.eid).map(g => ({ model: m, eid: g }));
+    if (sel.length) { const box = buildHighlight(sel); if (box) fitBox(box.clone().expandByScalar(box.getSize(new THREE.Vector3()).length() * 0.5 + 1)); }
+  }));
+}
+
+/* ===================== export non conformità IDS → BCF 2.1 (fase 2) =====================
+   UNA issue BCF per ogni specifica non conforme; i componenti sono i GUID degli elementi
+   non conformi (come fa Solibri). Descrizione = descrizione spec + motivi aggregati.
+   Il .bcf prodotto si ricarica nella modalità BCF del viewer (e in Solibri): i componenti
+   risolvono agli elementi via IfcGuid. */
+function uuid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const b = new Uint8Array(16); crypto.getRandomValues(b);
+  b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+  const h = [...b].map(x => x.toString(16).padStart(2, "0"));
+  return `${h[0]}${h[1]}${h[2]}${h[3]}-${h[4]}${h[5]}-${h[6]}${h[7]}-${h[8]}${h[9]}-${h[10]}${h[11]}${h[12]}${h[13]}${h[14]}${h[15]}`;
+}
+
+/* GlobalId dell'IfcProject del modello (per l'Header BCF → associazione al modello in Solibri) */
+function _projectGuidOf(model) {
+  if (model._projGuid !== undefined) return model._projGuid;
+  let g = "";
+  try { const ids = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCPROJECT); if (ids.size()) g = unwrap(ifcApi.GetLine(model.modelID, ids.get(0)).GlobalId); } catch (e) {}
+  model._projGuid = g; return g;
+}
+function idsResultsToBcfTopics(results) {
+  const author = (results.info && results.info.author) || "APE Viewer";
+  const created = nowIso();
+  const MAX_ELEMS = 200;   // guardia: n° max di elementi elencati (descrizione + commenti) per topic
+  const topics = [];
+  let idx = 0;
+  for (const r of results.specs) {
+    if (!r.failed.length) continue;                       // solo specifiche con non conformità
+    const reasonCount = new Map(), components = [], seen = new Set(), files = new Map(), elems = [];
+    for (const f of r.failed) {
+      const m = f.view.model;
+      if (!files.has(m.uid)) files.set(m.uid, { ifcProject: _projectGuidOf(m), filename: m.name });
+      const g = f.view.globalId;
+      if (g && !seen.has(g)) { seen.add(g); components.push(g); }
+      const reasons = f.reasons.map(reasonText);
+      for (const txt of reasons) reasonCount.set(txt, (reasonCount.get(txt) || 0) + 1);
+      elems.push({ model: m, eid: f.view.eid, globalId: g || "", name: f.view.name || g || ("#" + f.view.eid), modelName: m.name, reasons });
+    }
+    const lines = [...reasonCount.entries()].map(([txt, c]) => c > 1 ? `- ${txt} (${c})` : `- ${txt}`);
+    const shown = elems.slice(0, MAX_ELEMS);
+    const elemLine = e => `${e.name} [${e.modelName}] — ${e.reasons.join("; ")}`;
+    /* descrizione = riepilogo aggregato + elenco dei singoli elementi non conformi */
+    const parts = [];
+    if (r.spec.description) parts.push(r.spec.description);
+    parts.push(tr("ids.bcfDesc", { n: r.failed.length }), ...lines, "", tr("ids.bcfElemsHdr"));
+    shown.forEach((e, i) => parts.push(`${i + 1}. ${elemLine(e)}`));
+    if (elems.length > MAX_ELEMS) parts.push(tr("ids.bcfMore", { n: elems.length - MAX_ELEMS }));
+    /* un commento BCF per ogni elemento (visibili nel pannello Communication di Solibri) */
+    const comments = shown.map(e => ({ guid: uuid(), date: created, author, text: elemLine(e) }));
+    if (elems.length > MAX_ELEMS) comments.push({ guid: uuid(), date: created, author, text: tr("ids.bcfMore", { n: elems.length - MAX_ELEMS }) });
+    topics.push({
+      guid: uuid(), index: idx++,
+      title: r.spec.name || r.spec.identifier || tr("ids.untitledSpec"),
+      description: parts.join("\n"), status: "Open", type: "Issue", author, created,
+      labels: ["IDS", r.spec.identifier].filter(Boolean),
+      components, files: [...files.values()],
+      elems, comments   // elems: runtime (snapshot); comments: dettaglio per-elemento
+    });
+  }
+  return topics;
+}
+function _bcfMarkup(t, vpGuid, hasSnapshot) {
+  const labels = t.labels.map(l => `\n    <Labels>${esc(l)}</Labels>`).join("");
+  const header = (t.files && t.files.length)
+    ? `\n  <Header>${t.files.map(f => `\n    <File${f.ifcProject ? ` IfcProject="${esc(f.ifcProject)}"` : ""} isExternal="true">\n      <Filename>${esc(f.filename)}</Filename>\n      <Date>${t.created}</Date>\n    </File>`).join("")}\n  </Header>`
+    : "";
+  /* BCF 2.1: i <Comment> stanno TRA <Topic> e <Viewpoints> (ordine di schema). Ogni commento
+     riferisce il viewpoint così Solibri lo mostra accanto allo snapshot. */
+  const comments = (t.comments || []).map(c =>
+    `\n  <Comment Guid="${c.guid}">\n    <Date>${c.date}</Date>\n    <Author>${esc(c.author)}</Author>\n    <Comment>${esc(c.text)}</Comment>\n    <Viewpoint Guid="${vpGuid}"/>\n  </Comment>`).join("");
+  const snap = hasSnapshot ? `\n    <Snapshot>snapshot.png</Snapshot>` : "";
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Markup xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">${header}
+  <Topic Guid="${t.guid}" TopicType="${esc(t.type)}" TopicStatus="${esc(t.status)}">
+    <Title>${esc(t.title)}</Title>
+    <Index>${t.index}</Index>${labels}
+    <CreationDate>${t.created}</CreationDate>
+    <CreationAuthor>${esc(t.author)}</CreationAuthor>
+    <Description>${esc(t.description)}</Description>
+  </Topic>${comments}
+  <Viewpoints Guid="${vpGuid}">
+    <Viewpoint>viewpoint.bcfv</Viewpoint>${snap}
+  </Viewpoints>
+</Markup>`;
+}
+function _bcfViewpoint(t, vpGuid, cameraXml) {
+  const sel = t.components.map(g => `\n      <Component IfcGuid="${esc(g)}"/>`).join("");
+  const col = t.components.map(g => `\n        <Component IfcGuid="${esc(g)}"/>`).join("");
+  /* BCF 2.1 Components: ordine di schema Selection → Visibility → Coloring.
+     Coloring (rosso) è ciò che Solibri applica VISIVAMENTE all'apertura del viewpoint;
+     Selection da sola seleziona nell'albero ma spesso non marca il 3D.
+     La PerspectiveCamera (opzionale) va DOPO </Components> (ordine di schema). */
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<VisualizationInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="${vpGuid}">
+  <Components>
+    <Selection>${sel}
+    </Selection>
+    <Visibility DefaultVisibility="true"/>
+    <Coloring>
+      <Color Color="FFFF0000">${col}
+      </Color>
+    </Coloring>
+  </Components>${cameraXml || ""}
+</VisualizationInfo>`;
+}
+/* Cattura un'anteprima PNG inquadrando gli elementi non conformi del topic (evidenza rossa,
+   modello pieno) e serializza la camera BCF corrispondente. Ritorna {png(base64), camera(xml)}
+   o null se nessun elemento è risolvibile nei modelli caricati. Sincrono: fa un render esplicito
+   e legge subito il canvas (richiede preserveDrawingBuffer sul renderer). */
+function _bcfTopicView(t) {
+  if (!models.length || !t.elems || !t.elems.length) return null;
+  const sel = [];
+  for (const e of t.elems) {
+    if (!e.model) continue;
+    for (const g of geoIdsOf(e.model, e.eid)) sel.push({ model: e.model, eid: g });
+  }
+  if (!sel.length) return null;
+  const box = buildHighlight(sel);
+  if (!box || box.isEmpty()) return null;
+  updateClipping(box);
+  fitBox(box, 0);                 // inquadratura immediata, niente animazione
+  camera.up.set(0, 1, 0);
+  camera.lookAt(controls.target); // orientamento deterministico (evita il damping di controls)
+  camera.updateMatrixWorld(true);
+  renderer.render(scene, camera);
+  // PNG ridimensionato a max 1280px di larghezza (tiene contenuta la dimensione del .bcf)
+  const src = renderer.domElement;
+  const scale = Math.min(1, 1280 / src.width);
+  let dataUrl;
+  if (scale < 1) {
+    const c = document.createElement("canvas");
+    c.width = Math.round(src.width * scale); c.height = Math.round(src.height * scale);
+    c.getContext("2d").drawImage(src, 0, 0, c.width, c.height);
+    dataUrl = c.toDataURL("image/png");
+  } else dataUrl = src.toDataURL("image/png");
+  // camera BCF in coordinate IFC (inverse della georef del 1° modello)
+  const geoInv = bcfGeoMatrix ? bcfGeoMatrix.clone().invert() : null;
+  const pos = worldToIfcPoint(camera.position.clone(), geoInv);
+  const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
+  const dir = worldToIfcDir(fwd, geoInv);
+  const up = worldToIfcDir(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion), geoInv);
+  const fx = n => { const s = (+n).toFixed(10); return s.indexOf(".") >= 0 ? s.replace(/0+$/, "").replace(/\.$/, "") : s; };
+  const camXml = `
+  <PerspectiveCamera>
+    <CameraViewPoint><X>${fx(pos.x)}</X><Y>${fx(pos.y)}</Y><Z>${fx(pos.z)}</Z></CameraViewPoint>
+    <CameraDirection><X>${fx(dir.x)}</X><Y>${fx(dir.y)}</Y><Z>${fx(dir.z)}</Z></CameraDirection>
+    <CameraUpVector><X>${fx(up.x)}</X><Y>${fx(up.y)}</Y><Z>${fx(up.z)}</Z></CameraUpVector>
+    <FieldOfView>${fx(camera.fov)}</FieldOfView>
+  </PerspectiveCamera>`;
+  return { png: dataUrl.split(",")[1], camera: camXml };
+}
+async function exportIdsBcf() {
+  if (!idsResults) return;
+  if (typeof JSZip === "undefined") { toast(tr("toast.bcfExportErr", { e: "JSZip" })); return; }
+  const topics = idsResultsToBcfTopics(idsResults);
+  if (!topics.length) { toast(tr("ids.bcfNoFail")); return; }
+  showLoading(tr("ids.bcfBuilding"));
+  const saved = { pos: camera.position.clone(), tgt: controls.target.clone(), up: camera.up.clone(), fov: camera.fov, near: camera.near, far: camera.far };
+  const savedIsolate = isolateOn;
+  try {
+    isolateOn = false;   // anteprime coerenti con Visibility=true: modello pieno + evidenza rossa
+    const zip = new JSZip();
+    zip.file("bcf.version", `<?xml version="1.0" encoding="UTF-8"?>\n<Version VersionId="2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n  <DetailedVersion>2.1</DetailedVersion>\n</Version>`);
+    /* NIENTE project.bcfp: in BCF 2.1 <ProjectExtension> richiede obbligatoriamente un
+       <ExtensionSchema> (e il relativo extension.xsd nell'archivio). Un project.bcfp senza
+       di esso è schema-invalid: Solibri, che valida in modo severo, rifiuta l'INTERO file e
+       importa 0 issue. Il project è opzionale nello standard, quindi lo omettiamo — come fanno
+       i BCF di Solibri/SierraSoft che si aprono correttamente. */
+    let i = 0;
+    for (const t of topics) {
+      i++;
+      const vpGuid = uuid();
+      let view = null;
+      if (models.length) {
+        showLoading(tr("ids.bcfSnap", { i, n: topics.length }));
+        await new Promise(requestAnimationFrame);   // lascia aggiornare l'overlay tra un topic e l'altro
+        try { view = _bcfTopicView(t); } catch (e) { console.warn("snapshot topic fallito", e); }
+      }
+      zip.file(`${t.guid}/markup.bcf`, _bcfMarkup(t, vpGuid, !!view));
+      zip.file(`${t.guid}/viewpoint.bcfv`, _bcfViewpoint(t, vpGuid, view && view.camera));
+      if (view) zip.file(`${t.guid}/snapshot.png`, view.png, { base64: true });
+    }
+    const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+    const base = ((idsSource && idsSource.name) || "ids").replace(/\.ids$/i, "");
+    triggerDownload(blob, `${base}_non_conformita.bcf`);
+    toast(tr("ids.bcfExported", { n: topics.length }));
+  } catch (e) { console.error(e); toast(tr("toast.bcfExportErr", { e: e.message || e })); }
+  finally {
+    isolateOn = savedIsolate;
+    clearHighlight();
+    camera.position.copy(saved.pos); controls.target.copy(saved.tgt); camera.up.copy(saved.up);
+    camera.fov = saved.fov; camera.near = saved.near; camera.far = saved.far;
+    camera.updateProjectionMatrix(); controls.update();
+    hideLoading();
+  }
+}
+/* barra export: visibile e attiva solo quando c'è almeno una specifica non conforme */
+function updateIdsExportBar() {
+  const bar = $("idsExportBar"), btn = $("btnIdsExportBcf"); if (!bar) return;
+  const nFailSpecs = idsResults ? idsResults.specs.reduce((a, r) => a + (r.failed.length ? 1 : 0), 0) : 0;
+  bar.style.display = nFailSpecs ? "" : "none";
+  if (btn) { btn.disabled = !nFailSpecs; btn.title = tr("ids.exportBcfT"); }
+}
+
+$("btnIds") && $("btnIds").addEventListener("click", () => $("fileIds").click());
+$("fileIds") && $("fileIds").addEventListener("change", async (e) => { for (const f of e.target.files) await loadIds(f); e.target.value = ""; });
+$("idsSearch") && $("idsSearch").addEventListener("input", renderIdsList);
+$("btnIdsRun") && $("btnIdsRun").addEventListener("click", runIds);
+$("btnIdsExportBcf") && $("btnIdsExportBcf").addEventListener("click", exportIdsBcf);
 
 function reportInLoadedModels(t) {
   if (!t.components.length) return true;
@@ -3805,6 +4563,20 @@ function ifcDirToWorld(d) {
   const v = new THREE.Vector3(d.x, d.y, d.z);
   if (bcfGeoMatrix) v.transformDirection(bcfGeoMatrix);
   return new THREE.Vector3(v.x, v.z, -v.y).normalize();
+}
+/* Inverse dei due sopra: mondo three.js → coordinate BCF/IFC (locali del progetto),
+   per SCRIVERE la camera negli export. Non toccano la catena diretta (invariante):
+   sono l'annullamento passo-passo di ifcPointToWorld/ifcDirToWorld. geoInv = bcfGeoMatrix⁻¹. */
+function worldToIfcPoint(w, geoInv) {
+  const v = new THREE.Vector3(w.x, -w.z, w.y);   // Y-up → Z-up
+  if (worldOriginMap) v.add(worldOriginMap);     // ripristina il ribasamento
+  if (geoInv) v.applyMatrix4(geoInv);            // annulla la georeferenziazione
+  return v;
+}
+function worldToIfcDir(d, geoInv) {
+  const v = new THREE.Vector3(d.x, -d.z, d.y);
+  if (geoInv) v.transformDirection(geoInv);
+  return v.normalize();
 }
 
 function applyBcfCamera(cam, selBox) {
@@ -4613,11 +5385,13 @@ window.addEventListener("drop", async (e) => {
   const bcfs = files.filter(f => /\.(bcf|bcfzip|zip)$/i.test(f.name));
   const reps = files.filter(f => /\.(xlsx|xlsm)$/i.test(f.name));
   const pcs = files.filter(f => /\.(las|laz|e57)$/i.test(f.name));
+  const idss = files.filter(f => /\.ids$/i.test(f.name));
   if (ifcs.length) await loadIfcFiles(ifcs);
   for (const b of bcfs) await loadBcf(b);
   for (const r of reps) await loadReport(r);
   for (const p of pcs) await loadPointCloud(p);
-  if (!ifcs.length && !bcfs.length && !reps.length && !pcs.length) toast(tr("toast.unknownFormat"));
+  for (const d of idss) await loadIds(d);
+  if (!ifcs.length && !bcfs.length && !reps.length && !pcs.length && !idss.length) toast(tr("toast.unknownFormat"));
 });
 
 /* ============================ utilità UI ============================ */
@@ -4632,7 +5406,7 @@ document.querySelectorAll(".ltab").forEach(b => b.addEventListener("click", () =
 function dismissLanding() { const l = $("landing"); if (l) l.classList.add("hide"); }
 function showLandingIfEmpty() {
   /* il landing torna solo se non c'è proprio nulla caricato (modelli, BCF, report) */
-  const empty = (!models.length) && (!PCLOUD.sources.length) && (!topics || !topics.length) && (typeof reportTopics === "undefined" || !reportTopics || !reportTopics.length);
+  const empty = (!models.length) && (!PCLOUD.sources.length) && (!topics || !topics.length) && (typeof reportTopics === "undefined" || !reportTopics || !reportTopics.length) && !idsDoc;
   const l = $("landing"); if (l) l.classList.toggle("hide", !empty);
 }
 $("lpLoadIfc").addEventListener("click", () => $("fileIfc").click());
@@ -6935,6 +7709,22 @@ $("detailResize").addEventListener("pointermove", e => {
 const _detailResizeEnd = e => { if (_detailResizeDrag) { _detailResizeDrag = false; try { $("detailResize").releasePointerCapture(e.pointerId); } catch (_) {} } };
 $("detailResize").addEventListener("pointerup", _detailResizeEnd);
 $("detailResize").addEventListener("pointercancel", _detailResizeEnd);
+
+/* ---- sidebar sinistra ridimensionabile (trascina il bordo destro → larghezza prima colonna) ---- */
+let _leftResizeDrag = false;
+$("leftResize").addEventListener("pointerdown", e => {
+  e.preventDefault(); _leftResizeDrag = true;
+  try { $("leftResize").setPointerCapture(e.pointerId); } catch (_) {}
+});
+$("leftResize").addEventListener("pointermove", e => {
+  if (!_leftResizeDrag) return;
+  const mr = $("main").getBoundingClientRect();
+  const w = Math.max(220, Math.min(mr.width - 420, e.clientX - mr.left));
+  $("main").style.setProperty("--left-w", w + "px");           // i ResizeObserver (viewport, sezione) si adeguano
+});
+const _leftResizeEnd = e => { if (_leftResizeDrag) { _leftResizeDrag = false; try { $("leftResize").releasePointerCapture(e.pointerId); } catch (_) {} } };
+$("leftResize").addEventListener("pointerup", _leftResizeEnd);
+$("leftResize").addEventListener("pointercancel", _leftResizeEnd);
 
 /* ---- tema v2: sync meta/persistenza + toggle (l'attributo è già stato applicato nel head) ---- */
 function applyTheme(t) {
