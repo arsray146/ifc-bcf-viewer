@@ -247,8 +247,9 @@ main.left-off .left-resize{display:none}
 .tree-more:hover{text-decoration:underline}
 
 /* issues */
-#issueSearch,#reportSearch,#idsSearch{width:100%;margin-top:9px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--text);font:inherit;font-size:13px;padding:6px 10px}
-#issueSearch:focus,#reportSearch:focus,#idsSearch:focus{outline:none;border-color:var(--lime-deep)}
+#issueSearch,#reportSearch,#idsSearch,#qtoSearch,#qtoGroupMode,.qto-sel{width:100%;margin-top:9px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--text);font:inherit;font-size:13px;padding:6px 10px}
+#issueSearch:focus,#reportSearch:focus,#idsSearch:focus,#qtoSearch:focus,#qtoGroupMode:focus,.qto-sel:focus{outline:none;border-color:var(--lime-deep)}
+.qto-sel:disabled{opacity:.55}
 .only-loaded{display:flex;align-items:center;gap:7px;margin-top:9px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none}
 .only-loaded input{accent-color:var(--lime-deep)}
 .hidden-issues-note{font-family:var(--mono);font-size:11px;color:var(--faint);padding:4px 8px 8px;border-bottom:1px dashed var(--line);margin-bottom:6px}
@@ -256,14 +257,23 @@ main.left-off .left-resize{display:none}
 .chip{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid var(--line-2);color:var(--muted);cursor:pointer;background:var(--panel);text-transform:none;letter-spacing:0;font-weight:400}
 .chip.on{background:var(--lime-soft);color:var(--text);border-color:var(--lime-deep)}
 /* barra di export BCF: compare quando ci sono cambi di stato non scaricati (v1.7.5) */
-#bcfExportBar{display:none;align-items:center;gap:8px;margin-top:10px}
-#bcfExportBar.on{display:flex}
-#bcfExportBar .dirty-dot{width:7px;height:7px;border-radius:50%;background:var(--st-prog);flex:0 0 auto}
-#bcfExportBar button{font-family:var(--disp);font-weight:600;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;padding:6px 11px;border-radius:5px;border:1px solid var(--lime-deep);background:var(--lime-soft);color:var(--text);cursor:pointer}
-#bcfExportBar button:hover{background:var(--lime);border-color:var(--lime)}
-#bcfExportBar .note{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+#bcfExportBar,#repExportBar{display:none;align-items:center;gap:8px;margin-top:10px}
+#bcfExportBar.on,#repExportBar.on{display:flex}
+#bcfExportBar .dirty-dot,#repExportBar .dirty-dot{width:7px;height:7px;border-radius:50%;background:var(--st-prog);flex:0 0 auto}
+#bcfExportBar button,#repExportBar button{font-family:var(--disp);font-weight:600;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;padding:6px 11px;border-radius:5px;border:1px solid var(--lime-deep);background:var(--lime-soft);color:var(--text);cursor:pointer}
+#bcfExportBar button:hover,#repExportBar button:hover{background:var(--lime);border-color:var(--lime)}
+#bcfExportBar .note,#repExportBar .note{font-family:var(--mono);font-size:10.5px;color:var(--faint)}
+/* controcommenti (BCF + report) */
+.cmt-ta{width:100%;min-height:60px;resize:vertical;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--text);font:inherit;font-size:13px;padding:6px 10px;line-height:1.5}
+.cmt-ta:focus{outline:none;border-color:var(--lime-deep)}
+.cmt-form{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.cmt-form input{width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--text);font:inherit;font-size:12.5px;padding:5px 10px}
+.cmt-form input:focus{outline:none;border-color:var(--lime-deep)}
+.cmt-btn{align-self:flex-end;font-family:var(--disp);font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:6px 11px;border-radius:5px;border:1px solid var(--lime-deep);background:var(--lime-soft);color:var(--text);cursor:pointer}
+.cmt-btn:hover{background:var(--lime)}
 /* dropdown di cambio stato nel dettaglio issue (v1.7.5) — stesso look della pill .d-status */
 .d-statusrow{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+.d-statusrow .d-status{margin-bottom:0}   /* dentro la riga flessibile è la riga a dare il margine */
 .d-status-sel{font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 26px 3px 10px;border-radius:99px;color:#fff;border:none;cursor:pointer;-webkit-appearance:none;appearance:none;
   background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M1 3l4 4 4-4' fill='none' stroke='white' stroke-width='1.5'/></svg>");
   background-repeat:no-repeat;background-position:right 9px center}
@@ -314,7 +324,7 @@ main.left-off .left-resize{display:none}
 .issue-card .thumb{width:58px;height:58px;object-fit:cover;background:var(--panel-2);align-self:center;border-radius:4px;margin:8px 0;border:1px solid var(--line)}
 .issue-card .thumb.empty{display:flex;align-items:center;justify-content:center;color:var(--faint);font-family:var(--mono);font-size:10px}
 .issue-card .body{padding:9px 10px 9px 0;min-width:0}
-.issue-card .title{font-weight:600;font-size:13px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.issue-card .title{font-weight:600;font-size:13px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
 .issue-card .meta{margin-top:5px;font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
 .empty-note{color:var(--faint);font-size:12.5px;padding:16px 14px;line-height:1.6}
 /* ---- controlli IDS (feature/ids-checks) ---- */
@@ -327,7 +337,7 @@ main.left-off .left-resize{display:none}
 .ids-summary{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px}
 .ids-summary:empty{display:none}
 .ids-summary b{font-weight:700}
-.issue-card.ids{grid-template-columns:4px 1fr}
+.issue-card.ids,.issue-card.rep{grid-template-columns:4px 1fr}   /* card senza thumbnail: il body prende tutta la larghezza */
 .ids-desc{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px}
 .ids-fail-h{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--faint);margin:6px 0 4px}
 .ids-el{border-bottom:1px solid var(--line)}
@@ -344,6 +354,33 @@ main.left-off .left-resize{display:none}
 .ids-run:hover:not(:disabled){background:var(--lime-deep)}
 .ids-run:disabled{opacity:.55;cursor:not-allowed;background:var(--panel-2);color:var(--muted);border-color:var(--line)}
 .ids-run .spin{width:13px;height:13px;border:2px solid rgba(0,0,0,.28);border-top-color:#1a1f12;border-radius:50%;animation:idsspin .7s linear infinite}
+/* ===== QTO (feature/qto, v2.5.0) ===== */
+#qtoList{flex:1;overflow-y:auto;padding:9px}
+.qto-lbl{display:block;margin-top:9px;font-family:var(--disp);font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.qto-lbl:first-child{margin-top:0}
+.qto-add-row{display:flex;gap:6px;align-items:flex-end}
+.qto-add-row input{flex:1;min-width:0}
+.qto-add-row .pc-add{flex:0 0 auto;width:31px;height:31px;margin-top:9px}
+.qto-totals{margin-bottom:8px;padding:8px 10px;border:1px solid var(--lime-deep);border-radius:6px;background:var(--lime-soft)}
+.qto-totals .t-title{font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text);display:flex;justify-content:space-between;gap:8px}
+.qto-totals .t-row{display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:3px}
+.qto-totals .t-row b{color:var(--text);font-weight:600}
+.qto-iso{border:none;background:none;color:var(--faint);cursor:pointer;font-size:13px;line-height:1;padding:2px 4px;border-radius:4px;flex:none}
+.qto-iso:hover{color:var(--text);background:var(--lime-soft)}
+.qto-part{color:var(--faint);font-size:10px;white-space:nowrap}
+/* impaginazione tabella QTO: nomi parametro su due righe (proprietà + pset
+   piccolo), numeri allineati a destra, niente testi troncati a metà parola */
+.qto-grp .pset-name{text-transform:none}   /* le chiavi gruppo sono dati, non etichette */
+.qto-tbl td:first-child{width:52%}
+.qto-tbl td:last-child{text-align:right}
+.qto-tbl .num{white-space:nowrap;font-variant-numeric:tabular-nums}
+.qto-cp{display:block;word-break:break-word}
+.qto-cs{display:block;font-family:var(--mono);font-size:9.5px;color:var(--faint);word-break:break-word;margin-top:1px}
+.qto-totals .t-row{align-items:baseline}
+.qto-totals .t-row .lbl{min-width:0}
+.qto-totals .t-row .lbl .qto-cp,.qto-totals .t-row .lbl .qto-cs{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qto-totals .t-row b{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums}
+.qto-note{font-size:10.5px;color:var(--faint);margin-top:5px;line-height:1.45}
 @keyframes idsspin{to{transform:rotate(360deg)}}
 
 /* ---------- viewport ---------- */
@@ -788,6 +825,7 @@ input[type=file]{display:none}
     <div id="leftTabs">
       <button class="ltab on" data-tab="models"><span data-i18n="tab.models">Modelli</span> <span class="tbadge" id="tabModelsCount">0</span></button>
       <button class="ltab" data-tab="issues"><span data-i18n="tab.issues">Issues</span> <span class="tbadge" id="tabIssuesCount">0</span></button>
+      <button class="ltab" data-tab="qto" data-i18n-title="title.qtoTab" title="Computo delle quantità (Quantity Take-Off) dai modelli caricati"><span data-i18n="tab.qto">QTO</span> <span class="tbadge" id="tabQtoCount">0</span></button>
       <button id="leftCollapse" data-i18n-title="title.collapse" title="Comprimi il pannello laterale">«</button>
     </div>
     <div id="modelsBlock" class="ltab-page">
@@ -842,6 +880,11 @@ input[type=file]{display:none}
           <div id="reportActions">
             <button id="btnReportStats" data-i18n="btn.reportStats" data-i18n-title="title.reportStats" title="Statistiche aggregate del report: gravità, ruleset, regole, modelli e Classe">📊 Statistiche</button>
           </div>
+          <div id="repExportBar">
+            <span class="dirty-dot"></span>
+            <button id="btnRepExport" data-i18n="rep.export" data-i18n-title="title.repExport" title="Esporta un xlsx con tutte le issue del report più le colonne Stato e Controcommento">⤓ Scarica risposte (xlsx)</button>
+            <span class="note"></span>
+          </div>
         </div>
         <div id="reportList">
           <div class="empty-note" data-i18n-html="empty.noReport">Nessun report caricato.<br>Carica un file <b>.xlsx</b> Checking Summary esportato da Solibri (Issue + Components + Model).</div>
@@ -869,6 +912,35 @@ input[type=file]{display:none}
         <div id="idsList">
           <div class="empty-note" data-i18n-html="empty.noIds">Nessun IDS caricato.<br>Carica un file <b>.ids</b> (buildingSMART) per verificare i requisiti informativi sui modelli aperti.</div>
         </div>
+      </div>
+    </div>
+    <div id="qtoBlock" class="ltab-page" style="display:none">
+      <div class="panel-head">
+        <label class="qto-lbl" for="qtoGroupMode" data-i18n="qto.groupBy">Raggruppa per</label>
+        <select id="qtoGroupMode">
+          <option value="class" data-i18n="qto.groupClass">Classe IFC</option>
+          <option value="param" data-i18n="qto.groupParam">Parametro</option>
+        </select>
+        <div id="qtoGroupParamRow" style="display:none">
+          <select id="qtoGroupPset" class="qto-sel"></select>
+          <select id="qtoGroupProp" class="qto-sel"></select>
+        </div>
+        <label class="qto-lbl" for="qtoColPset" data-i18n="qto.addCol">Colonne personalizzate</label>
+        <select id="qtoColPset" class="qto-sel"></select>
+        <div class="qto-add-row">
+          <select id="qtoColProp" class="qto-sel"></select>
+          <button id="btnQtoAddCol" class="pc-add" data-i18n-title="qto.addColT" title="Somma un parametro numerico dei pset come colonna aggiuntiva">＋</button>
+        </div>
+        <div id="qtoColChips" class="src-strip"></div>
+        <button id="btnQtoRun" class="ids-run" data-i18n="qto.run">▶ Calcola quantità</button>
+        <div id="qtoSummary" class="ids-summary"></div>
+        <input id="qtoSearch" type="text" data-i18n-ph="ph.searchQto" placeholder="Cerca gruppo…">
+        <div id="qtoExportBar" class="ids-export" style="display:none">
+          <button id="btnQtoCsv" data-i18n="qto.export" data-i18n-title="qto.exportT" title="Scarica il computo in CSV (separatore ; — si apre in Excel)">⤓ Esporta CSV</button>
+        </div>
+      </div>
+      <div id="qtoList">
+        <div class="empty-note" data-i18n-html="empty.noQto">Nessun computo.<br>Carica un modello e premi <b>Calcola quantità</b>.</div>
       </div>
     </div>
   </aside>
@@ -945,7 +1017,7 @@ input[type=file]{display:none}
   <div class="lp-wrap">
     <div class="lp-hero">
       <div class="lp-copy">
-        <div class="lp-chip lp-in"><span class="pulse"></span><span><b>v2.4</b>&nbsp;·&nbsp;<span data-i18n="lp.chip">Tema scuro con toggle è online</span></span></div>
+        <div class="lp-chip lp-in"><span class="pulse"></span><span><b>v2.5</b>&nbsp;·&nbsp;<span data-i18n="lp.chip">Il computo quantità (QTO) è online</span></span></div>
         <h1 class="lp-h1 lp-in" style="--d:.06s"><span data-i18n="lp.h1a">Esplora. Verifica.</span><br><span data-i18n="lp.h1b">Costruisci </span><span class="accent" data-i18n="lp.h1c">meglio.</span></h1>
         <p class="lp-sub lp-in" style="--d:.12s" data-i18n="lp.sub">Il viewer BIM per IFC e BCF. Visualizza i modelli, coordina le issue ed edita i parametri direttamente nel 3D.</p>
         <div class="lp-cta lp-in" style="--d:.18s">
@@ -1066,10 +1138,11 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { parseLASHeader, parseLASPoints } from "./las.js";   // studio import PointCloud (LAS)
 import { parseE57, e57PointCount } from "./e57.js";           // studio import PointCloud (E57)
 import { parseIds, evaluateIds } from "./ids.js";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js";  // feature QTO (v2.5.0)
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================ stato globale ============================ */
-const APP_VERSION = "2.4.0";
+const APP_VERSION = "2.5.0";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN (v1.8.0) ============================ */
@@ -1141,6 +1214,43 @@ const STRINGS = {
     "toast.idsLoaded": "IDS «{f}» caricato: {n} specifiche.",
     "toast.idsErr": "Errore lettura IDS: {e}",
     "toast.idsUnloaded": "IDS rimosso.",
+    "tab.qto": "QTO", "title.qtoTab": "Computo delle quantità (Quantity Take-Off) dai modelli caricati",
+    "qto.groupBy": "Raggruppa per",
+    "qto.groupClass": "Classe IFC",
+    "qto.groupParam": "Parametro",
+    "qto.selPset": "— Pset —",
+    "qto.selProp": "— Proprietà —",
+    "qto.addCol": "Colonne personalizzate",
+    "qto.addColT": "Somma un parametro numerico dei pset come colonna aggiuntiva",
+    "qto.removeCol": "Rimuovi colonna",
+    "qto.run": "▶ Calcola quantità",
+    "qto.rerun": "↻ Ricalcola",
+    "qto.running": "Calcolo quantità…",
+    "qto.export": "⤓ Esporta CSV",
+    "qto.exportT": "Scarica il computo in CSV (separatore ; — si apre in Excel)",
+    "ph.searchQto": "Cerca gruppo…",
+    "empty.noQto": "Nessun computo.<br>Carica un modello e premi <b>Calcola quantità</b>.",
+    "qto.noModels": "Carica almeno un modello IFC.",
+    "qto.pressRun": "Premi «Calcola quantità» per generare il computo.",
+    "qto.noMatch": "Nessun gruppo corrisponde alla ricerca.",
+    "qto.noValue": "(senza valore)",
+    "qto.total": "TOTALE",
+    "qto.groupsN": "{n} gruppi",
+    "qto.elemsN": "{n} elementi",
+    "qto.col.count": "Conteggio (n)",
+    "qto.col.length": "Lunghezza (m)",
+    "qto.col.area": "Area (m²)",
+    "qto.col.volume": "Volume (m³)",
+    "qto.col.weight": "Peso (kg)",
+    "qto.colElems": "N. elementi",
+    "qto.colSum": "Somma",
+    "qto.isolate": "Isola nel 3D",
+    "qto.tooMany": "Gruppo troppo grande per l'evidenziazione ({n} elementi)",
+    "qto.csvGroup": "Gruppo",
+    "toast.qtoDone": "Computo pronto: {n} gruppi.",
+    "toast.qtoNoData": "Nessuna quantità trovata con questa configurazione.",
+    "toast.qtoBadParam": "Scegli il Pset e la proprietà per il raggruppamento.",
+    "qto.noStdQty": "Il modello non contiene quantità IFC (IfcElementQuantity / BaseQuantities): le colonne Lunghezza/Area/Volume/Peso restano vuote. Usa i parametri dei pset come colonne personalizzate.",
     "btn.panel": "» Pannello", "title.panel": "Mostra il pannello laterale",
     "btn.detailReopen": "« Dettagli", "title.detailReopen": "Mostra il pannello dettagli",
     "title.collapseDetail": "Comprimi il pannello dettagli",
@@ -1150,7 +1260,7 @@ const STRINGS = {
     "navHelp": "Orbita: tasto sx &nbsp;·&nbsp; Pan: rotella premuta &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× clic rotella: zoom esteso",
     "drop.big": "Trascina qui i file IFC e BCF",
     "drop.small": "Oppure usa i pulsanti in alto. Clic su un elemento nel 3D per leggerne le proprietà, <kbd>Esc</kbd> per deselezionare. Doppio clic su un modello in elenco per inquadrarlo.",
-    "lp.chip": "I controlli IDS sono online",
+    "lp.chip": "Il computo quantità (QTO) è online",
     "lp.h1a": "Esplora. Verifica.", "lp.h1b": "Costruisci ", "lp.h1c": "meglio.",
     "lp.sub": "Il viewer BIM per IFC e BCF. Visualizza i modelli, coordina le issue ed edita i parametri direttamente nel 3D.",
     "lp.ctaIfc": "Carica IFC", "lp.ctaIfcSub": "Supporta IFC2x3, IFC4, IFC4x3",
@@ -1252,7 +1362,26 @@ const STRINGS = {
     "title.changeStatus": "Cambia lo stato della issue",
     "comp.showProps": "Mostra proprietà elemento",
     /* export BCF */
-    "bcf.toExport": "{n} stato da scaricare", "bcf.toExportPl": "{n} stati da scaricare",
+    "bcf.toExport": "{n} modifica da scaricare", "bcf.toExportPl": "{n} modifiche da scaricare",
+    /* risposte al report (stato + controcommento) */
+    "rep.noStatus": "— stato —",
+    "rep.export": "⤓ Scarica risposte (xlsx)",
+    "title.repExport": "Esporta un xlsx con tutte le issue del report più le colonne Stato e Controcommento",
+    "rep.toExport": "{n} risposta da scaricare", "rep.toExportPl": "{n} risposte da scaricare",
+    "rep.sheet": "Risposte",
+    "rep.xIssue": "Issue", "rep.xDesc": "Descrizione", "rep.xSev": "Severità",
+    "rep.xStatus": "Stato", "rep.xComment": "Controcommento",
+    "rep.hasComment": "Controcommento presente",
+    "sec.comment": "Controcommento",
+    "cmt.ph": "Scrivi un controcommento…",
+    "cmt.save": "Salva commento",
+    "cmt.add": "＋ Aggiungi commento",
+    "cmt.authorPh": "Autore (il tuo nome)…",
+    "toast.repStatus": "Stato issue → {s}. Ricorda di scaricare le risposte (xlsx).",
+    "toast.repSaved": "Controcommento salvato — ricorda di scaricare le risposte (xlsx).",
+    "toast.repExported": "Risposte esportate: {n} issue con stato o commento.",
+    "toast.noRepChanges": "Nessuna risposta da esportare: imposta uno stato o scrivi un controcommento.",
+    "toast.commentAdded": "Controcommento aggiunto — ricorda di scaricare il BCF aggiornato.",
     /* dettaglio report */
     "d.reportIssue": "Issue da report", "d.ruleset": "Ruleset", "d.rule": "Regola", "d.section": "Sezione",
     "d.file": "File", "d.decision": "Decision", "d.components": "Componenti", "d.absent": " (assenti dai modelli: {n})",
@@ -1409,6 +1538,43 @@ const STRINGS = {
     "toast.idsLoaded": "IDS “{f}” loaded: {n} specifications.",
     "toast.idsErr": "Error reading IDS: {e}",
     "toast.idsUnloaded": "IDS removed.",
+    "tab.qto": "QTO", "title.qtoTab": "Quantity Take-Off from the loaded models",
+    "qto.groupBy": "Group by",
+    "qto.groupClass": "IFC class",
+    "qto.groupParam": "Parameter",
+    "qto.selPset": "— Pset —",
+    "qto.selProp": "— Property —",
+    "qto.addCol": "Custom columns",
+    "qto.addColT": "Sum a numeric pset parameter as an extra column",
+    "qto.removeCol": "Remove column",
+    "qto.run": "▶ Compute quantities",
+    "qto.rerun": "↻ Recompute",
+    "qto.running": "Computing quantities…",
+    "qto.export": "⤓ Export CSV",
+    "qto.exportT": "Download the take-off as CSV (separator ; — opens in Excel)",
+    "ph.searchQto": "Search group…",
+    "empty.noQto": "No take-off yet.<br>Load a model and press <b>Compute quantities</b>.",
+    "qto.noModels": "Load at least one IFC model.",
+    "qto.pressRun": "Press “Compute quantities” to build the take-off.",
+    "qto.noMatch": "No group matches the search.",
+    "qto.noValue": "(no value)",
+    "qto.total": "TOTAL",
+    "qto.groupsN": "{n} groups",
+    "qto.elemsN": "{n} elements",
+    "qto.col.count": "Count (n)",
+    "qto.col.length": "Length (m)",
+    "qto.col.area": "Area (m²)",
+    "qto.col.volume": "Volume (m³)",
+    "qto.col.weight": "Weight (kg)",
+    "qto.colElems": "Elements",
+    "qto.colSum": "Sum",
+    "qto.isolate": "Isolate in 3D",
+    "qto.tooMany": "Group too large to highlight ({n} elements)",
+    "qto.csvGroup": "Group",
+    "toast.qtoDone": "Take-off ready: {n} groups.",
+    "toast.qtoNoData": "No quantities found with this configuration.",
+    "toast.qtoBadParam": "Choose the Pset and property for grouping.",
+    "qto.noStdQty": "The model contains no IFC quantities (IfcElementQuantity / BaseQuantities): the Length/Area/Volume/Weight columns stay empty. Use pset parameters as custom columns.",
     "btn.panel": "» Panel", "title.panel": "Show the side panel",
     "btn.detailReopen": "« Details", "title.detailReopen": "Show the details panel",
     "title.collapseDetail": "Collapse the details panel",
@@ -1418,7 +1584,7 @@ const STRINGS = {
     "navHelp": "Orbit: left button &nbsp;·&nbsp; Pan: wheel pressed &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× wheel click: zoom to fit",
     "drop.big": "Drag IFC and BCF files here",
     "drop.small": "Or use the buttons above. Click an element in 3D to read its properties, <kbd>Esc</kbd> to deselect. Double-click a model in the list to frame it.",
-    "lp.chip": "IDS checks are now live",
+    "lp.chip": "Quantity take-off (QTO) is now live",
     "lp.h1a": "Explore. Review.", "lp.h1b": "Build ", "lp.h1c": "better.",
     "lp.sub": "The BIM viewer for IFC and BCF. Visualize models, coordinate issues and edit parameters right in the 3D view.",
     "lp.ctaIfc": "Upload IFC", "lp.ctaIfcSub": "Supports IFC2x3, IFC4, IFC4x3",
@@ -1518,7 +1684,25 @@ const STRINGS = {
     "sec.comments": "Comments ({n})", "empty.noComments": "No comments.",
     "title.changeStatus": "Change issue status",
     "comp.showProps": "Show element properties",
-    "bcf.toExport": "{n} status to download", "bcf.toExportPl": "{n} statuses to download",
+    "bcf.toExport": "{n} change to download", "bcf.toExportPl": "{n} changes to download",
+    "rep.noStatus": "— status —",
+    "rep.export": "⤓ Download responses (xlsx)",
+    "title.repExport": "Export an xlsx with every report issue plus the Status and Response columns",
+    "rep.toExport": "{n} response to download", "rep.toExportPl": "{n} responses to download",
+    "rep.sheet": "Responses",
+    "rep.xIssue": "Issue", "rep.xDesc": "Description", "rep.xSev": "Severity",
+    "rep.xStatus": "Status", "rep.xComment": "Response",
+    "rep.hasComment": "Has a response comment",
+    "sec.comment": "Response comment",
+    "cmt.ph": "Write a response comment…",
+    "cmt.save": "Save comment",
+    "cmt.add": "＋ Add comment",
+    "cmt.authorPh": "Author (your name)…",
+    "toast.repStatus": "Issue status → {s}. Remember to download the responses (xlsx).",
+    "toast.repSaved": "Response saved — remember to download the responses (xlsx).",
+    "toast.repExported": "Responses exported: {n} issues with a status or comment.",
+    "toast.noRepChanges": "Nothing to export: set a status or write a response comment first.",
+    "toast.commentAdded": "Comment added — remember to download the updated BCF.",
     "d.reportIssue": "Report issue", "d.ruleset": "Ruleset", "d.rule": "Rule", "d.section": "Section",
     "d.file": "File", "d.decision": "Decision", "d.components": "Components", "d.absent": " (missing from models: {n})",
     "sec.description": "Description", "sec.rule": "Rule", "sec.componentsH": "Components",
@@ -1626,13 +1810,14 @@ function refreshDynamicI18n() {
   try { renderStatusChips(); renderSevChips(); } catch (e) {}
   try { renderIssueList(); renderReportList(); } catch (e) {}
   try { renderIdsChips(); renderIdsList(); } catch (e) {}
+  try { renderQtoSelects(); renderQtoColChips(); renderQtoList(); } catch (e) {}
   try { if (models.length) renderModelList(); } catch (e) {}   /* tooltip e conteggi delle righe modello */
   try { updateNavHelp(); } catch (e) {}
   if (typeof statsOpen !== "undefined" && statsOpen) { try { openReportStats(); } catch (e) {} }
   else if (typeof activeTopic !== "undefined" && activeTopic) { try { renderTopicDetail(activeTopic); } catch (e) {} }
   else if (typeof activeReport !== "undefined" && activeReport) { try { openReportTopic(activeReport); } catch (e) {} }
   else if (typeof curDetail !== "undefined" && curDetail && $("main").classList.contains("with-detail")) { try { showElementDetail(curDetail.model, curDetail.eid); } catch (e) {} }
-  try { updateBcfDirtyUI(); } catch (e) {}
+  try { updateBcfDirtyUI(); updateRepDirtyUI(); } catch (e) {}
   try { if (typeof DRAW !== "undefined" && DRAW.on && !$("sectionBody").hidden) { renderSection2D(); } } catch (e) {}
   if ($("ftHint") && (!models || !models.length)) $("ftHint").textContent = tr("ft.ready");
 }
@@ -2008,6 +2193,7 @@ function buildModel(data, name) {
   models.push(model);
   classeCache.clear();   // i nuovi GUID possono ora risolvere la Classe (v1.7.6)
   idsInvalidate();       // l'universo elementi è cambiato: l'esito IDS va ricalcolato
+  qtoInvalidate();       // idem per il computo quantità (feature/qto)
   prewarmModel(model);  // v1.9.4 — costruisce le mappe pset/type in background (idle),
                         // così la PRIMA selezione non paga la scansione del modello
   try { extractAlignments(model, data); } catch (e) { console.warn("alignment:", e); } // v1.9.7
@@ -2299,6 +2485,7 @@ function removeModel(model) {
   if (i >= 0) models.splice(i, 1);
   classeCache.clear();   // la risoluzione Classe dipende dai modelli presenti (v1.7.6)
   idsInvalidate();       // l'universo elementi è cambiato: l'esito IDS va ricalcolato
+  qtoInvalidate();       // idem per il computo quantità (feature/qto)
   updateAlignUI();       // il bottone Asse dipende anche da models.length (LandXML, v2.1.0)
   if (!models.length && !PCLOUD.sources.length) {
     /* federazione vuota: il prossimo caricamento ridefinisce origine e riferimento BCF.
@@ -3401,6 +3588,171 @@ function buildIdsViews() {
   return views;
 }
 
+/* ===================== QTO — lettura quantità (data layer, feature/qto) =====================
+   Come per IDS: la logica pura (aggregazione/CSV) sta in viewer/qto.js, qui
+   c'è solo l'accoppiamento con web-ifc: lettura di IfcElementQuantity e pset,
+   unità di misura, costruzione delle righe da passare ad aggregateQto. */
+
+let qtoResult = null;        // ultimo esito: { agg: aggregateQto(...), config, columns }
+let qtoConfig = { groupMode: "class", groupParam: null, customCols: [] };  // groupParam/customCols: {pset, prop}
+let qtoPropIndex = null;     // Map<pset, [prop,...]> scoperti nei modelli (lazy, per le tendine)
+let qtoRunning = false;
+const qtoOpenGroups = new Set();   // chiavi dei gruppi espansi (persistono tra i re-render)
+
+function qtoInvalidate() {
+  qtoPropIndex = null; qtoResult = null; qtoOpenGroups.clear();
+  if (typeof renderQtoSelects === "function") { renderQtoSelects(); renderQtoList(); updateQtoBadge(); updateQtoRunBtn(); }
+}
+
+/* Come readPset (che alimenta il pannello proprietà e NON va toccato) ma
+   conserva il valore NUMERICO e il tipo di quantità, per poterle sommare. */
+const QTO_KIND = { LengthValue: "length", AreaValue: "area", VolumeValue: "volume", CountValue: "count", WeightValue: "weight" };
+function readPsetQto(model, pid) {
+  const p = ifcApi.GetLine(model.modelID, pid, true);
+  const out = { name: unwrap(p.Name) || "", props: new Map(), qtys: [] };
+  for (const pr of p.HasProperties || []) {
+    if (!pr) continue;
+    out.props.set(unwrap(pr.Name), unwrap(pr.NominalValue));
+  }
+  for (const q of p.Quantities || []) {
+    if (!q) continue;
+    for (const key in QTO_KIND) {
+      if (q[key] === undefined || q[key] === null) continue;
+      const v = Number(unwrap(q[key]));
+      if (Number.isFinite(v)) out.qtys.push({ name: unwrap(q.Name), kind: QTO_KIND[key], value: v });
+      break;
+    }
+  }
+  return out;
+}
+
+/* Fattori di conversione delle quantità verso m / m² / m³ / kg.
+   len riusa model.unitFactor (già calcolato al load); area/volume/massa
+   dallo scan di IfcSIUnit (stesso pattern di readLengthUnit), con fallback
+   len² / len³ / kg. count non ha unità. */
+function qtoUnitsOf(model) {
+  if (model._qtoUnits) return model._qtoUnits;
+  const len = model.unitFactor || 1;
+  const u = { len, area: len * len, vol: len * len * len, mass: 1 };
+  const PREFIX = { EXA: 1e18, PETA: 1e15, TERA: 1e12, GIGA: 1e9, MEGA: 1e6, KILO: 1e3,
+    HECTO: 1e2, DECA: 10, DECI: 0.1, CENTI: 0.01, MILLI: 1e-3, MICRO: 1e-6, NANO: 1e-9 };
+  const ev = (x) => String((x && x.value !== undefined) ? x.value : (x ?? "")).replace(/\./g, "");
+  try {
+    const ids = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCSIUNIT);
+    for (let i = 0; i < ids.size(); i++) {
+      const un = ifcApi.GetLine(model.modelID, ids.get(i));
+      const t = ev(un.UnitType), pfx = ev(un.Prefix);
+      const f = pfx && PREFIX[pfx] ? PREFIX[pfx] : 1;
+      if (t === "AREAUNIT") u.area = f * f;          /* prefisso sull'unità di base: km² = (10³ m)² */
+      else if (t === "VOLUMEUNIT") u.vol = f * f * f;
+      else if (t === "MASSUNIT") u.mass = f * 1e-3;  /* base SI = grammo: KILO→1 kg, nessun prefisso→0.001 kg */
+    }
+  } catch (e) { /* nessuna IfcSIUnit leggibile: restano i fallback */ }
+  model._qtoUnits = u;
+  return u;
+}
+
+/* Costruisce una riga per ogni elemento GEOMETRICO (guidByExpress: la QTO
+   conta ciò che è costruito; gli elementi senza geometria — griglie,
+   annotazioni — non entrano nel computo). Ritorna rows per aggregateQto. */
+async function extractQtoRows(config) {
+  const rows = [];
+  /* customCols e groupParam sono oggetti {pset, prop} (dalle tendine a cascata):
+     niente split su "." — i nomi di pset/proprietà possono contenere punti */
+  const wantCustom = (config.customCols || []).map((o) => ({ col: "c:" + o.pset + "." + o.prop, pset: o.pset, prop: o.prop }));
+  const wantParam = (config.groupMode === "param" && config.groupParam) ? config.groupParam : null;
+  /* valore di una proprietà O di una quantità con quel nome (le Qto_* sono selezionabili) */
+  const psVal = (ps, name) => {
+    if (ps.props.has(name)) return ps.props.get(name);
+    for (const q of ps.qtys) if (q.name === name) return q.value;
+    return undefined;
+  };
+  let done = 0;
+  for (const m of models) {
+    ensurePsetMap(m); ensureTypeMap(m);
+    const units = qtoUnitsOf(m);
+    const UF = { length: units.len, area: units.area, volume: units.vol, mass: units.mass };
+    /* cache per-pid: le righe di definizione pset/qto sono POCHE rispetto agli
+       elementi che le referenziano — ogni GetLine avviene una volta sola */
+    const cache = new Map();
+    const rd = (pid) => { let r = cache.get(pid); if (r === undefined) { try { r = readPsetQto(m, pid); } catch (e) { r = null; } cache.set(pid, r); } return r; };
+    for (const eid of m.guidByExpress.keys()) {
+      /* pset del type prima, poi i propri: gli ultimi vincono in caso di conflitto */
+      const pids = [];
+      const tId = m.typeOfElem.get(eid);
+      if (tId !== undefined) for (const pid of m.typePsetIds.get(tId) || []) pids.push(pid);
+      for (const pid of m.psetMap.get(eid) || []) pids.push(pid);
+      const qty = {};
+      /* quantità standard: UNA sola per kind per elemento, preferenza
+         Net* > Gross* > prima vista (Net+Gross insieme raddoppierebbero) */
+      const pick = {};   /* kind -> {value, rank} — rank: 0=Net 1=Gross 2=altro */
+      let groupKey = "";
+      for (const pid of pids) {
+        const ps = rd(pid);
+        if (!ps) continue;
+        for (const q of ps.qtys) {
+          const nm = (q.name || "").toLowerCase();
+          const rank = nm.startsWith("net") ? 0 : nm.startsWith("gross") ? 1 : 2;
+          const cur = pick[q.kind];
+          if (!cur || rank < cur.rank) pick[q.kind] = { value: q.value, rank };
+        }
+        for (const w of wantCustom) {
+          if (w.pset && ps.name !== w.pset) continue;
+          const raw = psVal(ps, w.prop);
+          if (raw === undefined) continue;
+          const v = toNumber(raw);
+          if (Number.isFinite(v)) qty[w.col] = v;   /* niente conversione: parametro opaco dell'utente */
+        }
+        if (wantParam && (!wantParam.pset || ps.name === wantParam.pset)) {
+          const raw = psVal(ps, wantParam.prop);
+          if (raw !== undefined && raw !== "") groupKey = String(raw);
+        }
+      }
+      for (const kind in pick) qty[kind] = pick[kind].value * (kind === "count" ? 1 : UF[kind === "weight" ? "mass" : kind]);
+      if (config.groupMode !== "param") {
+        const code = m.typeByExpress.get(eid);
+        try { groupKey = (code !== undefined && ifcApi.GetNameFromTypeCode) ? (ifcApi.GetNameFromTypeCode(code) || "") : ""; } catch (e) { groupKey = ""; }
+        if (!groupKey && code !== undefined) groupKey = "IFC " + code;
+      }
+      rows.push({
+        modelUid: m.uid, modelName: m.name, eid,
+        globalId: m.guidByExpress.get(eid) || "", name: "",
+        ifcClass: "", groupKey, qty
+      });
+      if (++done % 20000 === 0) await tick();   /* respiro all'overlay sui modelli grandi */
+    }
+  }
+  return rows;
+}
+
+/* Indice dei parametri per le tendine a cascata Pset → Proprietà:
+   scansiona SOLO le righe di definizione (poche), mai gli elementi.
+   Lazy: invocato alla prima apertura della tab QTO, non al load.
+   qtoPropIndex: Map<psetName, [propName,...]> — include anche i nomi
+   delle quantità (Qto_*), così sono selezionabili come parametri. */
+function ensureQtoPropIndex() {
+  if (qtoPropIndex) return qtoPropIndex;
+  const map = new Map();
+  for (const m of models) {
+    for (const type of [WebIFC.IFCPROPERTYSET, WebIFC.IFCELEMENTQUANTITY]) {
+      try {
+        const ids = ifcApi.GetLineIDsWithType(m.modelID, type);
+        for (let i = 0; i < ids.size(); i++) {
+          const ps = readPsetQto(m, ids.get(i));
+          if (!ps || !ps.name) continue;
+          let set = map.get(ps.name);
+          if (!set) { set = new Set(); map.set(ps.name, set); }
+          for (const k of ps.props.keys()) if (k) set.add(k);
+          for (const q of ps.qtys) if (q.name) set.add(q.name);
+        }
+      } catch (e) { /* tipo assente nello schema del modello */ }
+    }
+  }
+  const cmp = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+  qtoPropIndex = new Map([...map.keys()].sort(cmp).map(k => [k, [...map.get(k)].sort(cmp)]));
+  return qtoPropIndex;
+}
+
 /* ============================ BCF 2.1 ============================ */
 const STATUS_COLORS = [
   [/(reopen|riapert)/i, "var(--st-open)"],
@@ -4307,7 +4659,7 @@ function renderReportList() {
   }
   for (const t of filtered) {
     const card = document.createElement("div");
-    card.className = "issue-card" + (t === activeReport ? " active" : "");
+    card.className = "issue-card rep" + (t === activeReport ? " active" : "");
     card.tabIndex = 0;
     card.innerHTML = `
       <div class="spine" style="background:${SEV_COLOR[t.sevKey]}"></div>
@@ -4315,6 +4667,8 @@ function renderReportList() {
         <div class="title"></div>
         <div class="meta">
           <span style="color:${SEV_COLOR[t.sevKey]}">${esc(t.severity || tr("sev.ndShort"))}</span>
+          ${t.status ? `<span style="color:${statusColor(t.status)}">${esc(t.status)}</span>` : ""}
+          ${(t.comment || "").trim() ? `<span title="${esc(tr("rep.hasComment"))}">💬</span>` : ""}
           ${t.rule ? `<span>${esc(t.rule)}</span>` : (t.ruleset ? `<span>${esc(t.ruleset)}</span>` : "")}
           <span>${tr("comp.count", { n: t.components.length })}</span>
         </div>
@@ -4370,7 +4724,13 @@ function renderReportDetail(t, nMissing) {
       </div>`;
   }).join("");
   body.innerHTML = `
-    <span class="d-status" style="background:${SEV_COLOR[t.sevKey]}">${esc(t.severity || tr("sev.nd"))}</span>
+    <div class="d-statusrow">
+      <select id="repStatusSel" class="d-status-sel" style="background:${t.status ? statusColor(t.status) : "var(--st-other)"}" title="${tr("title.changeStatus")}">
+        <option value=""${t.status ? "" : " selected"}>${esc(tr("rep.noStatus"))}</option>
+        ${allBcfStatuses(t.status).map(s => `<option value="${esc(s)}"${s === t.status ? " selected" : ""}>${esc(s)}</option>`).join("")}
+      </select>
+      <span class="d-status" style="background:${SEV_COLOR[t.sevKey]}">${esc(t.severity || tr("sev.nd"))}</span>
+    </div>
     <div class="d-title">${esc(t.name)}</div>
     <dl class="d-grid">
       ${t.ruleset ? `<dt>${tr("d.ruleset")}</dt><dd>${esc(t.ruleset)}</dd>` : ""}
@@ -4383,8 +4743,16 @@ function renderReportDetail(t, nMissing) {
     ${t.desc ? `<div class="d-section">${tr("sec.description")}</div><div class="rep-desc">${esc(t.desc)}</div>` : ""}
     ${t.ruleDesc ? `<div class="d-section">${tr("sec.rule")}</div><div class="rep-desc">${esc(t.ruleDesc)}</div>` : ""}
     <div class="d-section">${tr("sec.componentsH")}</div>
-    <div class="rep-comps">${comps}</div>`;
+    <div class="rep-comps">${comps}</div>
+    <div class="d-section">${tr("sec.comment")}</div>
+    <div class="cmt-form">
+      <textarea id="repCmtTa" class="cmt-ta" placeholder="${esc(tr("cmt.ph"))}"></textarea>
+      <button id="btnRepCmtSave" class="cmt-btn">${esc(tr("cmt.save"))}</button>
+    </div>`;
   body.scrollTop = 0;
+  $("repCmtTa").value = t.comment || "";
+  $("repStatusSel").addEventListener("change", () => changeReportStatus(t, $("repStatusSel").value));
+  $("btnRepCmtSave").addEventListener("click", () => saveReportComment(t, $("repCmtTa").value));
   body.querySelectorAll(".rep-comp[data-i]").forEach(el => el.addEventListener("click", () => {
     const c = t.components[+el.dataset.i];
     for (const m of models) {
@@ -4397,6 +4765,60 @@ function renderReportDetail(t, nMissing) {
       }
     }
   }));
+}
+
+/* ===================== risposte al report: stato + controcommento (feature/qto follow-up) =====================
+   Il Checking Summary è di sola andata (Solibri non lo reimporta): le risposte
+   si esportano come NUOVO xlsx con tutte le issue più le colonne Stato e
+   Controcommento, da rimandare al revisore. */
+function changeReportStatus(t, newStatus) {
+  if ((newStatus || "") === (t.status || "")) return;
+  t.status = newStatus || "";
+  t._dirty = true;
+  renderReportDetail(t, t.components.filter(c => !models.some(m => m.expressByGuid.get(c.guid) !== undefined)).length);
+  renderReportList();
+  updateRepDirtyUI();
+  toast(tr("toast.repStatus", { s: t.status || tr("rep.noStatus") }));
+}
+function saveReportComment(t, text) {
+  text = (text || "").trim();
+  if (text === (t.comment || "")) return;
+  t.comment = text;
+  t._dirty = true;
+  renderReportList();
+  updateRepDirtyUI();
+  toast(tr("toast.repSaved"));
+}
+function updateRepDirtyUI() {
+  const bar = $("repExportBar"); if (!bar) return;
+  const n = reportTopics.filter(t => t._dirty).length;
+  bar.classList.toggle("on", n > 0);
+  const note = bar.querySelector(".note");
+  if (note) note.textContent = n ? tn(n, "rep.toExport", "rep.toExportPl") : "";
+}
+async function exportReportXlsx() {
+  const annotated = reportTopics.filter(t => (t.status || "") || (t.comment || "").trim());
+  if (!annotated.length) { toast(tr("toast.noRepChanges")); return; }
+  try {
+    await ensureXlsxLib();
+    const aoa = [[tr("d.file"), tr("d.section"), tr("d.ruleset"), tr("d.rule"), tr("rep.xIssue"),
+                  tr("rep.xDesc"), tr("rep.xSev"), tr("d.decision"), tr("d.components"),
+                  tr("rep.xStatus"), tr("rep.xComment")]];
+    for (const t of reportTopics) {
+      aoa.push([t.file, t.section, t.ruleset, t.rule, t.name, t.desc, t.severity,
+                t.decision, t.components.length, t.status || "", t.comment || ""]);
+    }
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [{ wch: 24 }, { wch: 16 }, { wch: 24 }, { wch: 30 }, { wch: 38 }, { wch: 42 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 13 }, { wch: 42 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, tr("rep.sheet"));
+    const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+    triggerDownload(new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+      `report_risposte_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    for (const t of reportTopics) t._dirty = false;
+    updateRepDirtyUI();
+    toast(tr("toast.repExported", { n: annotated.length }));
+  } catch (e) { toast(tr("toast.reportErr", { e: e.message })); console.warn(e); }
 }
 
 /* ===================== statistiche aggregate report (v1.7.6, roadmap §4.5) ===================== */
@@ -4651,8 +5073,16 @@ function renderTopicDetail(t) {
   else for (const c of t.comments) {
     html += `<div class="comment"><div class="who">${esc(c.author || "—")} · ${fmtDate(c.date)}</div><div class="txt">${esc(c.text)}</div></div>`;
   }
+  /* controcommento: entra nel markup.bcf al prossimo «Scarica BCF aggiornato» */
+  html += `<div class="cmt-form">
+      <input id="cmtAuthor" type="text" placeholder="${esc(tr("cmt.authorPh"))}">
+      <textarea id="cmtTa" class="cmt-ta" placeholder="${esc(tr("cmt.ph"))}"></textarea>
+      <button id="btnCmtAdd" class="cmt-btn">${esc(tr("cmt.add"))}</button>
+    </div>`;
   body.innerHTML = html;
   body.scrollTop = 0;
+  $("cmtAuthor").value = _cmtAuthor();
+  $("btnCmtAdd").addEventListener("click", () => addTopicComment(t));
 
   if (sel.length) {
     const rows = $("compRows");
@@ -4735,6 +5165,23 @@ function changeTopicStatus(t, newStatus, selEl) {
   toast(tr("toast.statusChanged", { s: newStatus }));
 }
 
+/* ---- controcommenti BCF: autore memorizzato + aggiunta al topic ---- */
+function _cmtAuthor() { try { return localStorage.getItem("viewer_cmt_author") || ""; } catch (e) { return ""; } }
+function addTopicComment(t) {
+  const author = ($("cmtAuthor").value || "").trim();
+  const text = ($("cmtTa").value || "").trim();
+  if (!text) return;
+  try { localStorage.setItem("viewer_cmt_author", author); } catch (e) {}
+  t.comments.push({ guid: uuid(), date: nowIso(), author: author || "—", text, _new: true });
+  t.modified = nowIso();
+  t._dirty = true;
+  if (t._src) t._src._dirty = true;
+  renderTopicDetail(t);
+  updateBcfDirtyUI();
+  renderBcfSources();
+  toast(tr("toast.commentAdded"));
+}
+
 /* Mostra/nasconde la barra di export e ne aggiorna il conteggio. */
 function updateBcfDirtyUI() {
   const bar = $("bcfExportBar");
@@ -4746,7 +5193,8 @@ function updateBcfDirtyUI() {
 }
 
 /* Ri-export: per ogni sorgente .bcfzip con modifiche, riscrive TopicStatus + ModifiedDate
-   nei markup.bcf interessati e ne genera il download. Il resto dell'archivio è invariato. */
+   e aggiunge i controcommenti nuovi (<Comment>) nei markup.bcf interessati, poi ne genera
+   il download. Il resto dell'archivio è invariato. */
 async function exportDirtyBcf() {
   const dirtySources = bcfSources.filter(s => s._dirty && topics.some(t => t._src === s && t._dirty));
   if (!dirtySources.length) { toast(tr("toast.noStatusChange")); return; }
@@ -4774,6 +5222,20 @@ async function exportDirtyBcf() {
           else topicEl.appendChild(md);
         }
         md.textContent = t.modified || nowIso();
+        /* controcommenti nuovi → <Comment> BCF 2.1: nello schema stanno tra
+           <Topic> e <Viewpoints>, figli diretti di <Markup> */
+        const root = doc.documentElement;
+        for (const c of t.comments.filter(x => x._new)) {
+          const ce = doc.createElementNS(topicEl.namespaceURI, "Comment");
+          ce.setAttribute("Guid", c.guid || uuid());
+          for (const [tag, val] of [["Date", c.date || nowIso()], ["Author", c.author || "—"], ["Comment", c.text]]) {
+            const el2 = doc.createElementNS(topicEl.namespaceURI, tag);
+            el2.textContent = val;
+            ce.appendChild(el2);
+          }
+          const vps = childrenByName(root, "Viewpoints")[0];
+          if (vps) root.insertBefore(ce, vps); else root.appendChild(ce);
+        }
         const xml = serializer.serializeToString(doc);
         src.zip.file(path, xml);
         nTopics++;
@@ -4782,8 +5244,8 @@ async function exportDirtyBcf() {
       const base = src.name.replace(/\.(bcfzip|bcf|zip)$/i, "");
       triggerDownload(blob, `${base}_aggiornato.bcfzip`);
       nFiles++;
-      // pulizia flag dirty per i topic appena scaricati
-      for (const t of dirtyTopics) t._dirty = false;
+      // pulizia flag dirty per i topic appena scaricati (i commenti non sono più "nuovi")
+      for (const t of dirtyTopics) { t._dirty = false; for (const c of t.comments) delete c._new; }
       src._dirty = false;
     } catch (e) {
       console.error(e);
@@ -5369,6 +5831,7 @@ $("btnIfc").addEventListener("click", () => $("fileIfc").click());
 $("btnBcf").addEventListener("click", () => $("fileBcf").click());
 $("btnExportBcf").addEventListener("click", exportDirtyBcf);
 $("btnReportStats").addEventListener("click", () => { if (statsOpen) closeDetail(); else openReportStats(); });
+$("btnRepExport").addEventListener("click", exportReportXlsx);
 $("fileIfc").addEventListener("change", (e) => { if (e.target.files.length) loadIfcFiles([...e.target.files]); e.target.value = ""; });
 $("fileBcf").addEventListener("change", async (e) => { for (const f of e.target.files) { if (/\.(xlsx|xlsm)$/i.test(f.name)) await loadReport(f); else await loadBcf(f); } e.target.value = ""; });
 
@@ -5394,11 +5857,236 @@ window.addEventListener("drop", async (e) => {
   if (!ifcs.length && !bcfs.length && !reps.length && !pcs.length && !idss.length) toast(tr("toast.unknownFormat"));
 });
 
+/* ===================== QTO — tab, render, run (feature/qto) ===================== */
+function qtoColLabel(c) { return c.startsWith("c:") ? c.slice(2) : tr("qto.col." + c); }
+
+function updateQtoBadge() {
+  const b = $("tabQtoCount"); if (b) b.textContent = qtoResult ? qtoResult.agg.groups.length : 0;
+}
+function updateQtoRunBtn() {
+  const b = $("btnQtoRun"); if (!b) return;
+  b.classList.toggle("busy", qtoRunning);
+  b.disabled = !qtoRunning && !models.length;
+  if (qtoRunning) b.innerHTML = `<span class="spin"></span>${esc(tr("qto.running"))}`;
+  else b.textContent = qtoResult ? tr("qto.rerun") : tr("qto.run");
+}
+function updateQtoExportBar() {
+  const bar = $("qtoExportBar"); if (bar) bar.style.display = (qtoResult && qtoResult.agg.groups.length) ? "" : "none";
+}
+
+/* tendine a cascata Pset → Proprietà (stile del viewer, niente datalist
+   nativa) — l'indice si costruisce solo a tab QTO aperta (lazy) */
+function fillPsetSelect(sel) {
+  const cur = sel.value;
+  sel.innerHTML = "";
+  const o0 = document.createElement("option");
+  o0.value = ""; o0.textContent = tr("qto.selPset");
+  sel.appendChild(o0);
+  if (models.length && $("qtoBlock").style.display !== "none") {
+    for (const ps of ensureQtoPropIndex().keys()) {
+      const o = document.createElement("option");
+      o.value = ps; o.textContent = ps;
+      sel.appendChild(o);
+    }
+  }
+  if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+function fillPropSelect(sel, pset) {
+  const cur = sel.value;
+  sel.innerHTML = "";
+  const o0 = document.createElement("option");
+  o0.value = ""; o0.textContent = tr("qto.selProp");
+  sel.appendChild(o0);
+  const props = (pset && qtoPropIndex) ? (qtoPropIndex.get(pset) || []) : [];
+  for (const p of props) {
+    const o = document.createElement("option");
+    o.value = p; o.textContent = p;
+    sel.appendChild(o);
+  }
+  sel.disabled = !props.length;
+  if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+function renderQtoSelects() {
+  fillPsetSelect($("qtoGroupPset")); fillPropSelect($("qtoGroupProp"), $("qtoGroupPset").value);
+  fillPsetSelect($("qtoColPset")); fillPropSelect($("qtoColProp"), $("qtoColPset").value);
+}
+
+/* chip delle colonne personalizzate (parametri numerici da sommare) */
+function renderQtoColChips() {
+  const box = $("qtoColChips"); if (!box) return;
+  box.innerHTML = "";
+  for (const p of qtoConfig.customCols) {
+    const chip = document.createElement("span");
+    chip.className = "src-chip";
+    chip.innerHTML = `<span class="nm"></span><button class="src-x" title="${esc(tr("qto.removeCol"))}">×</button>`;
+    chip.querySelector(".nm").textContent = p.pset + "." + p.prop;
+    chip.querySelector(".nm").title = p.pset + "." + p.prop;
+    chip.querySelector(".src-x").addEventListener("click", () => {
+      qtoConfig.customCols = qtoConfig.customCols.filter(x => !(x.pset === p.pset && x.prop === p.prop));
+      renderQtoColChips();
+    });
+    box.appendChild(chip);
+  }
+}
+function addQtoCol() {
+  const pset = $("qtoColPset").value, prop = $("qtoColProp").value;
+  if (!pset || !prop) return;
+  if (!qtoConfig.customCols.some(x => x.pset === pset && x.prop === prop)) {
+    qtoConfig.customCols.push({ pset, prop });
+    renderQtoColChips();
+  }
+  $("qtoColProp").value = "";
+}
+
+function renderQtoSummary() {
+  const box = $("qtoSummary"); if (!box) return;
+  if (!qtoResult) { box.innerHTML = ""; return; }
+  const agg = qtoResult.agg;
+  box.innerHTML = `<span>${tr("qto.groupsN", { n: agg.groups.length })}</span><span>${tr("qto.elemsN", { n: agg.totals.n })}</span>`;
+}
+
+function renderQtoList() {
+  const list = $("qtoList"); if (!list) return;
+  updateQtoRunBtn(); updateQtoExportBar(); renderQtoSummary();
+  if (!models.length) { list.innerHTML = `<div class="empty-note">${tr("qto.noModels")}</div>`; return; }
+  if (qtoRunning) { list.innerHTML = `<div class="empty-note">${tr("qto.running")}</div>`; return; }
+  if (!qtoResult) { list.innerHTML = `<div class="empty-note">${tr("empty.noQto")}</div>`; return; }
+  const agg = qtoResult.agg;
+  const q = ($("qtoSearch").value || "").trim().toLowerCase();
+  const groups = agg.groups.filter(g => !q || (g.key === "" ? tr("qto.noValue") : g.key).toLowerCase().includes(q));
+  list.innerHTML = "";
+  if (!groups.length) { list.innerHTML = `<div class="empty-note">${tr("qto.noMatch")}</div>`; return; }
+  const cols = agg.usedCols;
+  /* etichette colonna: per le custom, proprietà in evidenza + pset piccolo
+     sotto (niente "Pset.Prop" lunghissimi troncati a metà parola) */
+  const colMeta = {};
+  for (const o of qtoResult.config.customCols || []) colMeta["c:" + o.pset + "." + o.prop] = o;
+  const colHtml = (c) => {
+    const m = colMeta[c];
+    return m ? `<span class="qto-cp">${esc(m.prop)}</span><span class="qto-cs">${esc(m.pset)}</span>` : esc(qtoColLabel(c));
+  };
+  /* blocco totali in testa (sempre sull'intero computo, non sul filtro) */
+  const tot = document.createElement("div");
+  tot.className = "qto-totals";
+  /* se nessuna colonna standard ha dati, il file non ha IfcElementQuantity:
+     lo si dice esplicitamente invece di far "sparire" le colonne in silenzio */
+  const noStd = !cols.some(c => STD_COLS.includes(c));
+  tot.innerHTML =
+    `<div class="t-title"><span>${esc(tr("qto.total"))}</span><span>${tr("qto.groupsN", { n: agg.groups.length })} · ${tr("qto.elemsN", { n: agg.totals.n })}</span></div>` +
+    cols.map(c => `<div class="t-row"><span class="lbl" title="${esc(qtoColLabel(c))}">${colHtml(c)}</span><b>${formatNum(agg.totals.sums[c], { locale: LANG })}</b></div>`).join("") +
+    (noStd ? `<div class="qto-note">${tr("qto.noStdQty")}</div>` : "");
+  list.appendChild(tot);
+  /* un blocco collassabile per gruppo (pattern pset-block del pannello dettagli) */
+  for (const g of groups) {
+    const label = g.key === "" ? tr("qto.noValue") : g.key;
+    const blk = document.createElement("div");
+    blk.className = "pset-block qto-grp";
+    blk.dataset.open = qtoOpenGroups.has(g.key) ? "1" : "0";
+    const rows = cols.filter(c => c in g.sums).map(c =>
+      `<tr><td title="${esc(qtoColLabel(c))}">${colHtml(c)}</td><td><span class="num">${formatNum(g.sums[c], { locale: LANG })}</span>${g.have[c] < g.n ? ` <span class="qto-part">(${g.have[c]}/${g.n})</span>` : ""}</td></tr>`).join("");
+    blk.innerHTML = `
+      <div class="pset-head"><span class="pset-chev">▸</span><span class="pset-name"></span><span class="pset-count">${g.n}</span><button class="qto-iso" title="${esc(tr("qto.isolate"))}">◎</button></div>
+      <table class="prop-table qto-tbl"><tbody>${rows || `<tr><td colspan="2" class="qto-part">—</td></tr>`}</tbody></table>`;
+    blk.querySelector(".pset-name").textContent = label;
+    blk.querySelector(".pset-head").addEventListener("click", () => {
+      const wasOpen = blk.dataset.open === "1";
+      blk.dataset.open = wasOpen ? "0" : "1";
+      wasOpen ? qtoOpenGroups.delete(g.key) : qtoOpenGroups.add(g.key);
+    });
+    blk.querySelector(".qto-iso").addEventListener("click", (e) => { e.stopPropagation(); isolateQtoGroup(g); });
+    list.appendChild(blk);
+  }
+}
+
+function runQto() {
+  if (qtoRunning || !models.length) return;
+  qtoConfig.groupMode = $("qtoGroupMode").value;
+  if (qtoConfig.groupMode === "param") {
+    const pset = $("qtoGroupPset").value, prop = $("qtoGroupProp").value;
+    if (!pset || !prop) { toast(tr("toast.qtoBadParam")); return; }
+    qtoConfig.groupParam = { pset, prop };
+  } else qtoConfig.groupParam = null;
+  const cfg = {
+    groupMode: qtoConfig.groupMode,
+    groupParam: qtoConfig.groupParam ? { ...qtoConfig.groupParam } : null,
+    customCols: qtoConfig.customCols.map(o => ({ ...o }))
+  };
+  qtoRunning = true;
+  updateQtoRunBtn();
+  showLoading(tr("qto.running"));
+  setTimeout(async () => {                 // lascia dipingere l'overlay prima del lavoro
+    try {
+      const columns = [...STD_COLS, ...cfg.customCols.map(o => "c:" + o.pset + "." + o.prop)];
+      const rows = await extractQtoRows(cfg);
+      qtoResult = { agg: aggregateQto(rows, { columns }), config: cfg, columns };
+      qtoOpenGroups.clear();
+      if (!qtoResult.agg.groups.length) toast(tr("toast.qtoNoData"));
+      else toast(tr("toast.qtoDone", { n: qtoResult.agg.groups.length }));
+    } catch (e) { qtoResult = null; toast("QTO: " + e.message); console.warn(e); }
+    qtoRunning = false;
+    updateQtoBadge();
+    renderQtoList();
+    hideLoading();
+  }, 30);
+}
+
+/* evidenzia e inquadra gli elementi di un gruppo nel 3D (come openIdsSpec) */
+const QTO_ISO_MAX = 5000;   /* guardia: buildHighlight scala col numero di elementi selezionati */
+function isolateQtoGroup(g) {
+  if (g.n > QTO_ISO_MAX) { toast(tr("qto.tooMany", { n: g.n })); return; }
+  const byUid = new Map(models.map(m => [m.uid, m]));
+  const found = [], seen = new Set();
+  for (const r of g.rows) {
+    const m = byUid.get(r.modelUid);
+    if (!m) continue;                     /* il modello è stato rimosso dopo il run */
+    for (const gid of geoIdsOf(m, r.eid)) {
+      const k = m.uid + ":" + gid;
+      if (!seen.has(k)) { seen.add(k); found.push({ model: m, eid: gid }); }
+    }
+  }
+  if (!found.length) { clearHighlight(); return; }
+  const box = buildHighlight(found);
+  if (box) fitBox(box.clone().expandByScalar(box.getSize(new THREE.Vector3()).length() * 0.3 + 2));
+}
+
+/* export CSV: separatore ; (Excel it), decimale secondo la lingua, BOM UTF-8 */
+function exportQtoCsv() {
+  if (!qtoResult || !qtoResult.agg.groups.length) return;
+  const agg = qtoResult.agg;
+  const colHeaders = {};
+  for (const c of agg.usedCols) colHeaders[c] = qtoColLabel(c);
+  const gp = qtoResult.config.groupParam;
+  const csv = toCsv(agg, {
+    sep: ";", decimal: LANG === "it" ? "," : ".",
+    groupHeader: gp ? gp.pset + "." + gp.prop : tr("qto.groupClass"),
+    countHeader: tr("qto.colElems"),
+    colHeaders,
+    totalLabel: tr("qto.total"),
+    emptyKeyLabel: tr("qto.noValue")
+  });
+  const grp = (gp ? gp.pset + "." + gp.prop : "classe").replace(/[^A-Za-z0-9._-]+/g, "_");
+  const fname = `qto_${grp}_${new Date().toISOString().slice(0, 10)}.csv`;
+  triggerDownload(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }), fname);   /* BOM: Excel riconosce l'UTF-8 */
+}
+$("btnQtoCsv").addEventListener("click", exportQtoCsv);
+
+$("qtoGroupMode").addEventListener("change", () => {
+  $("qtoGroupParamRow").style.display = $("qtoGroupMode").value === "param" ? "" : "none";
+});
+$("qtoGroupPset").addEventListener("change", () => fillPropSelect($("qtoGroupProp"), $("qtoGroupPset").value));
+$("qtoColPset").addEventListener("change", () => fillPropSelect($("qtoColProp"), $("qtoColPset").value));
+$("btnQtoAddCol").addEventListener("click", addQtoCol);
+$("btnQtoRun").addEventListener("click", runQto);
+$("qtoSearch").addEventListener("input", renderQtoList);
+updateQtoRunBtn();
+
 /* ============================ utilità UI ============================ */
 function setLeftTab(which) {
   document.querySelectorAll(".ltab").forEach(b => b.classList.toggle("on", b.dataset.tab === which));
   $("modelsBlock").style.display = which === "models" ? "" : "none";
   $("issuesBlock").style.display = which === "issues" ? "" : "none";
+  $("qtoBlock").style.display = which === "qto" ? "" : "none";
+  if (which === "qto") renderQtoSelects();   /* indice Pset→Proprietà lazy: costruito alla prima apertura */
 }
 document.querySelectorAll(".ltab").forEach(b => b.addEventListener("click", () => setLeftTab(b.dataset.tab)));
 
