@@ -1,3 +1,11 @@
+<!--
+  Viewer IFC · BCF — Applicazione / App
+  Copyright (C) 2026 Alessandro Perugini
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published
+  by the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version. See <https://www.gnu.org/licenses/>.
+-->
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -6,22 +14,21 @@
 <title>Viewer IFC · BCF — BIM coordination in your browser</title>
 
 <!-- ============================ SEO / social / favicon ============================ -->
-<!-- NOTA: sostituire https://example.com/ con l'URL reale prima della pubblicazione (3 occorrenze: canonical, og:url, og:image). -->
 <meta name="description" content="Free and open-source BIM viewer for IFC and BCF files, right in your browser. Your models never leave your computer: no upload, no account, privacy by design.">
 <meta name="author" content="Alessandro Perugini">
 <meta name="keywords" content="IFC viewer, BCF viewer, BIM, web-ifc, openBIM, BIM coordination, online IFC viewer, BCF browser, free IFC viewer">
 <meta name="theme-color" content="#0c110a">
-<link rel="canonical" href="https://example.com/">
+<link rel="canonical" href="https://viewifc.com/viewer/">
 
 <!-- Open Graph (LinkedIn, WhatsApp, Slack, Facebook) -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Viewer IFC · BCF">
 <meta property="og:title" content="Viewer IFC · BCF — BIM coordination in your browser">
 <meta property="og:description" content="Open and coordinate IFC models and BCF issues in your browser. No upload: your models stay on your computer. Free and open source.">
-<meta property="og:url" content="https://example.com/">
-<meta property="og:image" content="https://example.com/og-image.png">
+<meta property="og:url" content="https://viewifc.com/viewer/">
+<meta property="og:image" content="https://viewifc.com/og-image.png">
 <meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+<meta property="og:image:height" content="1200">
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="it_IT">
 
@@ -29,7 +36,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Viewer IFC · BCF — BIM coordination in your browser">
 <meta name="twitter:description" content="Open and coordinate IFC models and BCF issues in your browser. No upload: your models stay on your computer.">
-<meta name="twitter:image" content="https://example.com/og-image.png">
+<meta name="twitter:image" content="https://viewifc.com/og-image.png">
 
 <!-- Favicon inline (badge lime, nessun file esterno) -->
 <link rel="icon" type="image/png" href="data:image/png;base64,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">
@@ -49,7 +56,7 @@
 try{ if(localStorage.getItem("viewer_landing_theme")==="light") document.documentElement.setAttribute("data-theme","light"); }catch(e){}
 </script>
 <style>
-/* ============================ tema v2 "coordination suite" (fase 2: tutta l'app) ============================
+/* ============================ tema v2 "coordination suite" ============================
    Dark di default su tutto il viewer, stessi token della landing del sito; light mode via
    html[data-theme="light"] con i valori chiari storici. Chiave viewer_landing_theme condivisa
    con landing/guida, applicata pre-paint nel <head>. I colori del MODELLO (materiali IFC,
@@ -97,9 +104,6 @@ header{display:flex;align-items:center;gap:16px;padding:0 18px;height:58px;backg
 .brand-link{display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;border-radius:8px;padding:3px 6px;margin:-3px -6px;transition:background .15s}
 .brand-link:hover{background:var(--panel-2)}
 .logo{display:flex;align-items:center;gap:9px}
-.logo-mark{display:inline-flex;align-items:center;justify-content:center;height:26px;padding:0 8px;border-radius:6px;background:var(--lime);color:var(--lime-ink);font-family:var(--disp);font-weight:800;font-size:14px;letter-spacing:.06em}
-.logo-word{font-family:var(--disp);font-weight:700;font-size:17px;letter-spacing:.16em;color:var(--text)}
-.hdr-div{width:1px;height:26px;background:var(--line-2)}
 .appname{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.06em;color:var(--text)}
 .appname span{display:block;font-family:var(--sans);font-weight:400;font-size:11px;letter-spacing:.04em;color:var(--muted)}
 .spacer{flex:1}
@@ -357,7 +361,7 @@ main.left-off .left-resize{display:none}
 .ids-run:hover:not(:disabled){background:var(--lime-deep)}
 .ids-run:disabled{opacity:.55;cursor:not-allowed;background:var(--panel-2);color:var(--muted);border-color:var(--line)}
 .ids-run .spin{width:13px;height:13px;border:2px solid rgba(0,0,0,.28);border-top-color:#1a1f12;border-radius:50%;animation:idsspin .7s linear infinite}
-/* ===== QTO (feature/qto, v2.5.0) ===== */
+/* ===== QTO ===== */
 #qtoList{flex:1;overflow-y:auto;padding:9px}
 .qto-lbl{display:block;margin-top:9px;font-family:var(--disp);font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .qto-lbl:first-child{margin-top:0}
@@ -429,7 +433,7 @@ main.detail-collapsed #btnDetailReopen{display:inline-flex}
 #dragVeil{position:fixed;inset:58px 0 0 0;display:none;align-items:center;justify-content:center;z-index:40;background:#bfd730d1;border:3px dashed var(--lime-deep);font-family:var(--disp);font-weight:700;font-size:21px;letter-spacing:.08em;text-transform:uppercase;color:var(--lime-ink)}
 #dragVeil.on{display:flex}
 
-/* ============================ landing / welcome (v2 "coordination suite") ============================ */
+/* ============================ welcome screen ============================ */
 #landing{position:fixed;left:0;right:0;top:58px;bottom:0;z-index:9;color:var(--text);background:
   radial-gradient(900px 520px at 18% -5%, rgba(191,215,48,.10), transparent 60%),
   radial-gradient(760px 480px at 85% 12%, rgba(191,215,48,.05), transparent 60%),
@@ -678,11 +682,6 @@ input[type=file]{display:none}
 .ctx-icon{width:16px;text-align:center;font-size:13px;flex:none;color:var(--lime-deep);font-style:normal}
 .ctx-sep{height:1px;background:var(--line);margin:4px 0}
 
-/* ---------- section box button (v1.9.0) ---------- */
-#btnSectionBox.sb-on{background:var(--lime);border-color:var(--lime-deep);color:var(--lime-ink)}
-#btnSectionBox.btn-ico{display:inline-flex;align-items:center;gap:7px}
-.sb-cube{width:15px;height:15px;flex:none;fill:none;stroke:var(--lime-deep);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
-#btnSectionBox.sb-on .sb-cube{stroke:var(--lime-ink)}
 #btnSection.btn-ico,#btnSecDraw.btn-ico{display:inline-flex;align-items:center;gap:7px}
 .sp-ic{width:15px;height:15px;flex:none;fill:none;stroke:var(--lime-deep);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
 #btnSection.sp-on{background:var(--lime);border-color:var(--lime-deep);color:var(--lime-ink)}
@@ -1144,11 +1143,94 @@ import { parseIds, evaluateIds } from "./ids.js";             // feature Control
 import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js";  // feature QTO (v2.5.0)
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
+/* ============================================================================
+   INDICE DEL MODULO — i titoli coincidono coi marker di sezione: cercare il
+   titolo esatto per saltare alla sezione. Ordine = ordine nel file.
+
+   · stato globale
+   · i18n IT/EN
+   · three.js
+   · web-ifc
+   · georeferenziazione
+   · elenco modelli
+   · nascondi elemento singolo
+   · elenco modelli — lista e righe
+   · albero modelli & vista per categoria
+   · vista / selezione
+   · navigazione tastiera & walk
+   · picking elemento
+   · proprietà elemento
+   · controlli IDS — lettura modello
+   · QTO — lettura quantità (data layer)
+   · BCF 2.1
+   · UI: registro issues
+   · report di verifica Solibri (.xlsx)
+   · controlli IDS — stato
+   · report Solibri — parsing & caricamento
+   · unload sorgenti BCF / report
+   · controlli IDS — caricamento & UI
+   · export non conformità IDS → BCF 2.1
+   · risposte al report: stato + controcommento
+   · statistiche aggregate report
+   · apertura topic
+   · pannello dettaglio
+   · cambio stato issue BCF
+   · modifica in bulk
+   · snapshot overlay
+   · caricamento file / drag&drop
+   · QTO — tab, render, run
+   · utilità UI
+   · welcome screen (bootstrap UI)
+   · menù contestuale tasto destro
+   · section box stile Revit
+   · Section plane (piano di sezione su faccia)
+   · alignment — overlay 3D (IfcAlignment IFC4x3)
+   · alignment — import LandXML (assi esterni)
+   · nuvole di punti — import LAS/E57
+   · alignment — sezione ortogonale all'asse
+   · alignment — minimap dei tracciati (vista dall'alto)
+   · sezione 2D (modalità disegno)
+   · pannelli ridimensionabili & avvio
+   ============================================================================ */
+
+/* ============================================================================
+   MAPPA DELLE INTERAZIONI — canvas 3D e tastiera (chi ascolta cosa, priorità)
+
+   Pointer sul canvas (renderer.domElement) — ogni handler è guardato dalla
+   propria modalità; le priorità incrociate sono esplicite nel codice:
+   · OrbitControls (three)          orbita/pan/zoom; escluso da walk e dai drag
+                                    di section box / section plane / sezione asse
+   · tasto centrale ×2              reset vista (sez. navigazione tastiera & walk)
+   · walk mode (btn 0)              look-around quando walkMode è attivo
+   · picking (btn 0, ≤ soglia px)   selezione elemento al pointerup se non era drag
+   · menu contestuale (btn 2, ≤4px) apertura menu al pointerup se non era pan
+   · section box                    hover+drag degli handle (stopPropagation verso
+                                    OrbitControls; cede a walk)
+   · section plane (Shift+drag)     disabilita controls durante il drag
+   · sezione ⟂ asse (drag rett.)    cede a: handle section box, sbDrag, walk
+   · dblclick                       "esamina qui" (zoom proporzionato all'elemento)
+
+   Escape — catena di priorità (dal più specifico al più generale):
+   1. input progressiva #profileSta  blur del campo (solo quando è a fuoco)
+   2. misura sezione 2D              annulla il draft e FERMA la catena
+      (document keydown)             (stopImmediatePropagation → la globale non scatta)
+   3. overlay conferma LandXML       chiude l'overlay (listener transiente)
+   4. menu contestuale               chiude il menu (window keydown)
+   5. globale (window keydown)       walk → esci; modalità sezione → esci;
+                                     poi clearHighlight; poi closeDetail se
+                                     nessun topic aperto
+   Canc: esce dalle modalità sezione (solo handler globale).
+   NB: document keydown scatta PRIMA di window (bubbling document → window):
+   è questo che dà alla misura 2D la precedenza sulla catena globale.
+   ============================================================================ */
+
 /* ============================ stato globale ============================ */
-const APP_VERSION = "2.5.1";
+/* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
+   le costanti trasversali a tutto il modulo. */
+const APP_VERSION = "2.5.2";
 const $ = (id) => document.getElementById(id);
 
-/* ============================ i18n IT/EN (v1.8.0) ============================ */
+/* ============================ i18n IT/EN ============================ */
 let LANG = "it";
 /* lingua condivisa con landing/guida (viewer_landing_lang, più recente se cambiata sul sito),
    con fallback sulla storica viewer_lang per non perdere la preferenza degli utenti esistenti */
@@ -2418,7 +2500,7 @@ function toggleModelVisibility(m) {
   document.querySelectorAll(`.model-row[data-muid="${m.uid}"]`).forEach(r => r.classList.toggle("hidden-model", !m.visible));
 }
 
-/* ============================ nascondi elemento singolo (v2.5.1) ============================
+/* ============================ nascondi elemento singolo ============================
    La geometria è fusa in bucket per materiale: nascondere UN elemento = ricostruire l'index
    del bucket copiando solo i range visibili (e ricalcolando gli start). fullIndex/fullRanges
    in userData restano i buffer originali per il ripristino; ranges e geometry.index correnti
@@ -2507,6 +2589,7 @@ function _syncElemEyes(model) {
   });
 }
 
+/* ============================ elenco modelli — lista e righe ============================ */
 function renderModelList() {
   const list = $("modelList");
   list.innerHTML = "";
@@ -2641,6 +2724,7 @@ function removeModel(model) {
 }
 
 /* ---------- albero struttura IFC ---------- */
+/* ============================ albero modelli & vista per categoria ============================ */
 function ensureTree(model) {
   if (model.tree) return model.tree;
   const mid = model.modelID;
@@ -3793,7 +3877,7 @@ function buildIdsViews() {
   return views;
 }
 
-/* ===================== QTO — lettura quantità (data layer, feature/qto) =====================
+/* ===================== QTO — lettura quantità (data layer) =====================
    Come per IDS: la logica pura (aggregazione/CSV) sta in viewer/qto.js, qui
    c'è solo l'accoppiamento con web-ifc: lettura di IfcElementQuantity e pset,
    unità di misura, costruzione delle righe da passare ad aggregateQto. */
@@ -4200,7 +4284,7 @@ let activeReport = null;
 const sevFilter = new Set();
 let issueMode = "bcf";
 
-/* ===================== controlli IDS (feature/ids-checks) ===================== */
+/* ===================== controlli IDS — stato ===================== */
 let idsDoc = null;          // IDS caricato: { info, specs }
 let idsSource = null;       // { name } del file .ids caricato
 let idsResults = null;      // esito: evaluateIds(idsDoc, views)
@@ -4223,6 +4307,7 @@ function sevKeyOf(s) {
 }
 
 let xlsxLibPromise = null;
+/* ===================== report Solibri — parsing & caricamento ===================== */
 function ensureXlsxLib() {
   if (window.XLSX) return Promise.resolve();
   if (!xlsxLibPromise) xlsxLibPromise = new Promise((res, rej) => {
@@ -4322,7 +4407,7 @@ function updateIssuesBadge() {
   $("idsModeCount").textContent = nIds;
 }
 
-/* ===================== unload sorgenti BCF / report (v1.8.1) ===================== */
+/* ===================== unload sorgenti BCF / report ===================== */
 function renderBcfSources() {
   const box = $("bcfSources"); if (!box) return;
   box.innerHTML = "";
@@ -4594,7 +4679,7 @@ function renderIdsDetail(r) {
   }));
 }
 
-/* ===================== export non conformità IDS → BCF 2.1 (fase 2) =====================
+/* ===================== export non conformità IDS → BCF 2.1 =====================
    UNA issue BCF per ogni specifica non conforme; i componenti sono i GUID degli elementi
    non conformi (come fa Solibri). Descrizione = descrizione spec + motivi aggregati.
    Il .bcf prodotto si ricarica nella modalità BCF del viewer (e in Solibri): i componenti
@@ -4972,7 +5057,7 @@ function renderReportDetail(t, nMissing) {
   }));
 }
 
-/* ===================== risposte al report: stato + controcommento (feature/qto follow-up) =====================
+/* ===================== risposte al report: stato + controcommento =====================
    Il Checking Summary è di sola andata (Solibri non lo reimporta): le risposte
    si esportano come NUOVO xlsx con tutte le issue più le colonne Stato e
    Controcommento, da rimandare al revisore. */
@@ -5026,7 +5111,7 @@ async function exportReportXlsx() {
   } catch (e) { toast(tr("toast.reportErr", { e: e.message })); console.warn(e); }
 }
 
-/* ===================== statistiche aggregate report (v1.7.6, roadmap §4.5) ===================== */
+/* ===================== statistiche aggregate report ===================== */
 let statsOpen = false;
 const classeCache = new Map();   // guid → valore Classe risolto dai modelli (cache)
 
@@ -5353,7 +5438,7 @@ function renderTopicDetail(t) {
   if (ss) ss.addEventListener("change", () => changeTopicStatus(t, ss.value, ss));
 }
 
-/* ============================ cambio stato issue BCF (v1.7.5) ============================ */
+/* ============================ cambio stato issue BCF ============================ */
 function changeTopicStatus(t, newStatus, selEl) {
   if (!newStatus || newStatus === t.status) return;
   t.status = newStatus;
@@ -6062,7 +6147,7 @@ window.addEventListener("drop", async (e) => {
   if (!ifcs.length && !bcfs.length && !reps.length && !pcs.length && !idss.length) toast(tr("toast.unknownFormat"));
 });
 
-/* ===================== QTO — tab, render, run (feature/qto) ===================== */
+/* ===================== QTO — tab, render, run ===================== */
 function qtoColLabel(c) { return c.startsWith("c:") ? c.slice(2) : tr("qto.col." + c); }
 
 function updateQtoBadge() {
@@ -6295,7 +6380,7 @@ function setLeftTab(which) {
 }
 document.querySelectorAll(".ltab").forEach(b => b.addEventListener("click", () => setLeftTab(b.dataset.tab)));
 
-/* ============================ landing / welcome (v1.9.2) ============================ */
+/* ============================ welcome screen (bootstrap UI) ============================ */
 function dismissLanding() { const l = $("landing"); if (l) l.classList.add("hide"); }
 function showLandingIfEmpty() {
   /* il landing torna solo se non c'è proprio nulla caricato (modelli, BCF, report) */
@@ -6353,7 +6438,7 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("on"), 5000);
 }
-/* ==================== menù contestuale tasto destro (v1.9.0) ==================== *
+/* ==================== menù contestuale tasto destro ==================== *
  * Strategia: discrimina click vs drag sul tasto destro (handoff §4.7).
  * Se il puntatore si sposta ≤4 px tra pointerdown e pointerup → apre il menu.
  * Altrimenti OrbitControls ha già usato il drag per il pan → nessun menu.
@@ -6518,7 +6603,7 @@ function _openCtxMenu(px, py, hitData) {
   menu.classList.add("on");
 }
 
-/* ============================ section box stile Revit (v1.9.0) ============================ *
+/* ============================ section box stile Revit ============================ *
  * Implementazione: 6 clipping plane locali (renderer.localClippingEnabled = true)
  * applicate ai soli materiali IFC (non al wireframe né agli handle).
  * 6 handle-sfera (una per faccia) draggabili: il drag usa una "screen plane"
@@ -6892,7 +6977,7 @@ $("secOptPlane").addEventListener("click", () => { setSectionPlane(!SECPL.on); _
 $("secOptBox").addEventListener("click", () => { toggleSectionBox(); _secSyncMenu(); closeSectionMenu(); });
 document.addEventListener("click", e => { if (!e.target.closest("#sectionMenu") && !e.target.closest("#btnSection")) closeSectionMenu(); });
 
-/* ============================ Alignment IFC4x3 — overlay 3D (v1.9.7) ============================
+/* ============================ alignment — overlay 3D (IfcAlignment IFC4x3) ============================
    FASE 1: visualizza gli IfcAlignment come polilinea 3D rossa (planimetria + profilo).
    La lettura usa un parser STEP dedicato (robusto su export non standard, già validato nel
    tool LandXML del sito); il posizionamento riusa la georeferenziazione A del modello e
@@ -7114,7 +7199,7 @@ function extractAlignments(model, data) {
   updateAlignUI();
 }
 
-/* ============================ Import LandXML — assi esterni (v2.1.0) ============================
+/* ============================ alignment — import LandXML (assi esterni) ============================
    Gli schemi IFC pre-4x3 non hanno IfcAlignment: un LandXML esterno fornisce gli assi
    (planimetria <CoordGeom>: Line/Curve/Spiral/IrregularLine + profilo <ProfAlign>: PVI/
    ParaCurve/CircCurve) e abilita profilo, sezione ⟂, minimap e sezione 2D anche lì.
@@ -7336,7 +7421,7 @@ function clearLandXML() {
   toast(tr("toast.lxmlRemoved"));
 }
 
-/* ============================ Nuvole di punti — import LAS/LAZ (studio) ============================
+/* ============================ nuvole di punti — import LAS/E57 ============================
    Registry SEPARATO dai modelli IFC (models[]): le nuvole sono "riferimenti", fuori da
    picking/misure/albero, come gli assi LandXML. Le coordinate LAS sono già in mappa (E,N,H):
    il parser (viewer/las.js) le ribasa su worldOriginMap + swizzle Z-up→Y-up in un solo
@@ -7652,7 +7737,7 @@ function setActiveAlignment(o) {
 }
 function closeProfile() { stopAlnSection(); setMinimap(false); const p = $("profilePanel"); if (p) p.hidden = true; }
 
-/* ============================ FASE 3 — sezione ortogonale all'asse ============================
+/* ============================ alignment — sezione ortogonale all'asse ============================
    Slab di 2 clipping plane ⟂ alla tangente dell'asse attivo, agganciata a una progressiva.
    Riusa l'infrastruttura di clipping del section box (_applyClipping). Si sposta trascinando
    il rettangolo rosso in 3D oppure trascinando lungo il profilo altimetrico. */
@@ -7863,7 +7948,7 @@ function _pfPlaceCut() {
   cut.style.display = "";
 }
 
-/* ============================ v2.0.0 — minimap dei tracciati (vista dall'alto) ============================
+/* ============================ alignment — minimap dei tracciati (vista dall'alto) ============================
    Pannello a fianco del profilo: planimetria di TUTTI gli assi (proiezione world x↔z, scala isometrica),
    asse attivo in rosso, + traccia della sezione corrente (linea ⟂ alla tangente + punto). */
 const MINI = { on: false, width: null };
@@ -8072,7 +8157,7 @@ function renderProfile(o) {
   _pfPlaceCut();
 }
 
-/* ============================ v2.x — Sezione 2D (modalità disegno) ============================
+/* ============================ sezione 2D (modalità disegno) ============================
    Intersezione del piano di sezione (⟂ asse, alla progressiva corrente) con le mesh visibili →
    linee di taglio 2D vere, in coordinate metriche (offset laterale u × quota assoluta), nella nuova
    scheda del pannello destro. Strumenti per misurare distanze/aree e leggere quote (snap ai vertici).
@@ -8594,6 +8679,7 @@ document.addEventListener("keydown", e => {
 $("profileClose").addEventListener("click", closeProfile);
 document.addEventListener("click", e => { if (!e.target.closest("#alignMenu") && !e.target.closest("#btnAlign")) closeAlignMenu(); });
 
+/* ============================ pannelli ridimensionabili & avvio ============================ */
 /* ---- pannello dettagli ridimensionabile (trascina il bordo sinistro → larghezza terza colonna) ---- */
 let _detailResizeDrag = false;
 $("detailResize").addEventListener("pointerdown", e => {
