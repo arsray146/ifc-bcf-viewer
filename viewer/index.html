@@ -235,6 +235,9 @@ main.left-off .left-resize{display:none}
 .tree-row .eye svg{width:13px;height:13px;stroke:var(--muted);fill:none;stroke-width:1.8}
 .tree-row .eye.off{background:var(--panel-2)}
 .tree-row .eye.off svg{stroke:var(--faint)}
+.tree-row .eye.eye-el{width:18px;height:18px;border:none;background:transparent}
+.tree-row .eye.eye-el svg{width:12px;height:12px}
+.tree-el.hidden-el .t-label{color:var(--faint);opacity:.6}
 .tree-row .t-ico{flex:0 0 auto;width:15px;height:15px;display:inline-flex;color:var(--lime-deep)}
 .tree-row .t-ico svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
 .tree-node>.t-label{font-weight:600}
@@ -1142,7 +1145,7 @@ import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js";  
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================ stato globale ============================ */
-const APP_VERSION = "2.5.0";
+const APP_VERSION = "2.5.1";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN (v1.8.0) ============================ */
@@ -1332,6 +1335,9 @@ const STRINGS = {
     "ctx.scene": "Scena", "ctx.elem3d": "Elemento 3D",
     "ctx.zoomElem": "Zoom su elemento", "ctx.zoomFit": "Zoom esteso", "ctx.zoomSel": "Zoom su selezione",
     "ctx.isolate": "Isola elemento", "ctx.unisolate": "Rimuovi isolamento",
+    "ctx.hideElem": "Nascondi elemento", "ctx.showHidden": "Mostra elementi nascosti ({n})",
+    "elhide.hide": "Nascondi elemento", "elhide.show": "Mostra elemento",
+    "toast.elemHidden": "Elemento nascosto — tasto destro: «Mostra elementi nascosti» per ripristinare",
     "ctx.copyGuid": "Copia GUID", "ctx.selSameClasse": "Seleziona stessa Classe",
     "ctx.sbOnSel": "Section box su selezione", "ctx.properties": "Proprietà",
     "ctx.sbActivate": "Attiva section box", "ctx.sbFrame": "Inquadra section box",
@@ -1432,6 +1438,7 @@ const STRINGS = {
     "ft.issueMissing": " (mancanti nei modelli caricati: {n})",
     "ft.noModelForIssue": "Nessun modello IFC caricato: la issue è visibile solo come scheda + snapshot.",
     "load.reading": "Lettura {f}…", "load.geom": "Elaborazione geometrie — {f}…",
+    "load.gpu": "Preparazione scena 3D…",
     "load.indexCat": "Indicizzazione categorie IFC…", "load.findByValue": "Cerco elementi per valore…",
     "load.analyzePsets": "Analizzo i pset della selezione…", "load.serializing": "Serializzo {name}…",
     "src.removeBcf": "Rimuovi questo file BCF", "src.removeReport": "Rimuovi questo report",
@@ -1656,6 +1663,9 @@ const STRINGS = {
     "ctx.scene": "Scene", "ctx.elem3d": "3D element",
     "ctx.zoomElem": "Zoom to element", "ctx.zoomFit": "Zoom to fit", "ctx.zoomSel": "Zoom to selection",
     "ctx.isolate": "Isolate element", "ctx.unisolate": "Remove isolation",
+    "ctx.hideElem": "Hide element", "ctx.showHidden": "Show hidden elements ({n})",
+    "elhide.hide": "Hide element", "elhide.show": "Show element",
+    "toast.elemHidden": "Element hidden — right-click: “Show hidden elements” to restore",
     "ctx.copyGuid": "Copy GUID", "ctx.selSameClasse": "Select same Classe",
     "ctx.sbOnSel": "Section box on selection", "ctx.properties": "Properties",
     "ctx.sbActivate": "Activate section box", "ctx.sbFrame": "Frame section box",
@@ -1748,6 +1758,7 @@ const STRINGS = {
     "ft.issueMissing": " (missing in the loaded models: {n})",
     "ft.noModelForIssue": "No IFC model loaded: the issue is visible only as a card + snapshot.",
     "load.reading": "Reading {f}…", "load.geom": "Processing geometry — {f}…",
+    "load.gpu": "Preparing 3D scene…",
     "load.indexCat": "Indexing IFC categories…", "load.findByValue": "Searching elements by value…",
     "load.analyzePsets": "Analyzing selection psets…", "load.serializing": "Serializing {name}…",
     "src.removeBcf": "Remove this BCF file", "src.removeReport": "Remove this report",
@@ -2085,7 +2096,6 @@ async function loadIfcFiles(files) {
       toast(tr("toast.ifcLoadErr", { f: f.name, e: (e.message || e) }));
     }
   }
-  hideLoading();
   $("dropHint").style.display = models.length ? "none" : "";
   if (models.length) dismissLanding();
   updateStats();
@@ -2101,6 +2111,34 @@ async function loadIfcFiles(files) {
   /* i materiali dei modelli appena creati nascono senza clippingPlanes:
      se una sezione è attiva (box, asse o piano) va riapplicata a tutti */
   if (sectionBoxOn || ALNSEC.on || SECPL.on) _applyClipping();
+  /* v2.5.1 — warm-up GPU con l'overlay ancora visibile: senza questo passo il PRIMO
+     frame dopo hideLoading() paga upload dei buffer + compile degli shader di tutta
+     la geometria nuova in un colpo solo → secondi di UI congelata senza indicatore.
+     Va fatto DOPO _applyClipping, così gli shader compilati sono già la variante
+     con i clippingPlanes e non vengono ricompilati al frame successivo. */
+  if (models.length) {
+    showLoading(tr("load.gpu"));
+    await tick();
+    warmupRender();
+  }
+  hideLoading();
+}
+
+/* v2.5.1 — Forza upload dei vertex buffer e compile degli shader per tutto ciò che è
+   visibile in scena, bypassando temporaneamente il frustum culling (subito dopo un
+   caricamento la camera può non inquadrare ancora i modelli nuovi, e gli oggetti
+   fuori vista non verrebbero caricati sulla GPU). Un solo render sincrono: il costo
+   resta dentro la fase di caricamento etichettata invece del primo frame utile. */
+function warmupRender() {
+  const touched = [];
+  rootGroup.traverse((o) => {
+    if ((o.isMesh || o.isLineSegments || o.isPoints) && o.frustumCulled) {
+      o.frustumCulled = false;
+      touched.push(o);
+    }
+  });
+  renderer.render(scene, camera);
+  for (const o of touched) o.frustumCulled = true;
 }
 
 function buildModel(data, name) {
@@ -2137,6 +2175,7 @@ function buildModel(data, name) {
     psetMap: null, typeOfElem: null, typePsetIds: null,
     classMap: null, materialMap: null, partOfMap: null,   // indici IDS (classificazioni/materiali/partOf), lazy
     alignObjs: null,
+    hiddenEids: new Set(),   // expressID (con geometria) nascosti singolarmente (v2.5.1)
     dirty: false, edits: []
   };
 
@@ -2180,7 +2219,11 @@ function buildModel(data, name) {
       depthWrite: b.opacity >= 0.999
     });
     const mesh = new THREE.Mesh(g, mat);
-    mesh.userData = { model, ranges: b.ranges, baseOpacity: b.opacity, baseTransparent: b.opacity < 0.999 };
+    /* fullRanges/fullIndex: buffer originali del bucket, per ripristinare gli elementi
+       nascosti singolarmente (ranges/index correnti possono essere una vista filtrata) */
+    mesh.userData = { model, ranges: b.ranges, fullRanges: b.ranges, fullIndex: g.index,
+                      edgeObj: null, edgeFullGeom: null,
+                      baseOpacity: b.opacity, baseTransparent: b.opacity < 0.999 };
     rootGroup.add(mesh);
     model.meshes.push(mesh);
     const edge = makeEdges(g);
@@ -2188,6 +2231,8 @@ function buildModel(data, name) {
       edge.visible = edgesOn;
       rootGroup.add(edge);
       model.edges.push(edge);
+      mesh.userData.edgeObj = edge;
+      mesh.userData.edgeFullGeom = edge.geometry;
     }
   }
   models.push(model);
@@ -2371,6 +2416,95 @@ function toggleModelVisibility(m) {
     btn.title = tr(m.visible ? "model.hide" : "model.show");
   });
   document.querySelectorAll(`.model-row[data-muid="${m.uid}"]`).forEach(r => r.classList.toggle("hidden-model", !m.visible));
+}
+
+/* ============================ nascondi elemento singolo (v2.5.1) ============================
+   La geometria è fusa in bucket per materiale: nascondere UN elemento = ricostruire l'index
+   del bucket copiando solo i range visibili (e ricalcolando gli start). fullIndex/fullRanges
+   in userData restano i buffer originali per il ripristino; ranges e geometry.index correnti
+   sono sempre coerenti tra loro, quindi picking (expressFromFace) ed evidenziazione
+   (buildHighlight) continuano a funzionare senza modifiche. Gli spigoli del bucket vengono
+   ri-estratti dalla geometria filtrata (un elemento nascosto non deve lasciare il wireframe). */
+function setElementsHidden(model, eids, hidden) {
+  const touch = new Set();
+  for (const id of eids) {
+    if (hidden ? !model.hiddenEids.has(id) : model.hiddenEids.has(id)) {
+      hidden ? model.hiddenEids.add(id) : model.hiddenEids.delete(id);
+      touch.add(id);
+    }
+  }
+  if (!touch.size) return;
+  for (const mesh of model.meshes) {
+    if (!mesh.userData.fullRanges.some(r => touch.has(r.expressID))) continue;
+    _rebuildMeshVisibility(model, mesh);
+  }
+  /* se un elemento appena nascosto era selezionato, il fantasma rosso resterebbe in scena */
+  if (hidden && hlItems && hlItems.some(it => it.model === model && touch.has(it.eid))) clearHighlight();
+}
+
+function _rebuildMeshVisibility(model, mesh) {
+  const ud = mesh.userData;
+  const anyHidden = ud.fullRanges.some(r => model.hiddenEids.has(r.expressID));
+  if (!anyHidden) {
+    if (ud.ranges !== ud.fullRanges) {   // ripristina i buffer originali
+      mesh.geometry.setIndex(ud.fullIndex);
+      ud.ranges = ud.fullRanges;
+      if (ud.edgeObj && ud.edgeObj.geometry !== ud.edgeFullGeom) {
+        ud.edgeObj.geometry.dispose();
+        ud.edgeObj.geometry = ud.edgeFullGeom;
+      }
+    }
+    return;
+  }
+  const src = ud.fullIndex.array;
+  let tot = 0;
+  for (const r of ud.fullRanges) if (!model.hiddenEids.has(r.expressID)) tot += r.count * 3;
+  const idx = new src.constructor(tot);
+  const ranges = [];
+  let o = 0;
+  for (const r of ud.fullRanges) {
+    if (model.hiddenEids.has(r.expressID)) continue;
+    idx.set(src.subarray(r.start * 3, (r.start + r.count) * 3), o);
+    ranges.push({ start: o / 3, count: r.count, expressID: r.expressID });
+    o += r.count * 3;
+  }
+  mesh.geometry.setIndex(new THREE.BufferAttribute(idx, 1));
+  ud.ranges = ranges;
+  if (ud.edgeObj) {
+    const segs = extractEdges(mesh.geometry, EDGE_ANGLE_DEG);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(segs, 3));
+    if (ud.edgeObj.geometry !== ud.edgeFullGeom) ud.edgeObj.geometry.dispose();
+    ud.edgeObj.geometry = g;
+  }
+}
+
+function hiddenElemCount() {
+  let n = 0;
+  for (const m of models) n += m.hiddenEids ? m.hiddenEids.size : 0;
+  return n;
+}
+
+function showAllHidden() {
+  for (const m of models) {
+    if (m.hiddenEids && m.hiddenEids.size) {
+      setElementsHidden(m, [...m.hiddenEids], false);
+      _syncElemEyes(m);
+    }
+  }
+}
+
+/* risincronizza gli occhi per-elemento dell'albero (entrambe le viste) di un modello */
+function _syncElemEyes(model) {
+  document.querySelectorAll(`button.eye-el[data-muid="${model.uid}"]`).forEach(btn => {
+    const ids = geoIdsOf(model, +btn.dataset.eid);
+    const hid = ids.every(g => model.hiddenEids.has(g));
+    btn.innerHTML = hid ? EYE_OFF : EYE_ON;
+    btn.classList.toggle("off", hid);
+    btn.title = tr(hid ? "elhide.show" : "elhide.hide");
+    const row = btn.closest(".tree-row");
+    if (row) row.classList.toggle("hidden-el", hid);
+  });
 }
 
 function renderModelList() {
@@ -2737,18 +2871,28 @@ function appendTreeItems(model, cl, depth, box, start) {
   for (let i = start; i < end; i++) {
     const it = cl.items[i];
     const nGeo = it.geoIds.length;
+    const geoIds = nGeo ? it.geoIds : [it.eid];
+    const hid = nGeo ? geoIds.every(g => model.hiddenEids.has(g)) : false;
     const row = document.createElement("div");
-    row.className = "tree-el" + (nGeo ? "" : " noGeo") + " tree-row";
+    row.className = "tree-el" + (nGeo ? "" : " noGeo") + " tree-row" + (hid ? " hidden-el" : "");
     row.style.paddingLeft = ((depth + 1) * 13 + 14) + "px";
-    row.innerHTML = `<span class="t-label"></span>` + (nGeo > 1 ? `<span class="t-count">${nGeo} parti</span>` : "");
+    row.innerHTML =
+      (nGeo ? `<button class="eye eye-el${hid ? " off" : ""}" data-muid="${model.uid}" data-eid="${it.eid}" title="${tr(hid ? "elhide.show" : "elhide.hide")}">${hid ? EYE_OFF : EYE_ON}</button>` : "") +
+      `<span class="t-label"></span>` + (nGeo > 1 ? `<span class="t-count">${nGeo} parti</span>` : "");
     row.querySelector(".t-label").textContent = it.label;
     const gid = model.guidByExpress.get(it.eid);
     row.title = (gid ? "GlobalId: " + gid + "\n" : "") +
       (nGeo ? (nGeo > 1 ? `Clic: seleziona le ${nGeo} parti · Doppio clic: zoom` : "Clic: seleziona · Doppio clic: zoom")
             : "Elemento senza geometria");
     if (nGeo) {
-      row.addEventListener("click", () => selectElement(model, it, row));
-      row.addEventListener("dblclick", () => { selectElement(model, it, row); zoomSelection(); });
+      row.querySelector(".eye-el").addEventListener("click", (e) => {
+        e.stopPropagation();
+        const toHide = !geoIds.every(g => model.hiddenEids.has(g));
+        setElementsHidden(model, geoIds, toHide);
+        _syncElemEyes(model);
+      });
+      row.addEventListener("click", (e) => { if (e.target.closest("button")) return; selectElement(model, it, row); });
+      row.addEventListener("dblclick", (e) => { if (e.target.closest("button")) return; selectElement(model, it, row); zoomSelection(); });
     }
     box.appendChild(row);
   }
@@ -3087,6 +3231,7 @@ function updateNavHelp() {
 }
 updateNavHelp();
 
+let hlItems = null;   // [{model, eid}] dell'evidenziazione corrente (per nascondi-elemento)
 function clearHighlight() {
   for (const child of [...hlGroup.children]) {
     hlGroup.remove(child);
@@ -3094,6 +3239,7 @@ function clearHighlight() {
     child.geometry.deleteAttribute("normal");
     child.geometry.dispose();
   }
+  hlItems = null;
   currentSelectionBox = null;
   if (selTreeRow) { selTreeRow.classList.remove("sel"); selTreeRow = null; }
   applyIsolate();
@@ -3103,6 +3249,7 @@ function clearHighlight() {
 function buildHighlight(items) {
   clearHighlight();
   if (!items.length) return null;
+  hlItems = items.slice();
   const byModel = new Map();
   for (const it of items) {
     if (!byModel.has(it.model)) byModel.set(it.model, new Set());
@@ -3208,15 +3355,26 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   buildHighlight([{ model, eid }]);
   showElementDetail(model, eid);
 });
+/* Esce dalle modalità di sezione attive (piano su faccia e/o section box).
+   Ritorna true se ha chiuso almeno una modalità → il chiamante può fermarsi. */
+function _exitSectionModes() {
+  let closed = false;
+  if (typeof SECPL !== "undefined" && SECPL.on) { setSectionPlane(false); SECPL.P = null; closed = true; }  // cancella il piano di sezione applicato
+  if (sectionBoxOn) { setSectionBox(false); closed = true; }
+  return closed;
+}
 window.addEventListener("keydown", (e) => {
   shiftDown = e.shiftKey;
   if (isTyping(e)) return;
   if (e.key === "Escape") {
     if (walkMode) { setWalkMode(false); return; }
-    if (typeof SECPL !== "undefined" && SECPL.on) { setSectionPlane(false); SECPL.P = null; return; }   // cancella il piano di sezione applicato
+    if (_exitSectionModes()) return;   // Esc: esci dalle modalità sezione (piano / box)
     clearHighlight();
     if (activeTopic === null) closeDetail();
     return;
+  }
+  if (e.key === "Delete") {            // Canc: esci dalle modalità sezione (piano / box)
+    if (_exitSectionModes()) { e.preventDefault(); return; }
   }
   if (MOVE_CODES.has(e.code)) {
     keysDown.add(e.code);
@@ -3275,71 +3433,118 @@ renderer.domElement.addEventListener("dblclick", (e) => {
    creerebbero pigramente alla prima selezione). Così il primo clic su un
    elemento non paga la scansione di tutte le IfcRelDefinesByProperties /
    IfcRelDefinesByType. È solo un'ottimizzazione di latenza percepita:
-   - non blocca il caricamento (gira in idle, con fallback a setTimeout);
    - è idempotente, perché ensure* hanno un early-return se la mappa esiste;
-   - protetto da try/catch: un errore qui non deve mai rompere il viewer. */
-function prewarmModel(model) {
-  const run = () => {
-    try {
-      if (!model || model._prewarmed) return;
-      ensurePsetMap(model);
-      ensureTypeMap(model);
-      model._prewarmed = true;
-    } catch (e) { /* il lazy alla prima selezione resta comunque il fallback */ }
-  };
-  if (typeof requestIdleCallback === "function") {
-    requestIdleCallback(run, { timeout: 2000 });
-  } else {
-    setTimeout(run, 0);
+   - protetto da try/catch: un errore qui non deve mai rompere il viewer.
+   v2.5.1 — a FETTE di tempo: la versione precedente scansionava tutte le rel in un
+   unico blocco sincrono dentro requestIdleCallback → sugli IFC grandi erano secondi
+   di main thread bloccato subito dopo il caricamento. Ora ogni fetta rispetta un
+   budget (~PREWARM_SLICE_MS) e cede il thread tra una fetta e l'altra; le mappe si
+   costruiscono in locale e si committano solo a scansione COMPLETA, così il lazy
+   sincrono della prima selezione resta corretto anche se arriva a metà prewarm. */
+const PREWARM_SLICE_MS = 12;
+function _prewarmYield() {
+  return new Promise(r => {
+    if (typeof requestIdleCallback === "function") requestIdleCallback(() => r(), { timeout: 500 });
+    else setTimeout(r, 0);
+  });
+}
+async function prewarmModel(model) {
+  try {
+    if (!model || model._prewarmed) return;
+    await _prewarmYield();
+    if (!models.includes(model)) return;   // modello rimosso prima di iniziare
+    await _prewarmPsets(model);
+    await _prewarmTypes(model);
+    model._prewarmed = true;
+  } catch (e) { /* il lazy alla prima selezione resta comunque il fallback */ }
+}
+async function _prewarmPsets(model) {
+  if (model.psetMap) return;
+  const map = new Map();
+  const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYPROPERTIES);
+  const n = rels.size();
+  let t0 = performance.now();
+  for (let i = 0; i < n; i++) {
+    if (performance.now() - t0 > PREWARM_SLICE_MS) {
+      await _prewarmYield();
+      if (model.psetMap || !models.includes(model)) return;  // il lazy ha già costruito, o modello rimosso
+      t0 = performance.now();
+    }
+    _psetAddRel(model, map, rels.get(i));
   }
+  if (!model.psetMap) model.psetMap = map;
+}
+async function _prewarmTypes(model) {
+  if (model.typeOfElem) return;
+  const typeOfElem = new Map(), typePsetIds = new Map();
+  const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYTYPE);
+  const n = rels.size();
+  let t0 = performance.now();
+  for (let i = 0; i < n; i++) {
+    if (performance.now() - t0 > PREWARM_SLICE_MS) {
+      await _prewarmYield();
+      if (model.typeOfElem || !models.includes(model)) return;
+      t0 = performance.now();
+    }
+    _typeAddRel(model, typeOfElem, typePsetIds, rels.get(i));
+  }
+  if (!model.typeOfElem) { model.typeOfElem = typeOfElem; model.typePsetIds = typePsetIds; }
 }
 
+/* una singola IfcRelDefinesByProperties → righe della mappa elemento → [pset ids]
+   (condivisa dal lazy sincrono e dal prewarm a fette) */
+function _psetAddRel(model, map, relId) {
+  try {
+    const rel = ifcApi.GetLine(model.modelID, relId);
+    const defId = rel.RelatingPropertyDefinition && rel.RelatingPropertyDefinition.value;
+    if (!defId || !rel.RelatedObjects) return;
+    for (const ro of rel.RelatedObjects) {
+      if (!map.has(ro.value)) map.set(ro.value, []);
+      map.get(ro.value).push(defId);
+    }
+  } catch (e) { /* skip */ }
+}
 function ensurePsetMap(model) {
   if (model.psetMap) return;
-  model.psetMap = new Map();
+  const map = new Map();
   try {
     const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYPROPERTIES);
-    for (let i = 0; i < rels.size(); i++) {
-      try {
-        const rel = ifcApi.GetLine(model.modelID, rels.get(i));
-        const defId = rel.RelatingPropertyDefinition && rel.RelatingPropertyDefinition.value;
-        if (!defId || !rel.RelatedObjects) continue;
-        for (const ro of rel.RelatedObjects) {
-          if (!model.psetMap.has(ro.value)) model.psetMap.set(ro.value, []);
-          model.psetMap.get(ro.value).push(defId);
-        }
-      } catch (e) { /* skip */ }
-    }
+    for (let i = 0; i < rels.size(); i++) _psetAddRel(model, map, rels.get(i));
   } catch (e) { console.warn("Mappa pset non disponibile:", e); }
+  model.psetMap = map;
 }
 
+/* una singola IfcRelDefinesByType → righe di typeOfElem/typePsetIds
+   (condivisa dal lazy sincrono e dal prewarm a fette) */
+function _typeAddRel(model, typeOfElem, typePsetIds, relId) {
+  try {
+    const rel = ifcApi.GetLine(model.modelID, relId);
+    const tId = rel.RelatingType && rel.RelatingType.value;
+    if (!tId || !rel.RelatedObjects) return;
+    if (!typePsetIds.has(tId)) {
+      const ids = [];
+      try {
+        const tLine = ifcApi.GetLine(model.modelID, tId, true);
+        for (const ps of tLine.HasPropertySets || []) {
+          if (ps && ps.value !== undefined) ids.push(ps.value);
+          else if (ps && ps.expressID) ids.push(ps.expressID);
+        }
+      } catch (e) { /* type senza pset */ }
+      typePsetIds.set(tId, ids);
+    }
+    for (const ro of rel.RelatedObjects) typeOfElem.set(ro.value, tId);
+  } catch (e) { /* skip */ }
+}
 /* mappa elemento → type (IfcRelDefinesByType) e cache dei pset per type */
 function ensureTypeMap(model) {
   if (model.typeOfElem) return;
-  model.typeOfElem = new Map();      // expressID elemento → expressID type
-  model.typePsetIds = new Map();     // expressID type → [pset ids]
+  const typeOfElem = new Map(), typePsetIds = new Map();  // elemento → type; type → [pset ids]
   try {
     const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYTYPE);
-    for (let i = 0; i < rels.size(); i++) {
-      try {
-        const rel = ifcApi.GetLine(model.modelID, rels.get(i));
-        const tId = rel.RelatingType && rel.RelatingType.value;
-        if (!tId || !rel.RelatedObjects) continue;
-        if (!model.typePsetIds.has(tId)) {
-          const ids = [];
-          try {
-            const tLine = ifcApi.GetLine(model.modelID, tId, true);
-            for (const ps of tLine.HasPropertySets || []) {
-              if (ps && ps.value !== undefined) ids.push(ps.value);
-              else if (ps && ps.expressID) ids.push(ps.expressID);
-            }
-          } catch (e) { /* type senza pset */ }
-          model.typePsetIds.set(tId, ids);
-        }
-        for (const ro of rel.RelatedObjects) model.typeOfElem.set(ro.value, tId);
-      } catch (e) { /* skip */ }
-    }
+    for (let i = 0; i < rels.size(); i++) _typeAddRel(model, typeOfElem, typePsetIds, rels.get(i));
   } catch (e) { console.warn("Mappa type non disponibile:", e); }
+  model.typeOfElem = typeOfElem;
+  model.typePsetIds = typePsetIds;
 }
 
 /* legge un IfcPropertySet o IfcElementQuantity → {name, props[]} */
@@ -6238,6 +6443,12 @@ function _openCtxMenu(px, py, hitData) {
       $("tglIsolate").checked = isolateOn;
       applyIsolate();
     }));
+    add(_ctxEl("⊘", tr("ctx.hideElem"), () => {
+      setElementsHidden(hitData.model, [hitData.eid], true);
+      _syncElemEyes(hitData.model);
+      toast(tr("toast.elemHidden"));
+    }));
+    if (hiddenElemCount() > 0) add(_ctxEl("◉", tr("ctx.showHidden", { n: hiddenElemCount() }), showAllHidden));
     add(_ctxSep());
     add(_ctxEl("⎘", tr("ctx.copyGuid"), hitData.guid ? () => {
       navigator.clipboard.writeText(hitData.guid).catch(() => {});
@@ -6271,6 +6482,7 @@ function _openCtxMenu(px, py, hitData) {
     /* ——— su spazio vuoto ——— */
     add(_ctxLbl(tr("ctx.scene")));
     add(_ctxEl("⊕", tr("ctx.zoomFit"), fitAll));
+    if (hiddenElemCount() > 0) add(_ctxEl("◉", tr("ctx.showHidden", { n: hiddenElemCount() }), showAllHidden));
     if (hasSel) {
       add(_ctxEl("⊕", tr("ctx.zoomSel"), zoomSelection));
       add(_ctxEl("⬛", tr("ctx.sbOnSel"), () => {
