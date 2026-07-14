@@ -1227,7 +1227,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.5.2";
+const APP_VERSION = "2.5.3";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2043,9 +2043,31 @@ renderer.setAnimationLoop((now) => {
 });
 
 /* ============================ web-ifc ============================ */
-const ifcApi = new WebIFC.IfcAPI();
-ifcApi.SetWasmPath("./vendor/", true);   // web-ifc.wasm locale (v2.1.1 — vendoring)
-const ifcReady = ifcApi.Init()
+/* v2.5.3 — un'istanza IfcAPI (e quindi un heap WASM) PER MODELLO, non più globale.
+   Motivo: l'heap WebAssembly di web-ifc cresce fino a un massimo di 4 GB e non si
+   restringe MAI (comportamento Emscripten); con l'istanza unica i modelli della
+   federazione si sommavano nello stesso heap fino a esaurirlo →
+   "Aborted(native code called abort())" sul caricamento successivo.
+   Con un'istanza per modello: il tetto di memoria è per-modello e non cumulativo,
+   la rimozione di un modello libera davvero tutta la sua memoria (GC dell'istanza)
+   e un eventuale abort su un file NON corrompe le istanze dei modelli già caricati.
+   Costo: un Init() per modello (~decine di ms: il .wasm resta in cache HTTP e il
+   browser riusa il compilato); mascherato dal pre-warm dell'istanza successiva. */
+function _ifcSpawn() {
+  const api = new WebIFC.IfcAPI();
+  api.SetWasmPath("./vendor/", true);   // web-ifc.wasm locale (v2.1.1 — vendoring)
+  return api.Init().then(() => api);
+}
+let _ifcNext = _ifcSpawn();   // istanza pre-riscaldata: l'Init avviene fuori dal percorso di caricamento
+function takeIfcApi() {
+  const p = _ifcNext || _ifcSpawn();
+  _ifcNext = null;
+  /* pre-warm della prossima solo a Init riuscito; se fallisce (es. wasm non
+     raggiungibile) il prossimo take ritenta con un'istanza fresca */
+  p.then(() => { if (!_ifcNext) _ifcNext = _ifcSpawn(); }, () => {});
+  return p;
+}
+const ifcReady = _ifcNext
   .then(() => { $("ftHint").textContent = tr("ft.ready"); })
   .catch((e) => { toast(tr("toast.ifcInitErr", { e: e.message })); });
 
@@ -2172,7 +2194,7 @@ async function loadIfcFiles(files) {
       const data = new Uint8Array(await f.arrayBuffer());
       showLoading(tr("load.geom", { f: f.name }));
       await tick();
-      buildModel(data, f.name);
+      await buildModel(data, f.name);
     } catch (e) {
       console.error(e);
       toast(tr("toast.ifcLoadErr", { f: f.name, e: (e.message || e) }));
@@ -2223,19 +2245,20 @@ function warmupRender() {
   for (const o of touched) o.frustumCulled = true;
 }
 
-function buildModel(data, name) {
+async function buildModel(data, name) {
   /* Catena verificata sui file reali:
        render = F · ( A · F⁻¹ · flat · v  −  O )
      dove flat è il placement (già Y-up) che porta in float64 le coordinate assolute,
      A è la georeferenziazione del modello (IfcMapConversion / TrueNorth, Z-up),
      O è l'origine condivisa (primo vertice, coordinate mappa) e F lo swizzle finale.
      Niente COORDINATE_TO_ORIGIN: ribasamento e flip li gestiamo noi, in doppia precisione. */
-  const modelID = ifcApi.OpenModel(data, {});
-  const geo = readGeoref(modelID);
+  const api = await takeIfcApi();   // v2.5.3 — istanza WASM dedicata al modello
+  const modelID = api.OpenModel(data, {});
+  const geo = readGeoref(api, modelID);
   /* v1.4.1: s_eff = Scale / fattoreUnità — la geometria di web-ifc è già in metri.
      Caso reale: T21VI02 (Revit 25.4/ODA, file in mm, Scale=0.001) → s_eff = 1. */
   if (geo.kind === "map") {
-    geo.unitFactor = readLengthUnit(modelID);
+    geo.unitFactor = readLengthUnit(api, modelID);
     if (geo.unitFactor !== 1) {
       geo.sRaw = geo.s;
       geo.s = geo.s / geo.unitFactor;
@@ -2247,10 +2270,10 @@ function buildModel(data, name) {
   const mModelIfc = new THREE.Matrix4().multiplyMatrices(A, F_INV); // (output web-ifc) → mappa Z-up
   /* unità del file → metri: serve all'overlay alignment, che legge le coordinate IFC grezze
      (in unità del file) mentre A è calibrata sui metri (web-ifc normalizza la geometria). */
-  const unitFactor = (geo.unitFactor !== undefined) ? geo.unitFactor : readLengthUnit(modelID);
+  const unitFactor = (geo.unitFactor !== undefined) ? geo.unitFactor : readLengthUnit(api, modelID);
 
   const model = {
-    name, modelID, uid: ++modelUidCounter,
+    name, modelID, api, uid: ++modelUidCounter,
     meshes: [], edges: [], elemCount: 0, visible: true,
     mModelIfc, A: A.clone(), unitFactor, geoInfo: describeGeoref(geo),
     guidByExpress: new Map(), expressByGuid: new Map(), typeByExpress: new Map(),
@@ -2263,11 +2286,11 @@ function buildModel(data, name) {
 
   const buckets = new Map();
   const mFlat = new THREE.Matrix4(), mMap = new THREE.Matrix4();
-  ifcApi.StreamAllMeshes(modelID, (mesh) => {
+  api.StreamAllMeshes(modelID, (mesh) => {
     const eid = mesh.expressID;
     if (!model.guidByExpress.has(eid)) {
       try {
-        const line = ifcApi.GetLine(modelID, eid);
+        const line = api.GetLine(modelID, eid);
         const gid = line && line.GlobalId ? line.GlobalId.value : null;
         if (gid) { model.guidByExpress.set(eid, gid); model.expressByGuid.set(gid, eid); }
         model.typeByExpress.set(eid, line ? line.type : 0);
@@ -2277,9 +2300,9 @@ function buildModel(data, name) {
     const n = mesh.geometries.size();
     for (let i = 0; i < n; i++) {
       const pg = mesh.geometries.get(i);
-      const geom = ifcApi.GetGeometry(modelID, pg.geometryExpressID);
-      const verts = ifcApi.GetVertexArray(geom.GetVertexData(), geom.GetVertexDataSize());
-      const idx = ifcApi.GetIndexArray(geom.GetIndexData(), geom.GetIndexDataSize());
+      const geom = api.GetGeometry(modelID, pg.geometryExpressID);
+      const verts = api.GetVertexArray(geom.GetVertexData(), geom.GetVertexDataSize());
+      const idx = api.GetIndexArray(geom.GetIndexData(), geom.GetIndexDataSize());
       mFlat.fromArray(pg.flatTransformation);
       mMap.multiplyMatrices(mModelIfc, mFlat);
       appendToBucket(buckets, pg, verts, idx, eid, mMap);
@@ -2390,30 +2413,30 @@ function nval(v, def = 0) {
  *  in metri, quindi serve SOLO per riscalare la Scale di IfcMapConversion, che per
  *  specifica è espressa rispetto alle unità del file (es. export ODA/Revit in mm
  *  con Scale=0.001: applicarla sui metri rimpicciolirebbe il modello di 1000×). */
-function readLengthUnit(modelID) {
+function readLengthUnit(api, modelID) {
   const PREFIX = { EXA: 1e18, PETA: 1e15, TERA: 1e12, GIGA: 1e9, MEGA: 1e6, KILO: 1e3,
     HECTO: 1e2, DECA: 10, DECI: 0.1, CENTI: 0.01, MILLI: 1e-3, MICRO: 1e-6, NANO: 1e-9 };
   const ev = (x) => String((x && x.value !== undefined) ? x.value : (x ?? "")).replace(/\./g, "");
   try {
-    const ids = ifcApi.GetLineIDsWithType(modelID, WebIFC.IFCSIUNIT);
+    const ids = api.GetLineIDsWithType(modelID, WebIFC.IFCSIUNIT);
     for (let i = 0; i < ids.size(); i++) {
-      const u = ifcApi.GetLine(modelID, ids.get(i));
+      const u = api.GetLine(modelID, ids.get(i));
       if (ev(u.UnitType) !== "LENGTHUNIT") continue;
       const pfx = ev(u.Prefix);
       return pfx && PREFIX[pfx] ? PREFIX[pfx] : 1;
     }
   } catch (e) { /* nessuna IfcSIUnit leggibile */ }
   try { /* unità non SI (piedi ecc.): IfcConversionBasedUnit → ValueComponent × prefisso unità SI sottostante */
-    const ids = ifcApi.GetLineIDsWithType(modelID, WebIFC.IFCCONVERSIONBASEDUNIT);
+    const ids = api.GetLineIDsWithType(modelID, WebIFC.IFCCONVERSIONBASEDUNIT);
     for (let i = 0; i < ids.size(); i++) {
-      const u = ifcApi.GetLine(modelID, ids.get(i));
+      const u = api.GetLine(modelID, ids.get(i));
       if (ev(u.UnitType) !== "LENGTHUNIT") continue;
-      const mw = u.ConversionFactor && ifcApi.GetLine(modelID, u.ConversionFactor.value);
+      const mw = u.ConversionFactor && api.GetLine(modelID, u.ConversionFactor.value);
       let f = 1;
       if (mw) {
         const vc = mw.ValueComponent;
         f = parseFloat((vc && vc.value !== undefined) ? vc.value : vc) || 1;
-        const su = mw.UnitComponent && ifcApi.GetLine(modelID, mw.UnitComponent.value);
+        const su = mw.UnitComponent && api.GetLine(modelID, mw.UnitComponent.value);
         if (su) { const pfx = ev(su.Prefix); if (pfx && PREFIX[pfx]) f *= PREFIX[pfx]; }
       }
       return f;
@@ -2423,11 +2446,11 @@ function readLengthUnit(modelID) {
 }
 
 /** Legge IfcMapConversion (IFC4/4X3) o, in mancanza, il TrueNorth del contesto geometrico. */
-function readGeoref(modelID) {
+function readGeoref(api, modelID) {
   try {
-    const ids = ifcApi.GetLineIDsWithType(modelID, WebIFC.IFCMAPCONVERSION);
+    const ids = api.GetLineIDsWithType(modelID, WebIFC.IFCMAPCONVERSION);
     if (ids.size() > 0) {
-      const mc = ifcApi.GetLine(modelID, ids.get(0));
+      const mc = api.GetLine(modelID, ids.get(0));
       let xa = nval(mc.XAxisAbscissa, 1), xo = nval(mc.XAxisOrdinate, 0);
       const d = Math.hypot(xa, xo) || 1; xa /= d; xo /= d;
       return {
@@ -2438,12 +2461,12 @@ function readGeoref(modelID) {
     }
   } catch (e) { /* schema senza IfcMapConversion (es. IFC2x3) */ }
   try {
-    const ids = ifcApi.GetLineIDsWithType(modelID, WebIFC.IFCGEOMETRICREPRESENTATIONCONTEXT);
+    const ids = api.GetLineIDsWithType(modelID, WebIFC.IFCGEOMETRICREPRESENTATIONCONTEXT);
     for (let i = 0; i < ids.size(); i++) {
-      const ctx = ifcApi.GetLine(modelID, ids.get(i));
+      const ctx = api.GetLine(modelID, ids.get(i));
       const ref = ctx.TrueNorth && ctx.TrueNorth.value;
       if (!ref) continue;
-      const tn = ifcApi.GetLine(modelID, ref);
+      const tn = api.GetLine(modelID, ref);
       const r = (tn.DirectionRatios || []).map(v => nval(v));
       const theta = Math.atan2(r[0] || 0, r[1] === undefined ? 1 : r[1]);
       if (Math.abs(theta) > 1e-6) return { kind: "north", theta };
@@ -2697,7 +2720,9 @@ function removeModel(model) {
       if (ALIGN.active === o) { ALIGN.active = null; closeProfile(); }
     }
   }
-  try { ifcApi.CloseModel(model.modelID); } catch (e) { console.warn("CloseModel:", e); }
+  /* v2.5.3 — CloseModel sull'istanza dedicata; l'istanza stessa (e tutto il suo
+     heap WASM) viene rilasciata dal GC quando il modello esce da models[] */
+  try { model.api.CloseModel(model.modelID); } catch (e) { console.warn("CloseModel:", e); }
   const i = models.indexOf(model);
   if (i >= 0) models.splice(i, 1);
   classeCache.clear();   // la risoluzione Classe dipende dai modelli presenti (v1.7.6)
@@ -2727,13 +2752,13 @@ function removeModel(model) {
 /* ============================ albero modelli & vista per categoria ============================ */
 function ensureTree(model) {
   if (model.tree) return model.tree;
-  const mid = model.modelID;
+  const mid = model.modelID, api = model.api;
   const agg = new Map(), cont = new Map();
   const scan = (type, fn) => {
     try {
-      const ids = ifcApi.GetLineIDsWithType(mid, type);
+      const ids = api.GetLineIDsWithType(mid, type);
       for (let i = 0; i < ids.size(); i++) {
-        try { fn(ifcApi.GetLine(mid, ids.get(i))); } catch (e) { /* skip */ }
+        try { fn(api.GetLine(mid, ids.get(i))); } catch (e) { /* skip */ }
       }
     } catch (e) { /* tipo assente nello schema */ }
   };
@@ -2753,7 +2778,7 @@ function ensureTree(model) {
   const reachable = new Set();
   const typeNameOf = (line) => {
     let t = "";
-    try { t = ifcApi.GetNameFromTypeCode ? ifcApi.GetNameFromTypeCode(line.type) : ""; } catch (e) {}
+    try { t = api.GetNameFromTypeCode ? api.GetNameFromTypeCode(line.type) : ""; } catch (e) {}
     return t || ("IFC " + line.type);
   };
   /* discendenti geometrici via IfcRelAggregates: rende selezionabili assembly e contenitori */
@@ -2773,7 +2798,7 @@ function ensureTree(model) {
     const byClass = new Map();
     for (const id of eids) {
       if (reachable.has(id)) continue;
-      let line; try { line = ifcApi.GetLine(mid, id); } catch (e) { continue; }
+      let line; try { line = api.GetLine(mid, id); } catch (e) { continue; }
       if (SPATIAL_TYPES.has(line.type)) continue;
       reachable.add(id);
       const tn = typeNameOf(line);
@@ -2789,12 +2814,12 @@ function ensureTree(model) {
       .map(([typeName, items]) => ({ typeName, items: items.sort((a, b) => a.label.localeCompare(b.label, "it")) }));
   };
   const buildNode = (eid) => {
-    let line; try { line = ifcApi.GetLine(mid, eid); } catch (e) { return null; }
+    let line; try { line = api.GetLine(mid, eid); } catch (e) { return null; }
     reachable.add(eid);
     const kids = agg.get(eid) || [];
     const spatialKids = [], elemPool = [...(cont.get(eid) || [])];
     for (const k of kids) {
-      let kl; try { kl = ifcApi.GetLine(mid, k); } catch (e) { continue; }
+      let kl; try { kl = api.GetLine(mid, k); } catch (e) { continue; }
       if (SPATIAL_TYPES.has(kl.type)) spatialKids.push(k); else elemPool.push(k);
     }
     /* parti aggregate sotto gli elementi (assembly, scomposizioni): stesse classi, stesso nodo */
@@ -2824,7 +2849,7 @@ function ensureTree(model) {
   };
   let root = null;
   try {
-    const pid = ifcApi.GetLineIDsWithType(mid, WebIFC.IFCPROJECT);
+    const pid = api.GetLineIDsWithType(mid, WebIFC.IFCPROJECT);
     if (pid.size() > 0) root = buildNode(pid.get(0));
   } catch (e) { /* nessun IfcProject leggibile */ }
 
@@ -3545,7 +3570,7 @@ async function prewarmModel(model) {
 async function _prewarmPsets(model) {
   if (model.psetMap) return;
   const map = new Map();
-  const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYPROPERTIES);
+  const rels = model.api.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYPROPERTIES);
   const n = rels.size();
   let t0 = performance.now();
   for (let i = 0; i < n; i++) {
@@ -3561,7 +3586,7 @@ async function _prewarmPsets(model) {
 async function _prewarmTypes(model) {
   if (model.typeOfElem) return;
   const typeOfElem = new Map(), typePsetIds = new Map();
-  const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYTYPE);
+  const rels = model.api.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYTYPE);
   const n = rels.size();
   let t0 = performance.now();
   for (let i = 0; i < n; i++) {
@@ -3579,7 +3604,7 @@ async function _prewarmTypes(model) {
    (condivisa dal lazy sincrono e dal prewarm a fette) */
 function _psetAddRel(model, map, relId) {
   try {
-    const rel = ifcApi.GetLine(model.modelID, relId);
+    const rel = model.api.GetLine(model.modelID, relId);
     const defId = rel.RelatingPropertyDefinition && rel.RelatingPropertyDefinition.value;
     if (!defId || !rel.RelatedObjects) return;
     for (const ro of rel.RelatedObjects) {
@@ -3592,7 +3617,7 @@ function ensurePsetMap(model) {
   if (model.psetMap) return;
   const map = new Map();
   try {
-    const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYPROPERTIES);
+    const rels = model.api.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYPROPERTIES);
     for (let i = 0; i < rels.size(); i++) _psetAddRel(model, map, rels.get(i));
   } catch (e) { console.warn("Mappa pset non disponibile:", e); }
   model.psetMap = map;
@@ -3602,13 +3627,13 @@ function ensurePsetMap(model) {
    (condivisa dal lazy sincrono e dal prewarm a fette) */
 function _typeAddRel(model, typeOfElem, typePsetIds, relId) {
   try {
-    const rel = ifcApi.GetLine(model.modelID, relId);
+    const rel = model.api.GetLine(model.modelID, relId);
     const tId = rel.RelatingType && rel.RelatingType.value;
     if (!tId || !rel.RelatedObjects) return;
     if (!typePsetIds.has(tId)) {
       const ids = [];
       try {
-        const tLine = ifcApi.GetLine(model.modelID, tId, true);
+        const tLine = model.api.GetLine(model.modelID, tId, true);
         for (const ps of tLine.HasPropertySets || []) {
           if (ps && ps.value !== undefined) ids.push(ps.value);
           else if (ps && ps.expressID) ids.push(ps.expressID);
@@ -3624,7 +3649,7 @@ function ensureTypeMap(model) {
   if (model.typeOfElem) return;
   const typeOfElem = new Map(), typePsetIds = new Map();  // elemento → type; type → [pset ids]
   try {
-    const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYTYPE);
+    const rels = model.api.GetLineIDsWithType(model.modelID, WebIFC.IFCRELDEFINESBYTYPE);
     for (let i = 0; i < rels.size(); i++) _typeAddRel(model, typeOfElem, typePsetIds, rels.get(i));
   } catch (e) { console.warn("Mappa type non disponibile:", e); }
   model.typeOfElem = typeOfElem;
@@ -3633,7 +3658,7 @@ function ensureTypeMap(model) {
 
 /* legge un IfcPropertySet o IfcElementQuantity → {name, props[]} */
 function readPset(model, pid) {
-  const p = ifcApi.GetLine(model.modelID, pid, true);
+  const p = model.api.GetLine(model.modelID, pid, true);
   const pset = { name: unwrap(p.Name) || "(senza nome)", props: [] };
   for (const pr of p.HasProperties || []) {
     if (!pr) continue;
@@ -3667,11 +3692,11 @@ function unwrap(v) {
 function getElementInfo(model, eid) {
   const info = { name: "", globalId: "", typeName: "", objectType: "", psets: [], typePsets: [], typeLabel: "" };
   try {
-    const line = ifcApi.GetLine(model.modelID, eid);
+    const line = model.api.GetLine(model.modelID, eid);
     info.name = unwrap(line.Name);
     info.globalId = unwrap(line.GlobalId);
     info.objectType = unwrap(line.ObjectType);
-    try { info.typeName = ifcApi.GetNameFromTypeCode ? ifcApi.GetNameFromTypeCode(line.type) : ""; } catch (e) {}
+    try { info.typeName = model.api.GetNameFromTypeCode ? model.api.GetNameFromTypeCode(line.type) : ""; } catch (e) {}
     if (!info.typeName) info.typeName = "IFC " + line.type;
   } catch (e) { return info; }
   ensurePsetMap(model);
@@ -3687,7 +3712,7 @@ function getElementInfo(model, eid) {
   const tId = model.typeOfElem.get(eid);
   if (tId !== undefined) {
     try {
-      const tLine = ifcApi.GetLine(model.modelID, tId);
+      const tLine = model.api.GetLine(model.modelID, tId);
       info.typeLabel = unwrap(tLine.Name) || ("#" + tId);
     } catch (e) { info.typeLabel = "#" + tId; }
     for (const pid of model.typePsetIds.get(tId) || []) {
@@ -3705,8 +3730,8 @@ function getElementInfo(model, eid) {
    viewer/ids.js) e gli indici classificazioni/materiali/partOf. ids.js resta puro e
    data-driven: qui NON c'è logica specifica di pset/proprietà. */
 
-const _ifcTypeName = (line) => {
-  let t = ""; try { t = ifcApi.GetNameFromTypeCode ? ifcApi.GetNameFromTypeCode(line.type) : ""; } catch (e) {}
+const _ifcTypeName = (model, line) => {
+  let t = ""; try { t = model.api.GetNameFromTypeCode ? model.api.GetNameFromTypeCode(line.type) : ""; } catch (e) {}
   return (t || ("IFC" + line.type)).toUpperCase();
 };
 
@@ -3715,10 +3740,10 @@ function ensureClassMap(model) {
   if (model.classMap) return;
   model.classMap = new Map();
   try {
-    const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELASSOCIATESCLASSIFICATION);
+    const rels = model.api.GetLineIDsWithType(model.modelID, WebIFC.IFCRELASSOCIATESCLASSIFICATION);
     for (let i = 0; i < rels.size(); i++) {
       try {
-        const rel = ifcApi.GetLine(model.modelID, rels.get(i));
+        const rel = model.api.GetLine(model.modelID, rels.get(i));
         const cid = rel.RelatingClassification && rel.RelatingClassification.value;
         if (!cid || !rel.RelatedObjects) continue;
         const info = _classRefInfo(model, cid);
@@ -3733,11 +3758,11 @@ function ensureClassMap(model) {
 function _classRefInfo(model, refId) {
   let value = "", system = "";
   try {
-    const ref = ifcApi.GetLine(model.modelID, refId);
+    const ref = model.api.GetLine(model.modelID, refId);
     value = unwrap(ref.Identification) || unwrap(ref.ItemReference) || unwrap(ref.Name) || "";
     let srcId = ref.ReferencedSource && ref.ReferencedSource.value, guard = 0;
     while (srcId && guard++ < 8) {                 // risali la catena fino a IfcClassification (radice)
-      const s = ifcApi.GetLine(model.modelID, srcId);
+      const s = model.api.GetLine(model.modelID, srcId);
       const nm = unwrap(s.Name);
       if (s.ReferencedSource && s.ReferencedSource.value) { srcId = s.ReferencedSource.value; if (nm) system = nm; }
       else { if (nm) system = nm; break; }
@@ -3752,10 +3777,10 @@ function ensureMaterialMap(model) {
   if (model.materialMap) return;
   model.materialMap = new Map();
   try {
-    const rels = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCRELASSOCIATESMATERIAL);
+    const rels = model.api.GetLineIDsWithType(model.modelID, WebIFC.IFCRELASSOCIATESMATERIAL);
     for (let i = 0; i < rels.size(); i++) {
       try {
-        const rel = ifcApi.GetLine(model.modelID, rels.get(i));
+        const rel = model.api.GetLine(model.modelID, rels.get(i));
         const mid = rel.RelatingMaterial && rel.RelatingMaterial.value;
         if (!mid || !rel.RelatedObjects) continue;
         const names = _materialNames(model, mid, 0);
@@ -3771,8 +3796,8 @@ function ensureMaterialMap(model) {
 function _materialNames(model, id, depth) {
   const out = [];
   if (depth > 6) return out;
-  let m; try { m = ifcApi.GetLine(model.modelID, id); } catch (e) { return out; }
-  const tn = _ifcTypeName(m);
+  let m; try { m = model.api.GetLine(model.modelID, id); } catch (e) { return out; }
+  const tn = _ifcTypeName(model, m);
   const descend = (arr) => { if (!arr) return; for (const x of arr) { const k = x && (x.value !== undefined ? x.value : x.expressID); if (k !== undefined) for (const nm of _materialNames(model, k, depth + 1)) out.push(nm); } };
   const one = (h) => { const k = h && h.value; if (k !== undefined) for (const nm of _materialNames(model, k, depth + 1)) out.push(nm); };
   if (tn === "IFCMATERIAL") { const s = unwrap(m.Name); if (s) out.push(s); }
@@ -3797,16 +3822,16 @@ function ensurePartOfMap(model) {
   const winfo = (id) => {
     if (wcache.has(id)) return wcache.get(id);
     let info = { wholeType: "", wholePredefinedType: "" };
-    try { const w = ifcApi.GetLine(model.modelID, id); info = { wholeType: _ifcTypeName(w), wholePredefinedType: unwrap(w.PredefinedType) || "" }; } catch (e) {}
+    try { const w = model.api.GetLine(model.modelID, id); info = { wholeType: _ifcTypeName(model, w), wholePredefinedType: unwrap(w.PredefinedType) || "" }; } catch (e) {}
     wcache.set(id, info); return info;
   };
   const scan = (typeCode, relation, wf, pf) => {
     if (typeof typeCode !== "number") return;
     try {
-      const rels = ifcApi.GetLineIDsWithType(model.modelID, typeCode);
+      const rels = model.api.GetLineIDsWithType(model.modelID, typeCode);
       for (let i = 0; i < rels.size(); i++) {
         try {
-          const rel = ifcApi.GetLine(model.modelID, rels.get(i));
+          const rel = model.api.GetLine(model.modelID, rels.get(i));
           const w = rel[wf] && rel[wf].value; const parts = rel[pf];
           if (!w || !parts) continue;
           const info = winfo(w);
@@ -3826,10 +3851,10 @@ function ensurePartOfMap(model) {
 
 /* elemento → vista normalizzata per ids.js (attributi diretti + pset istanza/Type + class/mat/partOf) */
 function buildElementView(model, eid) {
-  let line; try { line = ifcApi.GetLine(model.modelID, eid); } catch (e) { return null; }
+  let line; try { line = model.api.GetLine(model.modelID, eid); } catch (e) { return null; }
   const v = {
     model, eid,
-    ifcType: _ifcTypeName(line),
+    ifcType: _ifcTypeName(model, line),
     predefinedType: unwrap(line.PredefinedType) || "",
     name: unwrap(line.Name) || "",
     globalId: unwrap(line.GlobalId) || "",
@@ -3869,7 +3894,7 @@ function buildIdsViews() {
     ensurePsetMap(m); for (const eid of m.psetMap.keys()) cand.add(eid);
     for (const tn of wantTypes) {
       const code = WebIFC[tn];
-      if (typeof code === "number") { try { const ids = ifcApi.GetLineIDsWithType(m.modelID, code); for (let i = 0; i < ids.size(); i++) cand.add(ids.get(i)); } catch (e) {} }
+      if (typeof code === "number") { try { const ids = m.api.GetLineIDsWithType(m.modelID, code); for (let i = 0; i < ids.size(); i++) cand.add(ids.get(i)); } catch (e) {} }
     }
     for (const eid of cand) { const v = buildElementView(m, eid); if (v) views.push(v); }
   }
@@ -3897,7 +3922,7 @@ function qtoInvalidate() {
    conserva il valore NUMERICO e il tipo di quantità, per poterle sommare. */
 const QTO_KIND = { LengthValue: "length", AreaValue: "area", VolumeValue: "volume", CountValue: "count", WeightValue: "weight" };
 function readPsetQto(model, pid) {
-  const p = ifcApi.GetLine(model.modelID, pid, true);
+  const p = model.api.GetLine(model.modelID, pid, true);
   const out = { name: unwrap(p.Name) || "", props: new Map(), qtys: [] };
   for (const pr of p.HasProperties || []) {
     if (!pr) continue;
@@ -3927,9 +3952,9 @@ function qtoUnitsOf(model) {
     HECTO: 1e2, DECA: 10, DECI: 0.1, CENTI: 0.01, MILLI: 1e-3, MICRO: 1e-6, NANO: 1e-9 };
   const ev = (x) => String((x && x.value !== undefined) ? x.value : (x ?? "")).replace(/\./g, "");
   try {
-    const ids = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCSIUNIT);
+    const ids = model.api.GetLineIDsWithType(model.modelID, WebIFC.IFCSIUNIT);
     for (let i = 0; i < ids.size(); i++) {
-      const un = ifcApi.GetLine(model.modelID, ids.get(i));
+      const un = model.api.GetLine(model.modelID, ids.get(i));
       const t = ev(un.UnitType), pfx = ev(un.Prefix);
       const f = pfx && PREFIX[pfx] ? PREFIX[pfx] : 1;
       if (t === "AREAUNIT") u.area = f * f;          /* prefisso sull'unità di base: km² = (10³ m)² */
@@ -4000,7 +4025,7 @@ async function extractQtoRows(config) {
       for (const kind in pick) qty[kind] = pick[kind].value * (kind === "count" ? 1 : UF[kind === "weight" ? "mass" : kind]);
       if (config.groupMode !== "param") {
         const code = m.typeByExpress.get(eid);
-        try { groupKey = (code !== undefined && ifcApi.GetNameFromTypeCode) ? (ifcApi.GetNameFromTypeCode(code) || "") : ""; } catch (e) { groupKey = ""; }
+        try { groupKey = (code !== undefined && m.api.GetNameFromTypeCode) ? (m.api.GetNameFromTypeCode(code) || "") : ""; } catch (e) { groupKey = ""; }
         if (!groupKey && code !== undefined) groupKey = "IFC " + code;
       }
       rows.push({
@@ -4025,7 +4050,7 @@ function ensureQtoPropIndex() {
   for (const m of models) {
     for (const type of [WebIFC.IFCPROPERTYSET, WebIFC.IFCELEMENTQUANTITY]) {
       try {
-        const ids = ifcApi.GetLineIDsWithType(m.modelID, type);
+        const ids = m.api.GetLineIDsWithType(m.modelID, type);
         for (let i = 0; i < ids.size(); i++) {
           const ps = readPsetQto(m, ids.get(i));
           if (!ps || !ps.name) continue;
@@ -4696,7 +4721,7 @@ function uuid() {
 function _projectGuidOf(model) {
   if (model._projGuid !== undefined) return model._projGuid;
   let g = "";
-  try { const ids = ifcApi.GetLineIDsWithType(model.modelID, WebIFC.IFCPROJECT); if (ids.size()) g = unwrap(ifcApi.GetLine(model.modelID, ids.get(0)).GlobalId); } catch (e) {}
+  try { const ids = model.api.GetLineIDsWithType(model.modelID, WebIFC.IFCPROJECT); if (ids.size()) g = unwrap(model.api.GetLine(model.modelID, ids.get(0)).GlobalId); } catch (e) {}
   model._projGuid = g; return g;
 }
 function idsResultsToBcfTopics(results) {
@@ -5385,7 +5410,7 @@ function renderTopicDetail(t) {
       const row = document.createElement("div");
       row.className = "comp-row" + (f ? "" : " missing");
       let nm = "";
-      if (f) { try { nm = unwrap(ifcApi.GetLine(f.model.modelID, f.eid).Name) || ""; } catch (e) {} }
+      if (f) { try { nm = unwrap(f.model.api.GetLine(f.model.modelID, f.eid).Name) || ""; } catch (e) {} }
       const nmShown = nm || (f ? tr("comp.noName") : tr("comp.notInModel"));
       row.innerHTML = `<span class="nm">${esc(nmShown)}</span><span class="gid">${esc(g)}</span>`;
       if (f) {
@@ -5568,13 +5593,13 @@ function pvParse(tok, raw) {
 }
 /* riscrive NominalValue di una IfcPropertySingleValue preservando il tipo quando invariato;
    ritorna valore e tipo precedenti per il journal delle modifiche */
-function writeNominal(mid, pid, tok, typeName, v) {
-  const line = ifcApi.GetLine(mid, pid);
+function writeNominal(model, pid, tok, typeName, v) {
+  const line = model.api.GetLine(model.modelID, pid);
   const oldV = unwrap(line.NominalValue);
   const oldT = (line.NominalValue && line.NominalValue.name) || "";
   if (typeName === oldT) line.NominalValue.value = v;
   else line.NominalValue = { value: v, type: tok, name: typeName };
-  ifcApi.WriteLine(mid, line);
+  model.api.WriteLine(model.modelID, line);
   return { oldV, oldT };
 }
 let curDetail = null;       // {model, eid, label}
@@ -5613,7 +5638,7 @@ function applyDetailEdits() {
   let nOk = 0;
   for (const e of staged) {
     try {
-      const { oldV, oldT } = writeNominal(mid, e.pid, e.tok, e.newType, e.v);
+      const { oldV, oldT } = writeNominal(model, e.pid, e.tok, e.newType, e.v);
       model.edits.push({ eid: curDetail.eid, el: curDetail.label, pid: e.pid, pset: e.pset, prop: e.prop, oldV, newV: String(e.v), oldT, newT: e.newType, ts: Date.now() });
       nOk++;
     } catch (ex) { console.warn("Modifica fallita su #" + e.pid, ex); }
@@ -5636,7 +5661,7 @@ function ifcGuid() {
 }
 /** allocazione expressID nuovi: contatore locale per non riusare ID tra run successivi */
 function nextExpressId(model) {
-  if (!model.nextNewId) model.nextNewId = ifcApi.GetMaxExpressID(model.modelID) + 1;
+  if (!model.nextNewId) model.nextNewId = model.api.GetMaxExpressID(model.modelID) + 1;
   return model.nextNewId++;
 }
 /** eid → geoIds per l'evidenziazione (i contenitori hanno la geometria nelle parti) */
@@ -5664,7 +5689,7 @@ function scanModelByValue(model, psetName, propName, value) {
   const out = new Set();
   for (const [pid, eids] of byPset) {
     try {
-      const p = ifcApi.GetLine(model.modelID, pid, true);
+      const p = model.api.GetLine(model.modelID, pid, true);
       if (!p || unwrap(p.Name) !== psetName) continue;
       const pr = (p.HasProperties || []).find(x => x && unwrap(x.Name) === propName);
       if (pr && String(unwrap(pr.NominalValue)) === String(value)) for (const e of eids) out.add(e);
@@ -5741,7 +5766,7 @@ function buildBulkIndex(sel) {
     const e = { model: it.model, eid: it.eid, psets: new Map() };
     for (const pid of it.model.psetMap.get(it.eid) || []) {
       try {
-        const p = ifcApi.GetLine(it.model.modelID, pid, true);
+        const p = it.model.api.GetLine(it.model.modelID, pid, true);
         if (!(p.HasProperties || []).length) continue; /* quantity set: escluso dal bulk */
         const name = unwrap(p.Name) || "";
         const props = new Map();
@@ -5840,18 +5865,18 @@ function applyBulk(sel) {
   let upd = 0, cProp = 0, cPset = 0, skip = 0;
   const perModel = new Map();
   for (const e of sel.index.perElem) {
-    const mid = e.model.modelID;
+    const mid = e.model.modelID, api = e.model.api;
     const stat = perModel.get(e.model) || { upd: 0, cProp: 0, cPset: 0 };
     const ps = e.psets.get(psetName);
     const pr = ps ? ps.props.get(propName) : null;
     try {
       if (pr) {
         if (!pr.editable) { skip++; continue; }
-        writeNominal(mid, pr.pid, tok, typeName, v);
+        writeNominal(e.model, pr.pid, tok, typeName, v);
         upd++; stat.upd++;
       } else if (create) {
         const propId = nextExpressId(e.model);
-        ifcApi.WriteLine(mid, {
+        api.WriteLine(mid, {
           expressID: propId, type: WebIFC.IFCPROPERTYSINGLEVALUE,
           Name: { type: 1, value: propName, name: "IFCIDENTIFIER" },
           Description: null,
@@ -5859,13 +5884,13 @@ function applyBulk(sel) {
           Unit: null
         });
         if (ps) {
-          const pl = ifcApi.GetLine(mid, ps.pid);
+          const pl = api.GetLine(mid, ps.pid);
           pl.HasProperties.push({ type: 5, value: propId });
-          ifcApi.WriteLine(mid, pl);
+          api.WriteLine(mid, pl);
           cProp++; stat.cProp++;
         } else {
           const psetId = nextExpressId(e.model), relId = nextExpressId(e.model);
-          ifcApi.WriteLine(mid, {
+          api.WriteLine(mid, {
             expressID: psetId, type: WebIFC.IFCPROPERTYSET,
             GlobalId: { type: 1, value: ifcGuid(), name: "IFCGLOBALLYUNIQUEID" },
             OwnerHistory: null,
@@ -5873,7 +5898,7 @@ function applyBulk(sel) {
             Description: null,
             HasProperties: [{ type: 5, value: propId }]
           });
-          ifcApi.WriteLine(mid, {
+          api.WriteLine(mid, {
             expressID: relId, type: WebIFC.IFCRELDEFINESBYPROPERTIES,
             GlobalId: { type: 1, value: ifcGuid(), name: "IFCGLOBALLYUNIQUEID" },
             OwnerHistory: null, Name: null, Description: null,
@@ -5909,7 +5934,7 @@ function exportModelIFC(model) {
   showLoading(tr("load.serializing", { name: model.name }));
   setTimeout(() => {
     try {
-      const data = ifcApi.SaveModel(model.modelID);
+      const data = model.api.SaveModel(model.modelID);
       const blob = new Blob([data], { type: "application/octet-stream" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -6493,8 +6518,8 @@ renderer.domElement.addEventListener("pointerup", (e) => {
       const guid = model.guidByExpress.get(eid);
       let typeName = "";
       try {
-        const ln = ifcApi.GetLine(model.modelID, eid);
-        typeName = ifcApi.GetNameFromTypeCode ? ifcApi.GetNameFromTypeCode(ln.type) : ("tipo " + ln.type);
+        const ln = model.api.GetLine(model.modelID, eid);
+        typeName = model.api.GetNameFromTypeCode ? model.api.GetNameFromTypeCode(ln.type) : ("tipo " + ln.type);
       } catch (_) {}
       hitData = { model, eid, guid, typeName };
     }
