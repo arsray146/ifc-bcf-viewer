@@ -289,7 +289,7 @@ main.left-off .left-resize{display:none}
 .d-statusrow .d-type{font-family:var(--mono);font-size:11px;color:var(--muted)}
 #issueList{flex:1;overflow-y:auto;padding:9px}
 #issueModeBar{display:flex;padding:8px 8px 0;flex:0 0 auto}
-#bcfPane,#reportPane,#idsPane{flex:1;display:flex;flex-direction:column;min-height:0}
+#bcfPane,#reportPane,#idsPane,#clashPane{flex:1;display:flex;flex-direction:column;min-height:0}
 #reportList,#idsList{flex:1;overflow-y:auto;padding:9px}
 #repStats{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:6px}
 /* statistiche report (v1.7.6) */
@@ -389,6 +389,90 @@ main.left-off .left-resize{display:none}
 .qto-totals .t-row b{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums}
 .qto-note{font-size:10.5px;color:var(--faint);margin-top:5px;line-height:1.45}
 @keyframes idsspin{to{transform:rotate(360deg)}}
+/* ===== CLASH (feature/clash v2.6.0) ===== */
+:root{--clash-a:#d93025;--clash-b:#2e9e44}
+#clashPane .clash-opts{display:flex;gap:6px;align-items:center;margin-top:9px}
+#clashPane .clash-opts .qto-sel{flex:1;margin-top:0;width:auto}
+#clashTol{width:70px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--text);font:inherit;font-size:13px;padding:6px 8px;text-align:right;user-select:text}
+.clash-unit{font-family:var(--mono);font-size:11px;color:var(--muted)}
+#clashControls{flex:1;overflow-y:auto;padding:13px 15px;user-select:none}
+#clashLeftNote{padding:14px 2px}
+/* costruttore di set (multi modelli/classi + filtro parametro) */
+.clash-set{border:1px solid var(--line);border-radius:7px;margin-bottom:8px;background:var(--panel)}
+.cs-head{display:flex;align-items:center;gap:7px;padding:8px 10px;cursor:pointer}
+.cs-head:hover{background:var(--panel-2)}
+.cs-head .qto-lbl{margin-top:0;flex:0 0 auto}
+.cs-sum{flex:1;min-width:0;font-family:var(--mono);font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+.cs-chev{flex:0 0 auto;color:var(--faint);transition:transform .15s}
+.clash-set.open .cs-chev{transform:rotate(90deg)}
+.cs-body{display:none;padding:2px 10px 10px;border-top:1px solid var(--line)}
+.clash-set.open .cs-body{display:block}
+.cs-sec{display:flex;align-items:center;gap:8px;font-family:var(--disp);font-weight:600;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:9px 0 4px}
+.cs-sec .cs-all{font-weight:400;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:9.5px;color:var(--faint);cursor:pointer}
+.cs-sec .cs-all:hover{color:var(--text)}
+.cs-list{max-height:132px;overflow-y:auto;border:1px solid var(--line);border-radius:5px;background:var(--panel-2);padding:3px 6px}
+.cs-list label{display:flex;align-items:center;gap:6px;font-size:11.5px;padding:2px 0;cursor:pointer;min-width:0}
+.cs-list label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.cs-list input{flex:0 0 auto}
+.cs-list .cs-empty{font-family:var(--mono);font-size:10px;color:var(--faint);padding:4px 2px}
+.cs-body .qto-sel{margin-top:5px}
+/* pannello destro: risultati clash */
+#clashBody{flex:1;overflow-y:auto;padding:10px 12px;user-select:none}
+#clashBody[hidden]{display:none}
+.clash-tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding-bottom:9px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.clash-tools button{font-family:var(--disp);font-weight:600;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;padding:5px 9px;border:1px solid var(--line-2);border-radius:5px;background:var(--panel-2);color:var(--text);cursor:pointer}
+.clash-tools button:hover:not(:disabled){border-color:var(--lime-deep)}
+.clash-tools button:disabled{opacity:.45;cursor:not-allowed}
+.clash-tools button.on{background:var(--lime-soft);border-color:var(--lime-deep)}
+.clash-tools .ct-hint{flex-basis:100%;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+.clash-grp{display:flex;align-items:center;gap:8px;padding:7px 6px;margin-top:6px;border:1px solid var(--lime-deep);border-radius:6px;background:var(--lime-soft);cursor:pointer;user-select:none}
+.clash-grp .cg-tw{border:none;background:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 2px;flex:0 0 auto;line-height:1}
+.clash-grp .cg-tw:hover{color:var(--text)}
+.clash-grp .cg-name{flex:1;min-width:0;font-family:var(--disp);font-weight:700;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clash-grp .cg-edit{flex:1;min-width:0;font-family:var(--disp);font-weight:700;font-size:12px;background:var(--panel-2);border:1px solid var(--lime-deep);border-radius:4px;color:var(--text);padding:2px 5px}
+.clash-grp .cg-n{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.clash-grp .cg-x{border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 3px}
+.clash-grp .cg-x:hover{color:#C0392B}
+.clash-grp-items{margin-left:10px;border-left:2px solid var(--lime-deep);padding-left:4px}
+.clash-rule{display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding:4px 6px 8px;border-bottom:1px solid var(--line-2)}
+.clash-rule .cr-name{font-family:var(--disp);font-weight:700;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clash-rule .cr-meta{font-family:var(--mono);font-size:10.5px;color:var(--muted);white-space:nowrap}
+.clash-item{display:flex;align-items:center;gap:9px;padding:7px 6px;border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+.clash-item:hover{background:var(--panel-2)}
+.clash-item.sel{background:var(--lime-soft)}
+.ci-idx{font-family:var(--mono);font-size:10px;color:var(--faint);min-width:20px;text-align:right;flex:0 0 auto}
+.ci-body{flex:1;min-width:0}
+.ci-el{display:flex;align-items:center;gap:6px;min-width:0}
+.ci-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.ci-dot.a{background:var(--clash-a)}
+.ci-dot.b{background:var(--clash-b)}
+.ci-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;min-width:0}
+.ci-model{font-family:var(--mono);font-size:9.5px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;max-width:42%}
+.ci-val{font-family:var(--mono);font-size:10.5px;color:var(--text);white-space:nowrap;flex:0 0 auto}
+.clash-warn{color:var(--st-prog)}
+.clash-mtx{margin-top:12px;padding-top:9px;border-top:1px solid var(--line)}
+.clash-mtx-head{display:flex;align-items:center;gap:6px}
+.clash-mtx-head .qto-lbl{flex:1;margin-top:0}
+.mtx-btn{flex:0 0 auto;width:26px;height:26px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);color:var(--text);cursor:pointer;font-size:13px;line-height:1}
+.mtx-btn:hover:not(:disabled){border-color:var(--lime-deep)}
+.mtx-btn:disabled{opacity:.45;cursor:not-allowed}
+.clash-mtx-head .pc-add{width:26px;height:26px}
+#clashMtxInfo{margin-top:6px}
+#clashMtxInfo:empty{display:none}
+#clashMtxInfo .mtx-err{font-family:var(--mono);font-size:10.5px;color:#C0392B;line-height:1.5;margin-top:4px}
+#clashMtxInfo .mtx-warn{font-family:var(--mono);font-size:10.5px;color:var(--st-prog);line-height:1.5;margin-top:4px}
+#btnClashMtxRun{margin-top:8px}
+#clashExportBar{display:none;gap:6px}
+#clashExportBar.on{display:flex}
+#clashExportBar button{flex:1;width:auto}
+.ci-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex:0 0 auto}
+.ci-st{font-family:var(--mono);font-size:9.5px;border:1px solid var(--line-2);border-radius:4px;background:var(--panel-2);color:var(--text);padding:2px 3px;max-width:92px}
+.clash-item{border-left:3px solid transparent}
+.clash-item.st-new{border-left-color:#C0392B}
+.clash-item.st-active{border-left-color:#E67E22}
+.clash-item.st-reviewed{border-left-color:#2980B9}
+.clash-item.st-approved{border-left-color:#27AE60}
+.clash-item.st-resolved{border-left-color:#95A5A6}
 
 /* ---------- viewport ---------- */
 #viewportWrap{position:relative;min-width:0;background:var(--canvas)}
@@ -815,6 +899,7 @@ input[type=file]{display:none}
   <button id="btnIfc" class="primary" data-i18n="btn.loadIfc">Carica IFC</button>
   <button id="btnBcf" data-i18n="btn.loadBcf">Carica BCF</button>
   <input type="file" id="fileIfc" accept=".ifc" multiple>
+  <input type="file" id="fileClashMtx" accept=".csv,.txt">
   <input type="file" id="fileBcf" accept=".bcf,.bcfzip,.zip,.xlsx,.xlsm">
   <input type="file" id="fileLxml" accept=".xml,.landxml">
   <input type="file" id="filePc" accept=".las,.laz,.e57" multiple>
@@ -851,6 +936,7 @@ input[type=file]{display:none}
         <button class="tmode on" data-imode="bcf" data-i18n-title="title.bcfMode" title="Issues da file BCF (.bcf/.bcfzip)">BCF <span class="tbadge" id="bcfModeCount">0</span></button>
         <button class="tmode" data-imode="report" data-i18n-title="title.reportMode" title="Issues da report di verifica Solibri (.xlsx Checking Summary)">Report <span class="tbadge" id="repModeCount">0</span></button>
         <button class="tmode" data-imode="ids" data-i18n-title="title.idsMode" title="Verifica requisiti informativi da file IDS (buildingSMART)">IDS <span class="tbadge" id="idsModeCount">0</span></button>
+        <button class="tmode" data-imode="clash" data-i18n-title="title.clashMode" title="Rileva le interferenze geometriche tra i modelli caricati (clash detection)">Clash <span class="tbadge" id="clashModeCount">0</span></button>
       </div>
       <div id="bcfPane">
         <div class="panel-head">
@@ -913,6 +999,36 @@ input[type=file]{display:none}
         </div>
         <div id="idsList">
           <div class="empty-note" data-i18n-html="empty.noIds">Nessun IDS caricato.<br>Carica un file <b>.ids</b> (buildingSMART) per verificare i requisiti informativi sui modelli aperti.</div>
+        </div>
+      </div>
+      <div id="clashPane" style="display:none">
+        <div id="clashControls">
+          <div class="clash-set" id="clashSetBoxA"></div>
+          <div class="clash-set" id="clashSetBoxB"></div>
+          <div class="clash-opts">
+            <select id="clashType" class="qto-sel">
+              <option value="hard" data-i18n="clash.hard">Hard — compenetrazione</option>
+              <option value="clearance" data-i18n="clash.clearance">Clearance — distanza minima</option>
+            </select>
+            <input id="clashTol" type="text" inputmode="decimal" value="50" data-i18n-title="clash.tolT" title="Tolleranza in millimetri. Hard: le compenetrazioni sotto la soglia sono ignorate. Clearance: distanza minima richiesta tra gli elementi.">
+            <span class="clash-unit">mm</span>
+          </div>
+          <button id="btnClashRun" class="ids-run" data-i18n="clash.run" disabled>▶ Esegui clash</button>
+          <div class="clash-mtx">
+            <div class="clash-mtx-head">
+              <span class="qto-lbl" data-i18n="clash.mtxTitle">Matrice interferenze (CSV)</span>
+              <button id="btnClashMtxTpl" class="mtx-btn" data-i18n-title="clash.mtxTpl" title="Scarica un modello CSV con i set dei modelli caricati">⤓</button>
+              <button id="btnClashMtxLoad" class="pc-add" data-i18n-title="clash.mtxLoad" title="Carica matrice interferenze (.csv)">＋</button>
+            </div>
+            <div id="clashMtxInfo"></div>
+            <button id="btnClashMtxRun" class="ids-run" style="display:none">▶ Esegui matrice</button>
+          </div>
+          <div id="clashSummary" class="ids-summary"></div>
+          <div id="clashExportBar" class="ids-export">
+            <button id="btnClashCsv" data-i18n="clash.csv" data-i18n-title="clash.csvT" title="Esporta i risultati in CSV (con gli stati)">⤓ CSV</button>
+            <button id="btnClashBcf" data-i18n="clash.bcf" data-i18n-title="clash.bcfT" title="Esporta i clash come issue BCF 2.1 con snapshot (compatibile Solibri)">⤓ BCF</button>
+          </div>
+          <div class="empty-note" id="clashLeftNote" data-i18n-html="empty.noClash">Nessun clash eseguito.<br>Definisci <b>Set A</b> e <b>Set B</b>, il tipo di test e la tolleranza, poi premi <b>Esegui clash</b>: i risultati compaiono nel pannello a destra.</div>
         </div>
       </div>
     </div>
@@ -1008,9 +1124,11 @@ input[type=file]{display:none}
       <div class="detail-tabs" id="detailTabs" role="tablist">
         <button class="dtab on" id="dtabInfo" role="tab" aria-selected="true"><h2 id="detailTitle" data-i18n="detail.title">Dettagli</h2></button>
         <button class="dtab" id="dtabSection" role="tab" aria-selected="false" hidden data-i18n="sec2d.tab">Sezione 2D</button>
+        <button class="dtab" id="dtabClash" role="tab" aria-selected="false" hidden><h2 id="dtabClashLbl">Clash</h2></button>
       </div>
     </div>
     <div id="detailBody"></div>
+    <div id="clashBody" hidden></div>
     <div id="sectionBody" hidden></div>
   </aside>
 </main>
@@ -1141,6 +1259,8 @@ import { parseLASHeader, parseLASPoints } from "./las.js";   // studio import Po
 import { parseE57, e57PointCount } from "./e57.js";           // studio import PointCloud (E57)
 import { parseIds, evaluateIds } from "./ids.js";             // feature Controlli IDS
 import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js";  // feature QTO (v2.5.0)
+import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
+         parseMatrixCsv, matrixToCsv, matrixToRules } from "./clash.js";  // feature clash detection (v2.6.0)
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -1179,6 +1299,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
    · snapshot overlay
    · caricamento file / drag&drop
    · QTO — tab, render, run
+   · clash detection — adapter geometria, run, UI (feature/clash v2.6.0)
    · utilità UI
    · welcome screen (bootstrap UI)
    · menù contestuale tasto destro
@@ -1227,7 +1348,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.5.3";
+const APP_VERSION = "2.6.0";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -1299,6 +1420,79 @@ const STRINGS = {
     "toast.idsLoaded": "IDS «{f}» caricato: {n} specifiche.",
     "toast.idsErr": "Errore lettura IDS: {e}",
     "toast.idsUnloaded": "IDS rimosso.",
+    "title.clashMode": "Rileva le interferenze geometriche tra i modelli caricati (clash detection)",
+    "empty.noClash": "Nessun clash eseguito.<br>Definisci <b>Set A</b> e <b>Set B</b>, il tipo di test e la tolleranza, poi premi <b>Esegui clash</b>: i risultati compaiono nel pannello a destra.",
+    "clash.setA": "Set A", "clash.setB": "Set B",
+    "clash.models": "Modelli", "clash.classes": "Classi",
+    "clash.param": "Parametro (facoltativo)",
+    "clash.all": "tutti", "clash.none2": "nessuno",
+    "clash.sumAll": "tutto il caricato",
+    "clash.sumModels": "{n} modelli", "clash.sumClasses": "{n} classi", "clash.sumVals": "{n} valori",
+    "clash.valsLoading": "Leggo i valori…",
+    "clash.valsNone": "Nessun valore trovato nei modelli caricati.",
+    "clash.valsHint": "nessuna spunta = qualsiasi valore",
+    "clash.tbHl": "Evidenzia", "clash.tbHlT": "Evidenzia nel 3D i clash selezionati (o tutti, se nessuna selezione)",
+    "clash.tbIso": "Isola", "clash.tbIsoT": "Mostra solo gli elementi in clash: il resto del modello in trasparenza",
+    "clash.tbGroup": "Raggruppa", "clash.tbGroupT": "Crea un gruppo dai clash selezionati (Ctrl/Shift+clic per selezionare)",
+    "clash.groupDef": "Gruppo {n}",
+    "clash.renameT": "Doppio clic per rinominare",
+    "clash.ungroupT": "Sciogli il gruppo (i clash tornano nella lista)",
+    "clash.grpStT": "Lo stato scelto viene applicato a tutti i clash del gruppo",
+    "clash.selHint": "Clic: zoom · Ctrl/Shift+clic: selezione multipla · Tasto destro: gruppi",
+    "clash.twT": "Comprimi/espandi il gruppo",
+    "clash.ctxSel": "Selezionati: {n}",
+    "clash.ctxGroup": "Crea gruppo dai selezionati ({n})",
+    "clash.ctxAssign": "Assegna al gruppo…",
+    "clash.ctxUngroup": "Rimuovi dal gruppo",
+    "clash.ctxRename": "Rinomina",
+    "clash.ctxCollapse": "Comprimi",
+    "clash.ctxExpand": "Espandi",
+    "clash.ctxAddTo": "Aggiungi i selezionati ({n})",
+    "clash.ctxUngroupG": "Sciogli il gruppo",
+    "clash.grpModels": "Modelli", "clash.grpClasses": "Classi IFC",
+    "clash.hard": "Hard — compenetrazione",
+    "clash.clearance": "Clearance — distanza minima",
+    "clash.tolT": "Tolleranza in millimetri. Hard: le compenetrazioni sotto la soglia sono ignorate. Clearance: distanza minima richiesta tra gli elementi.",
+    "clash.run": "▶ Esegui clash", "clash.rerun": "▶ Riesegui clash",
+    "clash.stop": "■ Ferma",
+    "clash.prep": "Preparo la geometria…",
+    "clash.running": "Analisi coppie… {i}/{n}",
+    "clash.summary": "<b>{n}</b> clash · {p} coppie candidate · {s}s",
+    "clash.none": "Nessuna interferenza: {p} coppie candidate analizzate.",
+    "clash.stopped": "interrotto: risultati parziali",
+    "clash.truncated": "limite coppie raggiunto: risultato parziale",
+    "clash.unmeasured": "{n} intersezioni non misurabili escluse (superfici aperte)",
+    "clash.tolBad": "Tolleranza non valida: inserisci i millimetri (es. 25).",
+    "clash.err": "Errore durante il clash: {e}",
+    "clash.clickZoom": "Clic: evidenzia la coppia (A rosso, B verde) e inquadra",
+    "clash.pen": "pen.", "clash.dist": "dist.",
+    "clash.extT": "estensione del contatto: {v}",
+    "toast.clashNoModels": "Carica almeno un modello per eseguire il clash.",
+    "clash.mtxTitle": "Matrice interferenze (CSV)",
+    "clash.mtxLoad": "Carica matrice interferenze (.csv)",
+    "clash.mtxTpl": "Scarica un modello CSV con i set dei modelli caricati",
+    "clash.mtxRun": "▶ Esegui matrice ({n} regole)",
+    "clash.mtxRules": "{n} regole",
+    "clash.mtxParseErr": "{n} celle ignorate (formato non valido)",
+    "clash.mtxNoModel": "modello «{name}» non caricato",
+    "clash.mtxBadSet": "set «{name}» non riconosciuto (nome modello, IfcClasse o Classe@Modello)",
+    "clash.mtxEmptySet": "set «{name}» vuoto nei modelli caricati",
+    "clash.mtxSkipped": "{n} regole saltate:",
+    "clash.mtxRemove": "Rimuovi matrice",
+    "clash.mtxNoRules": "Nessuna regola eseguibile: controlla i nomi dei set.",
+    "toast.clashMtxLoaded": "Matrice «{f}»: {n} regole.",
+    "toast.clashMtxErr": "Errore lettura matrice: {e}",
+    "clash.st.new": "Nuovo", "clash.st.active": "Attivo", "clash.st.reviewed": "Rivisto",
+    "clash.st.approved": "Approvato", "clash.st.resolved": "Risolto",
+    "clash.csv": "⤓ CSV", "clash.csvT": "Esporta i risultati in CSV (con gli stati)",
+    "clash.bcf": "⤓ BCF", "clash.bcfT": "Esporta i clash come issue BCF 2.1 con snapshot (compatibile Solibri)",
+    "clash.bcfBuilding": "Creazione BCF in corso…",
+    "clash.bcfSnap": "Cattura anteprime… ({i}/{n})",
+    "clash.bcfRuleTitle": "Clash: {a} × {b} ({n})",
+    "clash.bcfRuleDesc": "{n} interferenze — regola {a} × {b} · {t} {tol} mm",
+    "clash.bcfGroupDesc": "{n} clash nel gruppo «{name}»",
+    "toast.clashBcfExported": "BCF creato: {n} issue.",
+    "toast.clashBcfGrouped": "Molti clash ({n}): esportato un topic per regola.",
     "tab.qto": "QTO", "title.qtoTab": "Computo delle quantità (Quantity Take-Off) dai modelli caricati",
     "qto.groupBy": "Raggruppa per",
     "qto.groupClass": "Classe IFC",
@@ -1627,6 +1821,79 @@ const STRINGS = {
     "toast.idsLoaded": "IDS “{f}” loaded: {n} specifications.",
     "toast.idsErr": "Error reading IDS: {e}",
     "toast.idsUnloaded": "IDS removed.",
+    "title.clashMode": "Detect geometric interferences between the loaded models (clash detection)",
+    "empty.noClash": "No clash test run yet.<br>Define <b>Set A</b> and <b>Set B</b>, the test type and the tolerance, then press <b>Run clash</b>: results appear in the right panel.",
+    "clash.setA": "Set A", "clash.setB": "Set B",
+    "clash.models": "Models", "clash.classes": "Classes",
+    "clash.param": "Parameter (optional)",
+    "clash.all": "all", "clash.none2": "none",
+    "clash.sumAll": "everything loaded",
+    "clash.sumModels": "{n} models", "clash.sumClasses": "{n} classes", "clash.sumVals": "{n} values",
+    "clash.valsLoading": "Reading values…",
+    "clash.valsNone": "No value found in the loaded models.",
+    "clash.valsHint": "nothing ticked = any value",
+    "clash.tbHl": "Highlight", "clash.tbHlT": "Highlight the selected clashes in 3D (or all, if nothing is selected)",
+    "clash.tbIso": "Isolate", "clash.tbIsoT": "Show only the clashing elements: the rest of the model fades out",
+    "clash.tbGroup": "Group", "clash.tbGroupT": "Create a group from the selected clashes (Ctrl/Shift+click to select)",
+    "clash.groupDef": "Group {n}",
+    "clash.renameT": "Double-click to rename",
+    "clash.ungroupT": "Dissolve the group (clashes return to the list)",
+    "clash.grpStT": "The chosen status is applied to every clash in the group",
+    "clash.selHint": "Click: zoom · Ctrl/Shift+click: multi-select · Right-click: groups",
+    "clash.twT": "Collapse/expand the group",
+    "clash.ctxSel": "Selected: {n}",
+    "clash.ctxGroup": "Create group from selection ({n})",
+    "clash.ctxAssign": "Assign to group…",
+    "clash.ctxUngroup": "Remove from group",
+    "clash.ctxRename": "Rename",
+    "clash.ctxCollapse": "Collapse",
+    "clash.ctxExpand": "Expand",
+    "clash.ctxAddTo": "Add selection ({n})",
+    "clash.ctxUngroupG": "Dissolve the group",
+    "clash.grpModels": "Models", "clash.grpClasses": "IFC classes",
+    "clash.hard": "Hard — interpenetration",
+    "clash.clearance": "Clearance — minimum distance",
+    "clash.tolT": "Tolerance in millimetres. Hard: penetrations below the threshold are ignored. Clearance: minimum distance required between elements.",
+    "clash.run": "▶ Run clash", "clash.rerun": "▶ Re-run clash",
+    "clash.stop": "■ Stop",
+    "clash.prep": "Preparing geometry…",
+    "clash.running": "Testing pairs… {i}/{n}",
+    "clash.summary": "<b>{n}</b> clashes · {p} candidate pairs · {s}s",
+    "clash.none": "No interference: {p} candidate pairs tested.",
+    "clash.stopped": "stopped: partial results",
+    "clash.truncated": "pair limit reached: partial result",
+    "clash.unmeasured": "{n} unmeasurable intersections excluded (open surfaces)",
+    "clash.tolBad": "Invalid tolerance: enter millimetres (e.g. 25).",
+    "clash.err": "Error during clash detection: {e}",
+    "clash.clickZoom": "Click: highlight the pair (A red, B green) and zoom",
+    "clash.pen": "pen.", "clash.dist": "dist.",
+    "clash.extT": "contact extent: {v}",
+    "toast.clashNoModels": "Load at least one model to run clash detection.",
+    "clash.mtxTitle": "Interference matrix (CSV)",
+    "clash.mtxLoad": "Load interference matrix (.csv)",
+    "clash.mtxTpl": "Download a CSV template with the loaded models as sets",
+    "clash.mtxRun": "▶ Run matrix ({n} rules)",
+    "clash.mtxRules": "{n} rules",
+    "clash.mtxParseErr": "{n} cells ignored (invalid format)",
+    "clash.mtxNoModel": "model “{name}” not loaded",
+    "clash.mtxBadSet": "set “{name}” not recognised (model name, IfcClass or Class@Model)",
+    "clash.mtxEmptySet": "set “{name}” is empty in the loaded models",
+    "clash.mtxSkipped": "{n} rules skipped:",
+    "clash.mtxRemove": "Remove matrix",
+    "clash.mtxNoRules": "No executable rule: check the set names.",
+    "toast.clashMtxLoaded": "Matrix “{f}”: {n} rules.",
+    "toast.clashMtxErr": "Error reading matrix: {e}",
+    "clash.st.new": "New", "clash.st.active": "Active", "clash.st.reviewed": "Reviewed",
+    "clash.st.approved": "Approved", "clash.st.resolved": "Resolved",
+    "clash.csv": "⤓ CSV", "clash.csvT": "Export the results as CSV (with statuses)",
+    "clash.bcf": "⤓ BCF", "clash.bcfT": "Export the clashes as BCF 2.1 topics with snapshots (Solibri-compatible)",
+    "clash.bcfBuilding": "Building BCF…",
+    "clash.bcfSnap": "Capturing snapshots… ({i}/{n})",
+    "clash.bcfRuleTitle": "Clash: {a} × {b} ({n})",
+    "clash.bcfRuleDesc": "{n} interferences — rule {a} × {b} · {t} {tol} mm",
+    "clash.bcfGroupDesc": "{n} clashes in group “{name}”",
+    "toast.clashBcfExported": "BCF created: {n} topics.",
+    "toast.clashBcfGrouped": "Many clashes ({n}): exported one topic per rule.",
     "tab.qto": "QTO", "title.qtoTab": "Quantity Take-Off from the loaded models",
     "qto.groupBy": "Group by",
     "qto.groupClass": "IFC class",
@@ -2344,6 +2611,7 @@ async function buildModel(data, name) {
   classeCache.clear();   // i nuovi GUID possono ora risolvere la Classe (v1.7.6)
   idsInvalidate();       // l'universo elementi è cambiato: l'esito IDS va ricalcolato
   qtoInvalidate();       // idem per il computo quantità (feature/qto)
+  clashInvalidate();     // idem per la clash detection (feature/clash)
   prewarmModel(model);  // v1.9.4 — costruisce le mappe pset/type in background (idle),
                         // così la PRIMA selezione non paga la scansione del modello
   try { extractAlignments(model, data); } catch (e) { console.warn("alignment:", e); } // v1.9.7
@@ -2728,6 +2996,7 @@ function removeModel(model) {
   classeCache.clear();   // la risoluzione Classe dipende dai modelli presenti (v1.7.6)
   idsInvalidate();       // l'universo elementi è cambiato: l'esito IDS va ricalcolato
   qtoInvalidate();       // idem per il computo quantità (feature/qto)
+  clashInvalidate();     // le mesh rimosse invalidano indice/cache clash (feature/clash)
   updateAlignUI();       // il bottone Asse dipende anche da models.length (LandXML, v2.1.0)
   if (!models.length && !PCLOUD.sources.length) {
     /* federazione vuota: il prossimo caricamento ridefinisce origine e riferimento BCF.
@@ -3351,6 +3620,7 @@ function clearHighlight() {
   hlItems = null;
   currentSelectionBox = null;
   if (selTreeRow) { selTreeRow.classList.remove("sel"); selTreeRow = null; }
+  _clashMarkerHide();   // il marker del punto di clash segue la vita dell'evidenza (feature/clash)
   applyIsolate();
 }
 
@@ -3449,10 +3719,13 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   const visible = allBaseMeshes().filter(m => m.visible);
   const hits = raycaster.intersectObjects(visible, false);
   if (!hits.length) {
-    /* clic nel vuoto: deseleziona */
+    /* clic nel vuoto: deseleziona. Se ci sono risultati clash il pannello
+       destro NON si chiude (chiuderlo li renderebbe irraggiungibili senza
+       rieseguire il run): si torna alla scheda Clash. */
     if (hlGroup.children.length) {
       clearHighlight();
       if (activeTopic) { if ($("detailTitle").textContent === "Elemento") renderTopicDetail(activeTopic); }
+      else if (CLASH.results) _drawShowTab("clash");
       else closeDetail();
     }
     return;
@@ -3479,7 +3752,10 @@ window.addEventListener("keydown", (e) => {
     if (walkMode) { setWalkMode(false); return; }
     if (_exitSectionModes()) return;   // Esc: esci dalle modalità sezione (piano / box)
     clearHighlight();
-    if (activeTopic === null) closeDetail();
+    if (activeTopic === null) {
+      if (CLASH.results) _drawShowTab("clash");   // i risultati clash restano raggiungibili
+      else closeDetail();
+    }
     return;
   }
   if (e.key === "Delete") {            // Canc: esci dalle modalità sezione (piano / box)
@@ -4426,10 +4702,12 @@ async function loadReport(file) {
 
 function updateIssuesBadge() {
   const nIds = idsDoc ? idsDoc.specs.length : 0;
-  $("tabIssuesCount").textContent = topics.length + reportTopics.length + nIds;
+  const nClash = CLASH.results ? CLASH.results.length : 0;
+  $("tabIssuesCount").textContent = topics.length + reportTopics.length + nIds + nClash;
   $("bcfModeCount").textContent = topics.length;
   $("repModeCount").textContent = reportTopics.length;
   $("idsModeCount").textContent = nIds;
+  $("clashModeCount").textContent = nClash;
 }
 
 /* ===================== unload sorgenti BCF / report ===================== */
@@ -4490,7 +4768,9 @@ function setIssueMode(m) {
   $("bcfPane").style.display = m === "bcf" ? "" : "none";
   $("reportPane").style.display = m === "report" ? "" : "none";
   $("idsPane").style.display = m === "ids" ? "" : "none";
+  $("clashPane").style.display = m === "clash" ? "" : "none";
   if (m === "ids") renderIdsList();     // la verifica parte solo dal pulsante, mai in automatico
+  if (m === "clash") renderClashUI();   // aggiorna i set disponibili (modelli/classi caricati)
 }
 document.querySelectorAll("#issueModeBar .tmode").forEach(b => b.addEventListener("click", () => setIssueMode(b.dataset.imode)));
 
@@ -4791,21 +5071,26 @@ function _bcfMarkup(t, vpGuid, hasSnapshot) {
 }
 function _bcfViewpoint(t, vpGuid, cameraXml) {
   const sel = t.components.map(g => `\n      <Component IfcGuid="${esc(g)}"/>`).join("");
-  const col = t.components.map(g => `\n        <Component IfcGuid="${esc(g)}"/>`).join("");
   /* BCF 2.1 Components: ordine di schema Selection → Visibility → Coloring.
      Coloring (rosso) è ciò che Solibri applica VISIVAMENTE all'apertura del viewpoint;
      Selection da sola seleziona nell'albero ma spesso non marca il 3D.
+     t.coloring opzionale ([{color:"AARRGGBB", guids:[…]}], feature/clash: A rosso
+     B verde) — assente, resta il rosso unico su tutti i componenti come per l'IDS.
      La PerspectiveCamera (opzionale) va DOPO </Components> (ordine di schema). */
+  const blocks = ((t.coloring && t.coloring.length) ? t.coloring : [{ color: "FFFF0000", guids: t.components }])
+    .filter(b => b.guids.length);
+  /* XSD: Coloring richiede almeno un Color con almeno un Component →
+     senza GUID validi si omette l'intero blocco (Solibri valida in modo severo) */
+  const coloring = blocks.length
+    ? `\n    <Coloring>${blocks.map(b =>
+        `\n      <Color Color="${esc(b.color)}">${b.guids.map(g => `\n        <Component IfcGuid="${esc(g)}"/>`).join("")}\n      </Color>`).join("")}\n    </Coloring>`
+    : "";
   return `<?xml version="1.0" encoding="UTF-8"?>
 <VisualizationInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="${vpGuid}">
   <Components>
     <Selection>${sel}
     </Selection>
-    <Visibility DefaultVisibility="true"/>
-    <Coloring>
-      <Color Color="FFFF0000">${col}
-      </Color>
-    </Coloring>
+    <Visibility DefaultVisibility="true"/>${coloring}
   </Components>${cameraXml || ""}
 </VisualizationInfo>`;
 }
@@ -4820,8 +5105,17 @@ function _bcfTopicView(t) {
     if (!e.model) continue;
     for (const g of geoIdsOf(e.model, e.eid)) sel.push({ model: e.model, eid: g });
   }
-  if (!sel.length) return null;
-  const box = buildHighlight(sel);
+  /* t.elemsB opzionale (feature/clash): evidenza bicolore A rosso / B verde */
+  let selB = null;
+  if (t.elemsB) {
+    selB = [];
+    for (const e of t.elemsB) {
+      if (!e.model) continue;
+      for (const g of geoIdsOf(e.model, e.eid)) selB.push({ model: e.model, eid: g });
+    }
+  }
+  if (!sel.length && !(selB && selB.length)) return null;
+  const box = selB ? buildClashHighlight(sel, selB) : buildHighlight(sel);
   if (!box || box.isEmpty()) return null;
   updateClipping(box);
   fitBox(box, 0);                 // inquadratura immediata, niente animazione
@@ -4913,6 +5207,1162 @@ $("fileIds") && $("fileIds").addEventListener("change", async (e) => { for (cons
 $("idsSearch") && $("idsSearch").addEventListener("input", renderIdsList);
 $("btnIdsRun") && $("btnIdsRun").addEventListener("click", runIds);
 $("btnIdsExportBcf") && $("btnIdsExportBcf").addEventListener("click", exportIdsBcf);
+
+/* ===================== clash detection (feature/clash v2.6.0) =====================
+   Il MOTORE (kernel tri-tri, BVH, broad phase) è nel modulo puro clash.js.
+   Qui c'è solo l'adapter: estrae la geometria per-elemento dai bucket mesh
+   (posizioni GIÀ in spazio mondo condiviso, metri, Y-up: la federazione è
+   risolta a monte, catena di trasformazione NON toccata), esegue le regole a
+   blocchi asincroni con progress/stop nel pannello (niente overlay: il bottone
+   resta cliccabile) e mostra i risultati (A rosso / B verde, marker sul punto).
+   Il clash lavora su TUTTO il caricato, ignorando visibilità e isolamento:
+   il controllo è sul modello, non sulla vista. */
+const CLASH = {
+  index: new Map(),        // model.uid -> { model, byEid: Map(eid -> {aabb, refs:[{mesh,start,count}], nTris}) }
+  bvhCache: new Map(),     // "uid:eid" -> TriBvh — LRU sull'ordine di inserimento della Map
+  bvhBytes: 0,
+  BVH_BUDGET: 256 * 1024 * 1024,   // budget cache triangoli+BVH (byte)
+  results: null,           // ultimo run: [{rule, a, b, value, extent?, point, key}]
+                           // value: hard = compenetrazione (m), clearance = distanza (m)
+  lastRun: null,           // { nRules, nPairs, truncated, stopped, secs }
+  statuses: new Map(),     // clashKey -> stato (new/active/reviewed/approved/resolved);
+                           // chiave su GUID+regola: SOPRAVVIVE a ri-run e reload dei modelli
+  setDef: {                // costruttori Set A/B: null = nessun filtro (tutto il caricato)
+    A: { models: null, classes: null, pset: "", prop: "", vals: null },
+    B: { models: null, classes: null, pset: "", prop: "", vals: null }
+  },
+  groups: [],              // [{id, name, keys:Set(clashKey)}] — sopravvivono ai ri-run
+  selection: new Set(),    // indici risultato selezionati (Ctrl/Shift) nel pannello destro
+  _anchor: null, _order: [], _gseq: 0,
+  isoOn: false,            // toggle "Isola" della toolbar clash
+  running: false, cancel: false,
+  marker: null
+};
+const CLASH_STATES = ["new", "active", "reviewed", "approved", "resolved"];
+let _clashSeq = 0;         // token di run: invalidazioni e riesecuzioni scartano i run vecchi
+
+function clashInvalidate() {
+  _clashSeq++;             // un run in corso si accorge del token e abbandona
+  CLASH.cancel = true; CLASH.running = false;
+  CLASH.index.clear();
+  CLASH.bvhCache.clear(); CLASH.bvhBytes = 0;
+  CLASH.results = null; CLASH.lastRun = null;
+  CLASH.selection.clear(); CLASH._anchor = null; CLASH._order = [];
+  CLASH.isoOn = false;
+  for (const m of models) { m._clashClassSet = null; m._clashParamVals = null; }   // classi/pset possono cambiare
+  /* CLASH.groups e CLASH.statuses SOPRAVVIVONO: chiavi su GUID, tornano validi al ricaricamento */
+  if (CLASH.mtx) CLASH.mtx.runIssues = null;   // la matrice SOPRAVVIVE ai modelli (come LXML.sources)
+  _clashMarkerHide();
+  if ($("clashControls")) { renderClashUI(); renderClashMtxInfo(); renderClashSummary(); renderClashResults(); updateIssuesBadge(); }
+}
+
+/* ---- indice geometrico per-elemento (AABB + riferimenti ai range) ---- */
+function _clashBuildIndex() {
+  if (CLASH.index.size === models.length && models.every(m => CLASH.index.has(m.uid))) return;
+  CLASH.index.clear();
+  for (const m of models) {
+    const byEid = new Map();
+    for (const mesh of m.meshes) {
+      /* rootGroup e mesh sono a identità: le position SONO le coordinate mondo.
+         fullRanges/fullIndex: geometria completa, inclusi gli elementi nascosti. */
+      const pos = mesh.geometry.getAttribute("position").array;
+      const idx = mesh.userData.fullIndex.array;
+      for (const r of mesh.userData.fullRanges) {
+        let e = byEid.get(r.expressID);
+        if (!e) {
+          e = { aabb: new Float64Array([Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity]), refs: [], nTris: 0 };
+          byEid.set(r.expressID, e);
+        }
+        e.refs.push({ mesh, start: r.start, count: r.count });
+        e.nTris += r.count;
+        const a = e.aabb, s = r.start * 3, n = r.count * 3;
+        for (let i = 0; i < n; i++) {
+          const vi = idx[s + i] * 3;
+          const x = pos[vi], y = pos[vi + 1], z = pos[vi + 2];
+          if (x < a[0]) a[0] = x; if (y < a[1]) a[1] = y; if (z < a[2]) a[2] = z;
+          if (x > a[3]) a[3] = x; if (y > a[4]) a[4] = y; if (z > a[5]) a[5] = z;
+        }
+      }
+    }
+    CLASH.index.set(m.uid, { model: m, byEid });
+  }
+}
+
+/* ---- nomi classe / elemento (cache per modello) ---- */
+function _clashClassName(m, code) {
+  let cache = m._clashTypeNames || (m._clashTypeNames = new Map());
+  let nm = cache.get(code);
+  if (nm === undefined) {
+    nm = "";
+    try { nm = m.api.GetNameFromTypeCode ? String(m.api.GetNameFromTypeCode(code) || "") : ""; } catch (e) {}
+    nm = nm ? nm.toUpperCase() : ("IFC " + code);
+    cache.set(code, nm);
+  }
+  return nm;
+}
+function _clashName(info) {
+  const m = info.model;
+  let cache = m._clashNames || (m._clashNames = new Map());
+  let n = cache.get(info.eid);
+  if (n === undefined) {
+    n = "";
+    try { const ln = m.api.GetLine(m.modelID, info.eid); n = unwrap(ln.Name) || ""; } catch (e) {}
+    if (!n) n = "#" + info.eid;
+    cache.set(info.eid, n);
+  }
+  return n;
+}
+
+/* ---- risoluzione dei set: "m:<uid>" (modello) | "c:<CLASSE>" (con sottoclassi note) ---- */
+function _clashItem(m, eid, e) {
+  return { key: m.uid + ":" + eid, aabb: e.aabb, model: m, eid,
+           guid: m.guidByExpress.get(eid) || (m.uid + ":" + eid),
+           cls: _clashClassName(m, m.typeByExpress.get(eid) || 0) };
+}
+function _clashResolveSet(val) {
+  const items = [];
+  if (val && val.startsWith("m:")) {
+    const entry = CLASH.index.get(+val.slice(2));
+    if (entry) for (const [eid, e] of entry.byEid) items.push(_clashItem(entry.model, eid, e));
+  } else if (val && val.startsWith("c:")) {
+    const names = new Set(expandClassName(val.slice(2)));
+    for (const entry of CLASH.index.values()) {
+      const m = entry.model;
+      for (const [eid, e] of entry.byEid) {
+        if (names.has(_clashClassName(m, m.typeByExpress.get(eid) || 0))) items.push(_clashItem(m, eid, e));
+      }
+    }
+  }
+  return items;
+}
+
+/* ---- TriBvh per elemento, cache LRU a budget ---- */
+function _clashBvhOf(item) {
+  const k = item.key;
+  let b = CLASH.bvhCache.get(k);
+  if (b) { CLASH.bvhCache.delete(k); CLASH.bvhCache.set(k, b); return b; }   // touch LRU
+  const e = CLASH.index.get(item.model.uid).byEid.get(item.eid);
+  const tris = new Float32Array(e.nTris * 9);
+  let o = 0;
+  for (const ref of e.refs) {
+    const pos = ref.mesh.geometry.getAttribute("position").array;
+    const idx = ref.mesh.userData.fullIndex.array;
+    const s = ref.start * 3, n = ref.count * 3;
+    for (let i = 0; i < n; i++) {
+      const vi = idx[s + i] * 3;
+      tris[o++] = pos[vi]; tris[o++] = pos[vi + 1]; tris[o++] = pos[vi + 2];
+    }
+  }
+  b = new TriBvh(tris);
+  CLASH.bvhCache.set(k, b);
+  CLASH.bvhBytes += b.bytes;
+  while (CLASH.bvhBytes > CLASH.BVH_BUDGET && CLASH.bvhCache.size > 2) {
+    const oldest = CLASH.bvhCache.entries().next().value;
+    if (oldest[0] === k) break;
+    CLASH.bvhCache.delete(oldest[0]);
+    CLASH.bvhBytes -= oldest[1].bytes;
+  }
+  return b;
+}
+
+/* ---- run asincrono a blocchi (progress e stop nel pannello) ---- */
+const _clashTick = () => new Promise(r => setTimeout(r, 0));
+/* Motore condiviso: esegue N regole risolte. buildRules() è chiamata DOPO il
+   primo tick (l'indice geometrico e la risoluzione dei set possono costare
+   secondi sui federati grossi: prima si dipinge "Preparo la geometria…").
+   Ogni regola: {id, type, tol(m), tolMm, aLabel, bLabel, itemsA, itemsB}.
+   Risultati ordinati per gravità su TUTTO il run (7° QA utente): prima gli
+   hard per compenetrazione ↓, poi le clearance per distanza ↑ — anche con
+   più regole il clash più grave sta in cima. */
+async function _clashRun(buildRules) {
+  CLASH.running = true; CLASH.cancel = false;
+  const seq = ++_clashSeq;
+  updateClashRunBtn();
+  $("clashSummary").innerHTML = esc(tr("clash.prep"));
+  await _clashTick();
+  const t0 = performance.now();
+  try {
+    _clashBuildIndex();
+    const rules = await buildRules();   // può leggere i pset (filtri parametro): asincrono
+    if (!rules || !rules.length || seq !== _clashSeq) return;
+    /* broad phase per regola: AABB gonfiati della tolleranza (clearance) o di un epsilon (hard) */
+    const jobs = [];
+    let total = 0, truncated = false;
+    for (const rule of rules) {
+      const bp = broadPhase(rule.itemsA, rule.itemsB, rule.type === "clearance" ? rule.tol : 1e-6, { maxPairs: 500000 });
+      truncated = truncated || bp.truncated;
+      jobs.push({ rule, pairs: bp.pairs });
+      total += bp.pairs.length;
+    }
+    const out = [];
+    let done = 0, unmeasured = 0, last = performance.now();
+    for (const job of jobs) {
+      if (CLASH.cancel || seq !== _clashSeq) break;
+      const rule = job.rule;
+      for (let i = 0; i < job.pairs.length; i++) {
+        if (CLASH.cancel || seq !== _clashSeq) break;
+        const A = rule.itemsA[job.pairs[i][0]], B = rule.itemsB[job.pairs[i][1]];
+        let hit = null;
+        try {
+          const ba = _clashBvhOf(A), bb = _clashBvhOf(B);
+          if (rule.type === "hard") {
+            const h = hardPair(ba, bb, { tol: rule.tol });
+            /* hardPair è solo il PRE-FILTRO (la sua pen locale sovrastima sui
+               triangoli lunghi). La gravità è la profondità REALE di
+               penetrationPair: si segnala SOLO pen >= tolleranza (5° QA:
+               sotto soglia = non è un clash). Le coppie non misurabili
+               (superfici aperte da entrambi i lati) sono escluse ma contate
+               nel sommario; con tolleranza 0 restano in lista a 0. */
+            if (h) {
+              const pd = penetrationPair(ba, bb, { seeds: h.seeds, tol: rule.tol });
+              if (pd.measured ? pd.pen >= rule.tol : rule.tol <= 0)
+                hit = { value: pd.pen, extent: h.extent, point: pd.point || h.point };
+              else if (!pd.measured) unmeasured++;
+            }
+          } else {
+            const c = clearancePair(ba, bb, { tol: rule.tol });
+            if (c) hit = { value: c.dist, point: c.point };
+          }
+        } catch (err) { console.warn("[APE Viewer] clash: coppia saltata", A.key, B.key, err); }
+        if (hit) out.push(Object.assign({ rule, a: A, b: B, key: clashKey(A.guid, B.guid, rule.id) }, hit));
+        done++;
+        if (performance.now() - last > 80) {   // ~12fps di aggiornamento UI, il resto è calcolo
+          updateClashRunBtn(`${done}/${total}`);
+          $("clashSummary").innerHTML = esc(tr("clash.running", { i: done, n: total }));
+          await _clashTick();
+          last = performance.now();
+        }
+      }
+    }
+    /* ordinamento GLOBALE per gravità: hard (compenetrazione ↓) prima delle
+       clearance (distanza ↑), qualunque sia la regola di provenienza */
+    out.sort((x, y) => {
+      if (x.rule.type !== y.rule.type) return x.rule.type === "hard" ? -1 : 1;
+      return x.rule.type === "hard" ? y.value - x.value : x.value - y.value;
+    });
+    if (seq !== _clashSeq) return;   // invalidato (load/unload modello): scarta tutto
+    CLASH.results = out;
+    CLASH.lastRun = { nRules: rules.length, nPairs: total, truncated, unmeasured,
+                      stopped: CLASH.cancel, secs: ((performance.now() - t0) / 1000).toFixed(1) };
+  } catch (e) {
+    console.error(e); toast(tr("clash.err", { e: e.message || e }));
+  } finally {
+    if (seq === _clashSeq) {
+      CLASH.running = false; CLASH.cancel = false;
+      updateClashRunBtn(); renderClashSummary(); renderClashResults(); updateIssuesBadge();
+      if (CLASH.results) { openDetailPane(); _drawShowTab("clash"); }   // i risultati vivono a destra
+    }
+  }
+}
+
+/* test rapido A×B (stile Navisworks): una regola costruita dai set definiti */
+function runClashQuick() {
+  if (CLASH.running) { CLASH.cancel = true; return; }   // il bottone in run è "Ferma"
+  if (!models.length) { toast(tr("toast.clashNoModels")); return; }
+  const type = $("clashType").value;
+  const tolMm = toNumber($("clashTol").value);
+  if (!Number.isFinite(tolMm) || tolMm < 0 || (type === "clearance" && tolMm <= 0)) { toast(tr("clash.tolBad")); return; }
+  const defA = CLASH.setDef.A, defB = CLASH.setDef.B;
+  _clashRun(async () => [{
+    id: `${_clashDefId(defA)}|${_clashDefId(defB)}|${type}|${tolMm}`,
+    type, tol: tolMm / 1000, tolMm,
+    aLabel: _clashDefLabel(defA), bLabel: _clashDefLabel(defB),
+    itemsA: await _clashResolveDef(defA), itemsB: await _clashResolveDef(defB)
+  }]);
+}
+
+/* ---- matrice delle interferenze (CSV, formato §6 del piano) ---- */
+/* Risolve un riferimento set della matrice: nome modello caricato →
+   Classe@Modello → classe IFC su tutti i modelli (con sottoclassi note).
+   Ritorna { items } (con warnEmpty se la classe non ha occorrenze) o { err }. */
+function _clashResolveSetName(name) {
+  const nm = String(name || "").trim();
+  const byName = (s) => models.find(x => x.name === s) || models.find(x => x.name.toLowerCase() === s.toLowerCase());
+  const m = byName(nm);
+  if (m) return { items: _clashResolveSet("m:" + m.uid) };
+  const at = nm.lastIndexOf("@");
+  if (at > 0) {
+    const cls = nm.slice(0, at).trim(), mod = nm.slice(at + 1).trim();
+    const mm = byName(mod);
+    if (!mm) return { err: tr("clash.mtxNoModel", { name: mod }) };
+    if (!/^ifc/i.test(cls)) return { err: tr("clash.mtxBadSet", { name: nm }) };
+    const names = new Set(expandClassName(cls));
+    const entry = CLASH.index.get(mm.uid);
+    const items = [];
+    if (entry) for (const [eid, e] of entry.byEid) {
+      if (names.has(_clashClassName(mm, mm.typeByExpress.get(eid) || 0))) items.push(_clashItem(mm, eid, e));
+    }
+    return { items, warnEmpty: !items.length };
+  }
+  if (/^ifc/i.test(nm)) {
+    const items = _clashResolveSet("c:" + nm.toUpperCase());
+    return { items, warnEmpty: !items.length };
+  }
+  return { err: tr("clash.mtxBadSet", { name: nm }) };
+}
+async function loadClashMatrix(file) {
+  try {
+    const parsed = parseMatrixCsv(await file.text());
+    /* default H allineato al campo UI (50 mm, 7° QA): una cella "H" senza
+       tolleranza esplicita non deve riportare compenetrazioni sotto i 50 mm */
+    const { rules } = matrixToRules(parsed, { defaultHardTolMm: 50 });
+    if (!rules.length && parsed.errors.length) throw new Error(parsed.errors[0].msg);
+    CLASH.mtx = { name: file.name, parsed, rules, runIssues: null };
+    renderClashMtxInfo();
+    setLeftTab("issues"); setIssueMode("clash");
+    toast(tr("toast.clashMtxLoaded", { f: file.name, n: rules.length }));
+  } catch (e) { toast(tr("toast.clashMtxErr", { e: e.message || e })); console.warn(e); }
+}
+function runClashMatrix() {
+  if (CLASH.running) { CLASH.cancel = true; return; }
+  if (!models.length) { toast(tr("toast.clashNoModels")); return; }
+  if (!CLASH.mtx || !CLASH.mtx.rules.length) return;
+  _clashRun(() => {
+    const rules = [], issues = [];
+    for (const r of CLASH.mtx.rules) {
+      const A = _clashResolveSetName(r.aName), B = _clashResolveSetName(r.bName);
+      if (A.err || B.err) { issues.push(`${r.aName} × ${r.bName} — ${A.err || B.err}`); continue; }
+      if (A.warnEmpty) issues.push(`${r.aName} × ${r.bName} — ${tr("clash.mtxEmptySet", { name: r.aName })}`);
+      if (B.warnEmpty) issues.push(`${r.aName} × ${r.bName} — ${tr("clash.mtxEmptySet", { name: r.bName })}`);
+      rules.push({ id: r.id, type: r.type, tol: r.tol, tolMm: r.tolMm,
+                   aLabel: r.aName, bLabel: r.bName, itemsA: A.items, itemsB: B.items });
+    }
+    CLASH.mtx.runIssues = issues;
+    renderClashMtxInfo();
+    if (!rules.length) { toast(tr("clash.mtxNoRules")); return null; }
+    return rules;
+  });
+}
+/* template CSV: i modelli caricati come set su righe e colonne, celle vuote */
+function downloadClashMtxTemplate() {
+  if (!models.length) return;
+  const names = models.map(m => m.name);
+  const csv = matrixToCsv({ rows: names, cols: names, cells: [] });
+  /* BOM esplicito: Excel riconosce l'UTF-8 (il modulo non lo aggiunge, come qto) */
+  triggerDownload(new Blob([String.fromCharCode(0xFEFF) + csv], { type: "text/csv;charset=utf-8" }), "matrice_interferenze.csv");
+}
+function renderClashMtxInfo() {
+  const box = $("clashMtxInfo"), btn = $("btnClashMtxRun");
+  if (!box) return;
+  box.innerHTML = "";
+  if (!CLASH.mtx) { if (btn) btn.style.display = "none"; return; }
+  const strip = document.createElement("div");
+  strip.className = "src-strip";
+  strip.style.marginTop = "0";
+  const chip = document.createElement("span");
+  chip.className = "src-chip";
+  chip.innerHTML = `<span class="nm" title="${esc(CLASH.mtx.name)}">${esc(CLASH.mtx.name)} · ${esc(tr("clash.mtxRules", { n: CLASH.mtx.rules.length }))}</span><button class="src-x" title="${esc(tr("clash.mtxRemove"))}">×</button>`;
+  chip.querySelector(".src-x").addEventListener("click", () => { CLASH.mtx = null; renderClashMtxInfo(); });
+  strip.appendChild(chip);
+  box.appendChild(strip);
+  if (CLASH.mtx.parsed.errors.length) {
+    const e = document.createElement("div");
+    e.className = "mtx-err";
+    e.textContent = tr("clash.mtxParseErr", { n: CLASH.mtx.parsed.errors.length }) + " — " +
+      CLASH.mtx.parsed.errors.slice(0, 3).map(x => x.msg).join(" · ") + (CLASH.mtx.parsed.errors.length > 3 ? " …" : "");
+    box.appendChild(e);
+  }
+  if (CLASH.mtx.runIssues && CLASH.mtx.runIssues.length) {
+    const w = document.createElement("div");
+    w.className = "mtx-warn";
+    w.textContent = tr("clash.mtxSkipped", { n: CLASH.mtx.runIssues.length }) + " " +
+      CLASH.mtx.runIssues.slice(0, 4).join(" · ") + (CLASH.mtx.runIssues.length > 4 ? " …" : "");
+    box.appendChild(w);
+  }
+  if (btn) {
+    btn.style.display = CLASH.mtx.rules.length ? "" : "none";
+    btn.textContent = tr("clash.mtxRun", { n: CLASH.mtx.rules.length });
+    btn.disabled = CLASH.running || !models.length;
+  }
+}
+
+/* ---- UI: bottone run, summary, lista risultati, set picker ---- */
+function updateClashRunBtn(prog) {
+  const b = $("btnClashRun"); if (!b) return;
+  if (CLASH.running) {
+    b.disabled = false;   // in run il bottone È lo stop
+    b.innerHTML = `<span class="spin"></span>${esc(tr("clash.stop"))}${prog ? " · " + esc(prog) : ""}`;
+  } else {
+    b.disabled = !models.length;
+    b.textContent = CLASH.results ? tr("clash.rerun") : tr("clash.run");
+  }
+  const mb = $("btnClashMtxRun");
+  if (mb && CLASH.mtx) mb.disabled = CLASH.running || !models.length;
+  const tb = $("btnClashMtxTpl");
+  if (tb) tb.disabled = !models.length;
+}
+function renderClashSummary() {
+  const s = $("clashSummary"); if (!s) return;
+  const bar = $("clashExportBar");
+  if (bar) bar.classList.toggle("on", !!(CLASH.results && CLASH.results.length));
+  const note = $("clashLeftNote");
+  if (note) note.style.display = CLASH.results ? "none" : "";
+  if (!CLASH.lastRun) { s.innerHTML = ""; return; }
+  const lr = CLASH.lastRun;
+  const bits = [tr("clash.summary", { n: CLASH.results.length, p: lr.nPairs, s: lr.secs })];
+  if (lr.stopped) bits.push(`<span class="clash-warn">${esc(tr("clash.stopped"))}</span>`);
+  if (lr.truncated) bits.push(`<span class="clash-warn">${esc(tr("clash.truncated"))}</span>`);
+  if (lr.unmeasured) bits.push(esc(tr("clash.unmeasured", { n: lr.unmeasured })));
+  s.innerHTML = bits.join(" · ");
+}
+/* Lunghezze in MM fino al metro (7° QA: le tolleranze sono in mm — con il
+   cambio di unità a metà lista "0.14 m" e "98 mm" non si confrontano a
+   colpo d'occhio con la soglia), in metri da 1 m in su. */
+function _clashFmtLen(v) {
+  if (!Number.isFinite(v)) return "";
+  if (v < 0.9995) { const mm = v * 1000; return (mm < 9.95 ? mm.toFixed(1) : String(Math.round(mm))) + " mm"; }
+  return v.toFixed(2) + " m";
+}
+/* ---- risultati nel PANNELLO DESTRO (tab Clash): toolbar, gruppi, selezione ---- */
+function updateClashTab() {
+  const tab = $("dtabClash"); if (!tab) return;
+  tab.hidden = !CLASH.results;
+  const lbl = $("dtabClashLbl");
+  if (lbl) lbl.textContent = "Clash" + (CLASH.results ? ` (${CLASH.results.length})` : "");
+  const cb = $("clashBody");
+  if (tab.hidden && cb && !cb.hidden) _drawShowTab("info");
+}
+function _clashRowHtml(r, i, k) {
+  const st = CLASH.statuses.get(r.key) || "new";
+  const hard = r.rule.type === "hard";
+  const vTitle = hard && Number.isFinite(r.extent) ? ` title="${esc(tr("clash.extT", { v: _clashFmtLen(r.extent) }))}"` : "";
+  return `
+    <div class="clash-item st-${st}" data-i="${i}" title="${esc(tr("clash.clickZoom"))}">
+      <span class="ci-idx">${k}</span>
+      <div class="ci-body">
+        <div class="ci-el"><span class="ci-dot a"></span><span class="ci-name">${esc(_clashName(r.a))}</span><span class="ci-model">${esc(r.a.cls)} · ${esc(r.a.model.name)}</span></div>
+        <div class="ci-el"><span class="ci-dot b"></span><span class="ci-name">${esc(_clashName(r.b))}</span><span class="ci-model">${esc(r.b.cls)} · ${esc(r.b.model.name)}</span></div>
+      </div>
+      <div class="ci-right">
+        <span class="ci-val"${vTitle}>${esc(tr(hard ? "clash.pen" : "clash.dist"))} ${_clashFmtLen(r.value)}</span>
+        <select class="ci-st" data-i="${i}">${CLASH_STATES.map(s => `<option value="${s}"${s === st ? " selected" : ""}>${esc(tr("clash.st." + s))}</option>`).join("")}</select>
+      </div>
+    </div>`;
+}
+function renderClashResults() {
+  updateClashTab();
+  const body = $("clashBody"); if (!body) return;
+  CLASH.selection.clear(); CLASH._anchor = null; CLASH._order = [];
+  if (!CLASH.results) { body.innerHTML = ""; return; }
+  const R = CLASH.results;
+  let html = `<div class="clash-tools">
+    <button id="ctHl" title="${esc(tr("clash.tbHlT"))}">${esc(tr("clash.tbHl"))}</button>
+    <button id="ctIso" class="${CLASH.isoOn ? "on" : ""}" title="${esc(tr("clash.tbIsoT"))}">${esc(tr("clash.tbIso"))}</button>
+    <button id="ctGrp" disabled title="${esc(tr("clash.tbGroupT"))}">${esc(tr("clash.tbGroup"))}</button>
+    <span class="ct-hint">${esc(tr("clash.selHint"))}</span>
+  </div>`;
+  if (!R.length) {
+    body.innerHTML = html + `<div class="empty-note">${esc(tr("clash.none", { p: CLASH.lastRun ? CLASH.lastRun.nPairs : 0 }))}</div>`;
+    _clashWireToolbar();
+    return;
+  }
+  /* partizione: prima i gruppi (nell'ordine di creazione), poi le regole */
+  const keyToGroup = new Map();
+  for (const g of CLASH.groups) for (const k of g.keys) keyToGroup.set(k, g);
+  const grouped = new Map(), rest = [];
+  R.forEach((r, i) => {
+    const g = keyToGroup.get(r.key);
+    if (g) { if (!grouped.has(g.id)) grouped.set(g.id, []); grouped.get(g.id).push(i); }
+    else rest.push(i);
+  });
+  const order = CLASH._order;
+  for (const g of CLASH.groups) {
+    const members = grouped.get(g.id) || [];
+    if (!members.length) continue;   // le chiavi del gruppo restano: torneranno se il clash ricompare
+    html += `<div class="clash-grp" data-g="${esc(g.id)}" title="${esc(tr("clash.clickZoom"))}">
+      <button class="cg-tw" data-g="${esc(g.id)}" title="${esc(tr("clash.twT"))}">${g.collapsed ? "▸" : "▾"}</button>
+      <span class="cg-name" title="${esc(tr("clash.renameT"))}">${esc(g.name)}</span><span class="cg-n">${members.length}</span>
+      <select class="ci-st cg-st" data-g="${esc(g.id)}" title="${esc(tr("clash.grpStT"))}"><option value=""></option>${CLASH_STATES.map(s => `<option value="${s}">${esc(tr("clash.st." + s))}</option>`).join("")}</select>
+      <button class="cg-x" data-g="${esc(g.id)}" title="${esc(tr("clash.ungroupT"))}">×</button>
+    </div><div class="clash-grp-items"${g.collapsed ? " hidden" : ""}>`;
+    let k = 0;
+    for (const i of members) { html += _clashRowHtml(R[i], i, ++k); order.push(i); }
+    html += `</div>`;
+  }
+  const perRule = new Map();
+  for (const i of rest) perRule.set(R[i].rule.id, (perRule.get(R[i].rule.id) || 0) + 1);
+  let lastId = null, k = 0;
+  for (const i of rest) {
+    const r = R[i];
+    if (r.rule.id !== lastId) {
+      lastId = r.rule.id; k = 0;
+      html += `<div class="clash-rule"><span class="cr-name" title="${esc(r.rule.aLabel)} × ${esc(r.rule.bLabel)}">${esc(r.rule.aLabel)} × ${esc(r.rule.bLabel)}</span><span class="cr-meta">${r.rule.type === "hard" ? "hard" : "clr"} ${r.rule.tolMm} mm · ${perRule.get(r.rule.id)}</span></div>`;
+    }
+    html += _clashRowHtml(r, i, ++k);
+    order.push(i);
+  }
+  body.innerHTML = html;
+  _clashWireToolbar();
+  body.querySelectorAll(".clash-item").forEach(el => el.addEventListener("click", (e) => _clashRowClick(e, el)));
+  body.querySelectorAll(".ci-st:not(.cg-st)").forEach(sel => {
+    sel.addEventListener("click", (e) => e.stopPropagation());   // cambiare stato non zooma
+    sel.addEventListener("change", () => {
+      const r = CLASH.results[+sel.dataset.i]; if (!r) return;
+      CLASH.statuses.set(r.key, sel.value);
+      const item = sel.closest(".clash-item");
+      if (item) item.className = item.className.replace(/\bst-\w+/, "st-" + sel.value);
+    });
+  });
+  body.querySelectorAll(".clash-grp").forEach(el => el.addEventListener("click", (e) => {
+    if (e.target.closest("select,button")) return;
+    const members = grouped.get(el.dataset.g) || [];
+    _clashHighlightMany(members, true);
+  }));
+  body.querySelectorAll(".cg-st").forEach(sel => {
+    sel.addEventListener("click", (e) => e.stopPropagation());
+    sel.addEventListener("change", () => {
+      if (!sel.value) return;
+      const members = grouped.get(sel.dataset.g) || [];
+      for (const i of members) CLASH.statuses.set(CLASH.results[i].key, sel.value);
+      renderClashResults();
+    });
+  });
+  body.querySelectorAll(".cg-x").forEach(btn => btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    CLASH.groups = CLASH.groups.filter(g => g.id !== btn.dataset.g);
+    renderClashResults();
+  }));
+  body.querySelectorAll(".cg-tw").forEach(btn => btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const g = CLASH.groups.find(x => x.id === btn.dataset.g);
+    if (g) { g.collapsed = !g.collapsed; renderClashResults(); }
+  }));
+  /* rinomina inline (doppio clic sul nome o voce del menu contestuale) */
+  body.querySelectorAll(".clash-grp .cg-name").forEach(el => el.addEventListener("dblclick", (e) => {
+    e.stopPropagation();
+    const g = CLASH.groups.find(x => x.id === el.closest(".clash-grp").dataset.g);
+    if (g) _clashGroupEditName(el, g);
+  }));
+}
+/* sostituisce lo <span> del nome con un input inline (niente prompt()) */
+function _clashGroupEditName(el, g) {
+  const inp = document.createElement("input");
+  inp.type = "text"; inp.className = "cg-edit"; inp.value = g.name; inp.maxLength = 80;
+  el.replaceWith(inp);
+  inp.focus(); inp.select();
+  let done = false;                        // blur dopo Enter/Escape: commit singolo
+  const commit = (save) => {
+    if (done) return; done = true;
+    if (save && inp.value.trim()) g.name = inp.value.trim();
+    renderClashResults();
+  };
+  inp.addEventListener("click", (ev) => ev.stopPropagation());
+  inp.addEventListener("keydown", (ev) => {
+    ev.stopPropagation();                  // Esc/Canc non devono uscire dalle sezioni
+    if (ev.key === "Enter") commit(true);
+    else if (ev.key === "Escape") commit(false);
+  });
+  inp.addEventListener("blur", () => commit(true));
+}
+/* ---- operazioni sui gruppi (toolbar e menu contestuale) ----
+   Un clash sta in UN gruppo solo: ogni assegnazione lo toglie dagli altri. */
+function _clashGroupDrop(keys, keepId) {
+  for (const g of CLASH.groups) for (const k of keys) g.keys.delete(k);
+  CLASH.groups = CLASH.groups.filter(g => g.keys.size || g.id === keepId);
+}
+function _clashGroupCreate(keys) {
+  _clashGroupDrop(keys);
+  CLASH.groups.push({ id: "g" + (++CLASH._gseq),
+                      name: tr("clash.groupDef", { n: CLASH.groups.length + 1 }),
+                      keys: new Set(keys) });
+}
+function _clashGroupAssign(gid, keys) {
+  const g = CLASH.groups.find(x => x.id === gid);
+  if (!g) return;
+  _clashGroupDrop(keys, gid);
+  for (const k of keys) g.keys.add(k);
+}
+function _clashWireToolbar() {
+  const hl = $("ctHl"), iso = $("ctIso"), grp = $("ctGrp");
+  if (hl) hl.addEventListener("click", () => {
+    const idx = CLASH.selection.size ? [...CLASH.selection] : CLASH.results.map((_, i) => i);
+    _clashHighlightMany(idx, true);
+  });
+  if (iso) iso.addEventListener("click", () => {
+    CLASH.isoOn = !CLASH.isoOn;
+    iso.classList.toggle("on", CLASH.isoOn);
+    if (CLASH.isoOn && !hlGroup.children.length) _clashHighlightMany(CLASH.results.map((_, i) => i), false);
+    isolateOn = CLASH.isoOn;
+    const t = $("tglIsolate"); if (t) t.checked = isolateOn;   // stesso meccanismo di "Isola selezione"
+    applyIsolate();
+  });
+  if (grp) grp.addEventListener("click", () => {
+    /* niente prompt() (bloccato nei browser embedded): nome di default subito,
+       rinomina inline col doppio clic o dal menu contestuale */
+    if (!CLASH.selection.size) return;
+    _clashGroupCreate([...CLASH.selection].map(i => CLASH.results[i].key));
+    renderClashResults();
+  });
+}
+function _clashRowClick(e, el) {
+  const i = +el.dataset.i;
+  let multi = false;
+  if (e.shiftKey && CLASH._anchor !== null) {
+    const ord = CLASH._order, a = ord.indexOf(CLASH._anchor), b = ord.indexOf(i);
+    if (a !== -1 && b !== -1) {
+      if (!(e.ctrlKey || e.metaKey)) CLASH.selection.clear();
+      for (let k = Math.min(a, b); k <= Math.max(a, b); k++) CLASH.selection.add(ord[k]);
+    }
+    multi = true;
+  } else if (e.ctrlKey || e.metaKey) {
+    if (CLASH.selection.has(i)) CLASH.selection.delete(i); else CLASH.selection.add(i);
+    CLASH._anchor = i;
+    multi = true;
+  } else {
+    CLASH.selection.clear(); CLASH.selection.add(i); CLASH._anchor = i;
+    _clashFocus(i);   // zoom solo sul clic semplice
+  }
+  /* la selezione multipla si vede anche nel 3D (senza spostare la camera) */
+  if (multi && CLASH.selection.size) _clashHighlightMany([...CLASH.selection], false);
+  _clashPaintSelection();
+}
+function _clashPaintSelection() {
+  const body = $("clashBody"); if (!body) return;
+  body.querySelectorAll(".clash-item").forEach(el => el.classList.toggle("sel", CLASH.selection.has(+el.dataset.i)));
+  const g = $("ctGrp");
+  if (g) {
+    g.disabled = !CLASH.selection.size;
+    g.textContent = tr("clash.tbGroup") + (CLASH.selection.size ? ` (${CLASH.selection.size})` : "");
+  }
+}
+/* evidenzia più clash insieme (A rossi / B verdi), senza marker */
+function _clashHighlightMany(indices, zoom) {
+  const A = [], B = [];
+  for (const i of indices) {
+    const r = CLASH.results && CLASH.results[i]; if (!r) continue;
+    A.push({ model: r.a.model, eid: r.a.eid });
+    B.push({ model: r.b.model, eid: r.b.eid });
+  }
+  if (!A.length && !B.length) return null;
+  const box = buildClashHighlight(A, B);
+  _clashMarkerHide();
+  if (box && zoom) fitBox(box.clone().expandByScalar(Math.max(box.getSize(new THREE.Vector3()).length() * 0.15, 0.5)));
+  return box;
+}
+/* ---- costruttore di set: più modelli × più classi × filtro parametro ----
+   def: { models:Set(uid)|null, classes:Set(NOME)|null, pset:"", prop:"", vals:Set|null }
+   null = nessun filtro. Il set risolto è l'INTERSEZIONE dei tre filtri;
+   col parametro scelto entrano solo gli elementi che LO POSSIEDONO
+   (vals vuoto/null = qualsiasi valore). */
+function _clashAllClasses() {
+  const classes = new Set();
+  for (const m of models) {
+    if (!m._clashClassSet) {
+      m._clashClassSet = new Set();
+      for (const code of new Set(m.typeByExpress.values())) {
+        if (code) m._clashClassSet.add(_clashClassName(m, code));
+      }
+    }
+    for (const c of m._clashClassSet) classes.add(c);
+  }
+  return [...classes].sort();
+}
+function _clashDefLabel(def) {
+  const parts = [];
+  if (def.models) parts.push(def.models.size === 1
+    ? ((models.find(m => m.uid === [...def.models][0]) || {}).name || "?")
+    : tr("clash.sumModels", { n: def.models.size }));
+  if (def.classes) parts.push(def.classes.size === 1 ? [...def.classes][0] : tr("clash.sumClasses", { n: def.classes.size }));
+  if (def.prop) parts.push(def.pset + "." + def.prop + (def.vals && def.vals.size ? " (" + tr("clash.sumVals", { n: def.vals.size }) + ")" : ""));
+  return parts.length ? parts.join(" · ") : tr("clash.sumAll");
+}
+/* id deterministico del set per la chiave stabile dei clash: usa i NOMI dei
+   modelli (gli uid cambiano a ogni sessione) */
+function _clashDefId(def) {
+  return JSON.stringify({
+    m: def.models ? [...def.models].map(u => ((models.find(x => x.uid === u) || {}).name || String(u))).sort() : null,
+    c: def.classes ? [...def.classes].sort() : null,
+    p: def.prop ? def.pset + "." + def.prop : "",
+    v: def.vals ? [...def.vals].sort() : null
+  });
+}
+/* mappa eid -> valore (stringa) del parametro pset.prop, per modello — stesso
+   percorso di lettura del QTO (pset del type prima, poi i propri: gli ultimi
+   vincono). Cache per modello, invalidata da clashInvalidate. */
+async function _clashParamMap(m, pset, prop) {
+  const key = pset + String.fromCharCode(0) + prop;
+  if (!m._clashParamVals) m._clashParamVals = new Map();
+  let map = m._clashParamVals.get(key);
+  if (map) return map;
+  map = new Map();
+  ensurePsetMap(m); ensureTypeMap(m);
+  const cache = new Map();
+  const rd = (pid) => { let r = cache.get(pid); if (r === undefined) { try { r = readPsetQto(m, pid); } catch (e) { r = null; } cache.set(pid, r); } return r; };
+  let done = 0;
+  for (const eid of m.guidByExpress.keys()) {
+    const pids = [];
+    const tId = m.typeOfElem.get(eid);
+    if (tId !== undefined) for (const pid of m.typePsetIds.get(tId) || []) pids.push(pid);
+    for (const pid of m.psetMap.get(eid) || []) pids.push(pid);
+    let val;
+    for (const pid of pids) {
+      const ps = rd(pid);
+      if (!ps || (pset && ps.name !== pset)) continue;
+      let v = ps.props.has(prop) ? ps.props.get(prop) : undefined;
+      if (v === undefined) for (const q of ps.qtys) if (q.name === prop) { v = q.value; break; }
+      if (v !== undefined && v !== "") val = String(v);
+    }
+    if (val !== undefined) map.set(eid, val);
+    if (++done % 20000 === 0) await _clashTick();
+  }
+  m._clashParamVals.set(key, map);
+  return map;
+}
+/* valori distinti del parametro su tutti i modelli caricati (cap 500) */
+async function _clashEnumValues(pset, prop) {
+  const out = new Set();
+  for (const m of models) {
+    const map = await _clashParamMap(m, pset, prop);
+    for (const v of map.values()) { out.add(v); if (out.size >= 500) break; }
+  }
+  return [...out].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+}
+async function _clashResolveDef(def) {
+  const items = [];
+  const pm = new Map();
+  if (def.prop) for (const m of models) {
+    if (def.models && !def.models.has(m.uid)) continue;
+    pm.set(m.uid, await _clashParamMap(m, def.pset, def.prop));
+  }
+  for (const entry of CLASH.index.values()) {
+    const m = entry.model;
+    if (def.models && !def.models.has(m.uid)) continue;
+    const vmap = def.prop ? pm.get(m.uid) : null;
+    for (const [eid, e] of entry.byEid) {
+      if (def.classes && !def.classes.has(_clashClassName(m, m.typeByExpress.get(eid) || 0))) continue;
+      if (def.prop) {
+        const v = vmap ? vmap.get(eid) : undefined;
+        if (v === undefined) continue;
+        if (def.vals && def.vals.size && !def.vals.has(v)) continue;
+      }
+      items.push(_clashItem(m, eid, e));
+    }
+  }
+  return items;
+}
+/* toggle su un filtro Set|null: null = tutti; deselezionando dall'"all" si
+   materializza il Set; ri-selezionando tutto si torna a null */
+function _csToggle(cur, allVals, val, on) {
+  let s = cur === null ? new Set(allVals) : new Set(cur);
+  if (on) s.add(val); else s.delete(val);
+  return s.size === allVals.length ? null : s;
+}
+function _csCheck(label, on, cb) {
+  const l = document.createElement("label");
+  const c = document.createElement("input"); c.type = "checkbox"; c.checked = on;
+  c.addEventListener("change", () => cb(c.checked));
+  const s = document.createElement("span"); s.textContent = label; s.title = label;
+  l.appendChild(c); l.appendChild(s);
+  return l;
+}
+function _csSection(title, extra) {
+  const d = document.createElement("div");
+  d.className = "cs-sec";
+  const t = document.createElement("span"); t.textContent = title; d.appendChild(t);
+  if (extra) d.appendChild(extra);
+  return d;
+}
+function _csAllNone(onAll, onNone) {
+  const s = document.createElement("span");
+  s.className = "cs-all";
+  const a = document.createElement("span"); a.textContent = tr("clash.all"); a.addEventListener("click", onAll);
+  const b = document.createElement("span"); b.textContent = tr("clash.none2"); b.addEventListener("click", onNone);
+  s.appendChild(a); s.appendChild(document.createTextNode(" / ")); s.appendChild(b);
+  return s;
+}
+function _clashSetHead(side) {
+  const box = $("clashSetBox" + side); if (!box) return;
+  const sum = box.querySelector(".cs-sum");
+  if (sum) sum.textContent = _clashDefLabel(CLASH.setDef[side]);
+}
+function _clashSetBox(side) {
+  const box = $("clashSetBox" + side); if (!box) return;
+  const def = CLASH.setDef[side];
+  box.innerHTML = "";
+  const head = document.createElement("div");
+  head.className = "cs-head";
+  head.innerHTML = `<span class="ci-dot ${side === "A" ? "a" : "b"}"></span><span class="qto-lbl">${esc(tr("clash.set" + side))}</span><span class="cs-sum"></span><span class="cs-chev">▸</span>`;
+  head.querySelector(".cs-sum").textContent = _clashDefLabel(def);
+  head.addEventListener("click", () => box.classList.toggle("open"));
+  box.appendChild(head);
+  const body = document.createElement("div");
+  body.className = "cs-body";
+  /* --- modelli --- */
+  const mAll = models.map(x => x.uid);
+  body.appendChild(_csSection(tr("clash.models"), _csAllNone(
+    () => { def.models = null; _clashSetBox(side); box.classList.add("open"); },
+    () => { def.models = new Set(); _clashSetBox(side); box.classList.add("open"); })));
+  const ml = document.createElement("div"); ml.className = "cs-list";
+  for (const m of models) {
+    ml.appendChild(_csCheck(m.name, def.models === null || def.models.has(m.uid),
+      (on) => { def.models = _csToggle(def.models, mAll, m.uid, on); _clashSetHead(side); }));
+  }
+  if (!models.length) ml.innerHTML = `<div class="cs-empty">—</div>`;
+  body.appendChild(ml);
+  /* --- classi --- */
+  const cAll = _clashAllClasses();
+  body.appendChild(_csSection(tr("clash.classes"), _csAllNone(
+    () => { def.classes = null; _clashSetBox(side); box.classList.add("open"); },
+    () => { def.classes = new Set(); _clashSetBox(side); box.classList.add("open"); })));
+  const cl = document.createElement("div"); cl.className = "cs-list";
+  for (const c of cAll) {
+    cl.appendChild(_csCheck(c, def.classes === null || def.classes.has(c),
+      (on) => { def.classes = _csToggle(def.classes, cAll, c, on); _clashSetHead(side); }));
+  }
+  if (!cAll.length) cl.innerHTML = `<div class="cs-empty">—</div>`;
+  body.appendChild(cl);
+  /* --- parametro (facoltativo) --- */
+  body.appendChild(_csSection(tr("clash.param")));
+  const sp = document.createElement("select"); sp.className = "qto-sel";
+  const o0 = document.createElement("option"); o0.value = ""; o0.textContent = tr("qto.selPset"); sp.appendChild(o0);
+  try {
+    if (models.length) for (const ps of ensureQtoPropIndex().keys()) {
+      const o = document.createElement("option"); o.value = ps; o.textContent = ps; sp.appendChild(o);
+    }
+  } catch (e) { /* indice pset non disponibile: il filtro parametro resta vuoto */ }
+  sp.value = def.pset && [...sp.options].some(o => o.value === def.pset) ? def.pset : "";
+  const spr = document.createElement("select"); spr.className = "qto-sel";
+  const fillProps = () => {
+    spr.innerHTML = "";
+    const p0 = document.createElement("option"); p0.value = ""; p0.textContent = tr("qto.selProp"); spr.appendChild(p0);
+    const props = (sp.value && typeof qtoPropIndex !== "undefined" && qtoPropIndex) ? (qtoPropIndex.get(sp.value) || []) : [];
+    for (const p of props) { const o = document.createElement("option"); o.value = p; o.textContent = p; spr.appendChild(o); }
+    spr.disabled = !props.length;
+    spr.value = def.prop && [...spr.options].some(o => o.value === def.prop) ? def.prop : "";
+  };
+  fillProps();
+  const vl = document.createElement("div"); vl.className = "cs-list";
+  const renderVals = async () => {
+    vl.innerHTML = "";
+    if (!def.prop) { vl.innerHTML = `<div class="cs-empty">${esc(tr("clash.valsHint"))}</div>`; return; }
+    vl.innerHTML = `<div class="cs-empty">${esc(tr("clash.valsLoading"))}</div>`;
+    const vals = await _clashEnumValues(def.pset, def.prop);
+    vl.innerHTML = "";
+    if (!vals.length) { vl.innerHTML = `<div class="cs-empty">${esc(tr("clash.valsNone"))}</div>`; return; }
+    const hint = document.createElement("div"); hint.className = "cs-empty"; hint.textContent = tr("clash.valsHint");
+    vl.appendChild(hint);
+    for (const v of vals) {
+      vl.appendChild(_csCheck(v, !!(def.vals && def.vals.has(v)), (on) => {
+        if (!def.vals) def.vals = new Set();
+        if (on) def.vals.add(v); else def.vals.delete(v);
+        if (!def.vals.size) def.vals = null;
+        _clashSetHead(side);
+      }));
+    }
+  };
+  sp.addEventListener("change", () => { def.pset = sp.value; def.prop = ""; def.vals = null; fillProps(); renderVals(); _clashSetHead(side); });
+  spr.addEventListener("change", () => { def.prop = spr.value; def.vals = null; renderVals(); _clashSetHead(side); });
+  body.appendChild(sp); body.appendChild(spr); body.appendChild(vl);
+  renderVals();
+  box.appendChild(body);
+}
+function renderClashUI() {
+  if (!$("clashSetBoxA")) return;
+  /* prune: modelli/classi spariti dai filtri correnti */
+  for (const side of ["A", "B"]) {
+    const def = CLASH.setDef[side];
+    if (def.models) { for (const u of [...def.models]) if (!models.some(m => m.uid === u)) def.models.delete(u); if (!models.length) def.models = null; }
+    _clashSetBox(side);
+  }
+  updateClashRunBtn();
+}
+
+/* ---- evidenza bicolore (A rosso / B verde, convenzione Navisworks) ---- */
+const CLASH_MAT_A = new THREE.MeshLambertMaterial({ color: 0xd93025, emissive: 0x7a1410, side: THREE.DoubleSide });
+const CLASH_MAT_B = new THREE.MeshLambertMaterial({ color: 0x2e9e44, emissive: 0x0f5c22, side: THREE.DoubleSide });
+CLASH_MAT_A.onBeforeCompile = hlMaterial.onBeforeCompile;   // stesso bias di profondità dell'evidenza standard
+CLASH_MAT_B.onBeforeCompile = hlMaterial.onBeforeCompile;
+
+/** Come buildHighlight, ma con due gruppi colorati; usa fullRanges/fullIndex
+ *  così anche un elemento nascosto singolarmente resta ispezionabile. */
+function buildClashHighlight(itemsA, itemsB) {
+  clearHighlight();
+  const all = itemsA.concat(itemsB);
+  if (!all.length) return null;
+  hlItems = all.slice();
+  const selBox = new THREE.Box3();
+  rootGroup.updateMatrixWorld(true);
+  const wp = new THREE.Vector3();
+  CLASH_MAT_A.clippingPlanes = hlMaterial.clippingPlanes;   // coerenza con section box / sezione asse
+  CLASH_MAT_B.clippingPlanes = hlMaterial.clippingPlanes;
+  for (const [items, mat] of [[itemsA, CLASH_MAT_A], [itemsB, CLASH_MAT_B]]) {
+    const byModel = new Map();
+    for (const it of items) {
+      if (!byModel.has(it.model)) byModel.set(it.model, new Set());
+      byModel.get(it.model).add(it.eid);
+    }
+    for (const mesh of allBaseMeshes()) {
+      const set = byModel.get(mesh.userData.model);
+      if (!set) continue;
+      const srcIdx = mesh.userData.fullIndex.array;
+      const pos = mesh.geometry.getAttribute("position");
+      const picked = [];
+      for (const r of mesh.userData.fullRanges) {
+        if (!set.has(r.expressID)) continue;
+        const s = r.start * 3, e = (r.start + r.count) * 3;
+        for (let i = s; i < e; i++) {
+          const vi = srcIdx[i];
+          picked.push(vi);
+          wp.fromBufferAttribute(pos, vi).applyMatrix4(mesh.matrixWorld);
+          selBox.expandByPoint(wp);
+        }
+      }
+      if (picked.length) {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", pos);
+        g.setAttribute("normal", mesh.geometry.getAttribute("normal"));
+        g.setIndex(picked);
+        const hm = new THREE.Mesh(g, mat);
+        hm.renderOrder = 2;
+        hlGroup.add(hm);
+      }
+    }
+  }
+  currentSelectionBox = selBox.isEmpty() ? null : selBox;
+  applyIsolate();
+  return currentSelectionBox;
+}
+
+/* ---- marker del punto di clash ---- */
+function _clashMarkerShow(p, box) {
+  if (!CLASH.marker) {
+    CLASH.marker = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 16, 12),
+      new THREE.MeshBasicMaterial({ color: 0xff2d2d, transparent: true, opacity: 0.75, depthTest: false })
+    );
+    CLASH.marker.renderOrder = 999;
+    scene.add(CLASH.marker);
+  }
+  const d = box ? box.getSize(new THREE.Vector3()).length() : 2;
+  CLASH.marker.scale.setScalar(Math.min(0.5, Math.max(0.02, d * 0.02)));
+  CLASH.marker.position.set(p[0], p[1], p[2]);
+  CLASH.marker.visible = true;
+}
+function _clashMarkerHide() { if (CLASH.marker) CLASH.marker.visible = false; }
+
+function _clashFocus(i) {
+  const r = CLASH.results && CLASH.results[i];
+  if (!r) return;
+  const box = buildClashHighlight([{ model: r.a.model, eid: r.a.eid }], [{ model: r.b.model, eid: r.b.eid }]);
+  if (box) {
+    _clashMarkerShow(r.point, box);
+    const pad = Math.max(box.getSize(new THREE.Vector3()).length() * 0.25, 0.5);
+    fitBox(box.clone().expandByScalar(pad));
+  }
+}
+
+/* ---- export risultati: CSV (con stati, coordinate mappa E/N/H) e BCF 2.1 ---- */
+function exportClashCsv() {
+  if (!CLASH.results || !CLASH.results.length) return;
+  const sep = ";";
+  const f = (s) => { s = String(s === null || s === undefined ? "" : s); return /[;"\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const num = (v, d) => Number.isFinite(v) ? v.toFixed(d).replace(".", ",") : "";
+  const O = worldOriginMap || { x: 0, y: 0, z: 0 };
+  const keyToGroup = new Map();
+  for (const g of CLASH.groups) for (const k of g.keys) keyToGroup.set(k, g.name);
+  const rows = [["rule", "type", "tol_mm", "status", "group", "guid_a", "name_a", "class_a", "model_a",
+                 "guid_b", "name_b", "class_b", "model_b", "value_mm", "extent_mm", "E", "N", "H"].join(sep)];
+  for (const r of CLASH.results) {
+    /* punto: da coordinate render (Y-up, ribasate) a coordinate mappa E/N/H */
+    rows.push([
+      f(r.rule.aLabel + " × " + r.rule.bLabel), r.rule.type, num(r.rule.tolMm, 1),
+      CLASH.statuses.get(r.key) || "new",
+      f(keyToGroup.get(r.key) || ""),
+      f(r.a.guid), f(_clashName(r.a)), f(r.a.cls), f(r.a.model.name),
+      f(r.b.guid), f(_clashName(r.b)), f(r.b.cls), f(r.b.model.name),
+      num(r.value * 1000, 1), num(r.extent * 1000, 1),
+      num(r.point[0] + O.x, 3), num(-r.point[2] + O.y, 3), num(r.point[1] + O.z, 3)
+    ].join(sep));
+  }
+  const base = CLASH.mtx ? CLASH.mtx.name.replace(/\.[^.]+$/, "") : "clash";
+  triggerDownload(new Blob([String.fromCharCode(0xFEFF) + rows.join("\r\n") + "\r\n"],
+    { type: "text/csv;charset=utf-8" }), base + "_risultati.csv");
+}
+
+/* topic BCF: prima UN TOPIC PER GRUPPO (il gruppo è l'unità di lavoro scelta
+   dall'utente: il nome diventa il titolo dell'issue), poi il resto non
+   raggruppato: uno per clash, o uno per regola sopra la soglia anti-valanga
+   (deciso con l'utente in FASE 4, esteso ai gruppi al 5° QA 2026-07-17). */
+const CLASH_BCF_TOPIC_LIMIT = 200;
+function _clashRealGuid(g) { return g && g.indexOf(":") === -1 ? g : null; }   // scarta i fallback uid:eid
+function _clashBcfStatus(st) { return (st === "approved" || st === "resolved") ? "Closed" : "Open"; }
+function _clashTopicsPerClash(list, author, created, idx0) {
+  return list.map((r, idx) => {
+    const st = CLASH.statuses.get(r.key) || "new";
+    const nameA = _clashName(r.a), nameB = _clashName(r.b);
+    const vLbl = (r.rule.type === "hard" ? tr("clash.pen") : tr("clash.dist")) + " " + _clashFmtLen(r.value)
+      + (r.rule.type === "hard" && Number.isFinite(r.extent) ? " · " + tr("clash.extT", { v: _clashFmtLen(r.extent) }) : "");
+    const typeLbl = r.rule.type === "hard" ? tr("clash.hard") : tr("clash.clearance");
+    const gA = _clashRealGuid(r.a.guid), gB = _clashRealGuid(r.b.guid);
+    const files = new Map();
+    for (const x of [r.a, r.b]) if (!files.has(x.model.uid)) files.set(x.model.uid, { ifcProject: _projectGuidOf(x.model), filename: x.model.name });
+    return {
+      guid: uuid(), index: idx0 + idx,
+      title: `${nameA} ↔ ${nameB}`,
+      description: [
+        `${r.rule.aLabel} × ${r.rule.bLabel} — ${typeLbl} · ${r.rule.tolMm} mm`, vLbl,
+        `A: ${nameA} [${r.a.model.name}] ${r.a.cls}${gA ? " — " + gA : ""}`,
+        `B: ${nameB} [${r.b.model.name}] ${r.b.cls}${gB ? " — " + gB : ""}`
+      ].join("\n"),
+      status: _clashBcfStatus(st), type: "Issue", author, created,
+      labels: ["Clash", `${tr("clash.st." + st)}`],
+      components: [gA, gB].filter(Boolean),
+      coloring: [{ color: "FFFF0000", guids: gA ? [gA] : [] }, { color: "FF00FF00", guids: gB ? [gB] : [] }],
+      files: [...files.values()],
+      elems: [{ model: r.a.model, eid: r.a.eid }], elemsB: [{ model: r.b.model, eid: r.b.eid }],
+      comments: [{ guid: uuid(), date: created, author, text: vLbl }]
+    };
+  });
+}
+/* aggregatore comune di una LISTA di clash in un topic (regola o gruppo) */
+function _clashAggTopic(list, author, created) {
+  const gAset = new Set(), gBset = new Set(), files = new Map(), elems = [], elemsB = [], seenA = new Set(), seenB = new Set();
+  const comments = [];
+  let allDone = true;
+  for (const r of list) {
+    const gA = _clashRealGuid(r.a.guid), gB = _clashRealGuid(r.b.guid);
+    if (gA) gAset.add(gA); if (gB) gBset.add(gB);
+    for (const x of [r.a, r.b]) if (!files.has(x.model.uid)) files.set(x.model.uid, { ifcProject: _projectGuidOf(x.model), filename: x.model.name });
+    if (!seenA.has(r.a.key)) { seenA.add(r.a.key); elems.push({ model: r.a.model, eid: r.a.eid }); }
+    if (!seenB.has(r.b.key)) { seenB.add(r.b.key); elemsB.push({ model: r.b.model, eid: r.b.eid }); }
+    const st = CLASH.statuses.get(r.key) || "new";
+    if (st !== "approved" && st !== "resolved") allDone = false;
+    if (comments.length < CLASH_BCF_TOPIC_LIMIT) comments.push({
+      guid: uuid(), date: created, author,
+      text: `${_clashName(r.a)} ↔ ${_clashName(r.b)} — ${(r.rule.type === "hard" ? tr("clash.pen") : tr("clash.dist"))} ${_clashFmtLen(r.value)} [${tr("clash.st." + st)}]`
+    });
+  }
+  return {
+    status: allDone ? "Closed" : "Open",
+    components: [...gAset, ...gBset],
+    coloring: [{ color: "FFFF0000", guids: [...gAset] }, { color: "FF00FF00", guids: [...gBset] }],
+    files: [...files.values()],
+    elems, elemsB, comments
+  };
+}
+function _clashTopicsPerRule(list, author, created, idx0) {
+  const byRule = new Map();
+  for (const r of list) {
+    if (!byRule.has(r.rule.id)) byRule.set(r.rule.id, []);
+    byRule.get(r.rule.id).push(r);
+  }
+  const topics = [];
+  let idx = idx0;
+  for (const sub of byRule.values()) {
+    const rule = sub[0].rule;
+    const typeLbl = rule.type === "hard" ? tr("clash.hard") : tr("clash.clearance");
+    topics.push(Object.assign({
+      guid: uuid(), index: idx++,
+      title: tr("clash.bcfRuleTitle", { a: rule.aLabel, b: rule.bLabel, n: sub.length }),
+      description: tr("clash.bcfRuleDesc", { n: sub.length, a: rule.aLabel, b: rule.bLabel, t: typeLbl, tol: rule.tolMm }),
+      type: "Issue", author, created,
+      labels: ["Clash"]
+    }, _clashAggTopic(sub, author, created)));
+  }
+  return topics;
+}
+/* Un topic per GRUPPO: titolo = nome del gruppo, righe di descrizione per
+   regola coinvolta, stato Closed se TUTTI i clash sono approved/resolved. */
+function _clashTopicsPerGroup(author, created) {
+  const keyToGroup = new Map();
+  for (const g of CLASH.groups) for (const k of g.keys) keyToGroup.set(k, g);
+  const byGroup = new Map(), rest = [];
+  for (const r of CLASH.results) {
+    const g = keyToGroup.get(r.key);
+    if (g) { if (!byGroup.has(g.id)) byGroup.set(g.id, { g, list: [] }); byGroup.get(g.id).list.push(r); }
+    else rest.push(r);
+  }
+  const topics = [];
+  for (const { g, list } of byGroup.values()) {
+    const rules = new Map();
+    for (const r of list) rules.set(r.rule.id, (rules.get(r.rule.id) || 0) + 1);
+    const ruleLines = [...rules.entries()].map(([id, n]) => {
+      const rule = list.find(r => r.rule.id === id).rule;
+      return `${n}× ${rule.aLabel} × ${rule.bLabel} · ${rule.type} ${rule.tolMm} mm`;
+    });
+    topics.push(Object.assign({
+      guid: uuid(), index: topics.length,
+      title: `${g.name} (${list.length})`,
+      description: [tr("clash.bcfGroupDesc", { n: list.length, name: g.name }), ...ruleLines].join("\n"),
+      type: "Issue", author, created,
+      labels: ["Clash", g.name]
+    }, _clashAggTopic(list, author, created)));
+  }
+  return { topics, rest };
+}
+async function exportClashBcf() {
+  if (!CLASH.results || !CLASH.results.length) return;
+  if (typeof JSZip === "undefined") { toast(tr("toast.bcfExportErr", { e: "JSZip" })); return; }
+  const author = "APE Viewer", created = nowIso();
+  /* prima i GRUPPI (un topic ciascuno), poi il resto: per clash se sta
+     nella soglia, altrimenti per regola */
+  const { topics, rest } = _clashTopicsPerGroup(author, created);
+  const grouped = topics.length + rest.length > CLASH_BCF_TOPIC_LIMIT;
+  topics.push(...(grouped ? _clashTopicsPerRule(rest, author, created, topics.length)
+                          : _clashTopicsPerClash(rest, author, created, topics.length)));
+  showLoading(tr("clash.bcfBuilding"));
+  const saved = { pos: camera.position.clone(), tgt: controls.target.clone(), up: camera.up.clone(), fov: camera.fov, near: camera.near, far: camera.far };
+  const savedIsolate = isolateOn;
+  try {
+    isolateOn = false;   // anteprime coerenti con Visibility=true (come l'export IDS)
+    const zip = new JSZip();
+    zip.file("bcf.version", `<?xml version="1.0" encoding="UTF-8"?>\n<Version VersionId="2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n  <DetailedVersion>2.1</DetailedVersion>\n</Version>`);
+    /* niente project.bcfp: vedi export IDS (schema-invalid senza ExtensionSchema) */
+    let i = 0;
+    for (const t of topics) {
+      i++;
+      const vpGuid = uuid();
+      let view = null;
+      showLoading(tr("clash.bcfSnap", { i, n: topics.length }));
+      /* tick con setTimeout (non RAF): lascia ridipingere l'overlay anche quando
+         il RAF è throttlato (tab in background); _bcfTopicView renderizza da sé */
+      await _clashTick();
+      try { view = _bcfTopicView(t); } catch (e) { console.warn("snapshot clash fallito", e); }
+      zip.file(`${t.guid}/markup.bcf`, _bcfMarkup(t, vpGuid, !!view));
+      zip.file(`${t.guid}/viewpoint.bcfv`, _bcfViewpoint(t, vpGuid, view && view.camera));
+      if (view) zip.file(`${t.guid}/snapshot.png`, view.png, { base64: true });
+    }
+    const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+    const base = CLASH.mtx ? CLASH.mtx.name.replace(/\.[^.]+$/, "") : "clash";
+    triggerDownload(blob, `${base}_clash.bcf`);
+    toast(tr("toast.clashBcfExported", { n: topics.length }));
+    if (grouped) toast(tr("toast.clashBcfGrouped", { n: rest.length }));
+  } catch (e) { console.error(e); toast(tr("toast.bcfExportErr", { e: e.message || e })); }
+  finally {
+    isolateOn = savedIsolate;
+    clearHighlight();
+    camera.position.copy(saved.pos); controls.target.copy(saved.tgt); camera.up.copy(saved.up);
+    camera.fov = saved.fov; camera.near = saved.near; camera.far = saved.far;
+    camera.updateProjectionMatrix(); controls.update();
+    hideLoading();
+  }
+}
+
+$("btnClashRun") && $("btnClashRun").addEventListener("click", runClashQuick);
+$("btnClashCsv") && $("btnClashCsv").addEventListener("click", exportClashCsv);
+$("btnClashBcf") && $("btnClashBcf").addEventListener("click", exportClashBcf);
+$("clashType") && $("clashType").addEventListener("change", () => {
+  /* default operativi: hard 50 mm (7° QA utente), clearance 25 mm */
+  $("clashTol").value = $("clashType").value === "hard" ? "50" : "25";
+});
+$("btnClashMtxLoad") && $("btnClashMtxLoad").addEventListener("click", () => $("fileClashMtx").click());
+$("fileClashMtx") && $("fileClashMtx").addEventListener("change", async (e) => { for (const f of e.target.files) await loadClashMatrix(f); e.target.value = ""; });
+$("btnClashMtxRun") && $("btnClashMtxRun").addEventListener("click", runClashMatrix);
+$("btnClashMtxTpl") && $("btnClashMtxTpl").addEventListener("click", downloadClashMtxTemplate);
+
+/* Hook di sola lettura per la QA (console/automazione, come la diagnostica
+   alignment): NON è API pubblica, può cambiare senza preavviso. */
+window.__apeClashQA = {
+  results: () => CLASH.results,
+  hlCount: () => hlGroup.children.length,
+  hlColors: () => hlGroup.children.map(c => c.material.color.getHexString()),
+  marker: () => CLASH.marker ? { visible: CLASH.marker.visible, pos: CLASH.marker.position.toArray() } : null,
+  camera: () => ({ pos: camera.position.toArray(), target: controls.target.toArray() }),
+  def: (side) => CLASH.setDef[side],
+  resolve: async (side) => { _clashBuildIndex(); return (await _clashResolveDef(CLASH.setDef[side])).length; },
+  groups: () => CLASH.groups.map(g => ({ name: g.name, n: g.keys.size })),
+  selection: () => [...CLASH.selection]
+};
 
 function reportInLoadedModels(t) {
   if (!t.components.length) return true;
@@ -6619,7 +8069,12 @@ function _openCtxMenu(px, py, hitData) {
     }
   }
 
-  /* posizionamento: evita lo sforamento dai bordi della finestra */
+  _ctxPlace(px, py);
+}
+
+/* posizionamento: evita lo sforamento dai bordi della finestra */
+function _ctxPlace(px, py) {
+  const menu = $("ctxMenu");
   const mw = 216;
   const mh = [...menu.children].reduce((h, el) => h + (el.classList.contains("ctx-sep") ? 9 : el.classList.contains("ctx-lbl") ? 24 : 34), 10);
   const vw = window.innerWidth, vh = window.innerHeight;
@@ -6627,6 +8082,69 @@ function _openCtxMenu(px, py, hitData) {
   menu.style.top  = (py + mh > vh ? Math.max(4, py - mh) : py) + "px";
   menu.classList.add("on");
 }
+
+/* ——— menu contestuale sui RISULTATI CLASH (righe e intestazioni gruppo) ———
+   Sostituisce il menu nativo del browser dentro la lista; sui controlli
+   (select di stato, input di rinomina) e sul resto del pannello resta
+   quello nativo. */
+$("clashBody") && $("clashBody").addEventListener("contextmenu", (e) => {
+  const rowEl = e.target.closest(".clash-item");
+  const grpEl = e.target.closest(".clash-grp");
+  if ((!rowEl && !grpEl) || e.target.closest("select,input")) return;
+  e.preventDefault();
+  const menu = $("ctxMenu");
+  menu.innerHTML = "";
+  const add = el => menu.appendChild(el);
+
+  if (rowEl) {
+    /* tasto destro su riga NON selezionata: diventa la selezione (standard) */
+    const i = +rowEl.dataset.i;
+    if (!CLASH.selection.has(i)) {
+      CLASH.selection.clear(); CLASH.selection.add(i); CLASH._anchor = i;
+      _clashHighlightMany([i], false);
+      _clashPaintSelection();
+    }
+    const sel = [...CLASH.selection];
+    const keys = sel.map(x => CLASH.results[x].key);
+    add(_ctxLbl(tr("clash.ctxSel", { n: sel.length })));
+    add(_ctxEl("⊞", esc(tr("clash.ctxGroup", { n: sel.length })), () => { _clashGroupCreate(keys); renderClashResults(); }));
+    if (CLASH.groups.length) {
+      add(_ctxSep());
+      add(_ctxLbl(tr("clash.ctxAssign")));
+      for (const g of CLASH.groups) {
+        add(_ctxEl("▹", esc(g.name), () => { _clashGroupAssign(g.id, keys); renderClashResults(); }));
+      }
+    }
+    if (keys.some(k => CLASH.groups.some(g => g.keys.has(k)))) {
+      add(_ctxEl("⊟", esc(tr("clash.ctxUngroup")), () => { _clashGroupDrop(keys); renderClashResults(); }));
+    }
+    add(_ctxSep());
+    add(_ctxEl("⊕", esc(tr("ctx.zoomSel")), () => _clashHighlightMany(sel, true)));
+  } else {
+    const g = CLASH.groups.find(x => x.id === grpEl.dataset.g);
+    if (!g) return;
+    add(_ctxLbl(g.name));
+    add(_ctxEl("✎", esc(tr("clash.ctxRename")), () => {
+      const nameEl = $("clashBody").querySelector(`.clash-grp[data-g="${g.id}"] .cg-name`);
+      if (nameEl) _clashGroupEditName(nameEl, g);
+    }));
+    add(_ctxEl(g.collapsed ? "▸" : "▾", esc(tr(g.collapsed ? "clash.ctxExpand" : "clash.ctxCollapse")), () => {
+      g.collapsed = !g.collapsed; renderClashResults();
+    }));
+    if (CLASH.selection.size) {
+      add(_ctxEl("⊞", esc(tr("clash.ctxAddTo", { n: CLASH.selection.size })), () => {
+        _clashGroupAssign(g.id, [...CLASH.selection].map(x => CLASH.results[x].key));
+        renderClashResults();
+      }));
+    }
+    add(_ctxSep());
+    add(_ctxEl("✕", esc(tr("clash.ctxUngroupG")), () => {
+      CLASH.groups = CLASH.groups.filter(x => x.id !== g.id);
+      renderClashResults();
+    }));
+  }
+  _ctxPlace(e.clientX, e.clientY);
+});
 
 /* ============================ section box stile Revit ============================ *
  * Implementazione: 6 clipping plane locali (renderer.localClippingEnabled = true)
@@ -8330,15 +9848,16 @@ function _drawForceRecompute() {
   DRAW._stale = false; computeSection2D(); if (!$("sectionBody").hidden) renderSection2D();
 }
 
-/* --- schede del pannello destro --- */
+/* --- schede del pannello destro (info / sezione 2D / clash) --- */
 function _drawShowTab(which) {
-  const onSec = which === "section";
-  const info = $("dtabInfo"), sec = $("dtabSection"), ib = $("detailBody"), sb = $("sectionBody");
-  if (info) { info.classList.toggle("on", !onSec); info.setAttribute("aria-selected", String(!onSec)); }
-  if (sec) { sec.classList.toggle("on", onSec); sec.setAttribute("aria-selected", String(onSec)); }
-  if (ib) ib.hidden = onSec;
-  if (sb) sb.hidden = !onSec;
-  if (onSec) renderSection2D();
+  const map = { info: ["dtabInfo", "detailBody"], section: ["dtabSection", "sectionBody"], clash: ["dtabClash", "clashBody"] };
+  if (!map[which]) which = "info";
+  for (const k in map) {
+    const btn = $(map[k][0]), pane = $(map[k][1]);
+    if (btn) { btn.classList.toggle("on", k === which); btn.setAttribute("aria-selected", String(k === which)); }
+    if (pane) pane.hidden = k !== which;
+  }
+  if (which === "section") renderSection2D();
 }
 function setDrawMode(on) {
   if (on && !ALNSEC.on && !(typeof SECPL !== "undefined" && SECPL.on)) return;
@@ -8692,6 +10211,7 @@ $("profileSta").addEventListener("change", e => _alnSecGoToSta(e.target.value));
 $("profileDraw").addEventListener("click", () => setDrawMode(!DRAW.on));
 $("dtabInfo").addEventListener("click", () => _drawShowTab("info"));
 $("dtabSection").addEventListener("click", () => { if (DRAW.on) _drawShowTab("section"); });
+$("dtabClash").addEventListener("click", () => { if (CLASH.results) _drawShowTab("clash"); });
 if (window.ResizeObserver) new ResizeObserver(() => { if (DRAW.on && !$("sectionBody").hidden) renderSection2D(); }).observe($("sectionBody"));
 document.addEventListener("keydown", e => {
   if (!DRAW.on || $("sectionBody").hidden || isTyping(e)) return;
