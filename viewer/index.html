@@ -1348,7 +1348,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.6.0";
+const APP_VERSION = "2.6.1";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -1693,6 +1693,10 @@ const STRINGS = {
     /* toast */
     "toast.ifcInitErr": "Errore inizializzazione web-ifc: {e}",
     "toast.ifcLoadErr": "Errore caricamento {f}: {e}",
+    "toast.farOrigin": "{f}: geometria a ~{km} km dall'origine condivisa — probabile sistema di coordinate diverso dagli altri modelli; vista e precisione possono degradare",
+    "toast.skippedElems": "{f}: {n} elementi esclusi dalla vista 3D per geometria non processabile (dettagli in console).",
+    "toast.recoverAbort": "{f}: troppi elementi problematici — modello caricato parzialmente.",
+    "load.recover": "Recupero {f}: isolo gli elementi con geometria non processabile…",
     "toast.modelRemoved": "{name} rimosso.",
     "toast.noTopic": "Nessun topic trovato: il file non sembra un BCF valido.",
     "toast.bcfLoaded": "{n} issues caricate da {file}.",
@@ -2086,6 +2090,10 @@ const STRINGS = {
     "btn.dlIfc": "⤓ Download updated IFC", "empty.noEdits": "No change recorded.",
     "toast.ifcInitErr": "web-ifc initialization error: {e}",
     "toast.ifcLoadErr": "Error loading {f}: {e}",
+    "toast.farOrigin": "{f}: geometry ~{km} km away from the shared origin — its coordinate system likely differs from the other models; view and precision may degrade",
+    "toast.skippedElems": "{f}: {n} elements excluded from the 3D view due to unprocessable geometry (details in console).",
+    "toast.recoverAbort": "{f}: too many problematic elements — model loaded partially.",
+    "load.recover": "Recovering {f}: isolating elements with unprocessable geometry…",
     "toast.modelRemoved": "{name} removed.",
     "toast.noTopic": "No topic found: the file does not look like a valid BCF.",
     "toast.bcfLoaded": "{n} issues loaded from {file}.",
@@ -2512,6 +2520,95 @@ function warmupRender() {
   for (const o of touched) o.frustumCulled = true;
 }
 
+/* ================== caricamento robusto: helper (v2.6.1) ================== */
+/* Prodotti da streammare: tutti gli IfcProduct meno aperture e spazi (che
+   StreamAllMeshes non emette: ripescarli li renderebbe come solidi pieni),
+   meno gli id esclusi o già processati. Ordine di enumerazione dello schema. */
+function streamableProducts(api, modelID, streamedEids, excluded) {
+  const skip = new Set(excluded);
+  for (const t of [WebIFC.IFCOPENINGELEMENT, WebIFC.IFCSPACE]) {
+    try {
+      const it = api.GetLineIDsWithType(modelID, t, true);
+      for (let i = 0; i < it.size(); i++) skip.add(it.get(i));
+    } catch (e) { /* tipo assente nello schema del file */ }
+  }
+  const out = [];
+  const it = api.GetLineIDsWithType(modelID, WebIFC.IFCPRODUCT, true);
+  for (let i = 0; i < it.size(); i++) {
+    const id = it.get(i);
+    if (!streamedEids.has(id) && !skip.has(id)) out.push(id);
+  }
+  return out;
+}
+
+/* "Bombe booleane": prodotti il cui corpo contiene catene di IfcBooleanResult /
+   IfcBooleanClippingResult annidate oltre soglia — il pattern dei pavimenti/muri Revit
+   con shape editing. Il motore CSG di web-ifc ci muore in due modi, entrambi visti su
+   file reali: bad_alloc a ~4 GB → abort (slab 10-17041, catena ×102) oppure BLOCCO in
+   tempo di CPU senza abort (slab 85-16116 NB43, catene ×20-30 → >15 min appeso: contro
+   questo il recupero reattivo non può nulla, perché non c'è eccezione da catturare).
+   Individuarle qui, sulle sole entità booleane, costa millisecondi. Soglia tarata sui
+   file reali: catene tossiche ≥14, catene legittime ≤9 (NB43) e ≤3 (NDT/50-STR).
+   Restituisce [{eid, depth}] dei prodotti da escludere; [] se il file è sano. */
+const BOOL_DEPTH_MAX = 12;
+function findBooleanBombs(api, modelID) {
+  const ref = (x) => (x && x.value !== undefined ? x.value : null);
+  const ops = new Map();   // id booleano → refs degli operandi
+  let it;
+  try { it = api.GetLineIDsWithType(modelID, WebIFC.IFCBOOLEANRESULT, true); }
+  catch (e) { return []; }
+  for (let i = 0; i < it.size(); i++) {
+    const id = it.get(i);
+    try {
+      const l = api.GetLine(modelID, id);
+      ops.set(id, [ref(l.FirstOperand), ref(l.SecondOperand)]);
+    } catch (e) { ops.set(id, []); }
+  }
+  if (!ops.size) return [];
+  /* profondità di annidamento per nodo, iterativa (le catene reali superano i 100
+     livelli: niente ricorsione). Un ciclo di riferimenti (file rotto) conta come 1. */
+  const depth = new Map();
+  for (const start of ops.keys()) {
+    if (depth.has(start)) continue;
+    const stack = [start];
+    while (stack.length) {
+      const id = stack[stack.length - 1];
+      const oo = (ops.get(id) || []).filter((o) => o !== null && ops.has(o) && o !== id);
+      const pend = oo.filter((o) => !depth.has(o) && stack.indexOf(o) === -1);
+      if (pend.length) { for (const p of pend) stack.push(p); continue; }
+      let d = 1;
+      for (const o of oo) d = Math.max(d, 1 + (depth.get(o) || 1));
+      depth.set(id, d);
+      stack.pop();
+    }
+  }
+  let anyDeep = false;
+  for (const d of depth.values()) if (d > BOOL_DEPTH_MAX) { anyDeep = true; break; }
+  if (!anyDeep) return [];
+  /* solo se esistono catene profonde: risali al prodotto proprietario via
+     ProductDefinitionShape → ShapeRepresentation → Items */
+  const bombs = [];
+  const pit = api.GetLineIDsWithType(modelID, WebIFC.IFCPRODUCT, true);
+  for (let i = 0; i < pit.size(); i++) {
+    const eid = pit.get(i);
+    try {
+      const p = api.GetLine(modelID, eid);
+      if (!ref(p.Representation)) continue;
+      const pds = api.GetLine(modelID, ref(p.Representation));
+      let worst = 0;
+      for (const rRef of (pds.Representations || [])) {
+        const sr = api.GetLine(modelID, ref(rRef));
+        for (const iRef of (sr.Items || [])) {
+          const d = depth.get(ref(iRef));
+          if (d && d > worst) worst = d;
+        }
+      }
+      if (worst > BOOL_DEPTH_MAX) bombs.push({ eid, depth: worst });
+    } catch (e) { /* prodotto illeggibile: resta allo streaming (e al recupero) */ }
+  }
+  return bombs;
+}
+
 async function buildModel(data, name) {
   /* Catena verificata sui file reali:
        render = F · ( A · F⁻¹ · flat · v  −  O )
@@ -2519,7 +2616,8 @@ async function buildModel(data, name) {
      A è la georeferenziazione del modello (IfcMapConversion / TrueNorth, Z-up),
      O è l'origine condivisa (primo vertice, coordinate mappa) e F lo swizzle finale.
      Niente COORDINATE_TO_ORIGIN: ribasamento e flip li gestiamo noi, in doppia precisione. */
-  const api = await takeIfcApi();   // v2.5.3 — istanza WASM dedicata al modello
+  let api = await takeIfcApi();   // v2.5.3 — istanza WASM dedicata al modello ("let": il
+                                  // recupero fault-tolerant può doverla sostituire)
   const modelID = api.OpenModel(data, {});
   const geo = readGeoref(api, modelID);
   /* v1.4.1: s_eff = Scale / fattoreUnità — la geometria di web-ifc è già in metri.
@@ -2533,7 +2631,8 @@ async function buildModel(data, name) {
     }
   }
   const A = georefMatrix(geo);
-  if (bcfGeoMatrix === null) bcfGeoMatrix = A.clone();
+  /* bcfGeoMatrix viene fissata DOPO lo streaming: A può ancora essere neutralizzata
+     al primo vertice (TrueNorth su coordinate già assolute, vedi tnPending). */
   const mModelIfc = new THREE.Matrix4().multiplyMatrices(A, F_INV); // (output web-ifc) → mappa Z-up
   /* unità del file → metri: serve all'overlay alignment, che legge le coordinate IFC grezze
      (in unità del file) mentre A è calibrata sui metri (web-ifc normalizza la geometria). */
@@ -2553,11 +2652,34 @@ async function buildModel(data, name) {
 
   const buckets = new Map();
   const mFlat = new THREE.Matrix4(), mMap = new THREE.Matrix4();
-  api.StreamAllMeshes(modelID, (mesh) => {
+  /* TrueNorth è un metadato cartografico (direzione del Nord rispetto agli assi del
+     progetto): applicarlo come rotazione attorno a (0,0) ha senso solo con coordinate
+     locali. Sui file con coordinate assolute nei vertici (Civil/Navisworks IFC2X3 senza
+     IfcMapConversion, caso reale IDR 10-17041) la stessa rotazione delocalizza il
+     modello di centinaia di km. Si decide al primo vertice reale: se la geometria è già
+     assoluta (>100 km dall'origine) la rotazione viene annullata. */
+  let tnPending = (geo.kind === "north");
+  /* v2.6.1 — caricamento fault-tolerant. Un solo elemento con geometria patologica
+     (caso reale: slab Revit con ~100 IfcBooleanClippingResult annidati → bad_alloc →
+     abort dell'intero modulo WASM) non deve buttare via il modello: al primo abort
+     l'istanza è morta, se ne apre una fresca e si riprende lo streaming dei prodotti
+     rimanenti a blocchi; il blocco che abortisce viene rifatto elemento per elemento
+     per isolare ed escludere il colpevole (vedi blocco catch). curApi/curMid: l'istanza
+     corrente, sostituibile; streamedEids rende la callback idempotente sui retry. */
+  let curApi = api, curMid = modelID;
+  /* v2.6.1 — prevenzione: le bombe booleane si cercano PRIMA dello streaming (costo:
+     millisecondi sulle sole entità booleane). Il recupero reattivo nel catch resta
+     come rete di sicurezza per gli abort non prevedibili. */
+  let preBombs = [];
+  try { preBombs = findBooleanBombs(curApi, curMid); } catch (ePre) { preBombs = []; }
+  const preExcluded = new Set(preBombs.map((b) => b.eid));
+  const streamedEids = new Set();
+  const streamCb = (mesh) => {
     const eid = mesh.expressID;
+    if (streamedEids.has(eid)) return;   // già processato in un tentativo precedente
     if (!model.guidByExpress.has(eid)) {
       try {
-        const line = api.GetLine(modelID, eid);
+        const line = curApi.GetLine(curMid, eid);
         const gid = line && line.GlobalId ? line.GlobalId.value : null;
         if (gid) { model.guidByExpress.set(eid, gid); model.expressByGuid.set(gid, eid); }
         model.typeByExpress.set(eid, line ? line.type : 0);
@@ -2567,15 +2689,89 @@ async function buildModel(data, name) {
     const n = mesh.geometries.size();
     for (let i = 0; i < n; i++) {
       const pg = mesh.geometries.get(i);
-      const geom = api.GetGeometry(modelID, pg.geometryExpressID);
-      const verts = api.GetVertexArray(geom.GetVertexData(), geom.GetVertexDataSize());
-      const idx = api.GetIndexArray(geom.GetIndexData(), geom.GetIndexDataSize());
+      const geom = curApi.GetGeometry(curMid, pg.geometryExpressID);
+      const verts = curApi.GetVertexArray(geom.GetVertexData(), geom.GetVertexDataSize());
+      const idx = curApi.GetIndexArray(geom.GetIndexData(), geom.GetIndexDataSize());
       mFlat.fromArray(pg.flatTransformation);
+      if (tnPending && verts.length >= 6) {
+        tnPending = false;
+        _v3.set(verts[0], verts[1], verts[2]).applyMatrix4(mFlat);
+        if (Math.max(Math.abs(_v3.x), Math.abs(_v3.y), Math.abs(_v3.z)) > 1e5) {
+          A.identity();
+          mModelIfc.copy(F_INV);
+          model.A.identity();
+          model.geoInfo += " · rotazione ignorata: coordinate già assolute";
+        }
+      }
       mMap.multiplyMatrices(mModelIfc, mFlat);
       appendToBucket(buckets, pg, verts, idx, eid, mMap);
       if (geom.delete) geom.delete();
     }
-  });
+    streamedEids.add(eid);
+  };
+  const skippedEids = [];
+  const MAX_SKIP = 8;   // oltre: il problema non è il singolo elemento, inutile insistere
+  let partial = false;
+  try {
+    if (!preExcluded.size) curApi.StreamAllMeshes(curMid, streamCb);
+    /* con bombe da escludere: stream mirato di tutti gli altri prodotti */
+    else curApi.StreamMeshes(curMid, streamableProducts(curApi, curMid, streamedEids, preExcluded), streamCb);
+  } catch (eAbort) {
+    console.warn(`[APE Viewer] ${name}: abort del motore geometrico (${(eAbort && eAbort.message) || eAbort}) — recupero per elemento`);
+    api = null; model.api = null;   // l'istanza morta (heap fino a 4 GB) deve poter essere garbage-collected
+    showLoading(tr("load.recover", { f: name }));
+    await tick();
+    const reopen = async () => { curApi = null; curApi = await takeIfcApi(); curMid = curApi.OpenModel(data, {}); };
+    await reopen();
+    const queue = streamableProducts(curApi, curMid, streamedEids, preExcluded);
+    /* A blocchi, NON in un colpo solo: StreamMeshes processa gli id nell'ordine interno
+       dello schema (per tipo), non in quello della coda — quindi "chi era il prossimo"
+       non è deducibile dall'ordine nostro. Il blocco che abortisce viene rifatto
+       elemento per elemento: i sani costano poco, solo il colpevole paga un'altra
+       salita dell'heap (1 abort per blocco colpito + 1 per colpevole). */
+    const CHUNK = 256;
+    for (let pos = 0; pos < queue.length; pos += CHUNK) {
+      const chunk = queue.slice(pos, pos + CHUNK).filter((id) => !streamedEids.has(id));
+      if (!chunk.length) continue;
+      try {
+        curApi.StreamMeshes(curMid, chunk, streamCb);
+      } catch (e2) {
+        await reopen();
+        for (const id of chunk) {
+          if (streamedEids.has(id)) continue;
+          try { curApi.StreamMeshes(curMid, [id], streamCb); }
+          catch (e3) {
+            skippedEids.push(id);
+            await reopen();
+            if (skippedEids.length > MAX_SKIP) break;
+          }
+        }
+      }
+      if (skippedEids.length > MAX_SKIP) {
+        console.warn(`[APE Viewer] ${name}: troppi elementi problematici — caricamento parziale, ~${Math.max(0, queue.length - pos - CHUNK)} prodotti non processati`);
+        toast(tr("toast.recoverAbort", { f: name }));
+        partial = true;
+        break;
+      }
+      showLoading(tr("load.recover", { f: name }));
+      await tick();
+    }
+  }
+  model.api = curApi; model.modelID = curMid;   // il recupero può aver sostituito l'istanza
+  /* diagnostica unificata degli esclusi (preventivi e reattivi), sull'istanza viva */
+  const _elemInfo = (eid) => {
+    try {
+      const line = curApi.GetLine(curMid, eid);
+      return `${(line && line.constructor && line.constructor.name) || "?"} · ${(line && line.Name && line.Name.value) || ""} · GUID ${(line && line.GlobalId && line.GlobalId.value) || "?"}`;
+    } catch (e) { return "?"; }
+  };
+  for (const b of preBombs)
+    console.warn(`[APE Viewer] ${name}: elemento #${b.eid} escluso preventivamente (catena booleana annidata ×${b.depth}, soglia ${BOOL_DEPTH_MAX}) — ${_elemInfo(b.eid)}`);
+  for (const eid of skippedEids)
+    console.warn(`[APE Viewer] ${name}: elemento #${eid} escluso dalla vista 3D (geometria non processabile) — ${_elemInfo(eid)}`);
+  const _nSkip = preBombs.length + skippedEids.length;
+  if (_nSkip && !partial) toast(tr("toast.skippedElems", { f: name, n: _nSkip }));
+  if (bcfGeoMatrix === null) bcfGeoMatrix = A.clone();   // riferimento camere BCF: l'A definitiva del primo modello
 
   for (const b of buckets.values()) {
     const g = new THREE.BufferGeometry();
@@ -2606,6 +2802,17 @@ async function buildModel(data, name) {
       mesh.userData.edgeObj = edge;
       mesh.userData.edgeFullGeom = edge.geometry;
     }
+  }
+  /* v2.6.1 — federazioni con sistemi di coordinate misti: se il modello atterra lontano
+     dall'origine condivisa (primo vertice del primo modello) il fit iniziale inquadra il
+     vuoto e il float32 quantizza i vertici (scatti di decimetri a migliaia di km):
+     avvisare subito è l'unico indizio visibile del disallineamento. */
+  const mbox = new THREE.Box3();
+  for (const ms of model.meshes) if (ms.geometry.boundingBox) mbox.union(ms.geometry.boundingBox);
+  if (!mbox.isEmpty()) {
+    const c = mbox.getCenter(new THREE.Vector3());
+    const far = Math.max(Math.abs(c.x), Math.abs(c.y), Math.abs(c.z));
+    if (far > 1e5) toast(tr("toast.farOrigin", { f: name, km: (far / 1000).toFixed(0) }));
   }
   models.push(model);
   classeCache.clear();   // i nuovi GUID possono ora risolvere la Classe (v1.7.6)
@@ -2720,7 +2927,13 @@ function readGeoref(api, modelID) {
     if (ids.size() > 0) {
       const mc = api.GetLine(modelID, ids.get(0));
       let xa = nval(mc.XAxisAbscissa, 1), xo = nval(mc.XAxisOrdinate, 0);
-      const d = Math.hypot(xa, xo) || 1; xa /= d; xo /= d;
+      /* export NWC→IFC reali (Navisworks): IFCMAPCONVERSION(...,$,$,$,0.,0.,0.) —
+         XAxisAbscissa=XAxisOrdinate=0 è una direzione nulla, vietata dalla spec:
+         normalizzata lascerebbe xa=xo=0 e georefMatrix collasserebbe X,Y a 0
+         (modello schiacciato in una linea sull'origine). Direzione degenere =
+         nessuna rotazione, stessa scelta già fatta per Scale=0 → 1. */
+      const d = Math.hypot(xa, xo);
+      if (d < 1e-12) { xa = 1; xo = 0; } else { xa /= d; xo /= d; }
       return {
         kind: "map",
         E: nval(mc.Eastings), N: nval(mc.Northings), H: nval(mc.OrthogonalHeight),
