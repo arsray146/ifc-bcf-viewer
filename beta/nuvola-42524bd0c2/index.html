@@ -996,7 +996,7 @@ input[type=file]{display:none}
           <label data-i18n="c2d.tolS" data-i18n-title="c2d.tolST" title="Soglia contrattuale per gli elementi secondari">Secondari</label>
           <span><input id="c2dTolS" type="number" value="100" min="1" step="5"> mm</span>
           <label data-i18n="c2d.max" data-i18n-title="c2d.maxT" title="Oltre questa distanza il punto è considerato fuori tema (vegetazione, terreno, veicoli) e non entra nelle statistiche">Distanza max</label>
-          <span><input id="c2dMax" type="number" value="1" min="0.05" step="0.5"> m</span>
+          <span><input id="c2dMax" type="number" value="0.35" min="0.05" step="0.05"> m</span>
         </div>
         <label class="c2d-prev"><input id="c2dPreview" type="checkbox" checked> <span data-i18n="c2d.preview">Anteprima su campione uniforme</span></label>
         <div id="c2dInfo"></div>
@@ -9821,7 +9821,7 @@ function renderC2mBlock() {
    la fluidità non regge (vedi PIANO_Cloud_Model_Check.md §5). */
 const C2D = {
   tolP: 70, tolS: 100,          // soglie di contratto (mm)
-  maxDist: 1.0,                 // oltre questa distanza (m) il punto è fuori tema, non fuori tolleranza
+  maxDist: 0.35,                 // oltre questa distanza (m) il punto è fuori tema, non fuori tolleranza
   preview: true,                // calcola sul campione uniforme invece che su tutti i punti
   running: false, cancel: false,
   bvh: null, triElem: null, elems: null, geomSig: "",
@@ -9924,7 +9924,7 @@ async function runC2dCheck() {
   if (!models.length || !PCLOUD.sources.length) { toast(tr("toast.c2dNeed")); return; }
   C2D.tolP = Math.max(1, +$("c2dTolP").value || 70);
   C2D.tolS = Math.max(1, +$("c2dTolS").value || 100);
-  C2D.maxDist = Math.max(0.05, +$("c2dMax").value || 1);
+  C2D.maxDist = Math.max(0.05, +$("c2dMax").value || 0.35);
   C2D.preview = $("c2dPreview").checked;
   C2D.running = true; C2D.cancel = false;
   updateC2dRunBtn();
@@ -11220,6 +11220,18 @@ document.querySelectorAll("#langSwitch .lang-opt").forEach(b => b.addEventListen
 document.documentElement.lang = LANG;
 document.querySelectorAll("#langSwitch .lang-opt").forEach(b => b.classList.toggle("on", b.dataset.lang === LANG));
 applyStaticI18n();
+
+/* ---- BETA: catalogo dei codici precaricato ----------------------------
+   Nella beta il CSV è servito accanto alla pagina, quindi la ricognizione
+   parte già classificata invece che "categorie dedotte dalla sola classe
+   IFC". Il pulsante ＋ resta: un tester può sempre caricare il suo. */
+(async () => {
+  try {
+    const r = await fetch("./cataloghi/anas_ponti_viadotti.csv", { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    await loadC2mBook(new File([await r.text()], "anas_ponti_viadotti.csv", { type: "text/csv" }));
+  } catch (e) { console.warn("[APE Viewer BETA] catalogo predefinito non caricato:", e); }
+})();
 </script>
 </body>
 </html>
