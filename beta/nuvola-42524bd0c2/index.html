@@ -236,6 +236,9 @@ main.left-off .left-resize{display:none}
 .c2m-row .cat.unknown{color:var(--st-open);border-color:var(--st-open)}
 /* categoria NON dal catalogo (dedotta dalla classe IFC): tratteggio = "ipotesi" */
 .c2m-row .cat.guess{border-style:dashed;opacity:.8}
+/* riga cliccabile: evidenzia nel modello gli elementi di quel codice */
+.c2m-row.pick{cursor:pointer}
+.c2m-row.sel{background:var(--lime-soft);box-shadow:inset 2px 0 0 var(--lime-deep)}
 /* verifica nuvola ↔ modello: distanze, soglie, legenda */
 .c2d-opts{display:grid;grid-template-columns:1fr auto;gap:3px 6px;align-items:center;padding:2px 6px 4px;font-size:11.5px;color:var(--muted)}
 .c2d-opts input{width:62px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--fg);
@@ -1688,6 +1691,9 @@ const STRINGS = {
     "c2m.catPrimary": "primario", "c2m.catSecondary": "secondario", "c2m.catExcluded": "escluso", "c2m.catUnknown": "?",
     "c2m.rowT": "{n} elementi · {ifc}\n{src}", "c2m.srcCode": "categoria dal catalogo ({match})",
     "c2m.srcIfc": "categoria dedotta dalla classe IFC (codice non a catalogo)", "c2m.srcNone": "non classificabile",
+    "c2m.selHint": "clic: evidenzia gli elementi nel modello (di nuovo per togliere)",
+    "toast.c2mSel": "{n} elementi con codice {code} evidenziati", "toast.c2mSelEmpty": "Nessun elemento con codice {code}",
+    "toast.c2mSelMany": "Troppi elementi da evidenziare ({n})",
     "toast.c2mScan": "{n} elementi letti: {c} codici distinti",
     "toast.c2mNoModels": "Carica prima almeno un modello IFC",
     "toast.c2mBook": "Catalogo «{f}»: {n} regole attive{e}", "toast.c2mBookErr": "Catalogo «{f}»: nessuna regola valida",
@@ -2145,6 +2151,9 @@ const STRINGS = {
     "c2m.catPrimary": "primary", "c2m.catSecondary": "secondary", "c2m.catExcluded": "excluded", "c2m.catUnknown": "?",
     "c2m.rowT": "{n} elements · {ifc}\n{src}", "c2m.srcCode": "category from the catalogue ({match})",
     "c2m.srcIfc": "category inferred from the IFC class (code not in the catalogue)", "c2m.srcNone": "not classifiable",
+    "c2m.selHint": "click: highlight the elements in the model (click again to clear)",
+    "toast.c2mSel": "{n} elements with code {code} highlighted", "toast.c2mSelEmpty": "No element with code {code}",
+    "toast.c2mSelMany": "Too many elements to highlight ({n})",
     "toast.c2mScan": "{n} elements read: {c} distinct codes",
     "toast.c2mNoModels": "Load at least one IFC model first",
     "toast.c2mBook": "Catalogue \"{f}\": {n} active rules{e}", "toast.c2mBookErr": "Catalogue \"{f}\": no valid rule",
@@ -4072,6 +4081,13 @@ function clearHighlight() {
   hlItems = null;
   currentSelectionBox = null;
   if (selTreeRow) { selTreeRow.classList.remove("sel"); selTreeRow = null; }
+  /* evidenza per codice (feature nuvola↔modello): se sparisce l'evidenza 3D, la
+     riga codice non deve restare accesa. C2M è dichiarato più avanti nel file ma
+     esiste al momento della chiamata (guardia typeof come per C2D in applyIsolate). */
+  if (typeof C2M !== "undefined" && C2M.selCode) {
+    C2M.selCode = null;
+    document.querySelectorAll(".c2m-row.sel").forEach(r => r.classList.remove("sel"));
+  }
   _clashMarkerHide();   // il marker del punto di clash segue la vita dell'evidenza (feature/clash)
   applyIsolate();
 }
@@ -9687,6 +9703,8 @@ const C2M = {
   bookSeq: 0,               // contatore dei caricamenti: due file OMONIMI ma diversi
                             // devono invalidare lo stesso la geometria della verifica
   summary: null,            // ultima ricognizione (wbs.summarize)
+  byCode: null,             // codice → [{m, eid}] per evidenziare al clic gli stessi elementi contati
+  selCode: null,            // codice attualmente evidenziato nel modello (per il toggle)
   sig: ""                   // firma dei modelli su cui è stata fatta
 };
 
@@ -9724,13 +9742,18 @@ function readElemCodes(model, eid) {
    la nuvola — un elemento senza geometria non è verificabile per definizione. */
 function c2mScan() {
   const items = [];
+  const byCode = new Map();                          // codice → elementi, per evidenziare al clic
   for (const m of models) {
     for (const eid of m.guidByExpress.keys()) {
       const it = Object.assign({ ifcClass: _clashClassName(m, m.typeByExpress.get(eid) || 0) }, readElemCodes(m, eid));
       items.push(it);
+      const code = classifyElement(it, C2M.book).code;   // stessa classificazione di summarize → stesse righe
+      if (code) { let a = byCode.get(code); if (!a) byCode.set(code, a = []); a.push({ m, eid }); }
     }
   }
   C2M.summary = summarizeCodes(items, C2M.book);
+  C2M.byCode = byCode;
+  C2M.selCode = null;                                // una nuova ricognizione azzera la selezione per codice
   C2M.sig = models.map(m => m.uid).join(",");
   return C2M.summary;
 }
@@ -9779,8 +9802,8 @@ function renderC2mBlock() {
   const block = $("c2mBlock"), box = $("c2mInfo");
   if (!block || !box) return;
   block.style.display = models.length ? "" : "none";
-  if (!models.length) { C2M.summary = null; return; }
-  if (C2M.summary && C2M.sig !== models.map(m => m.uid).join(",")) C2M.summary = null;  // modelli cambiati
+  if (!models.length) { C2M.summary = null; C2M.byCode = null; C2M.selCode = null; return; }
+  if (C2M.summary && C2M.sig !== models.map(m => m.uid).join(",")) { C2M.summary = null; C2M.byCode = null; C2M.selCode = null; }  // modelli cambiati
   const s = C2M.summary;
   let html = `<div class="c2m-note">${C2M.bookName ? tr("c2m.book", { f: esc(C2M.bookName), n: C2M.book.rows.length }) : tr("c2m.bookNone")}</div>`;
   if (!s) {
@@ -9794,14 +9817,37 @@ function renderC2mBlock() {
   const codes = s.codes.filter(c => c.code);
   for (const c of codes.slice(0, C2M_TOP)) {
     const src = c.source === "code" ? tr("c2m.srcCode", { match: c.match }) : c.source === "ifc" ? tr("c2m.srcIfc") : tr("c2m.srcNone");
-    const title = tr("c2m.rowT", { n: c.n.toLocaleString("it-IT"), ifc: c.ifcClasses.join(" ") || "—", src });
-    html += `<div class="c2m-row" title="${esc(title)}">` +
+    const title = tr("c2m.rowT", { n: c.n.toLocaleString("it-IT"), ifc: c.ifcClasses.join(" ") || "—", src }) + "\n" + tr("c2m.selHint");
+    html += `<div class="c2m-row pick${c.code === C2M.selCode ? " sel" : ""}" data-code="${esc(c.code)}" title="${esc(title)}">` +
             `<span class="cd">${esc(c.code)}${c.tipo ? " · " + esc(c.tipo) : ""}</span>` +
             `<span class="cnt">${c.n.toLocaleString("it-IT")}</span>` +
             `<span class="cat ${c.cat}${c.source === "code" ? "" : " guess"}">${tr(C2M_CAT_KEY[c.cat] || "c2m.catUnknown")}</span></div>`;
   }
   if (codes.length > C2M_TOP) html += `<div class="c2m-note">${tr("c2m.more", { n: codes.length - C2M_TOP })}</div>`;
   box.innerHTML = html;
+}
+
+/* Clic su una riga di codice → evidenzia nel modello gli stessi elementi contati
+   nella riga, così si vede CHI è quel codice prima di fidarsi della soglia che gli
+   tocca. Un secondo clic sullo stesso codice toglie l'evidenza (toggle). */
+const C2M_SEL_MAX = 8000;   // guardia: buildHighlight scala con gli elementi evidenziati
+function c2mSelectCode(code, rowEl) {
+  if (!code) return;
+  if (C2M.selCode === code) { clearHighlight(); return; }        // toggle: stesso codice → via l'evidenza
+  const list = (C2M.byCode && C2M.byCode.get(code)) || [];
+  if (!list.length) { toast(tr("toast.c2mSelEmpty", { code })); return; }
+  if (list.length > C2M_SEL_MAX) { toast(tr("toast.c2mSelMany", { n: list.length.toLocaleString("it-IT") })); return; }
+  const found = [], seen = new Set();
+  for (const { m, eid } of list)
+    for (const gid of geoIdsOf(m, eid)) {
+      const k = m.uid + ":" + gid;
+      if (!seen.has(k)) { seen.add(k); found.push({ model: m, eid: gid }); }
+    }
+  const box = buildHighlight(found);                             // azzera prima l'evidenza (e selCode) precedente
+  C2M.selCode = code;
+  if (rowEl) rowEl.classList.add("sel");
+  if (box) fitBox(box.clone().expandByScalar(box.getSize(new THREE.Vector3()).length() * 0.3 + 2));
+  toast(tr("toast.c2mSel", { n: list.length.toLocaleString("it-IT"), code }));
 }
 
 /* ================== verifica nuvola ↔ modello — distanze ==================
@@ -10140,6 +10186,11 @@ $("btnC2mScan") && $("btnC2mScan").addEventListener("click", runC2mScan);
 $("btnC2mBook") && $("btnC2mBook").addEventListener("click", () => $("fileC2mBook").click());
 $("btnC2mStub") && $("btnC2mStub").addEventListener("click", downloadC2mStub);
 $("fileC2mBook") && $("fileC2mBook").addEventListener("change", async (e) => { if (e.target.files[0]) await loadC2mBook(e.target.files[0]); e.target.value = ""; });
+/* delega: le righe codice sono ricostruite a ogni render, il contenitore no */
+$("c2mInfo") && $("c2mInfo").addEventListener("click", (e) => {
+  const row = e.target.closest(".c2m-row.pick");
+  if (row && row.dataset.code) c2mSelectCode(row.dataset.code, row);
+});
 
 /* --- UI: selettore asse (tendina) + finestra profilo altimetrico --- */
 function _alnEsc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
