@@ -177,12 +177,16 @@ main.left-off .left-resize{display:none}
 #leftCollapse{flex:0 0 32px;border:none;border-left:1px solid var(--line);border-radius:0;background:var(--panel);color:var(--muted);font-size:15px;padding:0;cursor:pointer}
 #leftCollapse:hover{background:var(--panel-2);color:var(--text);border-color:var(--line)}
 .ltab-page{flex:1;display:flex;flex-direction:column;min-height:0}
-#modelList{flex:1;overflow-y:auto;padding:6px 8px;min-height:70px}
+/* La lista modelli si dimensiona sul contenuto (non più flex:1): con pochi
+   modelli non gonfia più a tutta altezza lasciando un vuoto fisso sopra le
+   nuvole. Tetto al 55% + scroll proprio così una federazione grossa resta
+   navigabile senza mangiarsi il pannello. */
+#modelList{flex:0 1 auto;overflow-y:auto;padding:6px 8px;min-height:70px;max-height:55%}
 /* Blocchi in coda alla tab Modelli (nuvole, verifica, codici): una sola area
-   scorrevole. Senza, i blocchi non si comprimono (min-height:auto dei flex item)
-   e con i risultati della verifica traboccano SOPRA la vista 3D. Tetto al 62%
-   così l'albero dei modelli resta comunque leggibile. */
-#lowerStack{flex:0 1 auto;min-height:0;max-height:62%;overflow-y:auto;overflow-x:hidden}
+   scorrevole che ora PRENDE lo spazio libero (flex:1) — è qui che si accumulano
+   i risultati della verifica nuvola↔modello, quindi è a loro che serve respiro.
+   Senza min-height:0 i flex item non si comprimono e traboccano sopra la 3D. */
+#lowerStack{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}
 .model-item{margin:1px 0}
 .model-row{display:flex;align-items:center;gap:7px;padding:7px 6px;border-radius:6px;cursor:default;user-select:none}
 .model-row:hover{background:var(--panel-2)}
