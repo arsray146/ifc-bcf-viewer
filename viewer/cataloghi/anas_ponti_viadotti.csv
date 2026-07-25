@@ -1,0 +1,192 @@
+﻿# CATALOGO CODICI ELEMENTO — ANAS, opere PONTI E VIADOTTI
+# Sorgenti: BIMT02PV04FEDMI01A_MODELLO DATI.xlsx (2024, opera PV) e
+#           BIM_PR_24_01_CA_CI_02_D - ALLEGATO A_MODELLO DATI.xlsx (rev. D, opera VI).
+# Chiave = CODICE ELEMENTO (3 lettere), 6o token della codifica ANAS:
+#   <Lotto>.<Opera>.<Progr>.<ParteOpera>.<Progr>.<ELEMENTO>.<Progr>   (Codice WBS)
+#   <Opera>-<ParteOpera>-<ELEMENTO>                                   (Classe / codice oggetto tecnico)
+# La regola *XXX* intercetta il token in entrambe le forme e in entrambe le
+# revisioni del modello dati (il rename opera PV -> VI non tocca l'elemento).
+# Soglie: primario 70 mm, secondario 100 mm (ANAS DGACQ 62-22), modificabili
+# nella colonna tol_mm riga per riga.
+#
+# --- livello 1: TIPOLOGIA -> CATEGORIA (scelta contrattuale, da validare) ---
+codice;categoria;tipologia;tol_mm;note
+;primario;Fondazione;;strutturale: pali, plinti, diaframmi (di norma interrati, attesi pochi punti)
+;primario;Elevazione;;strutturale: pile, spalle, pulvini, muri
+;primario;Impalcato;;strutturale: travi, traversi, solette, archi, stralli
+;primario;Appoggi e giunti;;strutturale: dispositivi di appoggio, ritegni, giunti
+;secondario;Cordoli e velette;;finitura in ca a vista sul bordo impalcato
+;secondario;Pavimentazione;;strati stradali a vista
+;secondario;Barriere e parapetti;;accessori di sicurezza
+;secondario;Drenaggio e impianti;;accessori funzionali
+;escluso;Armature e connessioni interne;;non a vista: nessuna superficie rilevabile
+;escluso;Movimenti terra e strati non a vista;;non a vista o non oggetto di verifica geometrica
+;escluso;Strumentazione di monitoraggio;;oggetti puntuali, non superfici
+#
+# --- livello 1-bis: PARTE D'OPERA -> TIPOLOGIA (vince sul codice elemento) ---
+# Dentro una barriera di sicurezza OGNI pezzo e' barriera: le unioni (UNI) di un
+# guard-rail sono bullonature a vista, non armature annegate nel calcestruzzo.
+# La regola sulla coppia opera-parte e' un PREFISSO e per questo batte la regola
+# di segmento sul codice elemento (exact > prefix > segment > regex).
+PV-BS*;;Barriere e parapetti;;Barriera di sicurezza in acciaio (opera PV)
+VI-BS*;;Barriere e parapetti;;Barriera di sicurezza in acciaio (opera VI)
+CV-BS*;;Barriere e parapetti;;Barriera di sicurezza in acciaio (opera CV)
+SI-BS*;;Barriere e parapetti;;Barriera di sicurezza in acciaio (opera SI)
+CS-BS*;;Barriere e parapetti;;Barriera di sicurezza in acciaio (opera CS)
+ST-BS*;;Barriere e parapetti;;Barriera di sicurezza in acciaio (opera ST)
+PV-BC*;;Barriere e parapetti;;Barriera di sicurezza in ca (opera PV)
+VI-BC*;;Barriere e parapetti;;Barriera di sicurezza in ca (opera VI)
+CV-BC*;;Barriere e parapetti;;Barriera di sicurezza in ca (opera CV)
+SI-BC*;;Barriere e parapetti;;Barriera di sicurezza in ca (opera SI)
+CS-BC*;;Barriere e parapetti;;Barriera di sicurezza in ca (opera CS)
+ST-BC*;;Barriere e parapetti;;Barriera di sicurezza in ca (opera ST)
+PV-PP*;;Barriere e parapetti;;Parapetto e rete di protezione (opera PV)
+VI-PP*;;Barriere e parapetti;;Parapetto e rete di protezione (opera VI)
+CV-PP*;;Barriere e parapetti;;Parapetto e rete di protezione (opera CV)
+SI-PP*;;Barriere e parapetti;;Parapetto e rete di protezione (opera SI)
+CS-PP*;;Barriere e parapetti;;Parapetto e rete di protezione (opera CS)
+ST-PP*;;Barriere e parapetti;;Parapetto e rete di protezione (opera ST)
+PV-BA*;;Barriere e parapetti;;Barriera antirumore (opera PV)
+VI-BA*;;Barriere e parapetti;;Barriera antirumore (opera VI)
+CV-BA*;;Barriere e parapetti;;Barriera antirumore (opera CV)
+SI-BA*;;Barriere e parapetti;;Barriera antirumore (opera SI)
+CS-BA*;;Barriere e parapetti;;Barriera antirumore (opera CS)
+ST-BA*;;Barriere e parapetti;;Barriera antirumore (opera ST)
+#
+# --- livello 2: CODICE ELEMENTO -> TIPOLOGIA (dal modello dati) ---
+*AAP*;;Appoggi e giunti;;Apparecchio di appoggio · IfcEquipmentElement · parti d'opera: IC
+*ACC*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*AMS*;;Appoggi e giunti;;Ammortizzatore sismico/Ammortizzatori sismici · IfcEquipmentElement IfcVibrationIsolator · parti d'opera: GI,PD,PI,SP
+*ANI*;;Armature e connessioni interne;;Anelli di irrigidimento · IfcReinforcingBar · parti d'opera: FO
+*ARC*;;Impalcato;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*ARS*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*ATD*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*ATT*;;Movimenti terra e strati non a vista;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*BAG*;;Elevazione;;Baggioli/Baggiolo · IfcMember · parti d'opera: PD,PI,SP
+*BAN*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*BDA*;;Armature e connessioni interne;;Barre di armatura · IfcReinforcingBar · parti d'opera: AN,FN,FO,IA,IC,PI,SF,SP
+*BDY*;;Armature e connessioni interne;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*BIN*;;Pavimentazione;;Binder · IfcCourse IfcCovering · parti d'opera: IA,IC,SS
+*BON*;;Movimenti terra e strati non a vista;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*BPT*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*BRE*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*BUL*;;Armature e connessioni interne;;Bullonature · IfcMechanicalFastener · parti d'opera: IA
+*CAD*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*CAP*;;Elevazione;;Cappa · IfcMember · parti d'opera: AC
+*CAS*;;Impalcato;;Cassone/Cassoni · IfcBeam · parti d'opera: IA,IC
+*CAV*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*CCO*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*CCP*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*CEN*;;Elevazione;;Centine · IfcMember IfcReinforcingElement · parti d'opera: FO
+*CHI*;;Armature e connessioni interne;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*CJG*;;Fondazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*CLI*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*CLT*;;Impalcato;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*CNL*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*CNT*;;Impalcato;;Controventi/Controvento · IfcBeam IfcMember · parti d'opera: IA
+*COR*;;Cordoli e velette;;Cordolo · IfcBeam IfcKerb · parti d'opera: IA,IC
+*COT*;;Cordoli e velette;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*CUN*;;Drenaggio e impianti;;Cunetta · IfcBeam IfcPipeSegment · parti d'opera: IA,IC
+*CVI*;;Armature e connessioni interne;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*CVP*;;Armature e connessioni interne;;Cavi cap · IfcTendon · parti d'opera: IC
+*DDM*;;Appoggi e giunti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*DIA*;;Fondazione;;Diaframma/Diaframmi · IfcWall · parti d'opera: FO,FP,SF
+*EDS*;;Elevazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*EMB*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*EMO*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*EPC*;;Impalcato;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*FES*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*FMC*;;Movimenti terra e strati non a vista;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*FMG*;;Movimenti terra e strati non a vista;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*FON*;;Fondazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*FPI*;;Impalcato;;Fazzoletti e piatti · IfcPlate · parti d'opera: IA
+*FUN*;;Impalcato;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*FUS*;;Elevazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*GEO*;;Movimenti terra e strati non a vista;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*GIU*;;Appoggi e giunti;;Giunti/Giunto · IfcBearing IfcMember · parti d'opera: GI
+*GRI*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*IDN*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*IDR*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*ILL*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*IMP*;;Movimenti terra e strati non a vista;;Impermeabilizzazione · IfcCovering · parti d'opera: SS
+*INC*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*ISA*;;Appoggi e giunti;;Isolatore sismico o apparecchio di appoggio/Isolatori sismici/Apparecchi di appoggio · IfcEquipmentElement IfcVibrationIsolator · parti d'opera: GI,PD,PI,SP
+*LMC*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*LOR*;;Impalcato;;Lastra ortotropa · IfcMember · parti d'opera: IA
+*MAG*;;Movimenti terra e strati non a vista;;Magrone · IfcSlab · parti d'opera: FN
+*MAN*;;Elevazione;;Muro andatore · IfcWall · parti d'opera: SP
+*MAR*;;Cordoli e velette;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*MDA*;;Elevazione;;Muro d'ala/Muro di ala · IfcWall · parti d'opera: SP
+*MDI*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*MES*;;Elevazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*MFR*;;Elevazione;;Muro frontale · IfcWall · parti d'opera: SP
+*MON*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*MPL*;;Fondazione;;Micropali/Micropalo · IfcPile · parti d'opera: FO,FP,SF
+*MRT*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*MTO*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*MUR*;;Elevazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*MUS*;;Pavimentazione;;Manto d'usura/Usura · IfcCourse IfcCovering · parti d'opera: IA,IC,SS
+*NJE*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*OPO*;;Elevazione;;Occhio di ponte · IfcMember · parti d'opera: AC
+*PAI*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*PAL*;;Fondazione;;Pali/Palo · IfcPile · parti d'opera: FO,FP,SF
+*PAN*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*PAR*;;Elevazione;;Paraghiaia · IfcWall · parti d'opera: SP
+*PCO*;;Armature e connessioni interne;;Pioli connettori · IfcReinforcingBar · parti d'opera: IA
+*PDD*;;Fondazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*PDI*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*PEN*;;Impalcato;;Pendini/Pendino · IfcBeam IfcMember · parti d'opera: AC,IA,IC
+*PID*;;Elevazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*PLI*;;Fondazione;;Plinto e platea di fondazione · IfcFooting · parti d'opera: FN,FO
+*PLN*;;Fondazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*PMV*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*POZ*;;Fondazione;;Pozzi/Pozzo · IfcEarthworksCut IfcPile · parti d'opera: FO
+*PPO*;;Fondazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*PPZ*;;Pavimentazione;;Pacchetto di pavimentazione · IfcCovering · parti d'opera: IA,IC
+*PRA*;;Armature e connessioni interne;;Profilo di armatura · IfcReinforcingBar · parti d'opera: FO,SF
+*PRE*;;Impalcato;;Predalles · IfcSlab · parti d'opera: IA,IC
+*PRF*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*PRP*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*PUL*;;Elevazione;;Pulvini/Pulvino · IfcBeam IfcMember · parti d'opera: PD,PI
+*PUN*;;Impalcato;;Puntone/Puntoni · IfcBeam IfcMember · parti d'opera: IA
+*PZE*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*PZF*;;Fondazione;;Plinti e zattere di fondazione · IfcFooting · parti d'opera: FO,FP,FS
+*PZO*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*QEB*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*RAN*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*RED*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*REM*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*RIE*;;Movimenti terra e strati non a vista;;Riempimento · IfcCourse · parti d'opera: SP
+*RIL*;;Movimenti terra e strati non a vista;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*RIN*;;Movimenti terra e strati non a vista;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*RIS*;;Appoggi e giunti;;Ritegni sismici/Ritegno sismico · IfcEquipmentElement IfcVibrationDamper · parti d'opera: GI,PD,PI,SP
+*RIV*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*RST*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*RTR*;;Movimenti terra e strati non a vista;;Rinterro · IfcEarthworksFill · parti d'opera: FN,FO,SF
+*SAR*;;Impalcato;;Struttura arco · IfcBuildingElementProxy · parti d'opera: AC
+*SAT*;;Movimenti terra e strati non a vista;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*SBL*;;Impalcato;;Sbalzi · IfcBeam · parti d'opera: IA
+*SCL*;;Fondazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*SCV*;;Movimenti terra e strati non a vista;;Scavo · IfcEarthworksCut · parti d'opera: FN,FO,SF
+*SDE*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*SEG*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*SEL*;;Elevazione;;Struttura in elevazione · IfcColumn · parti d'opera: AN,PD,PI
+*SEN*;;Strumentazione di monitoraggio;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*SGE*;;Impalcato;;Sella Gerber · IfcBeam · parti d'opera: IA,IC
+*SOL*;;Impalcato;;Soletta · IfcSlab · parti d'opera: IA,IC,SP
+*SOR*;;Pavimentazione;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*SPA*;;Barriere e parapetti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*SSB*;;Impalcato;;Soletta a sbalzo · IfcSlab · parti d'opera: IC
+*STL*;;Impalcato;;Stralli/Strallo · IfcBeam IfcMember · parti d'opera: AN
+*TAC*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*TAN*;;Impalcato;;Tirante/Tiranti · IfcBeam IfcMember · parti d'opera: IA
+*TIM*;;Elevazione;;Timpano · IfcMember · parti d'opera: AC
+*TIR*;;Armature e connessioni interne;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*TRA*;;Impalcato;;Trave/Travi · IfcBeam · parti d'opera: IA,IC
+*TRI*;;Impalcato;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*TRV*;;Impalcato;;Traversi/Traverso · IfcBeam IfcMember · parti d'opera: AC,AN,IA,IC,PD,PI
+*TUB*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*TVE*;;Movimenti terra e strati non a vista;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*UNI*;;Armature e connessioni interne;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*VDC*;;Drenaggio e impianti;;fuori dalle terne PV/VI del modello dati: aggiunto perche' ricorrente sui modelli di ponte
+*VEL*;;Cordoli e velette;;Veletta/Velette · IfcBeam · parti d'opera: IA,IC

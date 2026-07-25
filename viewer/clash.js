@@ -19,6 +19,7 @@
      new TriBvh(tris)               -> BVH sui triangoli di UN elemento
      hardPair(bvhA, bvhB, opts)     -> null | {pen, overlap, extent, point,
                                                nPairs, capped, seeds}
+     nearestPoint(bvh, x,y,z, maxD, out) -> dist | -1  (out: [ti, x, y, z])
      penetrationPair(bvhA, bvhB, o) -> {pen, point|null, measured}
      pointInMesh(bvh, x, y, z)      -> bool (ray-parity doppio)
      clearancePair(bvhA, bvhB, opts)-> null | {dist, point, pa, pb}
@@ -933,6 +934,66 @@ function clearancePair(A, B, opts) {
 }
 
 /* ========================================================================== */
+/* 4-bis. PUNTO → SUPERFICIE — query per la verifica nuvola ↔ modello         */
+/* ========================================================================== */
+
+/* Distanza² dal punto all'AABB del nodo (0 se dentro). */
+function _nodePtDist2(b, n, x, y, z) {
+  const i = 3 * n;
+  let d = 0, t;
+  t = b.nMin[i] - x; if (t > 0) d += t * t; else { t = x - b.nMax[i]; if (t > 0) d += t * t; }
+  t = b.nMin[i + 1] - y; if (t > 0) d += t * t; else { t = y - b.nMax[i + 1]; if (t > 0) d += t * t; }
+  t = b.nMin[i + 2] - z; if (t > 0) d += t * t; else { t = z - b.nMax[i + 2]; if (t > 0) d += t * t; }
+  return d;
+}
+
+/* Distanza (m) dal punto (x,y,z) alla superficie (triangoli del BVH).
+   Ritorna -1 se non c'è nulla entro maxDist: su una nuvola è il taglio che
+   scarta vegetazione, terreno e veicoli senza pagarne il costo (maxDist è un
+   raggio INCLUSIVO; passare Infinity per non tagliare).
+   `out` opzionale (array numerico di 4): riceve [indice del triangolo, x, y, z
+   del punto più vicino sulla superficie] — l'indice serve ad attribuire il
+   punto all'elemento quando il BVH ne raccoglie molti.
+   Ritorna un NUMERO e scrive su un buffer del chiamante di proposito: la query
+   gira milioni di volte e non deve allocare, ma un oggetto di modulo riusato
+   sarebbe un tranello (due chiamate darebbero lo stesso oggetto).
+   Discesa best-first con potatura sul raggio corrente: il figlio più vicino
+   viene visitato per primo, così il raggio si stringe subito e i rami lontani
+   cadono senza essere aperti. È il duale di clearancePair fra BVH e punto. */
+function nearestPoint(A, x, y, z, maxDist, out) {
+  const b = A.bvh;
+  if (!b.count) return -1;
+  let best2 = (maxDist > 0) ? maxDist * maxDist : Infinity;
+  let ti = -1, bx = 0, by = 0, bz = 0;
+  const t = A.tris;
+  const stack = [0];
+  /* confronti NON stretti sul raggio: maxDist è un raggio INCLUSIVO (un punto
+     esattamente a maxDist è dentro la ricerca, non fuori) */
+  while (stack.length) {
+    const n = stack.pop();
+    if (_nodePtDist2(b, n, x, y, z) > best2) continue;       // il ramo non può migliorare
+    if (b.nb[n] > 0) {
+      const end = b.na[n] + b.nb[n];
+      for (let p = b.na[n]; p < end; p++) {
+        const i = b.order[p], o = 9 * i;
+        const d2 = _closestPtTri(x, y, z, t[o], t[o + 1], t[o + 2], t[o + 3], t[o + 4], t[o + 5],
+                                 t[o + 6], t[o + 7], t[o + 8], _cpA);
+        if (d2 <= best2) { best2 = d2; ti = i; bx = _cpA[0]; by = _cpA[1]; bz = _cpA[2]; }
+      }
+    } else {
+      const l = b.na[n], r = -b.nb[n];
+      const dl = _nodePtDist2(b, l, x, y, z), dr = _nodePtDist2(b, r, x, y, z);
+      /* il più vicino va spinto per ultimo: lo stack lo estrae per primo */
+      if (dl < dr) { if (dr <= best2) stack.push(r); if (dl <= best2) stack.push(l); }
+      else { if (dl <= best2) stack.push(l); if (dr <= best2) stack.push(r); }
+    }
+  }
+  if (ti < 0) return -1;
+  if (out) { out[0] = ti; out[1] = bx; out[2] = by; out[3] = bz; }
+  return Math.sqrt(best2);
+}
+
+/* ========================================================================== */
 /* 5. BROAD PHASE — coppie candidate tra due liste di elementi                */
 /* ========================================================================== */
 
@@ -1178,7 +1239,7 @@ function clashKey(guidA, guidB, ruleId) {
 export {
   EPS_PLANE,
   triTriIntersect, triTriDistance,
-  TriBvh, hardPair, clearancePair,
+  TriBvh, hardPair, clearancePair, nearestPoint,
   penetrationPair, pointInMesh,
   broadPhase,
   KNOWN_SUBCLASSES, expandClassName,

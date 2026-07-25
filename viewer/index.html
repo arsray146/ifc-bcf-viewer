@@ -177,7 +177,17 @@ main.left-off .left-resize{display:none}
 #leftCollapse{flex:0 0 32px;border:none;border-left:1px solid var(--line);border-radius:0;background:var(--panel);color:var(--muted);font-size:15px;padding:0;cursor:pointer}
 #leftCollapse:hover{background:var(--panel-2);color:var(--text);border-color:var(--line)}
 .ltab-page{flex:1;display:flex;flex-direction:column;min-height:0}
-#modelList{flex:1;overflow-y:auto;padding:6px 8px}
+/* La lista modelli si dimensiona sul contenuto (non più flex:1): con pochi
+   modelli non gonfia più a tutta altezza lasciando un vuoto fisso sopra le
+   nuvole. flex-shrink 0: il blocco sotto (nuvole/verifica) NON può comprimerla
+   sotto il contenuto — tagliava le righe modello a metà. Il tetto resta il 55%
+   con scroll proprio, così una federazione grossa non si mangia il pannello. */
+#modelList{flex:0 0 auto;overflow-y:auto;padding:6px 8px;min-height:70px;max-height:55%}
+/* Blocchi in coda alla tab Modelli (nuvole, verifica, codici): una sola area
+   scorrevole che ora PRENDE lo spazio libero (flex:1) — è qui che si accumulano
+   i risultati della verifica nuvola↔modello, quindi è a loro che serve respiro.
+   Senza min-height:0 i flex item non si comprimono e traboccano sopra la 3D. */
+#lowerStack{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}
 .model-item{margin:1px 0}
 .model-row{display:flex;align-items:center;gap:7px;padding:7px 6px;border-radius:6px;cursor:default;user-select:none}
 .model-row:hover{background:var(--panel-2)}
@@ -213,6 +223,53 @@ main.left-off .left-resize{display:none}
 .pc-row .rm{flex:0 0 auto;width:22px;height:22px;border:none;background:none;color:var(--faint);font-size:13px;padding:0;border-radius:4px;cursor:pointer}
 .pc-row .rm:hover{color:var(--st-open);background:var(--panel-2)}
 .pc-row.hidden-pc .nm{color:var(--faint)}
+/* codici elemento (Classe / CodiceWBS) — studio verifica nuvola ↔ modello */
+.c2m-btns{display:flex;gap:4px;flex:0 0 auto}
+.c2m-note{padding:2px 6px 6px;font-size:11.5px;color:var(--muted);line-height:1.45}
+.c2m-note b{color:var(--fg)}
+.c2m-row{display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:6px;font-size:12px}
+.c2m-row:hover{background:var(--panel-2)}
+.c2m-row .cd{flex:1;min-width:0;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.c2m-row .cnt{font-family:var(--mono);font-size:11px;color:var(--muted);flex:0 0 auto}
+.c2m-row .cat{flex:0 0 auto;font-size:10px;text-transform:uppercase;letter-spacing:.04em;padding:1px 5px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+.c2m-row .cat.primary{color:var(--lime-deep);border-color:var(--lime-deep)}
+.c2m-row .cat.secondary{color:var(--fg)}
+.c2m-row .cat.unknown{color:var(--st-open);border-color:var(--st-open)}
+/* categoria NON dal catalogo (dedotta dalla classe IFC): tratteggio = "ipotesi" */
+.c2m-row .cat.guess{border-style:dashed;opacity:.8}
+/* riga cliccabile: evidenzia nel modello gli elementi di quel codice */
+.c2m-row.pick{cursor:pointer}
+.c2m-row.sel{background:var(--lime-soft);box-shadow:inset 2px 0 0 var(--lime-deep)}
+/* selettore del campo codice (auto / proprietà a scelta) */
+.c2m-field{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 8px;font-size:12px}
+.c2m-field label{color:var(--muted);flex:0 0 auto}
+.c2m-field select{font-size:12px;padding:2px 4px;flex:1 1 auto;min-width:0}
+#c2mFieldPick{display:flex;gap:4px;min-width:0;flex:1 1 100%}
+/* ripiego per classe IFC editabile */
+.c2m-subhead{padding:7px 6px 2px;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);cursor:help}
+.c2m-class-row select{font-size:11px;padding:1px 2px;flex:0 0 auto;max-width:110px}
+/* verifica nuvola ↔ modello: distanze, soglie, legenda */
+.c2d-opts{display:grid;grid-template-columns:1fr auto;gap:3px 6px;align-items:center;padding:2px 6px 4px;font-size:11.5px;color:var(--muted)}
+.c2d-opts input{width:62px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--fg);
+  font-family:var(--mono);font-size:11.5px;padding:2px 5px;text-align:right}
+.c2d-opts span{font-size:11px;color:var(--muted);white-space:nowrap}
+.c2d-prev{display:flex;align-items:center;gap:6px;padding:0 6px 6px;font-size:11.5px;color:var(--muted);cursor:pointer}
+.c2d-legend{display:flex;flex-wrap:wrap;gap:4px 10px;padding:2px 6px 6px;font-size:11px;color:var(--muted)}
+.c2d-legend span{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.c2d-legend i{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
+.c2d-stat{padding:4px 6px;font-size:11.5px;color:var(--muted);line-height:1.45}
+.c2d-stat b{color:var(--fg);text-transform:uppercase;font-size:10px;letter-spacing:.04em}
+.c2d-stat .tolq{font-family:var(--mono);font-size:10px;color:var(--faint);margin-left:4px}
+.c2d-unc{border-left:2px solid var(--st-open);padding-left:8px;margin-left:2px}
+.c2d-unc b{color:var(--st-open)}
+.c2d-uncnote{font-size:10.5px;color:var(--faint);font-style:italic;margin-top:2px}
+.c2d-exclnote{font-size:10.5px;color:var(--faint)}
+.c2d-ghost{display:flex;align-items:center;gap:8px;padding:6px 6px 2px;font-size:11.5px;color:var(--muted)}
+.c2d-ghost label{display:flex;align-items:center;gap:6px;flex:1}
+.c2d-ghost input[type=range]{flex:1;min-width:0;accent-color:var(--lime-deep)}
+.c2d-reset{flex:0 0 auto;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--muted);
+  font-size:11px;padding:2px 7px;cursor:pointer}
+.c2d-reset:hover{border-color:var(--lime-deep);color:var(--fg)}
 /* modale "nuvola grande" (integrata nel tema, sostituisce il confirm nativo) */
 .pc-modal-ov{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(3px)}
 .pc-modal{width:min(440px,92vw);background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.5);overflow:hidden}
@@ -223,6 +280,9 @@ main.left-off .left-resize{display:none}
 .pc-modal-f button{padding:8px 14px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
 .pc-modal-sub{border-color:var(--lime-deep)!important;background:var(--lime-soft)!important}
 .pc-modal-all:hover,.pc-modal-sub:hover{border-color:var(--lime)}
+/* conferma generica (appConfirm): l'azione distruttiva è marcata, la sicura ha il focus */
+.pc-modal-ok.danger{border-color:var(--st-open);color:var(--st-open)}
+.pc-modal-ok.danger:hover{background:var(--st-open);color:#fff}
 /* albero struttura IFC */
 .model-tree{margin:0 0 4px 13px;border-left:2px solid var(--line);padding:2px 0 4px 4px}
 .tree-row{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:4px;font-size:12px;min-width:0}
@@ -903,6 +963,7 @@ input[type=file]{display:none}
   <input type="file" id="fileBcf" accept=".bcf,.bcfzip,.zip,.xlsx,.xlsm">
   <input type="file" id="fileLxml" accept=".xml,.landxml">
   <input type="file" id="filePc" accept=".las,.laz,.e57" multiple>
+  <input type="file" id="fileC2mBook" accept=".csv,.txt">
   <input type="file" id="fileIds" accept=".ids">
 </header>
 
@@ -923,12 +984,58 @@ input[type=file]{display:none}
       <div id="modelList">
         <div class="empty-note" data-i18n-html="empty.noModels">Nessun modello.<br>Carica uno o più file <b>.ifc</b>: le coordinate vengono allineate al primo modello.</div>
       </div>
+      <div id="lowerStack">
       <div id="pcBlock" class="pc-block">
         <div class="pc-head">
           <span data-i18n="pc.title">Nuvole di punti</span>
           <button id="btnPc" class="pc-add" data-i18n-title="pc.load" title="Carica nuvola di punti (LAS/E57)">＋</button>
         </div>
         <div id="pcList"></div>
+      </div>
+      <div id="c2dBlock" class="pc-block" style="display:none">
+        <div class="pc-head">
+          <span data-i18n="c2d.title">Verifica nuvola ↔ modello</span>
+          <span class="c2m-btns">
+            <button id="btnC2dRun" class="pc-add" data-i18n-title="c2d.runT" title="Calcola la distanza di ogni punto dalla superficie del modello">▶</button>
+          </span>
+        </div>
+        <div class="c2d-opts">
+          <label id="c2dLblTol" data-i18n="c2d.tol" data-i18n-title="c2d.tolT" title="Soglia unica di verifica per tutti gli elementi">Soglia</label>
+          <span id="c2dRowTol"><input id="c2dTol" type="number" value="70" min="1" step="5"> mm</span>
+          <label id="c2dLblTolP" style="display:none" data-i18n="c2d.tolP" data-i18n-title="c2d.tolPT" title="Soglia contrattuale per gli elementi primari">Primari</label>
+          <span id="c2dRowTolP" style="display:none"><input id="c2dTolP" type="number" value="70" min="1" step="5"> mm</span>
+          <label id="c2dLblTolS" style="display:none" data-i18n="c2d.tolS" data-i18n-title="c2d.tolST" title="Soglia contrattuale per gli elementi secondari">Secondari</label>
+          <span id="c2dRowTolS" style="display:none"><input id="c2dTolS" type="number" value="100" min="1" step="5"> mm</span>
+          <label data-i18n="c2d.max" data-i18n-title="c2d.maxT" title="Oltre questa distanza il punto è considerato fuori tema (vegetazione, terreno, veicoli) e non entra nelle statistiche">Distanza max</label>
+          <span><input id="c2dMax" type="number" value="1" min="0.05" step="0.5"> m</span>
+        </div>
+        <label class="c2d-prev"><input id="c2dDual" type="checkbox"> <span data-i18n="c2d.dual" data-i18n-title="c2d.dualT" title="Mappa gli elementi in primari e secondari (codici o classi IFC) con due soglie distinte; i non classificati sono trattati come primari">Due soglie (primari / secondari)</span></label>
+        <label class="c2d-prev"><input id="c2dPreview" type="checkbox" checked> <span data-i18n="c2d.preview">Anteprima su campione uniforme</span></label>
+        <div id="c2dInfo"></div>
+      </div>
+      <div id="c2mBlock" class="pc-block" style="display:none">
+        <div class="pc-head">
+          <span data-i18n="c2m.title">Codici elemento</span>
+          <span class="c2m-btns">
+            <button id="btnC2mScan" class="pc-add" data-i18n-title="c2m.scanT" title="Rileva i codici Classe / CodiceWBS sugli elementi con geometria">⟳</button>
+            <button id="btnC2mBook" class="pc-add" data-i18n-title="c2m.bookT" title="Carica il catalogo dei codici (.csv)">＋</button>
+            <button id="btnC2mStub" class="pc-add" data-i18n-title="c2m.stubT" title="Scarica il catalogo precompilato con i codici trovati">⤓</button>
+          </span>
+        </div>
+        <div class="c2m-field">
+          <label data-i18n="c2m.field" data-i18n-title="c2m.fieldT" title="Da quale proprietà leggere il codice di classificazione. Auto: Classe / CodiceWBS / Gruppo anagrafica. In alternativa qualunque proprietà di pset (Uniclass, Assembly Code, WBS aziendale…)">Campo codice</label>
+          <select id="c2mFieldMode">
+            <option value="auto" data-i18n="c2m.fieldAuto">Auto (Classe / CodiceWBS)</option>
+            <option value="custom" data-i18n="c2m.fieldCustom">Proprietà a scelta…</option>
+          </select>
+          <span id="c2mFieldPick" style="display:none">
+            <select id="c2mFieldPset"></select>
+            <select id="c2mFieldProp" disabled></select>
+          </span>
+        </div>
+        <label class="c2d-prev"><input id="c2mUseClassMap" type="checkbox"> <span data-i18n="c2m.classUse" data-i18n-title="c2m.classUseT" title="Classifica per classe IFC gli elementi senza codice a catalogo (tabella modificabile qui sotto). Spento: i non classificati sono trattati come primari.">Ripiego per classe IFC</span></label>
+        <div id="c2mInfo"></div>
+      </div>
       </div>
     </div>
     <div id="issuesBlock" class="ltab-page" style="display:none">
@@ -1137,7 +1244,7 @@ input[type=file]{display:none}
   <div class="lp-wrap">
     <div class="lp-hero">
       <div class="lp-copy">
-        <div class="lp-chip lp-in"><span class="pulse"></span><span><b>v2.6</b>&nbsp;·&nbsp;<span data-i18n="lp.chip">La clash detection (interferenze) è online</span></span></div>
+        <div class="lp-chip lp-in"><span class="pulse"></span><span><b>v2.7</b>&nbsp;·&nbsp;<span data-i18n="lp.chip">La verifica nuvola ↔ modello è online</span></span></div>
         <h1 class="lp-h1 lp-in" style="--d:.06s"><span data-i18n="lp.h1a">Esplora. Verifica.</span><br><span data-i18n="lp.h1b">Costruisci </span><span class="accent" data-i18n="lp.h1c">meglio.</span></h1>
         <p class="lp-sub lp-in" style="--d:.12s" data-i18n="lp.sub">Il viewer BIM per IFC e BCF. Visualizza i modelli, coordina le issue ed edita i parametri direttamente nel 3D.</p>
         <div class="lp-cta lp-in" style="--d:.18s">
@@ -1260,7 +1367,9 @@ import { parseE57, e57PointCount } from "./e57.js";           // studio import P
 import { parseIds, evaluateIds } from "./ids.js";             // feature Controlli IDS
 import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules } from "./clash.js";  // feature clash detection (v2.6.0)
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestPoint } from "./clash.js";  // clash detection (v2.6.0) + distanze nuvola
+import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js";  // studio verifica nuvola ↔ modello
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -1348,7 +1457,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.6.1";
+const APP_VERSION = "2.7.0";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -1539,7 +1648,7 @@ const STRINGS = {
     "navHelp": "Orbita: tasto sx &nbsp;·&nbsp; Pan: rotella premuta &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× clic rotella: zoom esteso",
     "drop.big": "Trascina qui i file IFC e BCF",
     "drop.small": "Oppure usa i pulsanti in alto. Clic su un elemento nel 3D per leggerne le proprietà, <kbd>Esc</kbd> per deselezionare. Doppio clic su un modello in elenco per inquadrarlo.",
-    "lp.chip": "La clash detection (interferenze) è online",
+    "lp.chip": "La verifica nuvola ↔ modello è online",
     "lp.h1a": "Esplora. Verifica.", "lp.h1b": "Costruisci ", "lp.h1c": "meglio.",
     "lp.sub": "Il viewer BIM per IFC e BCF. Visualizza i modelli, coordina le issue ed edita i parametri direttamente nel 3D.",
     "lp.ctaIfc": "Carica IFC", "lp.ctaIfcSub": "Supporta IFC2x3, IFC4, IFC4x3",
@@ -1571,15 +1680,87 @@ const STRINGS = {
     "pc.pts": "punti", "pc.show": "Mostra nuvola", "pc.hide": "Nascondi nuvola",
     "pc.remove": "Rimuovi nuvola", "pc.subNote": "sottocampionata",
     "pc.loading": "Lettura nuvola {f}… (i file grandi richiedono qualche secondo)",
+    "pc.loadingPct": "Lettura nuvola {f}… {pct}%",
     "toast.pcLoaded": "{n} punti caricati da {f}",
     "toast.pcSubsampled": "{f}: {n} punti (sottocampionati da {tot} per sicurezza)",
     "toast.pcNoColor": "{f}: nessun colore nel file, uso una tinta neutra",
     "toast.pcLaz": "{f}: LAZ compresso non ancora supportato in questo studio — esporta in LAS non compresso",
     "toast.pcErr": "Errore lettura nuvola {f}: {e}",
+    "toast.fileUnreadable": "«{f}» non è leggibile dal browser. Succede con i file che non stanno su disco locale: dischi di rete e cartelle sincronizzate (ACC Desktop Connector, OneDrive) li sostituiscono durante la lettura. Copia il file in una cartella locale e riprova.",
+    "toast.fileTooBig": "«{f}» ({gb} GB) supera quello che un browser riesce a tenere in memoria in un solo blocco (limite pratico ~2 GB), indipendentemente da dove sta il file. Ri-esportalo da ReCap/CloudCompare sottocampionato o diviso in più file sotto i 2 GB.",
+    "toast.fileReadErr": "Errore di lettura di «{f}»: {e}",
     "toast.pcRemoved": "{f}: nuvola rimossa",
     "pc.modalTitle": "Nuvola di punti molto grande",
     "pc.modalBody": "«<b>{f}</b>» contiene <b>{n}</b> punti. Caricarli tutti usa molta memoria e può rallentare il browser. Puoi sottocampionare a ~{m} milioni per una navigazione più fluida.",
     "pc.modalSub": "Sottocampiona a ~{m} mln", "pc.modalAll": "Carica tutto",
+    "c2m.title": "Codici elemento",
+    "c2m.scanT": "Rileva i codici Classe / CodiceWBS sugli elementi con geometria",
+    "c2m.bookT": "Carica il catalogo dei codici (.csv)",
+    "c2m.stubT": "Scarica il catalogo precompilato con i codici trovati",
+    "c2m.hint": "Scansiona i modelli per vedere quali codici (<b>Classe</b> o <b>CodiceWBS</b>) sono compilati: da lì si ricava la tipologia e quindi la soglia di verifica.",
+    "c2m.scanning": "Lettura codici dagli {n} elementi…",
+    "c2m.cov": "<b>{coded}</b> di <b>{n}</b> elementi con codice · Classe {classe} · WBS {wbs}",
+    "c2m.covGrp": "Gruppo anagrafica {n}",
+    "c2m.noCode": "<b>{n}</b> senza alcun codice",
+    "c2m.book": "Catalogo: <b>{f}</b> ({n} regole)", "c2m.bookNone": "Nessun catalogo caricato: categorie dedotte dalla sola classe IFC.",
+    "c2m.cats": "primari {p} · secondari {s} · esclusi {x} · <b>da classificare {u}</b>",
+    "c2m.more": "…e altri {n} codici (nel CSV ci sono tutti)",
+    "c2m.catPrimary": "primario", "c2m.catSecondary": "secondario", "c2m.catExcluded": "escluso", "c2m.catUnknown": "?",
+    "c2m.rowT": "{n} elementi · {ifc}\n{src}", "c2m.srcCode": "categoria dal catalogo ({match})",
+    "c2m.srcIfc": "categoria dedotta dalla classe IFC (codice non a catalogo)", "c2m.srcNone": "non classificabile",
+    "c2m.selHint": "clic: evidenzia gli elementi nel modello (di nuovo per togliere)",
+    "toast.c2mSel": "{n} elementi con codice {code} evidenziati", "toast.c2mSelEmpty": "Nessun elemento con codice {code}",
+    "toast.c2mSelMany": "Troppi elementi da evidenziare ({n})",
+    "c2m.field": "Campo codice",
+    "c2m.fieldT": "Da quale proprietà leggere il codice di classificazione. Auto: Classe / CodiceWBS / Gruppo anagrafica. In alternativa qualunque proprietà di pset (Uniclass, Assembly Code, WBS aziendale…)",
+    "c2m.fieldAuto": "Auto (Classe / CodiceWBS)", "c2m.fieldCustom": "Proprietà a scelta…",
+    "c2m.covCustom": "<b>{coded}</b> di <b>{n}</b> elementi con codice · campo {field}",
+    "c2m.classHead": "Classi IFC — ripiego",
+    "c2m.classHeadT": "Categoria per classe IFC degli elementi che il catalogo non risolve. Su un modello senza codici è l'intera classificazione; modificala per adattare la verifica a qualunque modello.",
+    "c2m.classRowT": "{n} elementi decisi da questa riga (senza codice a catalogo)",
+    "c2m.catNone": "da classificare",
+    "c2m.classUse": "Ripiego per classe IFC",
+    "c2m.classUseT": "Classifica per classe IFC gli elementi senza codice a catalogo (tabella modificabile qui sotto). Spento: i non classificati sono trattati come primari.",
+    "c2m.helpNoCodes": "Nessun codice in questo campo: scegli la proprietà giusta in <b>Campo codice</b>, oppure attiva il <b>ripiego per classe IFC</b> — senza alcun file.",
+    "c2m.helpStub": "Non serve conoscere il formato del catalogo: <b>⤓</b> scarica un CSV già precompilato coi codici trovati — aprilo in Excel, compila la colonna <b>categoria</b> (primario / secondario / escluso) e ricaricalo con <b>＋</b>.",
+    "toast.c2mScan": "{n} elementi letti: {c} codici distinti",
+    "toast.c2mNoModels": "Carica prima almeno un modello IFC",
+    "toast.c2mBook": "Catalogo «{f}»: {n} regole attive{e}", "toast.c2mBookErr": "Catalogo «{f}»: nessuna regola valida",
+    "toast.c2mBookWarn": " · {n} righe scartate (console)",
+    "toast.c2mNoScan": "Esegui prima la scansione dei codici",
+    "c2d.title": "Verifica nuvola ↔ modello",
+    "c2d.runT": "Calcola la distanza di ogni punto dalla superficie del modello",
+    "c2d.stopT": "Interrompi il calcolo",
+    "c2d.tolP": "Primari", "c2d.tolPT": "Soglia contrattuale per gli elementi primari",
+    "c2d.tolS": "Secondari", "c2d.tolST": "Soglia contrattuale per gli elementi secondari",
+    "c2d.max": "Distanza max", "c2d.maxT": "Oltre questa distanza il punto è considerato fuori tema (vegetazione, terreno, veicoli) e non entra nelle statistiche",
+    "c2d.preview": "Anteprima su campione uniforme",
+    "c2d.hint": "Colora ogni punto della nuvola in base alla distanza dalla superficie più vicina del modello. Con <b>due soglie</b> attive la soglia è quella dell'elemento a cui il punto appartiene, e gli elementi esclusi dal catalogo non partecipano.",
+    "c2d.tol": "Soglia", "c2d.tolT": "Soglia unica di verifica per tutti gli elementi",
+    "c2d.dual": "Due soglie (primari / secondari)",
+    "c2d.dualT": "Mappa gli elementi in primari e secondari (codici o classi IFC) con due soglie distinte; i non classificati sono trattati come primari",
+    "c2d.allElems": "tutti gli elementi",
+    "c2d.covSingle": "Elementi: <b>{n}</b>, tutti verificati alla soglia unica di {d} mm",
+    "c2d.prep": "Preparo la geometria…",
+    "c2d.running": "Calcolo distanze… {pct}% ({n} punti)",
+    "c2d.stopped": "Calcolo interrotto.",
+    "c2d.err": "Errore nel calcolo: {e}",
+    "c2d.noElem": "Nessun elemento da verificare: il catalogo li esclude tutti.",
+    "c2d.tooBig": "Modello troppo grande per il calcolo in browser: {n} triangoli (tetto {cap} milioni). Isola l'opera da verificare e riprova.",
+    "c2d.done": "<b>{n}</b> punti misurati in {s}s",
+    "c2d.far": "{n} oltre {d} (fuori tema, esclusi)",
+    "c2d.cov": "Elementi: <b>{c}</b> con soglia di categoria · <b>{u}</b> assunti primari · {x} esclusi dal calcolo",
+    "c2d.exclWhy": "esclusi perché senza superficie a vista: {list}",
+    "c2d.lgOk": "entro soglia", "c2d.lgWarn": "entro {d}", "c2d.lgBad": "fuori",
+    "c2d.conf": "<b>{p}%</b> conformi su {n} punti",
+    "c2d.stats": "media {avg} · p95 {p95} · max {max}",
+    "c2d.uncTitle": "Senza classificazione — assunti primari",
+    "c2d.uncBody": "{el} elementi senza classificazione: trattati come primari (dentro le statistiche dei primari). Da codificare per una verifica definitiva.",
+    "c2d.noCode": "senza codice", "c2d.noCodeBadge": "no codice",
+    "c2d.worst": "Elementi con più punti fuori soglia (max · n. punti)",
+    "c2d.ghost": "Modello", "c2d.reset": "Colori originali",
+    "toast.c2dNeed": "Servono almeno un modello IFC e una nuvola di punti",
+    "toast.c2dDone": "{n} punti misurati in {s}s",
     "profile.close": "Chiudi il profilo", "profile.nodata": "Profilo altimetrico non disponibile",
     "alnsec.btn": "Sezione asse",
     "alnsec.toggle": "Sezione ortogonale all'asse: nasconde il modello da un lato del piano per vedere il resto del tracciato. Trascina la sezione in 3D o lungo il profilo per spostarla.",
@@ -1732,6 +1913,8 @@ const STRINGS = {
     "model.dlIfc": "Scarica IFC aggiornato", "model.remove": "Rimuovi modello", "model.el": "el.",
     "confirm.removeModel": "Rimuovere {name} dalla federazione?",
     "confirm.removeModelDirty": "Rimuovere {name} dalla federazione?\n\nATTENZIONE: {n} modifiche non scaricate andranno perse.",
+    "confirm.removeTitle": "Conferma rimozione", "confirm.remove": "Rimuovi",
+    "confirm.ok": "OK", "confirm.no": "Annulla",
     "tree.nodeTitle": "Clic: proprietà e selezione · Doppio clic: zoom · ▸: espandi",
     "tree.nodeTitleNoGeo": "▸ o clic: espandi",
     "tree.catTitle": "Clic: seleziona tutti gli elementi della categoria · Doppio clic: zoom · ▸: espandi",
@@ -1944,7 +2127,7 @@ const STRINGS = {
     "navHelp": "Orbit: left button &nbsp;·&nbsp; Pan: wheel pressed &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× wheel click: zoom to fit",
     "drop.big": "Drag IFC and BCF files here",
     "drop.small": "Or use the buttons above. Click an element in 3D to read its properties, <kbd>Esc</kbd> to deselect. Double-click a model in the list to frame it.",
-    "lp.chip": "Clash detection is now live",
+    "lp.chip": "Point cloud ↔ model check is now live",
     "lp.h1a": "Explore. Review.", "lp.h1b": "Build ", "lp.h1c": "better.",
     "lp.sub": "The BIM viewer for IFC and BCF. Visualize models, coordinate issues and edit parameters right in the 3D view.",
     "lp.ctaIfc": "Upload IFC", "lp.ctaIfcSub": "Supports IFC2x3, IFC4, IFC4x3",
@@ -1976,15 +2159,87 @@ const STRINGS = {
     "pc.pts": "points", "pc.show": "Show cloud", "pc.hide": "Hide cloud",
     "pc.remove": "Remove cloud", "pc.subNote": "subsampled",
     "pc.loading": "Reading cloud {f}… (large files take a few seconds)",
+    "pc.loadingPct": "Reading cloud {f}… {pct}%",
     "toast.pcLoaded": "{n} points loaded from {f}",
     "toast.pcSubsampled": "{f}: {n} points (subsampled from {tot} for safety)",
     "toast.pcNoColor": "{f}: no color in file, using a neutral tint",
     "toast.pcLaz": "{f}: compressed LAZ not yet supported in this study — export to uncompressed LAS",
     "toast.pcErr": "Error reading cloud {f}: {e}",
+    "toast.fileUnreadable": "\"{f}\" cannot be read by the browser. This happens with files that are not on a local disk: network drives and sync folders (ACC Desktop Connector, OneDrive) replace them while they are being read. Copy the file to a local folder and try again.",
+    "toast.fileTooBig": "\"{f}\" ({gb} GB) exceeds what a browser can hold in memory in a single block (practical limit ~2 GB), wherever the file is stored. Re-export it from ReCap/CloudCompare subsampled or split into files under 2 GB.",
+    "toast.fileReadErr": "Error reading \"{f}\": {e}",
     "toast.pcRemoved": "{f}: cloud removed",
     "pc.modalTitle": "Very large point cloud",
     "pc.modalBody": "\"<b>{f}</b>\" has <b>{n}</b> points. Loading them all uses a lot of memory and may slow the browser down. You can subsample to ~{m} million for smoother navigation.",
     "pc.modalSub": "Subsample to ~{m}M", "pc.modalAll": "Load all",
+    "c2m.title": "Element codes",
+    "c2m.scanT": "Scan the Classe / CodiceWBS codes on elements with geometry",
+    "c2m.bookT": "Load the code catalogue (.csv)",
+    "c2m.stubT": "Download the catalogue pre-filled with the codes found",
+    "c2m.hint": "Scan the models to see which codes (<b>Classe</b> or <b>CodiceWBS</b>) are filled in: they give the element type, and hence the verification threshold.",
+    "c2m.scanning": "Reading codes from {n} elements…",
+    "c2m.cov": "<b>{coded}</b> of <b>{n}</b> elements with a code · Classe {classe} · WBS {wbs}",
+    "c2m.covGrp": "Gruppo anagrafica {n}",
+    "c2m.noCode": "<b>{n}</b> with no code at all",
+    "c2m.book": "Catalogue: <b>{f}</b> ({n} rules)", "c2m.bookNone": "No catalogue loaded: categories inferred from the IFC class alone.",
+    "c2m.cats": "primary {p} · secondary {s} · excluded {x} · <b>unclassified {u}</b>",
+    "c2m.more": "…and {n} more codes (all of them are in the CSV)",
+    "c2m.catPrimary": "primary", "c2m.catSecondary": "secondary", "c2m.catExcluded": "excluded", "c2m.catUnknown": "?",
+    "c2m.rowT": "{n} elements · {ifc}\n{src}", "c2m.srcCode": "category from the catalogue ({match})",
+    "c2m.srcIfc": "category inferred from the IFC class (code not in the catalogue)", "c2m.srcNone": "not classifiable",
+    "c2m.selHint": "click: highlight the elements in the model (click again to clear)",
+    "toast.c2mSel": "{n} elements with code {code} highlighted", "toast.c2mSelEmpty": "No element with code {code}",
+    "toast.c2mSelMany": "Too many elements to highlight ({n})",
+    "c2m.field": "Code field",
+    "c2m.fieldT": "Which property carries the classification code. Auto: Classe / CodiceWBS / Gruppo anagrafica. Or pick any pset property (Uniclass, Assembly Code, company WBS…)",
+    "c2m.fieldAuto": "Auto (Classe / CodiceWBS)", "c2m.fieldCustom": "Pick a property…",
+    "c2m.covCustom": "<b>{coded}</b> of <b>{n}</b> elements with a code · field {field}",
+    "c2m.classHead": "IFC classes — fallback",
+    "c2m.classHeadT": "Category per IFC class for the elements the catalogue does not resolve. On a model with no codes this is the whole classification; edit it to fit the check to any model.",
+    "c2m.classRowT": "{n} elements decided by this row (no catalogue code)",
+    "c2m.catNone": "to classify",
+    "c2m.classUse": "IFC-class fallback",
+    "c2m.classUseT": "Classifies elements with no catalogue code by their IFC class (editable table below). Off: unclassified elements are treated as primary.",
+    "c2m.helpNoCodes": "No code in this field: pick the right property under <b>Code field</b>, or turn on the <b>IFC-class fallback</b> — no file needed.",
+    "c2m.helpStub": "No need to learn the catalogue format: <b>⤓</b> downloads a CSV pre-filled with the codes found — open it in Excel, fill in the <b>categoria</b> column (primario / secondario / escluso) and load it back with <b>＋</b>.",
+    "toast.c2mScan": "{n} elements read: {c} distinct codes",
+    "toast.c2mNoModels": "Load at least one IFC model first",
+    "toast.c2mBook": "Catalogue \"{f}\": {n} active rules{e}", "toast.c2mBookErr": "Catalogue \"{f}\": no valid rule",
+    "toast.c2mBookWarn": " · {n} rows discarded (console)",
+    "toast.c2mNoScan": "Run the code scan first",
+    "c2d.title": "Cloud ↔ model check",
+    "c2d.runT": "Compute each point's distance from the model surface",
+    "c2d.stopT": "Stop the computation",
+    "c2d.tolP": "Primary", "c2d.tolPT": "Contractual threshold for primary elements",
+    "c2d.tolS": "Secondary", "c2d.tolST": "Contractual threshold for secondary elements",
+    "c2d.max": "Max distance", "c2d.maxT": "Beyond this distance a point is off-topic (vegetation, ground, vehicles) and is left out of the statistics",
+    "c2d.preview": "Preview on a uniform sample",
+    "c2d.hint": "Colours every cloud point by its distance from the nearest model surface. With <b>two thresholds</b> on, the threshold is that of the element the point belongs to, and elements excluded by the catalogue take no part.",
+    "c2d.tol": "Threshold", "c2d.tolT": "Single verification threshold for every element",
+    "c2d.dual": "Two thresholds (primary / secondary)",
+    "c2d.dualT": "Maps elements into primary and secondary (codes or IFC classes) with two distinct thresholds; unclassified elements are treated as primary",
+    "c2d.allElems": "all elements",
+    "c2d.covSingle": "Elements: <b>{n}</b>, all checked against the single {d} mm threshold",
+    "c2d.prep": "Preparing geometry…",
+    "c2d.running": "Computing distances… {pct}% ({n} points)",
+    "c2d.stopped": "Computation stopped.",
+    "c2d.err": "Computation error: {e}",
+    "c2d.noElem": "No element to check: the catalogue excludes them all.",
+    "c2d.tooBig": "Model too large for in-browser computation: {n} triangles (cap {cap} million). Isolate the structure to check and try again.",
+    "c2d.done": "<b>{n}</b> points measured in {s}s",
+    "c2d.far": "{n} beyond {d} (off-topic, excluded)",
+    "c2d.cov": "Elements: <b>{c}</b> with a category threshold · <b>{u}</b> assumed primary · {x} excluded from the computation",
+    "c2d.exclWhy": "excluded because they have no visible surface: {list}",
+    "c2d.lgOk": "within threshold", "c2d.lgWarn": "within {d}", "c2d.lgBad": "out",
+    "c2d.conf": "<b>{p}%</b> compliant out of {n} points",
+    "c2d.stats": "mean {avg} · p95 {p95} · max {max}",
+    "c2d.uncTitle": "No classification — assumed primary",
+    "c2d.uncBody": "{el} elements with no classification: treated as primary (inside the primary statistics). Code them for a final verification.",
+    "c2d.noCode": "no code", "c2d.noCodeBadge": "no code",
+    "c2d.worst": "Elements with the most points out of threshold (max · point count)",
+    "c2d.ghost": "Model", "c2d.reset": "Original colours",
+    "toast.c2dNeed": "You need at least one IFC model and one point cloud",
+    "toast.c2dDone": "{n} points measured in {s}s",
     "profile.close": "Close profile", "profile.nodata": "Vertical profile unavailable",
     "alnsec.btn": "Axis section",
     "alnsec.toggle": "Cross-section orthogonal to the axis: hides the model on one side of the plane so you can see the rest of the route. Drag the section in 3D or along the profile to move it.",
@@ -2129,6 +2384,8 @@ const STRINGS = {
     "model.dlIfc": "Download updated IFC", "model.remove": "Remove model", "model.el": "el.",
     "confirm.removeModel": "Remove {name} from the federation?",
     "confirm.removeModelDirty": "Remove {name} from the federation?\n\nWARNING: {n} unsaved changes will be lost.",
+    "confirm.removeTitle": "Confirm removal", "confirm.remove": "Remove",
+    "confirm.ok": "OK", "confirm.no": "Cancel",
     "tree.nodeTitle": "Click: properties and selection · Double-click: zoom · ▸: expand",
     "tree.nodeTitleNoGeo": "▸ or click: expand",
     "tree.catTitle": "Click: select all elements in the category · Double-click: zoom · ▸: expand",
@@ -2179,6 +2436,7 @@ function refreshDynamicI18n() {
   try { renderIssueList(); renderReportList(); } catch (e) {}
   try { renderIdsChips(); renderIdsList(); } catch (e) {}
   try { renderQtoSelects(); renderQtoColChips(); renderQtoList(); } catch (e) {}
+  try { renderC2mBlock(); } catch (e) {}   /* righe codici + tabella classi (verifica nuvola) */
   try { if (models.length) renderModelList(); } catch (e) {}   /* tooltip e conteggi delle righe modello */
   try { updateNavHelp(); } catch (e) {}
   if (typeof statsOpen !== "undefined" && statsOpen) { try { openReportStats(); } catch (e) {} }
@@ -2460,13 +2718,56 @@ const SPATIAL_TYPES = new Set([
 let selTreeRow = null;
 let modelUidCounter = 0;
 
+/* Legge i byte di un file scelto dall'utente. Gli errori di ACCESSO al file sono
+   una cosa diversa dagli errori di contenuto e vanno detti in modo diverso:
+   - NotReadableError è il più frequente sui progetti veri. Il riferimento al
+     file si invalida fra il momento in cui l'utente lo sceglie e quello in cui
+     il browser lo legge: succede sistematicamente quando il file NON sta su
+     disco locale, perché i dischi di rete e i client di sincronizzazione (ACC
+     Desktop Connector, OneDrive, Dropbox) lo ri-scaricano o lo sostituiscono
+     mentre la lettura è in corso. Non c'è niente da correggere nel parser: i
+     byte non arrivano proprio.
+   - RangeError/allocation: file oltre quanto il browser riesce a tenere in un
+     solo ArrayBuffer (limite pratico ~2 GB), tipico degli E57 di viadotto.
+   Ritorna null col toast già mostrato. */
+const FILE_GB = 1073741824;
+const FILE_HARD_MAX = 4 * FILE_GB;   // oltre: nessun browser ce la fa, inutile tentare per minuti
+const FILE_SOFT_MAX = 2 * FILE_GB;   // oltre: al limite di quanto regge un singolo ArrayBuffer
+
+async function readPickedFile(file) {
+  const gb = (file.size / FILE_GB).toFixed(1);
+  /* sopra il tetto duro non si prova nemmeno: la lettura fallirebbe comunque
+     dopo minuti di I/O inutile */
+  if (file.size > FILE_HARD_MAX) { toast(tr("toast.fileTooBig", { f: file.name, gb }), 14000); return null; }
+  try {
+    return new Uint8Array(await file.arrayBuffer());
+  } catch (e) {
+    const n = String((e && e.name) || "");
+    console.error("[APE Viewer] lettura file:", file.name, file.size, e);
+    /* la DIMENSIONE va guardata PRIMA del nome dell'errore: su un file da
+       diversi GB Chrome riporta NotReadableError anche quando il problema è
+       solo che non riesce ad allocare il buffer. Dare la colpa al disco di
+       rete in quel caso manda l'utente a caccia della cosa sbagliata. */
+    if (file.size > FILE_SOFT_MAX)
+      toast(tr("toast.fileTooBig", { f: file.name, gb }), 14000);
+    else if (n === "NotReadableError" || n === "NotFoundError" || n === "SecurityError")
+      toast(tr("toast.fileUnreadable", { f: file.name }), 12000);
+    else if (n === "RangeError" || /alloc|memory|size/i.test(String((e && e.message) || "")))
+      toast(tr("toast.fileTooBig", { f: file.name, gb }), 14000);
+    else
+      toast(tr("toast.fileReadErr", { f: file.name, e: (e && e.message) || e }), 9000);
+    return null;
+  }
+}
+
 async function loadIfcFiles(files) {
   await ifcReady;
   const wasEmpty = models.length === 0;
   for (const f of files) {
     try {
       showLoading(tr("load.reading", { f: f.name }));
-      const data = new Uint8Array(await f.arrayBuffer());
+      const data = await readPickedFile(f);
+      if (!data) continue;
       showLoading(tr("load.geom", { f: f.name }));
       await tick();
       await buildModel(data, f.name);
@@ -3100,10 +3401,13 @@ function renderModelList() {
   selTreeRow = null;
   if (!models.length) {
     list.innerHTML = `<div class="empty-note">${tr("empty.noModels")}</div>`;
+    renderC2mBlock(); renderC2dBlock();      // i blocchi spariscono con l'ultimo modello
     return;
   }
   if (treeMode === "category") renderCategoryList(list);
   else renderModelRows(list);
+  renderC2mBlock();                          // e si invalidano quando cambia l'insieme dei modelli
+  renderC2dBlock();
 }
 
 document.querySelectorAll(".tmode").forEach(b => b.addEventListener("click", () => {
@@ -3164,9 +3468,14 @@ function renderModelRows(list) {
       e.stopPropagation();
       toggleModelVisibility(m);
     });
-    row.querySelector(".rm").addEventListener("click", (e) => {
+    row.querySelector(".rm").addEventListener("click", async (e) => {
       e.stopPropagation();
-      if (confirm(m.dirty ? tr("confirm.removeModelDirty", { name: m.name, n: m.edits.length }) : tr("confirm.removeModel", { name: m.name }))) removeModel(m);
+      const okRm = await appConfirm({
+        title: tr("confirm.removeTitle"),
+        body: m.dirty ? tr("confirm.removeModelDirty", { name: m.name, n: m.edits.length }) : tr("confirm.removeModel", { name: m.name }),
+        ok: tr("confirm.remove"), danger: true
+      });
+      if (okRm) removeModel(m);
     });
     row.addEventListener("dblclick", (e) => {
       if (e.target.closest("button")) return;
@@ -3833,6 +4142,13 @@ function clearHighlight() {
   hlItems = null;
   currentSelectionBox = null;
   if (selTreeRow) { selTreeRow.classList.remove("sel"); selTreeRow = null; }
+  /* evidenza per codice (feature nuvola↔modello): se sparisce l'evidenza 3D, la
+     riga codice non deve restare accesa. C2M è dichiarato più avanti nel file ma
+     esiste al momento della chiamata (guardia typeof come per C2D in applyIsolate). */
+  if (typeof C2M !== "undefined" && C2M.selCode) {
+    C2M.selCode = null;
+    document.querySelectorAll(".c2m-row.sel").forEach(r => r.classList.remove("sel"));
+  }
   _clashMarkerHide();   // il marker del punto di clash segue la vita dell'evidenza (feature/clash)
   applyIsolate();
 }
@@ -3882,16 +4198,22 @@ function buildHighlight(items) {
   return currentSelectionBox;
 }
 
+/* Velatura globale del modello: durante la verifica nuvola il modello si fa da
+   parte per lasciar vedere i punti colorati (1 = opacità originale). Vive qui e
+   non in C2D perché applyIsolate può essere chiamata prima che C2D esista. */
+let modelGhost = 1;
 function applyIsolate() {
   const dim = isolateOn && hlGroup.children.length > 0;
+  const gf = modelGhost;
   for (const mesh of allBaseMeshes()) {
     const ud = mesh.userData;
-    mesh.material.transparent = dim ? true : ud.baseTransparent;
-    mesh.material.opacity = dim ? 0.07 : ud.baseOpacity;
-    mesh.material.depthWrite = dim ? false : ud.baseOpacity >= 0.999;
+    const op = ud.baseOpacity * gf;
+    mesh.material.transparent = dim ? true : (ud.baseTransparent || gf < 1);
+    mesh.material.opacity = dim ? 0.07 : op;
+    mesh.material.depthWrite = dim ? false : op >= 0.999;
     mesh.material.needsUpdate = true;
   }
-  edgeMaterial.opacity = dim ? 0.05 : 0.45;
+  edgeMaterial.opacity = dim ? 0.05 : 0.45 * (0.35 + 0.65 * gf);
 }
 $("tglIsolate").addEventListener("change", (e) => { isolateOn = e.target.checked; applyIsolate(); });
 /* v1.9.8 — spigoli sempre attivi: il toggle "Spigoli" è stato rimosso dalla toolbar
@@ -4937,9 +5259,10 @@ function renderBcfSources() {
     box.appendChild(chip);
   }
 }
-function unloadBcfSource(src) {
+async function unloadBcfSource(src) {
   const mine = topics.filter(t => t._src === src);
-  if (mine.some(t => t._dirty) && !confirm(tr("confirm.unloadDirtyBcf"))) return;
+  if (mine.some(t => t._dirty) &&
+      !(await appConfirm({ title: tr("confirm.removeTitle"), body: tr("confirm.unloadDirtyBcf"), ok: tr("confirm.remove"), danger: true }))) return;
   for (const t of mine) for (const vp of t.viewpoints) if (vp.snapshotUrl) { try { URL.revokeObjectURL(vp.snapshotUrl); } catch (e) {} }
   const n = mine.length;
   if (activeTopic && activeTopic._src === src) { closeDetail(); clearHighlight(); }
@@ -8119,12 +8442,38 @@ function showLoading(msg) { $("loadingMsg").textContent = msg; $("loading").clas
 function hideLoading() { $("loading").classList.remove("on"); }
 function tick() { return new Promise(r => setTimeout(r, 40)); }
 let toastTimer = null;
-function toast(msg) {
+/* Conferma in stile viewer al posto del confirm() nativo del browser.
+   Promessa booleana; Escape e clic fuori = annulla; il focus parte sul
+   pulsante SICURO (Annulla), così un Invio distratto non distrugge nulla.
+   opts: { title?, body, ok?, cancel?, danger? } — body: i \n diventano <br>. */
+function appConfirm(opts) {
+  return new Promise((resolve) => {
+    const o = typeof opts === "string" ? { body: opts } : opts;
+    const ov = document.createElement("div");
+    ov.className = "pc-modal-ov";
+    ov.innerHTML =
+      `<div class="pc-modal" role="dialog" aria-modal="true">` +
+      (o.title ? `<div class="pc-modal-h">${esc(o.title)}</div>` : "") +
+      `<div class="pc-modal-b">${esc(o.body || "").replace(/\n/g, "<br>")}</div>` +
+      `<div class="pc-modal-f"><button class="pc-modal-sub" data-act="no">${esc(o.cancel || tr("confirm.no"))}</button>` +
+      `<button class="pc-modal-ok${o.danger ? " danger" : ""}" data-act="ok">${esc(o.ok || tr("confirm.ok"))}</button></div></div>`;
+    document.body.appendChild(ov);
+    const done = v => { ov.remove(); document.removeEventListener("keydown", onKey); resolve(v); };
+    const onKey = e => { if (e.key === "Escape") done(false); };
+    ov.querySelector('[data-act="ok"]').addEventListener("click", () => done(true));
+    ov.querySelector('[data-act="no"]').addEventListener("click", () => done(false));
+    ov.addEventListener("click", e => { if (e.target === ov) done(false); });   // clic fuori = scelta sicura
+    document.addEventListener("keydown", onKey);
+    ov.querySelector('[data-act="no"]').focus();
+  });
+}
+
+function toast(msg, ms) {
   const t = $("toast");
   t.textContent = msg;
   t.classList.add("on");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("on"), 5000);
+  toastTimer = setTimeout(() => t.classList.remove("on"), ms || 5000);
 }
 /* ==================== menù contestuale tasto destro ==================== *
  * Strategia: discrimina click vs drag sul tasto destro (handoff §4.7).
@@ -9226,8 +9575,11 @@ function _pcUpdateLOD() {
   if (moving === _pcLastMoving) return;            // stato invariato → niente da aggiornare
   _pcLastMoving = moving;
   for (const src of PCLOUD.sources) {
-    if (src.count > PC_MOTION_BUDGET)
-      src.points.geometry.setDrawRange(0, moving ? PC_MOTION_BUDGET : src.count);
+    /* c2dLimit: in anteprima della verifica si disegnano solo i punti MISURATI
+       (il campione uniforme in testa all'array), mai la coda non calcolata */
+    const full = src.c2dLimit || src.count;
+    if (full > PC_MOTION_BUDGET)
+      src.points.geometry.setDrawRange(0, moving ? PC_MOTION_BUDGET : full);
   }
 }
 
@@ -9237,8 +9589,13 @@ async function loadPointCloud(file) {
     if (lower.endsWith(".laz")) { toast(tr("toast.pcLaz", { f: name })); return; }   // LAZ: tappa futura (WASM)
     showLoading(tr("pc.loading", { f: name }));
     await new Promise(r => setTimeout(r));               // lascia dipingere l'indicatore prima della lettura pesante
-    const buf = new Uint8Array(await file.arrayBuffer()); // file grande (anche 1-2 GB): può richiedere secondi
-    const res = lower.endsWith(".e57") ? await _pcParseE57(buf, name) : await _pcParseLAS(buf, name);
+    /* E57: si passa il FILE, non i byte. Il parser legge a fette (viewer/e57.js)
+       e decodifica in modo incrementale: un E57 da 6 GB non entrerebbe in un
+       ArrayBuffer, e non serve — se ne tiene in memoria solo il risultato. */
+    const isE57 = lower.endsWith(".e57");
+    const src = isE57 ? file : await readPickedFile(file);
+    if (!src) return;                         // errore di accesso: messaggio già dato, non è un problema di formato
+    const res = isE57 ? await _pcParseE57(src, name) : await _pcParseLAS(src, name);
     if (res) _pcBuild(name, res);
   } catch (e) {
     console.error("[APE Viewer] point cloud:", e);
@@ -9305,17 +9662,26 @@ async function _pcParseLAS(buf, name) {
   return res;
 }
 
-async function _pcParseE57(buf, name) {
+async function _pcParseE57(src, name) {
   let total;
-  try { total = e57PointCount(buf); }
+  try { total = await e57PointCount(src); }
   catch (e) { toast(tr("toast.pcErr", { f: name, e: e.message })); return null; }
   const maxPoints = await _pcSizeGuard(name, total);
   /* E57: se worldOriginMap è già fissata (es. IFC caricato prima) la passo; altrimenti il
      parser la deriva dal 1° punto e la restituisco → la fisso qui, catena invariante intatta */
   const originOpt = worldOriginMap ? { x: worldOriginMap.x, y: worldOriginMap.y, z: worldOriginMap.z } : null;
   let res;
-  try { res = parseE57(buf, { origin: originOpt, swizzle: true, maxPoints }); }
-  catch (e) { toast(tr("toast.pcErr", { f: name, e: e.message })); return null; }
+  let lastPct = -1;
+  try {
+    res = await parseE57(src, {
+      origin: originOpt, swizzle: true, maxPoints,
+      yieldEvery: 96,                      // ogni tanto restituisce il thread: l'indicatore resta vivo
+      onProgress: (done, tot) => {
+        const pct = Math.floor(100 * done / tot);
+        if (pct !== lastPct) { lastPct = pct; showLoading(tr("pc.loadingPct", { f: name, pct })); }
+      }
+    });
+  } catch (e) { toast(tr("toast.pcErr", { f: name, e: e.message })); return null; }
   if (worldOriginMap === null) worldOriginMap = new THREE.Vector3(res.origin.x, res.origin.y, res.origin.z);
   res.label = `E57 · ${res.scanCount} scan`;
   return res;
@@ -9404,10 +9770,676 @@ function renderPcList() {
     row.addEventListener("dblclick", () => { const box = new THREE.Box3().setFromObject(src.points); if (!box.isEmpty()) fitBox(box); });
     list.appendChild(row);
   }
+  renderC2dBlock();          // la verifica compare/sparisce con le nuvole
 }
 
 $("btnPc").addEventListener("click", () => $("filePc").click());
 $("filePc").addEventListener("change", async (e) => { for (const f of e.target.files) await loadPointCloud(f); e.target.value = ""; });
+
+/* ================== verifica nuvola ↔ modello — codici elemento ==================
+   Prima tappa dello studio: senza sapere COSA è ogni elemento non si può applicare
+   la soglia giusta (7 cm primari / 10 cm secondari, ANAS DGACQ 62-22). La tipologia
+   non è la classe IFC — cordolo, pavimentazione e impalcato possono essere tutti
+   IfcBuildingElementProxy — ma sta nel codice di progetto: "Classe" dove è compilata,
+   "CodiceWBS" dove non lo è (stessa logica di codifica, campo diverso).
+   La mappa codice → tipologia → categoria vive in un catalogo CSV importabile; la
+   logica pura sta in viewer/wbs.js (testabile in Node), qui solo l'accoppiamento con
+   web-ifc: lettura dei pset, ricognizione, UI. */
+const C2M = {
+  book: makeCodebook([], { ifcFallback: false }),   // catalogo attivo (coerente con useClassMap: false)
+  bookName: "",             // nome del file catalogo, per l'evidenza documentale
+  bookSeq: 0,               // contatore dei caricamenti: due file OMONIMI ma diversi
+                            // devono invalidare lo stesso la geometria della verifica
+  customProp: null,         // {pset, prop} scelto dall'utente come campo codice; null = auto (Classe/WBS)
+  useClassMap: false,       // ripiego per classe IFC: OPT-IN — spento, i senza-codice sono primari
+  classCats: null,          // classe IFC → categoria, editata dall'utente; null = IFC_FALLBACK intonso
+  classStat: null,          // classe IFC → {n, nFb, label} dall'ultima ricognizione (nFb = a ripiego)
+  summary: null,            // ultima ricognizione (wbs.summarize)
+  byCode: null,             // codice → [{m, eid}] per evidenziare al clic gli stessi elementi contati
+  selCode: null,            // codice attualmente evidenziato nel modello (per il toggle)
+  sig: ""                   // firma dei modelli su cui è stata fatta
+};
+
+/* Il catalogo si ricostruisce SEMPRE da qui, così campo custom e ripiego editato
+   sopravvivono al caricamento di un CSV (e viceversa). bookSeq lo incrementa il
+   chiamante: è l'unica leva che invalida la geometria della verifica. */
+function c2mRebuildBook(rows) {
+  const opts = { ifcFallback: !!C2M.useClassMap };   // ripiego per classe solo se attivato
+  if (C2M.customProp) opts.codeOrder = ["custom"];
+  if (C2M.useClassMap && C2M.classCats) opts.ifcMap = Object.fromEntries(C2M.classCats);
+  return makeCodebook(rows || [], opts);
+}
+
+/* Codici (Classe / Codice WBS / Gruppo anagrafica) di un elemento: pset di istanza,
+   poi pset del Type — negli export Revit il codice sta spesso sul Type. I nomi
+   accettati per ciascun campo stanno in wbs.js (PROP_ALIASES). Cache per modello
+   (muore col modello: nessuna invalidazione da gestire come per classeCache). */
+const C2M_FIELDS = Object.keys(PROP_ALIASES);
+function readElemCodes(model, eid) {
+  /* la cache dipende dal campo custom scelto: cambiarlo la azzera (per modello) */
+  const cp = C2M.customProp;
+  const sig = cp ? cp.pset + " " + cp.prop : "";
+  if (model._codeCacheSig !== sig) { model._codeCache = new Map(); model._codeCacheSig = sig; }
+  const cache = model._codeCache;
+  let v = cache.get(eid);
+  if (v) return v;
+  v = {};
+  for (const f of C2M_FIELDS) v[f] = "";
+  if (cp) v.custom = "";
+  const scan = (pid) => {
+    let pset; try { pset = readPset(model, pid); } catch (e) { return; }
+    for (const p of pset.props) {
+      const f = matchCodeProp(p.k);
+      if (f && !v[f]) v[f] = String(p.v == null ? "" : p.v).trim();
+      if (cp && !v.custom && pset.name === cp.pset && p.k === cp.prop)
+        v.custom = String(p.v == null ? "" : p.v).trim();
+    }
+  };
+  ensurePsetMap(model);
+  for (const pid of model.psetMap.get(eid) || []) scan(pid);
+  if (C2M_FIELDS.some(f => !v[f]) || (cp && !v.custom)) {   // completa dal Type solo se manca qualcosa
+    ensureTypeMap(model);
+    const tId = model.typeOfElem.get(eid);
+    if (tId !== undefined) for (const pid of model.typePsetIds.get(tId) || []) scan(pid);
+  }
+  cache.set(eid, v);
+  return v;
+}
+
+/* Ricognizione su tutti gli elementi CON GEOMETRIA (guidByExpress è popolata nello
+   streaming delle mesh): sono quelli che avranno una superficie da confrontare con
+   la nuvola — un elemento senza geometria non è verificabile per definizione. */
+function c2mScan() {
+  const items = [];
+  const byCode = new Map();                          // codice → elementi, per evidenziare al clic
+  const cstat = new Map();                           // classe IFC → {n, nFb}: chi cade sul ripiego
+  for (const m of models) {
+    for (const eid of m.guidByExpress.keys()) {
+      const it = Object.assign({ ifcClass: _clashClassName(m, m.typeByExpress.get(eid) || 0) }, readElemCodes(m, eid));
+      items.push(it);
+      const cls = classifyElement(it, C2M.book);     // stessa classificazione di summarize → stesse righe
+      if (cls.code) { let a = byCode.get(cls.code); if (!a) byCode.set(cls.code, a = []); a.push({ m, eid }); }
+      const ic = String(it.ifcClass || "").toUpperCase();
+      let st = cstat.get(ic);
+      if (!st) cstat.set(ic, st = { n: 0, nFb: 0, label: it.ifcClass || ic });
+      st.n++;
+      if (cls.source !== "code") st.nFb++;           // non risolto dal catalogo: lo governa la tabella classi
+    }
+  }
+  C2M.summary = summarizeCodes(items, C2M.book);
+  C2M.byCode = byCode;
+  C2M.classStat = cstat;
+  C2M.selCode = null;                                // una nuova ricognizione azzera la selezione per codice
+  C2M.sig = models.map(m => m.uid).join(",");
+  return C2M.summary;
+}
+
+async function runC2mScan() {
+  if (!models.length) { toast(tr("toast.c2mNoModels")); return; }
+  const n = models.reduce((s, m) => s + m.guidByExpress.size, 0);
+  showLoading(tr("c2m.scanning", { n: n.toLocaleString("it-IT") }));
+  await new Promise(r => setTimeout(r));            // lascia dipingere: la lettura pset è sincrona e lunga
+  try {
+    const s = c2mScan();
+    renderC2mBlock();
+    toast(tr("toast.c2mScan", { n: s.n.toLocaleString("it-IT"), c: s.codes.filter(c => c.code).length }));
+  } finally { hideLoading(); }
+}
+
+/* Catalogo da CSV: le righe scartate NON fermano il caricamento (un catalogo di
+   contratto ha spesso righe di commento o colonne extra) ma vanno dette. */
+async function loadC2mBook(file) {
+  let text; try { text = await file.text(); } catch (e) { toast(tr("toast.c2mBookErr", { f: file.name })); return; }
+  const p = parseCodebookCsv(text);
+  const book = c2mRebuildBook(p.rows);
+  const bad = p.errors.length + book.errors.length;
+  if (!book.rows.length) {
+    if (bad) console.warn("[APE Viewer] catalogo codici:", p.errors, book.errors);
+    toast(tr("toast.c2mBookErr", { f: file.name }));
+    return;
+  }
+  if (bad) console.warn("[APE Viewer] catalogo codici — righe scartate:", p.errors, book.errors);
+  C2M.book = book; C2M.bookName = file.name; C2M.bookSeq++;
+  if (C2M.summary) c2mScan();                       // riclassifica la ricognizione col nuovo catalogo
+  renderC2mBlock();
+  toast(tr("toast.c2mBook", { f: file.name, n: book.rows.length, e: bad ? tr("toast.c2mBookWarn", { n: bad }) : "" }));
+}
+
+function downloadC2mStub() {
+  if (!C2M.summary) { toast(tr("toast.c2mNoScan")); return; }
+  triggerDownload(new Blob([String.fromCharCode(0xFEFF) + stubCsv(C2M.summary)], { type: "text/csv;charset=utf-8" }),
+                  "catalogo_codici.csv");
+}
+
+const C2M_CAT_KEY = { primary: "c2m.catPrimary", secondary: "c2m.catSecondary", excluded: "c2m.catExcluded", unknown: "c2m.catUnknown" };
+const C2M_TOP = 12;                                  // righe mostrate nel pannello (il CSV le ha tutte)
+
+function renderC2mBlock() {
+  const block = $("c2mBlock"), box = $("c2mInfo");
+  if (!block || !box) return;
+  /* la mappatura dei codici appartiene alla modalità a due soglie: in modalità
+     standard (una soglia) il pannello non esiste — niente da configurare */
+  block.style.display = (models.length && typeof C2D !== "undefined" && C2D.dual) ? "" : "none";
+  if (!models.length) { C2M.summary = null; C2M.byCode = null; C2M.selCode = null; return; }
+  if (C2M.summary && C2M.sig !== models.map(m => m.uid).join(",")) { C2M.summary = null; C2M.byCode = null; C2M.selCode = null; }  // modelli cambiati
+  const s = C2M.summary;
+  let html = `<div class="c2m-note">${C2M.bookName ? tr("c2m.book", { f: esc(C2M.bookName), n: C2M.book.rows.length }) : tr("c2m.bookNone")}</div>`;
+  if (!s) {
+    box.innerHTML = html + `<div class="c2m-note">${tr("c2m.hint")}</div>`;
+    return;
+  }
+  html += `<div class="c2m-note">${C2M.customProp
+            ? tr("c2m.covCustom", { coded: s.nCoded.toLocaleString("it-IT"), n: s.n.toLocaleString("it-IT"), field: esc(C2M.customProp.pset + "." + C2M.customProp.prop) })
+            : tr("c2m.cov", { coded: s.nCoded.toLocaleString("it-IT"), n: s.n.toLocaleString("it-IT"), classe: s.byField.classe, wbs: s.byField.wbs }) +
+              (s.byField.gruppo ? ` · ${tr("c2m.covGrp", { n: s.byField.gruppo })}` : "")}` +
+          (s.noCode ? ` · ${tr("c2m.noCode", { n: s.noCode.toLocaleString("it-IT") })}` : "") +
+          `<br>${tr("c2m.cats", { p: s.byCat.primary, s: s.byCat.secondary, x: s.byCat.excluded, u: s.byCat.unknown })}</div>`;
+  /* Guida contestuale: il formato del CSV non va imparato — il pulsante ⤓ lo
+     genera già precompilato coi codici del modello. Detto SOLO quando serve:
+     nessun codice → indirizza a campo/classi; codici fuori catalogo → stub. */
+  const nUnmapped = s.codes.filter(c => c.code && c.source !== "code").length;
+  if (!s.nCoded) html += `<div class="c2m-note">${tr("c2m.helpNoCodes")}</div>`;
+  else if (nUnmapped) html += `<div class="c2m-note">${tr("c2m.helpStub")}</div>`;
+  const codes = s.codes.filter(c => c.code);
+  for (const c of codes.slice(0, C2M_TOP)) {
+    const src = c.source === "code" ? tr("c2m.srcCode", { match: c.match }) : c.source === "ifc" ? tr("c2m.srcIfc") : tr("c2m.srcNone");
+    const title = tr("c2m.rowT", { n: c.n.toLocaleString("it-IT"), ifc: c.ifcClasses.join(" ") || "—", src }) + "\n" + tr("c2m.selHint");
+    html += `<div class="c2m-row pick${c.code === C2M.selCode ? " sel" : ""}" data-code="${esc(c.code)}" title="${esc(title)}">` +
+            `<span class="cd">${esc(c.code)}${c.tipo ? " · " + esc(c.tipo) : ""}</span>` +
+            `<span class="cnt">${c.n.toLocaleString("it-IT")}</span>` +
+            `<span class="cat ${c.cat}${c.source === "code" ? "" : " guess"}">${tr(C2M_CAT_KEY[c.cat] || "c2m.catUnknown")}</span></div>`;
+  }
+  if (codes.length > C2M_TOP) html += `<div class="c2m-note">${tr("c2m.more", { n: codes.length - C2M_TOP })}</div>`;
+
+  /* Ripiego per classe IFC, EDITABILE e OPT-IN: governa solo gli elementi che il
+     catalogo non risolve (nFb) — su un modello senza codici è l'intera
+     classificazione. Spento, quegli elementi passano come primari (default). */
+  const fbClasses = C2M.useClassMap
+    ? [...(C2M.classStat || new Map()).entries()].filter(([, st]) => st.nFb > 0).sort((a, b) => b[1].nFb - a[1].nFb)
+    : [];
+  if (fbClasses.length) {
+    const effCat = ic => (C2M.classCats ? C2M.classCats.get(ic) : IFC_FALLBACK[ic]) || "";
+    html += `<div class="c2m-subhead" title="${esc(tr("c2m.classHeadT"))}">${tr("c2m.classHead")}</div>`;
+    const CAT_OPTS = [["", "c2m.catNone"], ["primary", "c2m.catPrimary"], ["secondary", "c2m.catSecondary"], ["excluded", "c2m.catExcluded"]];
+    for (const [ic, st] of fbClasses) {
+      const cur = effCat(ic);
+      html += `<div class="c2m-row c2m-class-row" title="${esc(tr("c2m.classRowT", { n: st.nFb.toLocaleString("it-IT") }))}">` +
+              `<span class="cd">${esc(st.label)}</span>` +
+              `<span class="cnt">${st.nFb.toLocaleString("it-IT")}</span>` +
+              `<select class="c2m-classcat" data-ic="${esc(ic)}">` +
+              CAT_OPTS.map(([v, k]) => `<option value="${v}"${v === cur ? " selected" : ""}>${esc(tr(k))}</option>`).join("") +
+              `</select></div>`;
+    }
+  }
+  box.innerHTML = html;
+}
+
+/* Modifica del ripiego di una classe: la mappa utente nasce COPIANDO il default
+   (ifcMap sostituisce IFC_FALLBACK: senza copia, la prima modifica cancellerebbe
+   tutte le altre classi). Ricostruzione catalogo + riclassificazione: la lettura
+   pset è già in cache, ricalcola solo la classificazione. */
+function c2mSetClassCat(ic, cat) {
+  if (!C2M.classCats) C2M.classCats = new Map(Object.entries(IFC_FALLBACK));
+  if (cat) C2M.classCats.set(ic, cat); else C2M.classCats.delete(ic);
+  C2M.book = c2mRebuildBook(C2M.book.rows);
+  C2M.bookSeq++;                                     // la verifica distanze va rifatta
+  if (C2M.summary) c2mScan();
+  renderC2mBlock();
+}
+
+/* Clic su una riga di codice → evidenzia nel modello gli stessi elementi contati
+   nella riga, così si vede CHI è quel codice prima di fidarsi della soglia che gli
+   tocca. Un secondo clic sullo stesso codice toglie l'evidenza (toggle). */
+const C2M_SEL_MAX = 8000;   // guardia: buildHighlight scala con gli elementi evidenziati
+function c2mSelectCode(code, rowEl) {
+  if (!code) return;
+  if (C2M.selCode === code) { clearHighlight(); return; }        // toggle: stesso codice → via l'evidenza
+  const list = (C2M.byCode && C2M.byCode.get(code)) || [];
+  if (!list.length) { toast(tr("toast.c2mSelEmpty", { code })); return; }
+  if (list.length > C2M_SEL_MAX) { toast(tr("toast.c2mSelMany", { n: list.length.toLocaleString("it-IT") })); return; }
+  const found = [], seen = new Set();
+  for (const { m, eid } of list)
+    for (const gid of geoIdsOf(m, eid)) {
+      const k = m.uid + ":" + gid;
+      if (!seen.has(k)) { seen.add(k); found.push({ model: m, eid: gid }); }
+    }
+  const box = buildHighlight(found);                             // azzera prima l'evidenza (e selCode) precedente
+  C2M.selCode = code;
+  if (rowEl) rowEl.classList.add("sel");
+  if (box) fitBox(box.clone().expandByScalar(box.getSize(new THREE.Vector3()).length() * 0.3 + 2));
+  toast(tr("toast.c2mSel", { n: list.length.toLocaleString("it-IT"), code }));
+}
+
+/* ================== verifica nuvola ↔ modello — distanze ==================
+   Per ogni punto della nuvola: distanza alla superficie IFC più vicina e
+   ATTRIBUZIONE all'elemento che possiede quella superficie — la soglia (7 cm
+   primari / 10 cm secondari) dipende dall'elemento, non dal punto.
+
+   Geometria: un solo TriBvh su TUTTI i triangoli degli elementi da verificare,
+   più una mappa triangolo → elemento (Uint32Array). Una query per punto invece
+   di una per coppia punto-elemento: niente broad phase, niente candidati, e
+   l'attribuzione esce gratis dall'indice del triangolo. Costa memoria (~84 byte
+   a triangolo) e per questo c'è un tetto dichiarato: oltre, si isola l'opera.
+
+   Gli elementi di categoria "escluso" (armature, cavi, scavi, magrone) NON
+   entrano nel BVH: non hanno superficie rilevabile, e lasciarli dentro
+   attribuirebbe a un tondino punti che appartengono al calcestruzzo attorno.
+
+   Main thread a fette con progress e stop, come _clashRun: mettere il motore in
+   Worker imporrebbe di serializzare la geometria (i buffer stanno nelle mesh
+   three.js) raddoppiando la memoria di picco. Si misura, e si sposta solo se
+   la fluidità non regge (vedi PIANO_Cloud_Model_Check.md §5). */
+const C2D = {
+  tolP: 70, tolS: 100,          // soglie di contratto (mm) — in modalità singola coincidono
+  dual: false,                  // default: UNA soglia per tutti (lo standard); due soglie = opzione contrattuale
+  maxDist: 1.0,                 // oltre questa distanza (m) il punto è fuori tema, non fuori tolleranza
+  preview: true,                // calcola sul campione uniforme invece che su tutti i punti
+  running: false, cancel: false,
+  bvh: null, triElem: null, elems: null, geomSig: "",
+  res: null, colored: false
+};
+const C2D_TRI_CAP = 4000000;    // tetto triangoli del BVH globale (~340 MB)
+const C2D_CHUNK = 40000;        // punti per fetta di lavoro
+const C2D_BIN_MM = 5;           // ampiezza bin dell'istogramma (mm) per mediana/p95/p99
+/* conforme · oltre la propria soglia ma entro quella larga · fuori · non misurato
+   (oltre maxDist o elemento escluso). Gli elementi non classificati NON hanno un
+   colore proprio: sono giudicati alla soglia più restrittiva e colorati come gli
+   altri (scelta utente) — restano però contati a parte per la copertura. */
+const C2D_COL = { ok: [53, 196, 106], warn: [255, 204, 51], bad: [255, 77, 79], none: [85, 91, 99] };
+
+function _c2dFmt(m) {
+  if (m === null || m === undefined || !isFinite(m)) return "—";
+  return m < 1 ? `${Math.round(m * 1000)} mm` : `${m.toFixed(2)} m`;
+}
+/* Firma della geometria della verifica: cambia coi modelli e a OGNI caricamento
+   di catalogo (non col solo nome: ricaricare un file omonimo ma corretto deve
+   ricostruire il BVH, altrimenti si misura ancora con le esclusioni vecchie). */
+function _c2dSig() { return models.map(m => m.uid).join(",") + "|" + C2M.bookSeq + "|" + (C2D.dual ? 1 : 0); }   // la modalità cambia il set di elementi (esclusioni solo con due soglie)
+
+/* Istogramma → percentile (m). I bin sono di C2D_BIN_MM: il valore è il bordo
+   superiore del bin, cioè una SOVRASTIMA di al più 5 mm — meglio sovrastimare
+   che sottostimare in una verifica. Clampato al massimo osservato: un p95 più
+   grande del massimo sarebbe solo l'arrotondamento del bin, e si legge come un
+   errore di calcolo. */
+function _c2dPct(hist, n, p, max) {
+  if (!n) return null;
+  const target = n * p;
+  let acc = 0;
+  for (let i = 0; i < hist.length; i++) {
+    acc += hist[i];
+    if (acc >= target) return Math.min((i + 1) * C2D_BIN_MM / 1000, max);
+  }
+  return max;
+}
+function _c2dNewStat(nBins) { return { n: 0, over: 0, sum: 0, max: 0, hist: new Uint32Array(nBins) }; }
+
+/* BVH globale + mappa triangolo → elemento. Ritorna null se ok, oppure
+   { tooBig } con il numero di triangoli quando si sfonda il tetto. */
+function _c2dBuildGeom() {
+  _clashBuildIndex();
+  const elems = [];
+  const excl = new Map();          // tipologia esclusa → n. elementi tolti dal calcolo
+  let totTris = 0;
+  for (const entry of CLASH.index.values()) {
+    const m = entry.model;
+    for (const [eid, e] of entry.byEid) {
+      if (!e.nTris) continue;
+      /* modalità standard (una soglia): NESSUNA classificazione — tutti gli
+         elementi con geometria entrano, zero letture pset. La mappatura
+         (categorie, esclusioni, ripiego) esiste solo con due soglie attive. */
+      if (!C2D.dual) {
+        elems.push({ model: m, eid, geo: e, cat: "primary", tipo: "", code: "",
+                     source: "none", assumed: false, tolM: 0, n: 0, over: 0, max: 0 });
+        totTris += e.nTris;
+        continue;
+      }
+      const view = Object.assign({ ifcClass: _clashClassName(m, m.typeByExpress.get(eid) || 0) }, readElemCodes(m, eid));
+      const cls = classifyElement(view, C2M.book);
+      /* SOLO le tipologie dichiarate escluse (armature, scavi, magrone…) escono
+         dal calcolo, ed è un'esclusione TRACCIATA: un elemento mis-codificato
+         che finisse qui è visibile nel conteggio, non sparisce in silenzio. */
+      if (cls.cat === "excluded") { const k = cls.tipo || cls.code || "—"; excl.set(k, (excl.get(k) || 0) + 1); continue; }
+      /* un elemento SENZA classificazione non è escluso e non ha una soglia
+         propria: PASSA COME PRIMARIO (scelta utente 2026-07-25), col flag
+         "assumed" perché il report lo dichiari invece di spacciarlo per codificato */
+      const assumed = cls.cat !== "primary" && cls.cat !== "secondary";
+      elems.push({ model: m, eid, geo: e, cat: assumed ? "primary" : cls.cat, tipo: cls.tipo, code: cls.code,
+                   source: cls.source, assumed, tolM: 0, n: 0, over: 0, max: 0 });
+      totTris += e.nTris;
+    }
+  }
+  C2D.excl = { n: [...excl.values()].reduce((a, b) => a + b, 0),
+               top: [...excl.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([tipo, n]) => ({ tipo, n })) };
+  if (totTris > C2D_TRI_CAP) return { tooBig: totTris };
+  const tris = new Float32Array(totTris * 9);
+  const triElem = new Uint32Array(totTris);
+  let o = 0, t0 = 0;
+  for (let ei = 0; ei < elems.length; ei++) {
+    const e = elems[ei].geo;
+    for (const ref of e.refs) {
+      const pos = ref.mesh.geometry.getAttribute("position").array;
+      const idx = ref.mesh.userData.fullIndex.array;
+      const s = ref.start * 3, n = ref.count * 3;
+      for (let i = 0; i < n; i++) {
+        const vi = idx[s + i] * 3;
+        tris[o++] = pos[vi]; tris[o++] = pos[vi + 1]; tris[o++] = pos[vi + 2];
+      }
+    }
+    triElem.fill(ei, t0, t0 + e.nTris);
+    t0 += e.nTris;
+  }
+  C2D.bvh = new TriBvh(tris);
+  C2D.triElem = triElem;
+  C2D.elems = elems;
+  C2D.geomSig = _c2dSig();
+  return null;
+}
+
+/* Quanti punti misurare su una nuvola: in anteprima il campione uniforme che il
+   LOD ha già portato in testa all'array (_pcShuffle), altrimenti tutti. */
+function _c2dLimit(src) {
+  return (C2D.preview && src.count > PC_MOTION_BUDGET) ? PC_MOTION_BUDGET : src.count;
+}
+
+async function runC2dCheck() {
+  if (C2D.running) { C2D.cancel = true; return; }
+  if (!models.length || !PCLOUD.sources.length) { toast(tr("toast.c2dNeed")); return; }
+  C2D.dual = !!($("c2dDual") && $("c2dDual").checked);
+  if (C2D.dual) {
+    C2D.tolP = Math.max(1, +$("c2dTolP").value || 70);
+    C2D.tolS = Math.max(1, +$("c2dTolS").value || 100);
+  } else {
+    /* modalità standard: UNA soglia per tutti — internamente tolP≡tolS, così
+       il motore resta identico e "fascia intermedia" e "non classificati"
+       collassano da sole (tolWide = tolStrict = soglia) */
+    C2D.tolP = C2D.tolS = Math.max(1, +$("c2dTol").value || 70);
+  }
+  C2D.maxDist = Math.max(0.05, +$("c2dMax").value || 1);
+  C2D.preview = $("c2dPreview").checked;
+  C2D.running = true; C2D.cancel = false;
+  updateC2dRunBtn();
+  const t0 = performance.now();
+  const prog = (msg) => { $("c2dInfo").innerHTML = `<div class="c2m-note">${msg}</div>`; };
+  try {
+    prog(esc(tr("c2d.prep")));
+    await new Promise(r => setTimeout(r, 30));
+    if (C2D.geomSig !== _c2dSig() || !C2D.bvh) {
+      const bad = _c2dBuildGeom();
+      if (bad) { prog(tr("c2d.tooBig", { n: bad.tooBig.toLocaleString("it-IT"), cap: (C2D_TRI_CAP / 1e6).toFixed(0) })); return; }
+    }
+    if (!C2D.elems.length) { prog(esc(tr("c2d.noElem"))); return; }
+
+    /* soglia dell'elemento: primaria o secondaria secondo la categoria — i non
+       classificati sono già stati mappati sui primari in _c2dBuildGeom (flag
+       "assumed"); in modalità singola tolP≡tolS e la distinzione sparisce. */
+    for (const el of C2D.elems) {
+      el.tolM = el.cat === "secondary" ? C2D.tolS / 1000 : C2D.tolP / 1000;
+      el.n = 0; el.over = 0; el.max = 0;
+    }
+    const tolWide = Math.max(C2D.tolP, C2D.tolS) / 1000;
+    const nBins = Math.ceil(C2D.maxDist * 1000 / C2D_BIN_MM) + 1;
+    const cats = { primary: _c2dNewStat(nBins), secondary: _c2dNewStat(nBins), unknown: _c2dNewStat(nBins) };
+    let nPts = 0, nMeas = 0, nOut = 0, nUnc = 0, nOk = 0, nWarn = 0, nBad = 0;
+
+    const hit = new Float64Array(4);
+    const bvh = C2D.bvh, triElem = C2D.triElem, elems = C2D.elems, maxD = C2D.maxDist;
+    /* scarto rapido: il bbox del modello gonfiato di maxDist. Su una scansione
+       vera la maggior parte dei punti è terreno e vegetazione intorno all'opera
+       — così non pagano nemmeno la discesa nel BVH. */
+    const ab = bvh.aabb || [0, 0, 0, 0, 0, 0];
+    const bx0 = ab[0] - maxD, by0 = ab[1] - maxD, bz0 = ab[2] - maxD;
+    const bx1 = ab[3] + maxD, by1 = ab[4] + maxD, bz1 = ab[5] + maxD;
+    const totalToDo = PCLOUD.sources.reduce((s, src) => s + _c2dLimit(src), 0);
+    let done = 0;
+
+    for (const src of PCLOUD.sources) {
+      const g = src.points.geometry;
+      const pos = g.getAttribute("position").array;
+      const lim = _c2dLimit(src);
+      /* la tinta del materiale MOLTIPLICA i colori per vertice: su una nuvola
+         senza colore è 0xb4bcc6 e slaverebbe verde/giallo/rosso. Si porta a
+         bianco per la durata della verifica e si ripristina col reset. */
+      if (!src._c2dOrig) src._c2dOrig = { color: g.getAttribute("color") || null,
+                                          vertexColors: src.points.material.vertexColors,
+                                          tint: src.points.material.color.getHex() };
+      src.points.material.color.setHex(0xffffff);
+      const col = new Uint8Array(src.count * 3);       // i punti non misurati restano neutri
+      for (let i = 0; i < src.count; i++) { col[3 * i] = C2D_COL.none[0]; col[3 * i + 1] = C2D_COL.none[1]; col[3 * i + 2] = C2D_COL.none[2]; }
+
+      /* fetta adattiva: si punta a ~30 ms di lavoro per tick, così l'interfaccia
+         resta viva sia sulle nuvole piccole sia su quelle da decine di milioni
+         di punti, senza dover indovinare una costante */
+      let chunk = C2D_CHUNK;
+      for (let start = 0; start < lim; start += chunk) {
+        if (C2D.cancel) { prog(esc(tr("c2d.stopped"))); return; }
+        const tChunk = performance.now();
+        const end = Math.min(start + chunk, lim);
+        for (let i = start; i < end; i++) {
+          const p = 3 * i;
+          const px = pos[p], py = pos[p + 1], pz = pos[p + 2];
+          const d = (px < bx0 || px > bx1 || py < by0 || py > by1 || pz < bz0 || pz > bz1)
+            ? -1 : nearestPoint(bvh, px, py, pz, maxD, hit);
+          nPts++;
+          let c;
+          if (d < 0) { nOut++; c = C2D_COL.none; }
+          else {
+            const el = elems[triElem[hit[0]]];
+            const st = cats[el.cat] || cats.unknown;
+            nMeas++;
+            st.n++; st.sum += d; if (d > st.max) st.max = d;
+            st.hist[Math.min(st.hist.length - 1, (d * 1000 / C2D_BIN_MM) | 0)]++;
+            el.n++; if (d > el.max) el.max = d;
+            if (el.cat === "unknown") nUnc++;   // giudicato lo stesso (soglia restrittiva), ma contato a parte
+            if (d <= el.tolM) { nOk++; c = C2D_COL.ok; }
+            else {
+              st.over++; el.over++;
+              if (d <= tolWide) { nWarn++; c = C2D_COL.warn; } else { nBad++; c = C2D_COL.bad; }
+            }
+          }
+          col[p] = c[0]; col[p + 1] = c[1]; col[p + 2] = c[2];
+        }
+        done += end - start;
+        const ms = performance.now() - tChunk;
+        chunk = Math.max(4000, Math.min(400000, Math.round(chunk * (ms > 1 ? 30 / ms : 4))));
+        prog(tr("c2d.running", { pct: Math.round(100 * done / totalToDo), n: done.toLocaleString("it-IT") }));
+        await new Promise(r => setTimeout(r, 0));
+      }
+
+      g.setAttribute("color", new THREE.BufferAttribute(col, 3, true));
+      src.points.material.vertexColors = true;
+      src.points.material.needsUpdate = true;
+      src.c2dLimit = lim < src.count ? lim : 0;        // in anteprima si disegna solo ciò che è misurato
+      g.setDrawRange(0, lim);
+    }
+
+    const nElU = elems.filter(e => e.assumed).length;
+    C2D.res = { nPts, nMeas, nOut, nUnc, nOk, nWarn, nBad, cats, tolWide, dual: C2D.dual,
+                excl: C2D.excl, nElClass: elems.length - nElU, nElUnc: nElU,
+                secs: (performance.now() - t0) / 1000,
+                elems: elems.filter(e => e.over > 0 && !e.assumed).sort((a, b) => b.max - a.max).slice(0, 6),
+                uncElems: elems.filter(e => e.assumed && e.n > 0).sort((a, b) => b.max - a.max).slice(0, 4) };
+    C2D.colored = true;
+    if (modelGhost === 1) { modelGhost = 0.25; applyIsolate(); }   // alla prima verifica il modello si fa da parte
+    renderC2dBlock();
+    toast(tr("toast.c2dDone", { n: nMeas.toLocaleString("it-IT"), s: C2D.res.secs.toFixed(1) }));
+  } catch (e) {
+    console.error("[APE Viewer] verifica nuvola:", e);
+    prog(esc(tr("c2d.err", { e: e.message || e })));
+  } finally {
+    C2D.running = false; C2D.cancel = false;
+    updateC2dRunBtn();
+  }
+}
+
+/* Ripristina i colori originali della nuvola (e il disegno a piena densità). */
+function restoreCloudColors() {
+  for (const src of PCLOUD.sources) {
+    if (!src._c2dOrig) continue;
+    const g = src.points.geometry;
+    if (src._c2dOrig.color) g.setAttribute("color", src._c2dOrig.color);
+    else g.deleteAttribute("color");
+    src.points.material.vertexColors = src._c2dOrig.vertexColors;
+    src.points.material.color.setHex(src._c2dOrig.tint);
+    src.points.material.needsUpdate = true;
+    src.c2dLimit = 0;
+    g.setDrawRange(0, src.count);
+    src._c2dOrig = null;
+  }
+  C2D.colored = false; C2D.res = null;
+  modelGhost = 1; applyIsolate();
+  renderC2dBlock();
+}
+
+function updateC2dRunBtn() {
+  const b = $("btnC2dRun");
+  if (!b) return;
+  b.textContent = C2D.running ? "⏹" : "▶";
+  b.title = tr(C2D.running ? "c2d.stopT" : "c2d.runT");
+}
+
+function renderC2dBlock() {
+  const block = $("c2dBlock"), box = $("c2dInfo");
+  if (!block || !box) return;
+  const on = models.length > 0 && PCLOUD.sources.length > 0;
+  block.style.display = on ? "" : "none";
+  if (!on) { C2D.res = null; return; }
+  const r = C2D.res;
+  if (!r) { box.innerHTML = `<div class="c2m-note">${tr("c2d.hint")}</div>`; return; }
+
+  const pctOf = (v, tot) => tot ? (100 * v / tot).toFixed(1).replace(".", ",") : "0";
+  let h = `<div class="c2m-note">${tr("c2d.done", { n: r.nMeas.toLocaleString("it-IT"), s: r.secs.toFixed(1) })}` +
+          (r.nOut ? ` · ${tr("c2d.far", { n: r.nOut.toLocaleString("it-IT"), d: _c2dFmt(C2D.maxDist) })}` : "") + `</div>`;
+  /* riga di copertura: nessun elemento sparisce in silenzio. In modalità singola
+     è una sola frase (tutti alla stessa soglia); con due soglie: quanti mappati,
+     quanti assunti primari, quanti esclusi e perché. */
+  if (!r.dual) {
+    h += `<div class="c2m-note">${tr("c2d.covSingle", { n: (r.nElClass + r.nElUnc).toLocaleString("it-IT"), d: C2D.tolP })}</div>`;
+  } else {
+    h += `<div class="c2m-note">${tr("c2d.cov", { c: r.nElClass, u: r.nElUnc, x: r.excl ? r.excl.n : 0 })}`;
+    if (r.excl && r.excl.n) h += `<br><span class="c2d-exclnote" title="${esc(r.excl.top.map(t => `${t.tipo}: ${t.n}`).join(" · "))}">${tr("c2d.exclWhy", { list: esc(r.excl.top.map(t => t.tipo).join(", ")) })}</span>`;
+    h += `</div>`;
+  }
+  h += `<div class="c2d-legend">` +
+       `<span><i style="background:rgb(${C2D_COL.ok})"></i>${tr("c2d.lgOk")} ${pctOf(r.nOk, r.nMeas)}%</span>` +
+       (r.dual ? `<span><i style="background:rgb(${C2D_COL.warn})"></i>${tr("c2d.lgWarn", { d: _c2dFmt(r.tolWide) })} ${pctOf(r.nWarn, r.nMeas)}%</span>` : "") +
+       `<span><i style="background:rgb(${C2D_COL.bad})"></i>${tr("c2d.lgBad")} ${pctOf(r.nBad, r.nMeas)}%</span></div>`;
+  for (const key of ["primary", "secondary"]) {
+    const st = r.cats[key];
+    if (!st.n) continue;
+    const tol = key === "primary" ? C2D.tolP : C2D.tolS;
+    h += `<div class="c2d-stat"><b>${r.dual ? tr(C2M_CAT_KEY[key]) : tr("c2d.allElems")}</b> <span class="tolq">${tol} mm</span>` +
+         `<div>${tr("c2d.conf", { p: pctOf(st.n - st.over, st.n), n: st.n.toLocaleString("it-IT") })}</div>` +
+         `<div>${tr("c2d.stats", { avg: _c2dFmt(st.sum / st.n), p95: _c2dFmt(_c2dPct(st.hist, st.n, 0.95, st.max)), max: _c2dFmt(st.max) })}</div></div>`;
+  }
+  /* elementi assunti primari (senza classificazione): sono DENTRO le statistiche
+     dei primari, ma il report li dichiara — spacciare un'assunzione per una
+     codifica non reggerebbe in contraddittorio. */
+  if (r.dual && r.nElUnc) {
+    h += `<div class="c2d-stat c2d-unc"><b>${tr("c2d.uncTitle")}</b>` +
+         `<div class="c2d-uncnote">${tr("c2d.uncBody", { el: r.nElUnc })}</div></div>`;
+    for (const el of r.uncElems) {
+      h += `<div class="c2m-row" title="${esc(el.code || tr("c2d.noCode"))} · ${esc(el.tipo || "")}">` +
+           `<span class="cd">${esc(_clashName({ model: el.model, eid: el.eid }))}</span>` +
+           `<span class="cnt">${_c2dFmt(el.max)}</span>` +
+           `<span class="cat unknown">${el.code ? esc(el.code) : tr("c2d.noCodeBadge")}</span></div>`;
+    }
+  }
+  if (r.elems.length) {
+    h += `<div class="c2m-note">${tr("c2d.worst")}</div>`;
+    for (const el of r.elems) {
+      h += `<div class="c2m-row" title="${esc(el.code || "")} ${esc(el.tipo || "")}">` +
+           `<span class="cd">${esc(_clashName({ model: el.model, eid: el.eid }))}</span>` +
+           `<span class="cnt">${_c2dFmt(el.max)}</span>` +
+           `<span class="cat ${el.cat}">${el.over.toLocaleString("it-IT")}</span></div>`;
+    }
+  }
+  h += `<div class="c2d-ghost"><label>${tr("c2d.ghost")} <input id="c2dGhost" type="range" min="0" max="100" value="${Math.round(modelGhost * 100)}"></label>` +
+       `<button id="btnC2dReset" class="c2d-reset">${tr("c2d.reset")}</button></div>`;
+  box.innerHTML = h;
+  $("c2dGhost").addEventListener("input", (e) => { modelGhost = (+e.target.value) / 100; applyIsolate(); });
+  $("btnC2dReset").addEventListener("click", restoreCloudColors);
+}
+
+$("btnC2dRun") && $("btnC2dRun").addEventListener("click", runC2dCheck);
+/* due soglie: scambia gli input e fa comparire il pannello di mappatura codici
+   (la geometria si invalida da sé: la modalità è nella firma _c2dSig) */
+$("c2dDual") && $("c2dDual").addEventListener("change", () => {
+  C2D.dual = $("c2dDual").checked;
+  for (const id of ["c2dLblTol", "c2dRowTol"]) $(id).style.display = C2D.dual ? "none" : "";
+  for (const id of ["c2dLblTolP", "c2dRowTolP", "c2dLblTolS", "c2dRowTolS"]) $(id).style.display = C2D.dual ? "" : "none";
+  renderC2mBlock();
+});
+/* ripiego per classe IFC (opt-in): riclassifica con la lettura pset già in cache */
+$("c2mUseClassMap") && $("c2mUseClassMap").addEventListener("change", () => {
+  C2M.useClassMap = $("c2mUseClassMap").checked;
+  C2M.book = c2mRebuildBook(C2M.book.rows);
+  C2M.bookSeq++;
+  if (C2M.summary) c2mScan();
+  renderC2mBlock();
+});
+
+$("btnC2mScan") && $("btnC2mScan").addEventListener("click", runC2mScan);
+$("btnC2mBook") && $("btnC2mBook").addEventListener("click", () => $("fileC2mBook").click());
+$("btnC2mStub") && $("btnC2mStub").addEventListener("click", downloadC2mStub);
+$("fileC2mBook") && $("fileC2mBook").addEventListener("change", async (e) => { if (e.target.files[0]) await loadC2mBook(e.target.files[0]); e.target.value = ""; });
+/* delega: le righe codice sono ricostruite a ogni render, il contenitore no */
+$("c2mInfo") && $("c2mInfo").addEventListener("click", (e) => {
+  const row = e.target.closest(".c2m-row.pick");
+  if (row && row.dataset.code) c2mSelectCode(row.dataset.code, row);
+});
+$("c2mInfo") && $("c2mInfo").addEventListener("change", (e) => {
+  const sel = e.target.closest("select.c2m-classcat");
+  if (sel) c2mSetClassCat(sel.dataset.ic, sel.value);
+});
+
+/* ---- selettore del campo codice (apertura oltre Classe/CodiceWBS) ----
+   Le tendine pset → proprietà riusano l'indice lazy del QTO: si costruisce
+   solo quando l'utente sceglie "Proprietà a scelta…". */
+function c2mFillFieldSelects() {
+  const ps = $("c2mFieldPset");
+  const idx = ensureQtoPropIndex();
+  ps.innerHTML = `<option value="">${esc(tr("qto.selPset"))}</option>`;
+  for (const name of idx.keys()) {
+    const o = document.createElement("option"); o.value = name; o.textContent = name; ps.appendChild(o);
+  }
+  if (C2M.customProp && idx.has(C2M.customProp.pset)) ps.value = C2M.customProp.pset;
+  c2mFillPropSelect();
+}
+function c2mFillPropSelect() {
+  const pr = $("c2mFieldProp");
+  const pset = $("c2mFieldPset").value;
+  const props = pset ? (ensureQtoPropIndex().get(pset) || []) : [];
+  pr.innerHTML = `<option value="">${esc(tr("qto.selProp"))}</option>`;
+  for (const p of props) {
+    const o = document.createElement("option"); o.value = p; o.textContent = p; pr.appendChild(o);
+  }
+  pr.disabled = !props.length;
+  if (C2M.customProp && C2M.customProp.pset === pset) pr.value = C2M.customProp.prop;
+}
+/* Cambio campo: catalogo ricostruito e ricognizione RIFATTA (la cache dei codici
+   si invalida da sé via firma in readElemCodes — rilettura pset completa, quindi
+   passa da runC2mScan che ha lo spinner). */
+async function c2mFieldChanged() {
+  C2M.book = c2mRebuildBook(C2M.book.rows);
+  C2M.bookSeq++;
+  if (C2M.summary) await runC2mScan(); else renderC2mBlock();
+}
+function c2mApplyField() {
+  const pset = $("c2mFieldPset").value, prop = $("c2mFieldProp").value;
+  if (!pset || !prop) return;
+  const cur = C2M.customProp;
+  if (cur && cur.pset === pset && cur.prop === prop) return;
+  C2M.customProp = { pset, prop };
+  c2mFieldChanged();
+}
+$("c2mFieldMode") && $("c2mFieldMode").addEventListener("change", () => {
+  const custom = $("c2mFieldMode").value === "custom";
+  $("c2mFieldPick").style.display = custom ? "" : "none";
+  if (custom) c2mFillFieldSelects();
+  else if (C2M.customProp) { C2M.customProp = null; c2mFieldChanged(); }
+});
+$("c2mFieldPset") && $("c2mFieldPset").addEventListener("change", () => { c2mFillPropSelect(); c2mApplyField(); });
+$("c2mFieldProp") && $("c2mFieldProp").addEventListener("change", c2mApplyField);
 
 /* --- UI: selettore asse (tendina) + finestra profilo altimetrico --- */
 function _alnEsc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
