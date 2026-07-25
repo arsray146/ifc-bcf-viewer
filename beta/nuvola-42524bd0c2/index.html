@@ -179,9 +179,10 @@ main.left-off .left-resize{display:none}
 .ltab-page{flex:1;display:flex;flex-direction:column;min-height:0}
 /* La lista modelli si dimensiona sul contenuto (non più flex:1): con pochi
    modelli non gonfia più a tutta altezza lasciando un vuoto fisso sopra le
-   nuvole. Tetto al 55% + scroll proprio così una federazione grossa resta
-   navigabile senza mangiarsi il pannello. */
-#modelList{flex:0 1 auto;overflow-y:auto;padding:6px 8px;min-height:70px;max-height:55%}
+   nuvole. flex-shrink 0: il blocco sotto (nuvole/verifica) NON può comprimerla
+   sotto il contenuto — tagliava le righe modello a metà. Il tetto resta il 55%
+   con scroll proprio, così una federazione grossa non si mangia il pannello. */
+#modelList{flex:0 0 auto;overflow-y:auto;padding:6px 8px;min-height:70px;max-height:55%}
 /* Blocchi in coda alla tab Modelli (nuvole, verifica, codici): una sola area
    scorrevole che ora PRENDE lo spazio libero (flex:1) — è qui che si accumulano
    i risultati della verifica nuvola↔modello, quindi è a loro che serve respiro.
@@ -239,6 +240,14 @@ main.left-off .left-resize{display:none}
 /* riga cliccabile: evidenzia nel modello gli elementi di quel codice */
 .c2m-row.pick{cursor:pointer}
 .c2m-row.sel{background:var(--lime-soft);box-shadow:inset 2px 0 0 var(--lime-deep)}
+/* selettore del campo codice (auto / proprietà a scelta) */
+.c2m-field{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:4px 8px;font-size:12px}
+.c2m-field label{color:var(--muted);flex:0 0 auto}
+.c2m-field select{font-size:12px;padding:2px 4px;flex:1 1 auto;min-width:0}
+#c2mFieldPick{display:flex;gap:4px;min-width:0;flex:1 1 100%}
+/* ripiego per classe IFC editabile */
+.c2m-subhead{padding:7px 6px 2px;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);cursor:help}
+.c2m-class-row select{font-size:11px;padding:1px 2px;flex:0 0 auto;max-width:110px}
 /* verifica nuvola ↔ modello: distanze, soglie, legenda */
 .c2d-opts{display:grid;grid-template-columns:1fr auto;gap:3px 6px;align-items:center;padding:2px 6px 4px;font-size:11.5px;color:var(--muted)}
 .c2d-opts input{width:62px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--fg);
@@ -271,6 +280,9 @@ main.left-off .left-resize{display:none}
 .pc-modal-f button{padding:8px 14px;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
 .pc-modal-sub{border-color:var(--lime-deep)!important;background:var(--lime-soft)!important}
 .pc-modal-all:hover,.pc-modal-sub:hover{border-color:var(--lime)}
+/* conferma generica (appConfirm): l'azione distruttiva è marcata, la sicura ha il focus */
+.pc-modal-ok.danger{border-color:var(--st-open);color:var(--st-open)}
+.pc-modal-ok.danger:hover{background:var(--st-open);color:#fff}
 /* albero struttura IFC */
 .model-tree{margin:0 0 4px 13px;border-left:2px solid var(--line);padding:2px 0 4px 4px}
 .tree-row{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:4px;font-size:12px;min-width:0}
@@ -998,13 +1010,16 @@ input[type=file]{display:none}
           </span>
         </div>
         <div class="c2d-opts">
-          <label data-i18n="c2d.tolP" data-i18n-title="c2d.tolPT" title="Soglia contrattuale per gli elementi primari">Primari</label>
-          <span><input id="c2dTolP" type="number" value="70" min="1" step="5"> mm</span>
-          <label data-i18n="c2d.tolS" data-i18n-title="c2d.tolST" title="Soglia contrattuale per gli elementi secondari">Secondari</label>
-          <span><input id="c2dTolS" type="number" value="100" min="1" step="5"> mm</span>
+          <label id="c2dLblTol" data-i18n="c2d.tol" data-i18n-title="c2d.tolT" title="Soglia unica di verifica per tutti gli elementi">Soglia</label>
+          <span id="c2dRowTol"><input id="c2dTol" type="number" value="70" min="1" step="5"> mm</span>
+          <label id="c2dLblTolP" style="display:none" data-i18n="c2d.tolP" data-i18n-title="c2d.tolPT" title="Soglia contrattuale per gli elementi primari">Primari</label>
+          <span id="c2dRowTolP" style="display:none"><input id="c2dTolP" type="number" value="70" min="1" step="5"> mm</span>
+          <label id="c2dLblTolS" style="display:none" data-i18n="c2d.tolS" data-i18n-title="c2d.tolST" title="Soglia contrattuale per gli elementi secondari">Secondari</label>
+          <span id="c2dRowTolS" style="display:none"><input id="c2dTolS" type="number" value="100" min="1" step="5"> mm</span>
           <label data-i18n="c2d.max" data-i18n-title="c2d.maxT" title="Oltre questa distanza il punto è considerato fuori tema (vegetazione, terreno, veicoli) e non entra nelle statistiche">Distanza max</label>
           <span><input id="c2dMax" type="number" value="0.35" min="0.05" step="0.05"> m</span>
         </div>
+        <label class="c2d-prev"><input id="c2dDual" type="checkbox"> <span data-i18n="c2d.dual" data-i18n-title="c2d.dualT" title="Mappa gli elementi in primari e secondari (codici o classi IFC) con due soglie distinte; i non classificati sono trattati come primari">Due soglie (primari / secondari)</span></label>
         <label class="c2d-prev"><input id="c2dPreview" type="checkbox" checked> <span data-i18n="c2d.preview">Anteprima su campione uniforme</span></label>
         <div id="c2dInfo"></div>
       </div>
@@ -1017,6 +1032,18 @@ input[type=file]{display:none}
             <button id="btnC2mStub" class="pc-add" data-i18n-title="c2m.stubT" title="Scarica il catalogo precompilato con i codici trovati">⤓</button>
           </span>
         </div>
+        <div class="c2m-field">
+          <label data-i18n="c2m.field" data-i18n-title="c2m.fieldT" title="Da quale proprietà leggere il codice di classificazione. Auto: Classe / CodiceWBS / Gruppo anagrafica. In alternativa qualunque proprietà di pset (Uniclass, Assembly Code, WBS aziendale…)">Campo codice</label>
+          <select id="c2mFieldMode">
+            <option value="auto" data-i18n="c2m.fieldAuto">Auto (Classe / CodiceWBS)</option>
+            <option value="custom" data-i18n="c2m.fieldCustom">Proprietà a scelta…</option>
+          </select>
+          <span id="c2mFieldPick" style="display:none">
+            <select id="c2mFieldPset"></select>
+            <select id="c2mFieldProp" disabled></select>
+          </span>
+        </div>
+        <label class="c2d-prev"><input id="c2mUseClassMap" type="checkbox"> <span data-i18n="c2m.classUse" data-i18n-title="c2m.classUseT" title="Classifica per classe IFC gli elementi senza codice a catalogo (tabella modificabile qui sotto). Spento: i non classificati sono trattati come primari.">Ripiego per classe IFC</span></label>
         <div id="c2mInfo"></div>
       </div>
       </div>
@@ -1352,7 +1379,7 @@ import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js";  
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
          parseMatrixCsv, matrixToCsv, matrixToRules, nearestPoint } from "./clash.js";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES } from "./wbs.js";                // studio verifica nuvola ↔ modello
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js";  // studio verifica nuvola ↔ modello
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -1694,6 +1721,18 @@ const STRINGS = {
     "c2m.selHint": "clic: evidenzia gli elementi nel modello (di nuovo per togliere)",
     "toast.c2mSel": "{n} elementi con codice {code} evidenziati", "toast.c2mSelEmpty": "Nessun elemento con codice {code}",
     "toast.c2mSelMany": "Troppi elementi da evidenziare ({n})",
+    "c2m.field": "Campo codice",
+    "c2m.fieldT": "Da quale proprietà leggere il codice di classificazione. Auto: Classe / CodiceWBS / Gruppo anagrafica. In alternativa qualunque proprietà di pset (Uniclass, Assembly Code, WBS aziendale…)",
+    "c2m.fieldAuto": "Auto (Classe / CodiceWBS)", "c2m.fieldCustom": "Proprietà a scelta…",
+    "c2m.covCustom": "<b>{coded}</b> di <b>{n}</b> elementi con codice · campo {field}",
+    "c2m.classHead": "Classi IFC — ripiego",
+    "c2m.classHeadT": "Categoria per classe IFC degli elementi che il catalogo non risolve. Su un modello senza codici è l'intera classificazione; modificala per adattare la verifica a qualunque modello.",
+    "c2m.classRowT": "{n} elementi decisi da questa riga (senza codice a catalogo)",
+    "c2m.catNone": "da classificare",
+    "c2m.classUse": "Ripiego per classe IFC",
+    "c2m.classUseT": "Classifica per classe IFC gli elementi senza codice a catalogo (tabella modificabile qui sotto). Spento: i non classificati sono trattati come primari.",
+    "c2m.helpNoCodes": "Nessun codice in questo campo: scegli la proprietà giusta in <b>Campo codice</b>, oppure attiva il <b>ripiego per classe IFC</b> — senza alcun file.",
+    "c2m.helpStub": "Non serve conoscere il formato del catalogo: <b>⤓</b> scarica un CSV già precompilato coi codici trovati — aprilo in Excel, compila la colonna <b>categoria</b> (primario / secondario / escluso) e ricaricalo con <b>＋</b>.",
     "toast.c2mScan": "{n} elementi letti: {c} codici distinti",
     "toast.c2mNoModels": "Carica prima almeno un modello IFC",
     "toast.c2mBook": "Catalogo «{f}»: {n} regole attive{e}", "toast.c2mBookErr": "Catalogo «{f}»: nessuna regola valida",
@@ -1706,7 +1745,12 @@ const STRINGS = {
     "c2d.tolS": "Secondari", "c2d.tolST": "Soglia contrattuale per gli elementi secondari",
     "c2d.max": "Distanza max", "c2d.maxT": "Oltre questa distanza il punto è considerato fuori tema (vegetazione, terreno, veicoli) e non entra nelle statistiche",
     "c2d.preview": "Anteprima su campione uniforme",
-    "c2d.hint": "Colora ogni punto della nuvola in base alla distanza dalla superficie più vicina, con la soglia dell'elemento a cui appartiene. Gli elementi <b>esclusi</b> dal catalogo (armature, scavi, magrone) non partecipano.",
+    "c2d.hint": "Colora ogni punto della nuvola in base alla distanza dalla superficie più vicina del modello. Con <b>due soglie</b> attive la soglia è quella dell'elemento a cui il punto appartiene, e gli elementi esclusi dal catalogo non partecipano.",
+    "c2d.tol": "Soglia", "c2d.tolT": "Soglia unica di verifica per tutti gli elementi",
+    "c2d.dual": "Due soglie (primari / secondari)",
+    "c2d.dualT": "Mappa gli elementi in primari e secondari (codici o classi IFC) con due soglie distinte; i non classificati sono trattati come primari",
+    "c2d.allElems": "tutti gli elementi",
+    "c2d.covSingle": "Elementi: <b>{n}</b>, tutti verificati alla soglia unica di {d} mm",
     "c2d.prep": "Preparo la geometria…",
     "c2d.running": "Calcolo distanze… {pct}% ({n} punti)",
     "c2d.stopped": "Calcolo interrotto.",
@@ -1715,13 +1759,13 @@ const STRINGS = {
     "c2d.tooBig": "Modello troppo grande per il calcolo in browser: {n} triangoli (tetto {cap} milioni). Isola l'opera da verificare e riprova.",
     "c2d.done": "<b>{n}</b> punti misurati in {s}s",
     "c2d.far": "{n} oltre {d} (fuori tema, esclusi)",
-    "c2d.cov": "Elementi: <b>{c}</b> con soglia di categoria · <b>{u}</b> non classificati · {x} esclusi dal calcolo",
+    "c2d.cov": "Elementi: <b>{c}</b> con soglia di categoria · <b>{u}</b> assunti primari · {x} esclusi dal calcolo",
     "c2d.exclWhy": "esclusi perché senza superficie a vista: {list}",
     "c2d.lgOk": "entro soglia", "c2d.lgWarn": "entro {d}", "c2d.lgBad": "fuori",
     "c2d.conf": "<b>{p}%</b> conformi su {n} punti",
     "c2d.stats": "media {avg} · p95 {p95} · max {max}",
-    "c2d.uncTitle": "Non classificati — soglia più restrittiva",
-    "c2d.uncBody": "{el} elementi senza codice a catalogo: giudicati cautelativamente alla soglia più stretta. Da codificare per una verifica definitiva.",
+    "c2d.uncTitle": "Senza classificazione — assunti primari",
+    "c2d.uncBody": "{el} elementi senza classificazione: trattati come primari (dentro le statistiche dei primari). Da codificare per una verifica definitiva.",
     "c2d.noCode": "senza codice", "c2d.noCodeBadge": "no codice",
     "c2d.worst": "Elementi con più punti fuori soglia (max · n. punti)",
     "c2d.ghost": "Modello", "c2d.reset": "Colori originali",
@@ -1879,6 +1923,8 @@ const STRINGS = {
     "model.dlIfc": "Scarica IFC aggiornato", "model.remove": "Rimuovi modello", "model.el": "el.",
     "confirm.removeModel": "Rimuovere {name} dalla federazione?",
     "confirm.removeModelDirty": "Rimuovere {name} dalla federazione?\n\nATTENZIONE: {n} modifiche non scaricate andranno perse.",
+    "confirm.removeTitle": "Conferma rimozione", "confirm.remove": "Rimuovi",
+    "confirm.ok": "OK", "confirm.no": "Annulla",
     "tree.nodeTitle": "Clic: proprietà e selezione · Doppio clic: zoom · ▸: espandi",
     "tree.nodeTitleNoGeo": "▸ o clic: espandi",
     "tree.catTitle": "Clic: seleziona tutti gli elementi della categoria · Doppio clic: zoom · ▸: espandi",
@@ -2154,6 +2200,18 @@ const STRINGS = {
     "c2m.selHint": "click: highlight the elements in the model (click again to clear)",
     "toast.c2mSel": "{n} elements with code {code} highlighted", "toast.c2mSelEmpty": "No element with code {code}",
     "toast.c2mSelMany": "Too many elements to highlight ({n})",
+    "c2m.field": "Code field",
+    "c2m.fieldT": "Which property carries the classification code. Auto: Classe / CodiceWBS / Gruppo anagrafica. Or pick any pset property (Uniclass, Assembly Code, company WBS…)",
+    "c2m.fieldAuto": "Auto (Classe / CodiceWBS)", "c2m.fieldCustom": "Pick a property…",
+    "c2m.covCustom": "<b>{coded}</b> of <b>{n}</b> elements with a code · field {field}",
+    "c2m.classHead": "IFC classes — fallback",
+    "c2m.classHeadT": "Category per IFC class for the elements the catalogue does not resolve. On a model with no codes this is the whole classification; edit it to fit the check to any model.",
+    "c2m.classRowT": "{n} elements decided by this row (no catalogue code)",
+    "c2m.catNone": "to classify",
+    "c2m.classUse": "IFC-class fallback",
+    "c2m.classUseT": "Classifies elements with no catalogue code by their IFC class (editable table below). Off: unclassified elements are treated as primary.",
+    "c2m.helpNoCodes": "No code in this field: pick the right property under <b>Code field</b>, or turn on the <b>IFC-class fallback</b> — no file needed.",
+    "c2m.helpStub": "No need to learn the catalogue format: <b>⤓</b> downloads a CSV pre-filled with the codes found — open it in Excel, fill in the <b>categoria</b> column (primario / secondario / escluso) and load it back with <b>＋</b>.",
     "toast.c2mScan": "{n} elements read: {c} distinct codes",
     "toast.c2mNoModels": "Load at least one IFC model first",
     "toast.c2mBook": "Catalogue \"{f}\": {n} active rules{e}", "toast.c2mBookErr": "Catalogue \"{f}\": no valid rule",
@@ -2166,7 +2224,12 @@ const STRINGS = {
     "c2d.tolS": "Secondary", "c2d.tolST": "Contractual threshold for secondary elements",
     "c2d.max": "Max distance", "c2d.maxT": "Beyond this distance a point is off-topic (vegetation, ground, vehicles) and is left out of the statistics",
     "c2d.preview": "Preview on a uniform sample",
-    "c2d.hint": "Colours every cloud point by its distance from the nearest surface, against the threshold of the element it belongs to. Elements <b>excluded</b> by the catalogue (rebar, excavations, blinding) take no part.",
+    "c2d.hint": "Colours every cloud point by its distance from the nearest model surface. With <b>two thresholds</b> on, the threshold is that of the element the point belongs to, and elements excluded by the catalogue take no part.",
+    "c2d.tol": "Threshold", "c2d.tolT": "Single verification threshold for every element",
+    "c2d.dual": "Two thresholds (primary / secondary)",
+    "c2d.dualT": "Maps elements into primary and secondary (codes or IFC classes) with two distinct thresholds; unclassified elements are treated as primary",
+    "c2d.allElems": "all elements",
+    "c2d.covSingle": "Elements: <b>{n}</b>, all checked against the single {d} mm threshold",
     "c2d.prep": "Preparing geometry…",
     "c2d.running": "Computing distances… {pct}% ({n} points)",
     "c2d.stopped": "Computation stopped.",
@@ -2175,13 +2238,13 @@ const STRINGS = {
     "c2d.tooBig": "Model too large for in-browser computation: {n} triangles (cap {cap} million). Isolate the structure to check and try again.",
     "c2d.done": "<b>{n}</b> points measured in {s}s",
     "c2d.far": "{n} beyond {d} (off-topic, excluded)",
-    "c2d.cov": "Elements: <b>{c}</b> with a category threshold · <b>{u}</b> unclassified · {x} excluded from the computation",
+    "c2d.cov": "Elements: <b>{c}</b> with a category threshold · <b>{u}</b> assumed primary · {x} excluded from the computation",
     "c2d.exclWhy": "excluded because they have no visible surface: {list}",
     "c2d.lgOk": "within threshold", "c2d.lgWarn": "within {d}", "c2d.lgBad": "out",
     "c2d.conf": "<b>{p}%</b> compliant out of {n} points",
     "c2d.stats": "mean {avg} · p95 {p95} · max {max}",
-    "c2d.uncTitle": "Unclassified — strictest threshold",
-    "c2d.uncBody": "{el} elements with no catalogue code: judged conservatively against the strictest threshold. Code them for a final verification.",
+    "c2d.uncTitle": "No classification — assumed primary",
+    "c2d.uncBody": "{el} elements with no classification: treated as primary (inside the primary statistics). Code them for a final verification.",
     "c2d.noCode": "no code", "c2d.noCodeBadge": "no code",
     "c2d.worst": "Elements with the most points out of threshold (max · point count)",
     "c2d.ghost": "Model", "c2d.reset": "Original colours",
@@ -2331,6 +2394,8 @@ const STRINGS = {
     "model.dlIfc": "Download updated IFC", "model.remove": "Remove model", "model.el": "el.",
     "confirm.removeModel": "Remove {name} from the federation?",
     "confirm.removeModelDirty": "Remove {name} from the federation?\n\nWARNING: {n} unsaved changes will be lost.",
+    "confirm.removeTitle": "Confirm removal", "confirm.remove": "Remove",
+    "confirm.ok": "OK", "confirm.no": "Cancel",
     "tree.nodeTitle": "Click: properties and selection · Double-click: zoom · ▸: expand",
     "tree.nodeTitleNoGeo": "▸ or click: expand",
     "tree.catTitle": "Click: select all elements in the category · Double-click: zoom · ▸: expand",
@@ -2381,6 +2446,7 @@ function refreshDynamicI18n() {
   try { renderIssueList(); renderReportList(); } catch (e) {}
   try { renderIdsChips(); renderIdsList(); } catch (e) {}
   try { renderQtoSelects(); renderQtoColChips(); renderQtoList(); } catch (e) {}
+  try { renderC2mBlock(); } catch (e) {}   /* righe codici + tabella classi (verifica nuvola) */
   try { if (models.length) renderModelList(); } catch (e) {}   /* tooltip e conteggi delle righe modello */
   try { updateNavHelp(); } catch (e) {}
   if (typeof statsOpen !== "undefined" && statsOpen) { try { openReportStats(); } catch (e) {} }
@@ -3412,9 +3478,14 @@ function renderModelRows(list) {
       e.stopPropagation();
       toggleModelVisibility(m);
     });
-    row.querySelector(".rm").addEventListener("click", (e) => {
+    row.querySelector(".rm").addEventListener("click", async (e) => {
       e.stopPropagation();
-      if (confirm(m.dirty ? tr("confirm.removeModelDirty", { name: m.name, n: m.edits.length }) : tr("confirm.removeModel", { name: m.name }))) removeModel(m);
+      const okRm = await appConfirm({
+        title: tr("confirm.removeTitle"),
+        body: m.dirty ? tr("confirm.removeModelDirty", { name: m.name, n: m.edits.length }) : tr("confirm.removeModel", { name: m.name }),
+        ok: tr("confirm.remove"), danger: true
+      });
+      if (okRm) removeModel(m);
     });
     row.addEventListener("dblclick", (e) => {
       if (e.target.closest("button")) return;
@@ -5198,9 +5269,10 @@ function renderBcfSources() {
     box.appendChild(chip);
   }
 }
-function unloadBcfSource(src) {
+async function unloadBcfSource(src) {
   const mine = topics.filter(t => t._src === src);
-  if (mine.some(t => t._dirty) && !confirm(tr("confirm.unloadDirtyBcf"))) return;
+  if (mine.some(t => t._dirty) &&
+      !(await appConfirm({ title: tr("confirm.removeTitle"), body: tr("confirm.unloadDirtyBcf"), ok: tr("confirm.remove"), danger: true }))) return;
   for (const t of mine) for (const vp of t.viewpoints) if (vp.snapshotUrl) { try { URL.revokeObjectURL(vp.snapshotUrl); } catch (e) {} }
   const n = mine.length;
   if (activeTopic && activeTopic._src === src) { closeDetail(); clearHighlight(); }
@@ -8380,6 +8452,32 @@ function showLoading(msg) { $("loadingMsg").textContent = msg; $("loading").clas
 function hideLoading() { $("loading").classList.remove("on"); }
 function tick() { return new Promise(r => setTimeout(r, 40)); }
 let toastTimer = null;
+/* Conferma in stile viewer al posto del confirm() nativo del browser.
+   Promessa booleana; Escape e clic fuori = annulla; il focus parte sul
+   pulsante SICURO (Annulla), così un Invio distratto non distrugge nulla.
+   opts: { title?, body, ok?, cancel?, danger? } — body: i \n diventano <br>. */
+function appConfirm(opts) {
+  return new Promise((resolve) => {
+    const o = typeof opts === "string" ? { body: opts } : opts;
+    const ov = document.createElement("div");
+    ov.className = "pc-modal-ov";
+    ov.innerHTML =
+      `<div class="pc-modal" role="dialog" aria-modal="true">` +
+      (o.title ? `<div class="pc-modal-h">${esc(o.title)}</div>` : "") +
+      `<div class="pc-modal-b">${esc(o.body || "").replace(/\n/g, "<br>")}</div>` +
+      `<div class="pc-modal-f"><button class="pc-modal-sub" data-act="no">${esc(o.cancel || tr("confirm.no"))}</button>` +
+      `<button class="pc-modal-ok${o.danger ? " danger" : ""}" data-act="ok">${esc(o.ok || tr("confirm.ok"))}</button></div></div>`;
+    document.body.appendChild(ov);
+    const done = v => { ov.remove(); document.removeEventListener("keydown", onKey); resolve(v); };
+    const onKey = e => { if (e.key === "Escape") done(false); };
+    ov.querySelector('[data-act="ok"]').addEventListener("click", () => done(true));
+    ov.querySelector('[data-act="no"]').addEventListener("click", () => done(false));
+    ov.addEventListener("click", e => { if (e.target === ov) done(false); });   // clic fuori = scelta sicura
+    document.addEventListener("keydown", onKey);
+    ov.querySelector('[data-act="no"]').focus();
+  });
+}
+
 function toast(msg, ms) {
   const t = $("toast");
   t.textContent = msg;
@@ -9698,15 +9796,29 @@ $("filePc").addEventListener("change", async (e) => { for (const f of e.target.f
    logica pura sta in viewer/wbs.js (testabile in Node), qui solo l'accoppiamento con
    web-ifc: lettura dei pset, ricognizione, UI. */
 const C2M = {
-  book: makeCodebook([]),   // catalogo attivo (vuoto = solo ripiego su classe IFC)
+  book: makeCodebook([], { ifcFallback: false }),   // catalogo attivo (coerente con useClassMap: false)
   bookName: "",             // nome del file catalogo, per l'evidenza documentale
   bookSeq: 0,               // contatore dei caricamenti: due file OMONIMI ma diversi
                             // devono invalidare lo stesso la geometria della verifica
+  customProp: null,         // {pset, prop} scelto dall'utente come campo codice; null = auto (Classe/WBS)
+  useClassMap: false,       // ripiego per classe IFC: OPT-IN — spento, i senza-codice sono primari
+  classCats: null,          // classe IFC → categoria, editata dall'utente; null = IFC_FALLBACK intonso
+  classStat: null,          // classe IFC → {n, nFb, label} dall'ultima ricognizione (nFb = a ripiego)
   summary: null,            // ultima ricognizione (wbs.summarize)
   byCode: null,             // codice → [{m, eid}] per evidenziare al clic gli stessi elementi contati
   selCode: null,            // codice attualmente evidenziato nel modello (per il toggle)
   sig: ""                   // firma dei modelli su cui è stata fatta
 };
+
+/* Il catalogo si ricostruisce SEMPRE da qui, così campo custom e ripiego editato
+   sopravvivono al caricamento di un CSV (e viceversa). bookSeq lo incrementa il
+   chiamante: è l'unica leva che invalida la geometria della verifica. */
+function c2mRebuildBook(rows) {
+  const opts = { ifcFallback: !!C2M.useClassMap };   // ripiego per classe solo se attivato
+  if (C2M.customProp) opts.codeOrder = ["custom"];
+  if (C2M.useClassMap && C2M.classCats) opts.ifcMap = Object.fromEntries(C2M.classCats);
+  return makeCodebook(rows || [], opts);
+}
 
 /* Codici (Classe / Codice WBS / Gruppo anagrafica) di un elemento: pset di istanza,
    poi pset del Type — negli export Revit il codice sta spesso sul Type. I nomi
@@ -9714,21 +9826,28 @@ const C2M = {
    (muore col modello: nessuna invalidazione da gestire come per classeCache). */
 const C2M_FIELDS = Object.keys(PROP_ALIASES);
 function readElemCodes(model, eid) {
-  const cache = model._codeCache || (model._codeCache = new Map());
+  /* la cache dipende dal campo custom scelto: cambiarlo la azzera (per modello) */
+  const cp = C2M.customProp;
+  const sig = cp ? cp.pset + " " + cp.prop : "";
+  if (model._codeCacheSig !== sig) { model._codeCache = new Map(); model._codeCacheSig = sig; }
+  const cache = model._codeCache;
   let v = cache.get(eid);
   if (v) return v;
   v = {};
   for (const f of C2M_FIELDS) v[f] = "";
+  if (cp) v.custom = "";
   const scan = (pid) => {
     let pset; try { pset = readPset(model, pid); } catch (e) { return; }
     for (const p of pset.props) {
       const f = matchCodeProp(p.k);
       if (f && !v[f]) v[f] = String(p.v == null ? "" : p.v).trim();
+      if (cp && !v.custom && pset.name === cp.pset && p.k === cp.prop)
+        v.custom = String(p.v == null ? "" : p.v).trim();
     }
   };
   ensurePsetMap(model);
   for (const pid of model.psetMap.get(eid) || []) scan(pid);
-  if (C2M_FIELDS.some(f => !v[f])) {               // completa dal Type solo se manca qualcosa
+  if (C2M_FIELDS.some(f => !v[f]) || (cp && !v.custom)) {   // completa dal Type solo se manca qualcosa
     ensureTypeMap(model);
     const tId = model.typeOfElem.get(eid);
     if (tId !== undefined) for (const pid of model.typePsetIds.get(tId) || []) scan(pid);
@@ -9743,16 +9862,23 @@ function readElemCodes(model, eid) {
 function c2mScan() {
   const items = [];
   const byCode = new Map();                          // codice → elementi, per evidenziare al clic
+  const cstat = new Map();                           // classe IFC → {n, nFb}: chi cade sul ripiego
   for (const m of models) {
     for (const eid of m.guidByExpress.keys()) {
       const it = Object.assign({ ifcClass: _clashClassName(m, m.typeByExpress.get(eid) || 0) }, readElemCodes(m, eid));
       items.push(it);
-      const code = classifyElement(it, C2M.book).code;   // stessa classificazione di summarize → stesse righe
-      if (code) { let a = byCode.get(code); if (!a) byCode.set(code, a = []); a.push({ m, eid }); }
+      const cls = classifyElement(it, C2M.book);     // stessa classificazione di summarize → stesse righe
+      if (cls.code) { let a = byCode.get(cls.code); if (!a) byCode.set(cls.code, a = []); a.push({ m, eid }); }
+      const ic = String(it.ifcClass || "").toUpperCase();
+      let st = cstat.get(ic);
+      if (!st) cstat.set(ic, st = { n: 0, nFb: 0, label: it.ifcClass || ic });
+      st.n++;
+      if (cls.source !== "code") st.nFb++;           // non risolto dal catalogo: lo governa la tabella classi
     }
   }
   C2M.summary = summarizeCodes(items, C2M.book);
   C2M.byCode = byCode;
+  C2M.classStat = cstat;
   C2M.selCode = null;                                // una nuova ricognizione azzera la selezione per codice
   C2M.sig = models.map(m => m.uid).join(",");
   return C2M.summary;
@@ -9775,7 +9901,7 @@ async function runC2mScan() {
 async function loadC2mBook(file) {
   let text; try { text = await file.text(); } catch (e) { toast(tr("toast.c2mBookErr", { f: file.name })); return; }
   const p = parseCodebookCsv(text);
-  const book = makeCodebook(p.rows);
+  const book = c2mRebuildBook(p.rows);
   const bad = p.errors.length + book.errors.length;
   if (!book.rows.length) {
     if (bad) console.warn("[APE Viewer] catalogo codici:", p.errors, book.errors);
@@ -9801,7 +9927,9 @@ const C2M_TOP = 12;                                  // righe mostrate nel panne
 function renderC2mBlock() {
   const block = $("c2mBlock"), box = $("c2mInfo");
   if (!block || !box) return;
-  block.style.display = models.length ? "" : "none";
+  /* la mappatura dei codici appartiene alla modalità a due soglie: in modalità
+     standard (una soglia) il pannello non esiste — niente da configurare */
+  block.style.display = (models.length && typeof C2D !== "undefined" && C2D.dual) ? "" : "none";
   if (!models.length) { C2M.summary = null; C2M.byCode = null; C2M.selCode = null; return; }
   if (C2M.summary && C2M.sig !== models.map(m => m.uid).join(",")) { C2M.summary = null; C2M.byCode = null; C2M.selCode = null; }  // modelli cambiati
   const s = C2M.summary;
@@ -9810,10 +9938,18 @@ function renderC2mBlock() {
     box.innerHTML = html + `<div class="c2m-note">${tr("c2m.hint")}</div>`;
     return;
   }
-  html += `<div class="c2m-note">${tr("c2m.cov", { coded: s.nCoded.toLocaleString("it-IT"), n: s.n.toLocaleString("it-IT"), classe: s.byField.classe, wbs: s.byField.wbs })}` +
-          (s.byField.gruppo ? ` · ${tr("c2m.covGrp", { n: s.byField.gruppo })}` : "") +
+  html += `<div class="c2m-note">${C2M.customProp
+            ? tr("c2m.covCustom", { coded: s.nCoded.toLocaleString("it-IT"), n: s.n.toLocaleString("it-IT"), field: esc(C2M.customProp.pset + "." + C2M.customProp.prop) })
+            : tr("c2m.cov", { coded: s.nCoded.toLocaleString("it-IT"), n: s.n.toLocaleString("it-IT"), classe: s.byField.classe, wbs: s.byField.wbs }) +
+              (s.byField.gruppo ? ` · ${tr("c2m.covGrp", { n: s.byField.gruppo })}` : "")}` +
           (s.noCode ? ` · ${tr("c2m.noCode", { n: s.noCode.toLocaleString("it-IT") })}` : "") +
           `<br>${tr("c2m.cats", { p: s.byCat.primary, s: s.byCat.secondary, x: s.byCat.excluded, u: s.byCat.unknown })}</div>`;
+  /* Guida contestuale: il formato del CSV non va imparato — il pulsante ⤓ lo
+     genera già precompilato coi codici del modello. Detto SOLO quando serve:
+     nessun codice → indirizza a campo/classi; codici fuori catalogo → stub. */
+  const nUnmapped = s.codes.filter(c => c.code && c.source !== "code").length;
+  if (!s.nCoded) html += `<div class="c2m-note">${tr("c2m.helpNoCodes")}</div>`;
+  else if (nUnmapped) html += `<div class="c2m-note">${tr("c2m.helpStub")}</div>`;
   const codes = s.codes.filter(c => c.code);
   for (const c of codes.slice(0, C2M_TOP)) {
     const src = c.source === "code" ? tr("c2m.srcCode", { match: c.match }) : c.source === "ifc" ? tr("c2m.srcIfc") : tr("c2m.srcNone");
@@ -9824,7 +9960,41 @@ function renderC2mBlock() {
             `<span class="cat ${c.cat}${c.source === "code" ? "" : " guess"}">${tr(C2M_CAT_KEY[c.cat] || "c2m.catUnknown")}</span></div>`;
   }
   if (codes.length > C2M_TOP) html += `<div class="c2m-note">${tr("c2m.more", { n: codes.length - C2M_TOP })}</div>`;
+
+  /* Ripiego per classe IFC, EDITABILE e OPT-IN: governa solo gli elementi che il
+     catalogo non risolve (nFb) — su un modello senza codici è l'intera
+     classificazione. Spento, quegli elementi passano come primari (default). */
+  const fbClasses = C2M.useClassMap
+    ? [...(C2M.classStat || new Map()).entries()].filter(([, st]) => st.nFb > 0).sort((a, b) => b[1].nFb - a[1].nFb)
+    : [];
+  if (fbClasses.length) {
+    const effCat = ic => (C2M.classCats ? C2M.classCats.get(ic) : IFC_FALLBACK[ic]) || "";
+    html += `<div class="c2m-subhead" title="${esc(tr("c2m.classHeadT"))}">${tr("c2m.classHead")}</div>`;
+    const CAT_OPTS = [["", "c2m.catNone"], ["primary", "c2m.catPrimary"], ["secondary", "c2m.catSecondary"], ["excluded", "c2m.catExcluded"]];
+    for (const [ic, st] of fbClasses) {
+      const cur = effCat(ic);
+      html += `<div class="c2m-row c2m-class-row" title="${esc(tr("c2m.classRowT", { n: st.nFb.toLocaleString("it-IT") }))}">` +
+              `<span class="cd">${esc(st.label)}</span>` +
+              `<span class="cnt">${st.nFb.toLocaleString("it-IT")}</span>` +
+              `<select class="c2m-classcat" data-ic="${esc(ic)}">` +
+              CAT_OPTS.map(([v, k]) => `<option value="${v}"${v === cur ? " selected" : ""}>${esc(tr(k))}</option>`).join("") +
+              `</select></div>`;
+    }
+  }
   box.innerHTML = html;
+}
+
+/* Modifica del ripiego di una classe: la mappa utente nasce COPIANDO il default
+   (ifcMap sostituisce IFC_FALLBACK: senza copia, la prima modifica cancellerebbe
+   tutte le altre classi). Ricostruzione catalogo + riclassificazione: la lettura
+   pset è già in cache, ricalcola solo la classificazione. */
+function c2mSetClassCat(ic, cat) {
+  if (!C2M.classCats) C2M.classCats = new Map(Object.entries(IFC_FALLBACK));
+  if (cat) C2M.classCats.set(ic, cat); else C2M.classCats.delete(ic);
+  C2M.book = c2mRebuildBook(C2M.book.rows);
+  C2M.bookSeq++;                                     // la verifica distanze va rifatta
+  if (C2M.summary) c2mScan();
+  renderC2mBlock();
 }
 
 /* Clic su una riga di codice → evidenzia nel modello gli stessi elementi contati
@@ -9870,7 +10040,8 @@ function c2mSelectCode(code, rowEl) {
    three.js) raddoppiando la memoria di picco. Si misura, e si sposta solo se
    la fluidità non regge (vedi PIANO_Cloud_Model_Check.md §5). */
 const C2D = {
-  tolP: 70, tolS: 100,          // soglie di contratto (mm)
+  tolP: 70, tolS: 100,          // soglie di contratto (mm) — in modalità singola coincidono
+  dual: false,                  // default: UNA soglia per tutti (lo standard); due soglie = opzione contrattuale
   maxDist: 0.35,                 // oltre questa distanza (m) il punto è fuori tema, non fuori tolleranza
   preview: true,                // calcola sul campione uniforme invece che su tutti i punti
   running: false, cancel: false,
@@ -9893,7 +10064,7 @@ function _c2dFmt(m) {
 /* Firma della geometria della verifica: cambia coi modelli e a OGNI caricamento
    di catalogo (non col solo nome: ricaricare un file omonimo ma corretto deve
    ricostruire il BVH, altrimenti si misura ancora con le esclusioni vecchie). */
-function _c2dSig() { return models.map(m => m.uid).join(",") + "|" + C2M.bookSeq; }
+function _c2dSig() { return models.map(m => m.uid).join(",") + "|" + C2M.bookSeq + "|" + (C2D.dual ? 1 : 0); }   // la modalità cambia il set di elementi (esclusioni solo con due soglie)
 
 /* Istogramma → percentile (m). I bin sono di C2D_BIN_MM: il valore è il bordo
    superiore del bin, cioè una SOVRASTIMA di al più 5 mm — meglio sovrastimare
@@ -9923,16 +10094,27 @@ function _c2dBuildGeom() {
     const m = entry.model;
     for (const [eid, e] of entry.byEid) {
       if (!e.nTris) continue;
+      /* modalità standard (una soglia): NESSUNA classificazione — tutti gli
+         elementi con geometria entrano, zero letture pset. La mappatura
+         (categorie, esclusioni, ripiego) esiste solo con due soglie attive. */
+      if (!C2D.dual) {
+        elems.push({ model: m, eid, geo: e, cat: "primary", tipo: "", code: "",
+                     source: "none", assumed: false, tolM: 0, n: 0, over: 0, max: 0 });
+        totTris += e.nTris;
+        continue;
+      }
       const view = Object.assign({ ifcClass: _clashClassName(m, m.typeByExpress.get(eid) || 0) }, readElemCodes(m, eid));
       const cls = classifyElement(view, C2M.book);
       /* SOLO le tipologie dichiarate escluse (armature, scavi, magrone…) escono
          dal calcolo, ed è un'esclusione TRACCIATA: un elemento mis-codificato
-         che finisse qui è visibile nel conteggio, non sparisce in silenzio.
-         Un elemento SENZA codice o con codice non a catalogo NON è escluso: resta
-         nel BVH come "non classificato" e viene misurato (colore viola). */
+         che finisse qui è visibile nel conteggio, non sparisce in silenzio. */
       if (cls.cat === "excluded") { const k = cls.tipo || cls.code || "—"; excl.set(k, (excl.get(k) || 0) + 1); continue; }
-      elems.push({ model: m, eid, geo: e, cat: cls.cat, tipo: cls.tipo, code: cls.code,
-                   source: cls.source, tolM: 0, n: 0, over: 0, max: 0 });
+      /* un elemento SENZA classificazione non è escluso e non ha una soglia
+         propria: PASSA COME PRIMARIO (scelta utente 2026-07-25), col flag
+         "assumed" perché il report lo dichiari invece di spacciarlo per codificato */
+      const assumed = cls.cat !== "primary" && cls.cat !== "secondary";
+      elems.push({ model: m, eid, geo: e, cat: assumed ? "primary" : cls.cat, tipo: cls.tipo, code: cls.code,
+                   source: cls.source, assumed, tolM: 0, n: 0, over: 0, max: 0 });
       totTris += e.nTris;
     }
   }
@@ -9972,8 +10154,16 @@ function _c2dLimit(src) {
 async function runC2dCheck() {
   if (C2D.running) { C2D.cancel = true; return; }
   if (!models.length || !PCLOUD.sources.length) { toast(tr("toast.c2dNeed")); return; }
-  C2D.tolP = Math.max(1, +$("c2dTolP").value || 70);
-  C2D.tolS = Math.max(1, +$("c2dTolS").value || 100);
+  C2D.dual = !!($("c2dDual") && $("c2dDual").checked);
+  if (C2D.dual) {
+    C2D.tolP = Math.max(1, +$("c2dTolP").value || 70);
+    C2D.tolS = Math.max(1, +$("c2dTolS").value || 100);
+  } else {
+    /* modalità standard: UNA soglia per tutti — internamente tolP≡tolS, così
+       il motore resta identico e "fascia intermedia" e "non classificati"
+       collassano da sole (tolWide = tolStrict = soglia) */
+    C2D.tolP = C2D.tolS = Math.max(1, +$("c2dTol").value || 70);
+  }
   C2D.maxDist = Math.max(0.05, +$("c2dMax").value || 0.35);
   C2D.preview = $("c2dPreview").checked;
   C2D.running = true; C2D.cancel = false;
@@ -9989,12 +10179,11 @@ async function runC2dCheck() {
     }
     if (!C2D.elems.length) { prog(esc(tr("c2d.noElem"))); return; }
 
-    /* soglia dell'elemento: primaria o secondaria secondo la categoria; per gli
-       elementi NON classificati la più RESTRITTIVA fra le due (scelta utente:
-       "non so cosa sia, applico il metro più severo") — mai la più permissiva. */
-    const tolStrict = Math.min(C2D.tolP, C2D.tolS) / 1000;
+    /* soglia dell'elemento: primaria o secondaria secondo la categoria — i non
+       classificati sono già stati mappati sui primari in _c2dBuildGeom (flag
+       "assumed"); in modalità singola tolP≡tolS e la distinzione sparisce. */
     for (const el of C2D.elems) {
-      el.tolM = el.cat === "primary" ? C2D.tolP / 1000 : el.cat === "secondary" ? C2D.tolS / 1000 : tolStrict;
+      el.tolM = el.cat === "secondary" ? C2D.tolS / 1000 : C2D.tolP / 1000;
       el.n = 0; el.over = 0; el.max = 0;
     }
     const tolWide = Math.max(C2D.tolP, C2D.tolS) / 1000;
@@ -10073,12 +10262,12 @@ async function runC2dCheck() {
       g.setDrawRange(0, lim);
     }
 
-    const nElU = elems.filter(e => e.cat === "unknown").length;
-    C2D.res = { nPts, nMeas, nOut, nUnc, nOk, nWarn, nBad, cats, tolWide,
+    const nElU = elems.filter(e => e.assumed).length;
+    C2D.res = { nPts, nMeas, nOut, nUnc, nOk, nWarn, nBad, cats, tolWide, dual: C2D.dual,
                 excl: C2D.excl, nElClass: elems.length - nElU, nElUnc: nElU,
                 secs: (performance.now() - t0) / 1000,
-                elems: elems.filter(e => e.over > 0 && e.cat !== "unknown").sort((a, b) => b.max - a.max).slice(0, 6),
-                uncElems: elems.filter(e => e.cat === "unknown" && e.n > 0).sort((a, b) => b.max - a.max).slice(0, 4) };
+                elems: elems.filter(e => e.over > 0 && !e.assumed).sort((a, b) => b.max - a.max).slice(0, 6),
+                uncElems: elems.filter(e => e.assumed && e.n > 0).sort((a, b) => b.max - a.max).slice(0, 4) };
     C2D.colored = true;
     if (modelGhost === 1) { modelGhost = 0.25; applyIsolate(); }   // alla prima verifica il modello si fa da parte
     renderC2dBlock();
@@ -10128,34 +10317,35 @@ function renderC2dBlock() {
   if (!r) { box.innerHTML = `<div class="c2m-note">${tr("c2d.hint")}</div>`; return; }
 
   const pctOf = (v, tot) => tot ? (100 * v / tot).toFixed(1).replace(".", ",") : "0";
-  const tolStrict = Math.min(C2D.tolP, C2D.tolS);
   let h = `<div class="c2m-note">${tr("c2d.done", { n: r.nMeas.toLocaleString("it-IT"), s: r.secs.toFixed(1) })}` +
           (r.nOut ? ` · ${tr("c2d.far", { n: r.nOut.toLocaleString("it-IT"), d: _c2dFmt(C2D.maxDist) })}` : "") + `</div>`;
-  /* riga di copertura: nessun elemento sparisce in silenzio. Quanti con soglia
-     di categoria, quanti non classificati (giudicati alla soglia più stretta),
-     quanti tolti dal calcolo e perché. */
-  h += `<div class="c2m-note">${tr("c2d.cov", { c: r.nElClass, u: r.nElUnc, x: r.excl ? r.excl.n : 0 })}`;
-  if (r.excl && r.excl.n) h += `<br><span class="c2d-exclnote" title="${esc(r.excl.top.map(t => `${t.tipo}: ${t.n}`).join(" · "))}">${tr("c2d.exclWhy", { list: esc(r.excl.top.map(t => t.tipo).join(", ")) })}</span>`;
-  h += `</div>`;
+  /* riga di copertura: nessun elemento sparisce in silenzio. In modalità singola
+     è una sola frase (tutti alla stessa soglia); con due soglie: quanti mappati,
+     quanti assunti primari, quanti esclusi e perché. */
+  if (!r.dual) {
+    h += `<div class="c2m-note">${tr("c2d.covSingle", { n: (r.nElClass + r.nElUnc).toLocaleString("it-IT"), d: C2D.tolP })}</div>`;
+  } else {
+    h += `<div class="c2m-note">${tr("c2d.cov", { c: r.nElClass, u: r.nElUnc, x: r.excl ? r.excl.n : 0 })}`;
+    if (r.excl && r.excl.n) h += `<br><span class="c2d-exclnote" title="${esc(r.excl.top.map(t => `${t.tipo}: ${t.n}`).join(" · "))}">${tr("c2d.exclWhy", { list: esc(r.excl.top.map(t => t.tipo).join(", ")) })}</span>`;
+    h += `</div>`;
+  }
   h += `<div class="c2d-legend">` +
        `<span><i style="background:rgb(${C2D_COL.ok})"></i>${tr("c2d.lgOk")} ${pctOf(r.nOk, r.nMeas)}%</span>` +
-       `<span><i style="background:rgb(${C2D_COL.warn})"></i>${tr("c2d.lgWarn", { d: _c2dFmt(r.tolWide) })} ${pctOf(r.nWarn, r.nMeas)}%</span>` +
+       (r.dual ? `<span><i style="background:rgb(${C2D_COL.warn})"></i>${tr("c2d.lgWarn", { d: _c2dFmt(r.tolWide) })} ${pctOf(r.nWarn, r.nMeas)}%</span>` : "") +
        `<span><i style="background:rgb(${C2D_COL.bad})"></i>${tr("c2d.lgBad")} ${pctOf(r.nBad, r.nMeas)}%</span></div>`;
   for (const key of ["primary", "secondary"]) {
     const st = r.cats[key];
     if (!st.n) continue;
     const tol = key === "primary" ? C2D.tolP : C2D.tolS;
-    h += `<div class="c2d-stat"><b>${tr(C2M_CAT_KEY[key])}</b> <span class="tolq">${tol} mm</span>` +
+    h += `<div class="c2d-stat"><b>${r.dual ? tr(C2M_CAT_KEY[key]) : tr("c2d.allElems")}</b> <span class="tolq">${tol} mm</span>` +
          `<div>${tr("c2d.conf", { p: pctOf(st.n - st.over, st.n), n: st.n.toLocaleString("it-IT") })}</div>` +
          `<div>${tr("c2d.stats", { avg: _c2dFmt(st.sum / st.n), p95: _c2dFmt(_c2dPct(st.hist, st.n, 0.95, st.max)), max: _c2dFmt(st.max) })}</div></div>`;
   }
-  /* non classificati: giudicati alla soglia più restrittiva, ma tenuti distinti
-     — la % conforme è un'ipotesi cautelativa finché non li si codifica. */
-  const su = r.cats.unknown;
-  if (su.n) {
-    h += `<div class="c2d-stat c2d-unc"><b>${tr("c2d.uncTitle")}</b> <span class="tolq">${tolStrict} mm</span>` +
-         `<div>${tr("c2d.conf", { p: pctOf(su.n - su.over, su.n), n: su.n.toLocaleString("it-IT") })}</div>` +
-         `<div>${tr("c2d.stats", { avg: _c2dFmt(su.sum / su.n), p95: _c2dFmt(_c2dPct(su.hist, su.n, 0.95, su.max)), max: _c2dFmt(su.max) })}</div>` +
+  /* elementi assunti primari (senza classificazione): sono DENTRO le statistiche
+     dei primari, ma il report li dichiara — spacciare un'assunzione per una
+     codifica non reggerebbe in contraddittorio. */
+  if (r.dual && r.nElUnc) {
+    h += `<div class="c2d-stat c2d-unc"><b>${tr("c2d.uncTitle")}</b>` +
          `<div class="c2d-uncnote">${tr("c2d.uncBody", { el: r.nElUnc })}</div></div>`;
     for (const el of r.uncElems) {
       h += `<div class="c2m-row" title="${esc(el.code || tr("c2d.noCode"))} · ${esc(el.tipo || "")}">` +
@@ -10181,6 +10371,22 @@ function renderC2dBlock() {
 }
 
 $("btnC2dRun") && $("btnC2dRun").addEventListener("click", runC2dCheck);
+/* due soglie: scambia gli input e fa comparire il pannello di mappatura codici
+   (la geometria si invalida da sé: la modalità è nella firma _c2dSig) */
+$("c2dDual") && $("c2dDual").addEventListener("change", () => {
+  C2D.dual = $("c2dDual").checked;
+  for (const id of ["c2dLblTol", "c2dRowTol"]) $(id).style.display = C2D.dual ? "none" : "";
+  for (const id of ["c2dLblTolP", "c2dRowTolP", "c2dLblTolS", "c2dRowTolS"]) $(id).style.display = C2D.dual ? "" : "none";
+  renderC2mBlock();
+});
+/* ripiego per classe IFC (opt-in): riclassifica con la lettura pset già in cache */
+$("c2mUseClassMap") && $("c2mUseClassMap").addEventListener("change", () => {
+  C2M.useClassMap = $("c2mUseClassMap").checked;
+  C2M.book = c2mRebuildBook(C2M.book.rows);
+  C2M.bookSeq++;
+  if (C2M.summary) c2mScan();
+  renderC2mBlock();
+});
 
 $("btnC2mScan") && $("btnC2mScan").addEventListener("click", runC2mScan);
 $("btnC2mBook") && $("btnC2mBook").addEventListener("click", () => $("fileC2mBook").click());
@@ -10191,6 +10397,59 @@ $("c2mInfo") && $("c2mInfo").addEventListener("click", (e) => {
   const row = e.target.closest(".c2m-row.pick");
   if (row && row.dataset.code) c2mSelectCode(row.dataset.code, row);
 });
+$("c2mInfo") && $("c2mInfo").addEventListener("change", (e) => {
+  const sel = e.target.closest("select.c2m-classcat");
+  if (sel) c2mSetClassCat(sel.dataset.ic, sel.value);
+});
+
+/* ---- selettore del campo codice (apertura oltre Classe/CodiceWBS) ----
+   Le tendine pset → proprietà riusano l'indice lazy del QTO: si costruisce
+   solo quando l'utente sceglie "Proprietà a scelta…". */
+function c2mFillFieldSelects() {
+  const ps = $("c2mFieldPset");
+  const idx = ensureQtoPropIndex();
+  ps.innerHTML = `<option value="">${esc(tr("qto.selPset"))}</option>`;
+  for (const name of idx.keys()) {
+    const o = document.createElement("option"); o.value = name; o.textContent = name; ps.appendChild(o);
+  }
+  if (C2M.customProp && idx.has(C2M.customProp.pset)) ps.value = C2M.customProp.pset;
+  c2mFillPropSelect();
+}
+function c2mFillPropSelect() {
+  const pr = $("c2mFieldProp");
+  const pset = $("c2mFieldPset").value;
+  const props = pset ? (ensureQtoPropIndex().get(pset) || []) : [];
+  pr.innerHTML = `<option value="">${esc(tr("qto.selProp"))}</option>`;
+  for (const p of props) {
+    const o = document.createElement("option"); o.value = p; o.textContent = p; pr.appendChild(o);
+  }
+  pr.disabled = !props.length;
+  if (C2M.customProp && C2M.customProp.pset === pset) pr.value = C2M.customProp.prop;
+}
+/* Cambio campo: catalogo ricostruito e ricognizione RIFATTA (la cache dei codici
+   si invalida da sé via firma in readElemCodes — rilettura pset completa, quindi
+   passa da runC2mScan che ha lo spinner). */
+async function c2mFieldChanged() {
+  C2M.book = c2mRebuildBook(C2M.book.rows);
+  C2M.bookSeq++;
+  if (C2M.summary) await runC2mScan(); else renderC2mBlock();
+}
+function c2mApplyField() {
+  const pset = $("c2mFieldPset").value, prop = $("c2mFieldProp").value;
+  if (!pset || !prop) return;
+  const cur = C2M.customProp;
+  if (cur && cur.pset === pset && cur.prop === prop) return;
+  C2M.customProp = { pset, prop };
+  c2mFieldChanged();
+}
+$("c2mFieldMode") && $("c2mFieldMode").addEventListener("change", () => {
+  const custom = $("c2mFieldMode").value === "custom";
+  $("c2mFieldPick").style.display = custom ? "" : "none";
+  if (custom) c2mFillFieldSelects();
+  else if (C2M.customProp) { C2M.customProp = null; c2mFieldChanged(); }
+});
+$("c2mFieldPset") && $("c2mFieldPset").addEventListener("change", () => { c2mFillPropSelect(); c2mApplyField(); });
+$("c2mFieldProp") && $("c2mFieldProp").addEventListener("change", c2mApplyField);
 
 /* --- UI: selettore asse (tendina) + finestra profilo altimetrico --- */
 function _alnEsc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

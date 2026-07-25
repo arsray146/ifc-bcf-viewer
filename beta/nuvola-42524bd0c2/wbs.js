@@ -193,9 +193,10 @@ function _ruleOf(matchRaw) {
 /* Costruisce il catalogo indicizzato dalle righe (di parseCodebookCsv o a mano).
      riga codice:    {match, tipo?, cat?, tolMm?, note?}
      riga tipologia: {match:"", tipo:"Pila", cat:"primario"}  (2° livello)
-   opts: { tol:{primary,secondary}, codeOrder:["classe","wbs"], ifcFallback:bool }
+   opts: { tol:{primary,secondary}, codeOrder:["classe","wbs"], ifcFallback:bool,
+           ifcMap:{IFCBEAM:"primary",…} }  ← sostituisce IFC_FALLBACK (ripiego editabile)
    Ritorna { exact:Map, prefix:[], segment:[], regex:[], tipoCats:Map, tol,
-             codeOrder, ifcFallback, rows, errors }. */
+             codeOrder, ifcFallback, ifcMap, rows, errors }. */
 function makeCodebook(rows, opts) {
   const o = opts || {};
   const book = {
@@ -204,6 +205,7 @@ function makeCodebook(rows, opts) {
     tol: Object.assign({}, DEFAULT_TOL_MM, o.tol || null),
     codeOrder: o.codeOrder || DEFAULT_CODE_ORDER.slice(),
     ifcFallback: o.ifcFallback !== false,
+    ifcMap: o.ifcMap || null,   // classe IFC → categoria; null = IFC_FALLBACK di modulo
     rows: [], errors: []
   };
   for (const raw of rows || []) {
@@ -346,8 +348,11 @@ function classifyElement(el, book) {
   if (firstCode) { out.code = firstCode; out.field = firstField; out.unmapped = true; }
 
   if (b.ifcFallback) {
-    const cat = IFC_FALLBACK[String(src.ifcClass || "").toUpperCase()];
-    if (cat) {
+    /* la mappa del catalogo (ifcMap) SOSTITUISCE il default: chi la passa parte
+       da IFC_FALLBACK e la modifica, così una classe tolta è tolta davvero */
+    const cat = (b.ifcMap || IFC_FALLBACK)[String(src.ifcClass || "").toUpperCase()];
+    if (cat === "excluded") { out.cat = cat; out.source = "ifc"; out.tolMm = null; }
+    else if (cat) {
       out.cat = cat; out.source = "ifc";
       out.tolMm = b.tol[cat] === undefined ? null : b.tol[cat];
     }
