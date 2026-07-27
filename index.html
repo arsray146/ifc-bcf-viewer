@@ -65,7 +65,7 @@
       "@type": "FAQPage",
       "mainEntity": [
         { "@type": "Question", "name": "Is Viewer IFC · BCF free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes — completely free and open source under the AGPL-3.0 license: you can use it, study its code and contribute." } },
-        { "@type": "Question", "name": "Are my models uploaded to a server?", "acceptedAnswer": { "@type": "Answer", "text": "No. The viewer is 100% client-side: IFC and BCF files are read and rendered in your browser and never leave your computer. No upload, no account, no tracking." } },
+        { "@type": "Question", "name": "Are my models uploaded to a server?", "acceptedAnswer": { "@type": "Answer", "text": "No. The viewer is 100% client-side: IFC and BCF files are read and rendered in your browser and never leave your computer. No upload, no account, no cookies." } },
         { "@type": "Question", "name": "Which file formats are supported?", "acceptedAnswer": { "@type": "Answer", "text": "IFC2x3, IFC4 and IFC4x3, plus BCF issues and Solibri reports with viewpoints, comments and snapshots." } },
         { "@type": "Question", "name": "Does it support road and infrastructure alignments (IFC4x3)?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. It opens the IfcAlignment of IFC4x3 files: it shows the 3D axis, an interactive vertical (elevation) profile, a cross-section orthogonal to the axis — cut or slab, movable along the chainage by dragging in 3D or on the profile — and a top-down minimap of the alignments." } },
         { "@type": "Question", "name": "Do I need to install anything or create an account?", "acceptedAnswer": { "@type": "Answer", "text": "No. It is a single HTML page running in the browser: no install and no login. On first launch it fetches the rendering engine from a CDN, then it works even offline." } },
@@ -460,6 +460,9 @@ html[data-theme="light"] .tool-card::after{background:radial-gradient(520px circ
   .mockup{transition:none}
 }
 </style>
+
+<!-- Statistiche di visita anonime e senza cookie (GoatCounter) — vedi /analytics.js -->
+<script src="/analytics.js" defer></script>
 </head>
 <body>
 
@@ -712,7 +715,7 @@ html[data-theme="light"] .tool-card::after{background:radial-gradient(520px circ
       <p data-i18n="priv.p">Niente upload su un cloud di terzi, niente account da creare. Il viewer legge e renderizza l'IFC in locale: i file restano dove sono, sul tuo disco. Ideale quando i modelli sono sotto NDA.</p>
       <ul>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="priv.l1">Nessun file caricato su un server</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="priv.l2">Nessun login, nessun tracciamento</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="priv.l2">Nessun login, nessun cookie</span></li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg><span data-i18n="priv.l3">Funziona anche offline, una volta aperta la pagina</span></li>
       </ul>
     </div>
@@ -796,7 +799,7 @@ html[data-theme="light"] .tool-card::after{background:radial-gradient(520px circ
       </details>
       <details class="faq-item">
         <summary data-i18n="faq.q2">I miei modelli vengono caricati su un server?</summary>
-        <div class="faq-a" data-i18n="faq.a2">No. Il viewer è 100% client-side: i file IFC e BCF vengono letti e renderizzati nel tuo browser e non lasciano mai il tuo computer. Nessun upload, nessun account, nessun tracciamento.</div>
+        <div class="faq-a" data-i18n="faq.a2">No. Il viewer è 100% client-side: i file IFC e BCF vengono letti e renderizzati nel tuo browser e non lasciano mai il tuo computer. Nessun upload, nessun account, nessun cookie.</div>
       </details>
       <details class="faq-item">
         <summary data-i18n="faq.q3">Quali formati sono supportati?</summary>
@@ -901,7 +904,7 @@ const I18N = {
     "priv.h2a":"I tuoi modelli non lasciano","priv.h2b":"mai il tuo computer.",
     "priv.p":"Niente upload su un cloud di terzi, niente account da creare. Il viewer legge e renderizza l'IFC in locale: i file restano dove sono, sul tuo disco. Ideale quando i modelli sono sotto NDA.",
     "priv.l1":"Nessun file caricato su un server",
-    "priv.l2":"Nessun login, nessun tracciamento",
+    "priv.l2":"Nessun login, nessun cookie",
     "priv.l3":"Funziona anche offline, una volta aperta la pagina",
     "pc.head":"Dove vivono i tuoi dati",
     "pc.n1t":"Il tuo PC","pc.n1s":"file IFC / BCF",
@@ -921,7 +924,7 @@ const I18N = {
     "faq.q1":"Viewer IFC · BCF è gratuito?",
     "faq.a1":"Sì, è completamente gratuito e open source, rilasciato sotto licenza AGPL-3.0: puoi usarlo, studiarne il codice e contribuire.",
     "faq.q2":"I miei modelli vengono caricati su un server?",
-    "faq.a2":"No. Il viewer è 100% client-side: i file IFC e BCF vengono letti e renderizzati nel tuo browser e non lasciano mai il tuo computer. Nessun upload, nessun account, nessun tracciamento.",
+    "faq.a2":"No. Il viewer è 100% client-side: i file IFC e BCF vengono letti e renderizzati nel tuo browser e non lasciano mai il tuo computer. Nessun upload, nessun account, nessun cookie.",
     "faq.q3":"Quali formati sono supportati?",
     "faq.a3":"IFC2x3, IFC4 e IFC4x3, più le issue BCF e i report Solibri con viewpoint, commenti e snapshot.",
     "faq.q4":"Devo installare qualcosa o creare un account?",
@@ -971,7 +974,7 @@ const I18N = {
     "priv.h2a":"Your models never leave","priv.h2b":"your computer.",
     "priv.p":"No upload to a third-party cloud, no account to create. The viewer reads and renders IFC locally: files stay where they are, on your disk. Ideal when models are under NDA.",
     "priv.l1":"No file uploaded to a server",
-    "priv.l2":"No login, no tracking",
+    "priv.l2":"No login, no cookies",
     "priv.l3":"Works offline too, once the page is open",
     "pc.head":"Where your data lives",
     "pc.n1t":"Your computer","pc.n1s":"IFC / BCF files",
@@ -991,7 +994,7 @@ const I18N = {
     "faq.q1":"Is Viewer IFC · BCF free?",
     "faq.a1":"Yes — completely free and open source under the AGPL-3.0 license: you can use it, study its code and contribute.",
     "faq.q2":"Are my models uploaded to a server?",
-    "faq.a2":"No. The viewer is 100% client-side: IFC and BCF files are read and rendered in your browser and never leave your computer. No upload, no account, no tracking.",
+    "faq.a2":"No. The viewer is 100% client-side: IFC and BCF files are read and rendered in your browser and never leave your computer. No upload, no account, no cookies.",
     "faq.q3":"Which file formats are supported?",
     "faq.a3":"IFC2x3, IFC4 and IFC4x3, plus BCF issues and Solibri reports with viewpoints, comments and snapshots.",
     "faq.q4":"Do I need to install anything or create an account?",
