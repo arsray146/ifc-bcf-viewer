@@ -186,8 +186,16 @@ main.left-off .left-resize{display:none}
 /* Blocchi in coda alla tab Modelli (nuvole, verifica, codici): una sola area
    scorrevole che ora PRENDE lo spazio libero (flex:1) — è qui che si accumulano
    i risultati della verifica nuvola↔modello, quindi è a loro che serve respiro.
-   Senza min-height:0 i flex item non si comprimono e traboccano sopra la 3D. */
-#lowerStack{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}
+   Senza min-height:0 i flex item non si comprimono e traboccano sopra la 3D.
+   Colonna flex + margin-top:auto sul primo blocco: senza nuvole caricate la
+   barra NUVOLE resta appoggiata in fondo al pannello invece di galleggiare a
+   metà con un vuoto sotto; man mano che si caricano nuvole (e si aprono
+   verifica/codici) la pila cresce e risale da sé. margin auto ≠
+   justify-content:flex-end: quando lo spazio libero si esaurisce si azzera,
+   quindi il contenuto in eccesso resta raggiungibile con lo scroll. */
+#lowerStack{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column}
+#lowerStack>*{flex:0 0 auto}
+#lowerStack>:first-child{margin-top:auto}
 .model-item{margin:1px 0}
 .model-row{display:flex;align-items:center;gap:7px;padding:7px 6px;border-radius:6px;cursor:default;user-select:none}
 .model-row:hover{background:var(--panel-2)}
