@@ -328,7 +328,8 @@ main.left-off .left-resize{display:none}
 .only-loaded{display:flex;align-items:center;gap:7px;margin-top:9px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none}
 .only-loaded input{accent-color:var(--lime-deep)}
 .hidden-issues-note{font-family:var(--mono);font-size:11px;color:var(--faint);padding:4px 8px 8px;border-bottom:1px dashed var(--line);margin-bottom:6px}
-#statusChips,#sevChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+#statusChips,#sevChips,#idsChips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+#idsChips:empty{display:none}
 .chip{font-family:var(--mono);font-size:11px;padding:3px 9px;border-radius:99px;border:1px solid var(--line-2);color:var(--muted);cursor:pointer;background:var(--panel);text-transform:none;letter-spacing:0;font-weight:400}
 .chip.on{background:var(--lime-soft);color:var(--text);border-color:var(--lime-deep)}
 /* barra di export BCF: compare quando ci sono cambi di stato non scaricati (v1.7.5) */
@@ -409,7 +410,7 @@ main.left-off .left-resize{display:none}
 .ids-doc-title:empty::before{content:"IDS";color:var(--faint)}
 .ids-doc-meta{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:4px}
 .ids-doc-meta:empty{display:none}
-.ids-summary{display:flex;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:8px}
+.ids-summary{display:flex;gap:6px 14px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;line-height:1.5;color:var(--muted);margin-top:12px}
 .ids-summary:empty{display:none}
 .ids-summary b{font-weight:700}
 .issue-card.ids,.issue-card.rep{grid-template-columns:4px 1fr}   /* card senza thumbnail: il body prende tutta la larghezza */
@@ -421,6 +422,19 @@ main.left-off .left-resize{display:none}
 .ids-reasons{margin:0 0 6px;padding:2px 8px 4px 26px;list-style:disc}
 .ids-reasons li{font-size:11.5px;line-height:1.5;margin:2px 0;color:var(--muted)}
 .ids-reasons li.bad{color:#C0392B}
+/* gruppi per file IDS nella lista specifiche (fix multi-IDS) */
+.ids-grp{display:flex;align-items:center;gap:8px;padding:7px 6px;margin-top:8px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);cursor:pointer;user-select:none}
+.ids-grp:hover{border-color:var(--lime-deep)}
+.ids-grp .cg-fail{font-family:var(--mono);font-size:10px;color:#C0392B;flex:0 0 auto;white-space:nowrap}
+.ids-grp-items{margin-left:6px;border-left:2px solid var(--line-2);padding-left:4px}
+.ids-grp-items .empty-note{padding:10px 6px;font-size:11.5px}
+/* dettaglio spec: elementi non conformi raggruppati per motivo */
+.ids-rgrp{border:1px solid var(--line);border-radius:6px;margin:8px 0;overflow:hidden}
+.ids-rgrp-h{display:flex;align-items:flex-start;gap:6px;padding:6px 8px;background:var(--panel-2);cursor:pointer;user-select:none}
+.ids-rgrp-h:hover{background:var(--lime-soft)}
+.ids-rgrp-h .rg-reasons{flex:1;min-width:0}
+.ids-rgrp-h .rg-reasons div{font-size:11.5px;line-height:1.45;color:#C0392B;overflow-wrap:anywhere}
+.ids-rgrp-items{padding:0 6px 4px}
 .ids-export{margin-top:9px}
 .ids-export button{width:100%;display:flex;align-items:center;justify-content:center;gap:7px;font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:.05em;text-transform:uppercase;padding:7px 10px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);color:var(--text);cursor:pointer}
 .ids-export button:hover:not(:disabled){border-color:var(--lime-deep)}
@@ -494,13 +508,13 @@ main.left-off .left-resize{display:none}
 .clash-tools button.on{background:var(--lime-soft);border-color:var(--lime-deep)}
 .clash-tools .ct-hint{flex-basis:100%;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
 .clash-grp{display:flex;align-items:center;gap:8px;padding:7px 6px;margin-top:6px;border:1px solid var(--lime-deep);border-radius:6px;background:var(--lime-soft);cursor:pointer;user-select:none}
-.clash-grp .cg-tw{border:none;background:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 2px;flex:0 0 auto;line-height:1}
-.clash-grp .cg-tw:hover{color:var(--text)}
-.clash-grp .cg-name{flex:1;min-width:0;font-family:var(--disp);font-weight:700;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.clash-grp .cg-tw,.ids-grp .cg-tw,.ids-rgrp-h .cg-tw{border:none;background:none;color:var(--muted);cursor:pointer;font-size:11px;padding:0 2px;flex:0 0 auto;line-height:1}
+.clash-grp .cg-tw:hover,.ids-grp .cg-tw:hover,.ids-rgrp-h .cg-tw:hover{color:var(--text)}
+.clash-grp .cg-name,.ids-grp .cg-name{flex:1;min-width:0;font-family:var(--disp);font-weight:700;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .clash-grp .cg-edit{flex:1;min-width:0;font-family:var(--disp);font-weight:700;font-size:12px;background:var(--panel-2);border:1px solid var(--lime-deep);border-radius:4px;color:var(--text);padding:2px 5px}
-.clash-grp .cg-n{font-family:var(--mono);font-size:10px;color:var(--muted)}
-.clash-grp .cg-x{border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 3px}
-.clash-grp .cg-x:hover{color:#C0392B}
+.clash-grp .cg-n,.ids-grp .cg-n,.ids-rgrp-h .cg-n{font-family:var(--mono);font-size:10px;color:var(--muted);flex:0 0 auto;white-space:nowrap}
+.clash-grp .cg-x,.ids-grp .cg-x{border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:0 3px}
+.clash-grp .cg-x:hover,.ids-grp .cg-x:hover{color:#C0392B}
 .clash-grp-items{margin-left:10px;border-left:2px solid var(--lime-deep);padding-left:4px}
 .clash-rule{display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding:4px 6px 8px;border-bottom:1px solid var(--line-2)}
 .clash-rule .cr-name{font-family:var(--disp);font-weight:700;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -976,7 +990,7 @@ input[type=file]{display:none}
   <input type="file" id="fileLxml" accept=".xml,.landxml">
   <input type="file" id="filePc" accept=".las,.laz,.e57" multiple>
   <input type="file" id="fileC2mBook" accept=".csv,.txt">
-  <input type="file" id="fileIds" accept=".ids">
+  <input type="file" id="fileIds" accept=".ids" multiple>
 </header>
 
 <main id="main">
@@ -1107,7 +1121,6 @@ input[type=file]{display:none}
             <div id="idsMeta" class="ids-doc-meta"></div>
           </div>
           <input id="idsSearch" type="text" data-i18n-ph="ph.searchIds" placeholder="Cerca per specifica, requisito…">
-          <div id="idsSources" class="src-strip"></div>
           <button id="btnIdsRun" class="ids-run" data-i18n="ids.run">▶ Esegui verifica</button>
           <div id="idsSummary" class="ids-summary"></div>
           <div id="idsChips"></div>
@@ -1469,7 +1482,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.7.0";
+const APP_VERSION = "2.7.1";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -1509,7 +1522,6 @@ const STRINGS = {
     "ids.run": "▶ Esegui verifica",
     "ids.rerun": "↻ Riesegui verifica",
     "ids.checking": "Verifica in corso…",
-    "ids.pressRun": "Premi «Esegui verifica» per controllare i modelli aperti.",
     "ids.noModels": "Carica almeno un modello IFC per eseguire la verifica IDS.",
     "ids.noMatch": "Nessuna specifica corrisponde ai filtri.",
     "ids.untitled": "IDS senza titolo",
@@ -1538,6 +1550,16 @@ const STRINGS = {
     "ids.bcfMore": "… e altri {n}",
     "ids.bcfExported": "BCF creato: {n} issue scaricate.",
     "ids.bcfNoFail": "Nessuna non conformità da esportare.",
+    "ids.nFiles": "{n} file IDS",
+    "ids.nspec1": "1 specifica",
+    "ids.nspecTot": "{n} specifiche totali",
+    "ids.notChecked": "Non ancora verificato — premi «Esegui verifica».",
+    "ids.grpToggleT": "Comprimi/espandi",
+    "ids.grpClickT": "Clic: evidenzia gli elementi del gruppo",
+    "ids.grpN": "{n} elementi",
+    "ids.grpN1": "1 elemento",
+    "ids.failN1": "1 non conforme",
+    "toast.idsStatus": "Stato specifica → {s} (incluso nell'export BCF).",
     "toast.idsLoaded": "IDS «{f}» caricato: {n} specifiche.",
     "toast.idsErr": "Errore lettura IDS: {e}",
     "toast.idsUnloaded": "IDS rimosso.",
@@ -1988,7 +2010,6 @@ const STRINGS = {
     "ids.run": "▶ Run check",
     "ids.rerun": "↻ Re-run check",
     "ids.checking": "Checking…",
-    "ids.pressRun": "Press “Run check” to check the open models.",
     "ids.noModels": "Load at least one IFC model to run the IDS check.",
     "ids.noMatch": "No specification matches the filters.",
     "ids.untitled": "Untitled IDS",
@@ -2017,6 +2038,16 @@ const STRINGS = {
     "ids.bcfMore": "… and {n} more",
     "ids.bcfExported": "BCF created: {n} topics downloaded.",
     "ids.bcfNoFail": "No non-conformity to export.",
+    "ids.nFiles": "{n} IDS files",
+    "ids.nspec1": "1 specification",
+    "ids.nspecTot": "{n} total specifications",
+    "ids.notChecked": "Not checked yet — press “Run check”.",
+    "ids.grpToggleT": "Collapse/expand",
+    "ids.grpClickT": "Click: highlight the group elements",
+    "ids.grpN": "{n} elements",
+    "ids.grpN1": "1 element",
+    "ids.failN1": "1 fail",
+    "toast.idsStatus": "Specification status → {s} (included in the BCF export).",
     "toast.idsLoaded": "IDS “{f}” loaded: {n} specifications.",
     "toast.idsErr": "Error reading IDS: {e}",
     "toast.idsUnloaded": "IDS removed.",
@@ -2454,6 +2485,7 @@ function refreshDynamicI18n() {
   if (typeof statsOpen !== "undefined" && statsOpen) { try { openReportStats(); } catch (e) {} }
   else if (typeof activeTopic !== "undefined" && activeTopic) { try { renderTopicDetail(activeTopic); } catch (e) {} }
   else if (typeof activeReport !== "undefined" && activeReport) { try { openReportTopic(activeReport); } catch (e) {} }
+  else if (typeof activeIdsSpec !== "undefined" && activeIdsSpec) { try { renderIdsDetail(activeIdsSpec); } catch (e) {} }
   else if (typeof curDetail !== "undefined" && curDetail && $("main").classList.contains("with-detail")) { try { showElementDetail(curDetail.model, curDetail.eid); } catch (e) {} }
   try { updateBcfDirtyUI(); updateRepDirtyUI(); } catch (e) {}
   try { if (typeof DRAW !== "undefined" && DRAW.on && !$("sectionBody").hidden) { renderSection2D(); } } catch (e) {}
@@ -4707,7 +4739,7 @@ function buildIdsViews() {
   if (idsViewsCache) return idsViewsCache;
   const wantTypes = new Set();
   const collectNames = (m) => { if (!m) return; if (m.kind === "simple" && m.value) wantTypes.add(m.value.toUpperCase()); else if (m.enumeration) for (const e of m.enumeration) if (e) wantTypes.add(String(e).toUpperCase()); };
-  if (idsDoc) for (const s of idsDoc.specs) for (const fs of [s.applicability.facets, s.requirements.facets]) for (const f of fs) {
+  for (const d of idsDocs) for (const s of d.specs) for (const fs of [s.applicability.facets, s.requirements.facets]) for (const f of fs) {
     if (f.type === "entity") collectNames(f.name);
     if (f.type === "partOf" && f.entity) collectNames(f.entity.name);
   }
@@ -5133,15 +5165,18 @@ const sevFilter = new Set();
 let issueMode = "bcf";
 
 /* ===================== controlli IDS — stato ===================== */
-let idsDoc = null;          // IDS caricato: { info, specs }
-let idsSource = null;       // { name } del file .ids caricato
-let idsResults = null;      // esito: evaluateIds(idsDoc, views)
+let idsDocs = [];           // file .ids caricati: [{ id, name, info, specs, collapsed, result }]
+let idsResults = null;      // aggregato dei risultati: { specs:[r con _doc/_skey], summary } — derivato da idsDocs
 let idsViewsCache = null;   // viste elemento pre-costruite per run; invalidate al cambio modello
 let activeIdsSpec = null;   // risultato-spec aperto nel pannello dettagli
 const idsOutcomeFilter = new Set();   // filtro card per esito: 'fail' | 'pass' | 'na'
+const idsStatuses = new Map();        // "file¦spec" → stato assegnato: sopravvive a ri-run e reload dei file
+let _idsSeq = 0;
 function idsInvalidate() {
-  idsViewsCache = null; idsResults = null;
-  if (idsDoc && typeof renderIdsList === "function" && issueMode === "ids") { renderIdsChips(); renderIdsList(); }
+  idsViewsCache = null;
+  for (const d of idsDocs) d.result = null;   // l'universo elementi è cambiato: tutti gli esiti decadono
+  idsResults = null;
+  if (idsDocs.length && typeof renderIdsList === "function" && issueMode === "ids") { renderIdsChips(); renderIdsList(); }
 }
 
 const SEV_COLOR = { critical: "#C0392B", moderate: "#E0A100", low: "#3E7CB1", rejected: "#8E8E8E", other: "#7A7A7A" };
@@ -5248,7 +5283,7 @@ async function loadReport(file) {
 }
 
 function updateIssuesBadge() {
-  const nIds = idsDoc ? idsDoc.specs.length : 0;
+  const nIds = idsDocs.reduce((a, d) => a + d.specs.length, 0);
   const nClash = CLASH.results ? CLASH.results.length : 0;
   $("tabIssuesCount").textContent = topics.length + reportTopics.length + nIds + nClash;
   $("bcfModeCount").textContent = topics.length;
@@ -5330,36 +5365,68 @@ let idsRunning = false;
 async function loadIds(file) {
   showLoading(tr("load.reading", { f: file.name }));
   try {
-    idsDoc = parseIds(await file.text());
-    idsSource = { name: file.name };
-    idsInvalidate();
-    activeIdsSpec = null; idsOutcomeFilter.clear();
+    const doc = parseIds(await file.text());
+    const entry = { id: "ids" + (++_idsSeq), name: file.name, info: doc.info, specs: doc.specs, collapsed: false, result: null };
+    const prev = idsDocs.findIndex(d => d.name === file.name);
+    if (prev >= 0) {   // ricarica dello stesso file: sostituisce la versione precedente (esito da rifare)
+      if (activeIdsSpec && activeIdsSpec._doc === idsDocs[prev]) { activeIdsSpec = null; clearHighlight(); closeDetail(); }
+      idsDocs[prev] = entry;
+    } else idsDocs.push(entry);
+    idsViewsCache = null;   // il nuovo IDS può citare altri tipi entità: l'universo candidati va ricostruito
+    idsRefreshAggregate();  // gli esiti degli altri file già verificati restano validi
     dismissLanding();
-    toast(tr("toast.idsLoaded", { f: file.name, n: idsDoc.specs.length }));
+    toast(tr("toast.idsLoaded", { f: file.name, n: entry.specs.length }));
     updateIssuesBadge();
     setLeftTab("issues");
     setIssueMode("ids");     // mostra il pannello; la verifica parte SOLO su richiesta (pulsante)
-    renderIdsSources(); renderIdsSummary(); renderIdsChips(); renderIdsList();
+    renderIdsChips(); renderIdsList();
     hideLoading();
   } catch (e) {
-    idsDoc = null; idsSource = null;
     toast(tr("toast.idsErr", { e: e.message })); console.warn(e);
     hideLoading();
   }
 }
 
+/* aggregato dei risultati di tutti i file verificati — derivato da idsDocs, mai fonte */
+function idsRefreshAggregate() {
+  const ran = idsDocs.filter(d => d.result);
+  if (!ran.length) { idsResults = null; return; }
+  const specs = [];
+  let applicable = 0, passed = 0, failed = 0;
+  for (const d of ran) {
+    specs.push(...d.result.specs);
+    applicable += d.result.summary.applicable; passed += d.result.summary.passed; failed += d.result.summary.failed;
+  }
+  idsResults = { specs, summary: { specs: specs.length, applicable, passed, failed } };
+}
+
 function runIds() {
-  if (!idsDoc || !models.length || idsRunning) return;
+  if (!idsDocs.length || !models.length || idsRunning) return;
   idsRunning = true; updateIdsRunBtn(); renderIdsList();
   showLoading(tr("ids.running"));
   setTimeout(() => {                    // lascia dipingere l'overlay prima del lavoro sincrono
     try {
-      idsResults = evaluateIds(idsDoc, buildIdsViews());
+      const views = buildIdsViews();
+      for (const d of idsDocs) {
+        d.result = evaluateIds(d, views);
+        /* _skey: identità stabile della specifica (file + identifier/nome) per stati e ri-aggancio */
+        d.result.specs.forEach((r, i) => { r._doc = d; r._skey = d.name + "¦" + (r.spec.identifier || r.spec.name || "#" + i); });
+      }
+      idsRefreshAggregate();
       setDefaultIdsFilter();
-    } catch (e) { idsResults = null; toast(tr("toast.idsErr", { e: e.message })); console.warn(e); }
+      if (activeIdsSpec) {   // riaggancia il dettaglio aperto al risultato nuovo con la stessa chiave
+        const k = activeIdsSpec._skey;
+        activeIdsSpec = (idsResults && idsResults.specs.find(r => r._skey === k)) || null;
+        if (activeIdsSpec) renderIdsDetail(activeIdsSpec);
+      }
+    } catch (e) {
+      for (const d of idsDocs) d.result = null;
+      idsResults = null;
+      toast(tr("toast.idsErr", { e: e.message })); console.warn(e);
+    }
     idsRunning = false;
     updateIssuesBadge();
-    renderIdsSummary(); renderIdsChips(); renderIdsList(); renderIdsSources();
+    renderIdsChips(); renderIdsList();
     hideLoading();
   }, 30);
 }
@@ -5373,29 +5440,18 @@ function setDefaultIdsFilter() {
 function updateIdsRunBtn() {
   const b = $("btnIdsRun"); if (!b) return;
   b.classList.toggle("busy", idsRunning);
-  b.disabled = !idsRunning && (!idsDoc || !models.length);
+  b.disabled = !idsRunning && (!idsDocs.length || !models.length);
   if (idsRunning) b.innerHTML = `<span class="spin"></span>${esc(tr("ids.checking"))}`;
   else b.textContent = idsResults ? tr("ids.rerun") : tr("ids.run");
 }
 
-function renderIdsSources() {
-  const box = $("idsSources"); if (!box) return;
-  box.innerHTML = "";
-  if (!idsSource) return;
-  const chip = document.createElement("span");
-  chip.className = "src-chip";
-  chip.innerHTML = `<span class="nm"></span><button class="src-x" title="${esc(tr("ids.remove"))}">×</button>`;
-  chip.querySelector(".nm").textContent = idsSource.name;
-  chip.querySelector(".src-x").addEventListener("click", unloadIds);
-  box.appendChild(chip);
-}
-function unloadIds() {
-  const wasActive = !!activeIdsSpec;
-  idsDoc = null; idsSource = null; idsResults = null; idsViewsCache = null; activeIdsSpec = null;
-  idsOutcomeFilter.clear();
-  if (wasActive) { clearHighlight(); closeDetail(); }
+function unloadIdsEntry(entry) {
+  idsDocs = idsDocs.filter(d => d !== entry);
+  if (activeIdsSpec && activeIdsSpec._doc === entry) { activeIdsSpec = null; clearHighlight(); closeDetail(); }
+  idsRefreshAggregate();   // gli esiti degli altri file restano validi (l'universo elementi non cambia)
+  if (!idsDocs.length) idsOutcomeFilter.clear();
   updateIssuesBadge();
-  renderIdsSources(); renderIdsSummary(); renderIdsChips(); renderIdsList();
+  renderIdsChips(); renderIdsList();
   showLandingIfEmpty();
   toast(tr("toast.idsUnloaded"));
 }
@@ -5403,16 +5459,17 @@ function unloadIds() {
 function renderIdsSummary() {
   const t = $("idsTitle"), m = $("idsMeta"), box = $("idsSummary");
   if (!box) return;
-  if (t) t.textContent = idsDoc ? ((idsDoc.info && idsDoc.info.title) || tr("ids.untitled")) : "";
+  const one = idsDocs.length === 1 ? idsDocs[0] : null;
+  if (t) t.textContent = !idsDocs.length ? "" : (one ? ((one.info && one.info.title) || tr("ids.untitled")) : tr("ids.nFiles", { n: idsDocs.length }));
   if (m) {
-    if (!idsDoc) { m.textContent = ""; }
-    else {
+    if (!idsDocs.length) { m.textContent = ""; }
+    else if (one) {
       const p = [];
-      if (idsDoc.info.author) p.push(idsDoc.info.author);
-      if (idsDoc.info.date) p.push(idsDoc.info.date);
-      p.push(tr("ids.nspec", { n: idsDoc.specs.length }));
+      if (one.info.author) p.push(one.info.author);
+      if (one.info.date) p.push(one.info.date);
+      p.push(tn(one.specs.length, "ids.nspec1", "ids.nspec"));
       m.textContent = p.join(" · ");
-    }
+    } else m.textContent = tr("ids.nspecTot", { n: idsDocs.reduce((a, d) => a + d.specs.length, 0) });
   }
   if (!idsResults) { box.innerHTML = ""; return; }
   const s = idsResults.summary;
@@ -5444,43 +5501,70 @@ function renderIdsChips() {
 function renderIdsList() {
   const list = $("idsList"); if (!list) return;
   renderIdsSummary(); updateIdsRunBtn(); updateIdsExportBar();
-  if (!idsDoc) { list.innerHTML = `<div class="empty-note">${tr("empty.noIds")}</div>`; return; }
-  if (!models.length) { list.innerHTML = `<div class="empty-note">${tr("ids.noModels")}</div>`; return; }
+  if (!idsDocs.length) { list.innerHTML = `<div class="empty-note">${tr("empty.noIds")}</div>`; return; }
   if (idsRunning) { list.innerHTML = `<div class="empty-note">${tr("ids.running")}</div>`; return; }
-  if (!idsResults) { list.innerHTML = `<div class="empty-note">${tr("ids.pressRun")}</div>`; return; }
   const q = ($("idsSearch").value || "").trim().toLowerCase();
-  const rows = idsResults.specs.filter(r => {
-    if (!idsOutcomeFilter.has(specOutcome(r))) return false;   // filtro a membership (i chip accesi = esiti mostrati)
-    if (!q) return true;
-    return (r.spec.name + " " + r.spec.identifier + " " + r.spec.description).toLowerCase().includes(q);
-  });
   list.innerHTML = "";
-  if (!rows.length) { list.innerHTML = `<div class="empty-note">${tr("ids.noMatch")}</div>`; return; }
-  for (const r of rows) {
-    const oc = specOutcome(r);
-    const card = document.createElement("div");
-    card.className = "issue-card ids" + (r === activeIdsSpec ? " active" : "");
-    card.tabIndex = 0;
-    card.innerHTML = `
-      <div class="spine" style="background:${IDS_COLOR[oc]}"></div>
-      <div class="body">
-        <div class="title"></div>
-        <div class="meta">
-          <span>${tr("ids.applN", { n: r.applicable.length })}</span>
-          <span style="color:${IDS_COLOR.pass}">${tr("ids.passN", { n: r.passed.length })}</span>
-          <span style="color:${IDS_COLOR.fail}">${tr("ids.failN", { n: r.failed.length })}</span>
-        </div>
-      </div>`;
-    card.querySelector(".title").textContent = r.spec.name || r.spec.identifier || tr("ids.untitledSpec");
-    const open = () => openIdsSpec(r);
-    card.addEventListener("click", open);
-    card.addEventListener("keydown", e => { if (e.key === "Enter") open(); });
-    list.appendChild(card);
+  /* senza modelli i gruppi restano visibili (per gestire i file), ma la verifica non può partire */
+  if (!models.length) {
+    const d = document.createElement("div");
+    d.className = "empty-note";
+    d.textContent = tr("ids.noModels");
+    list.appendChild(d);
+  }
+  /* un gruppo collassabile per ogni file .ids caricato */
+  for (const d of idsDocs) {
+    const nFail = d.result ? d.result.specs.reduce((a, r) => a + (specOutcome(r) === "fail" ? 1 : 0), 0) : 0;
+    const head = document.createElement("div");
+    head.className = "ids-grp";
+    head.title = d.name;
+    head.innerHTML = `<button class="cg-tw" title="${esc(tr("ids.grpToggleT"))}">${d.collapsed ? "▸" : "▾"}</button>
+      <span class="cg-name"></span><span class="cg-n">${tn(d.specs.length, "ids.nspec1", "ids.nspec")}</span>${nFail ? `<span class="cg-fail">${tn(nFail, "ids.failN1", "ids.failN")}</span>` : ""}
+      <button class="cg-x" title="${esc(tr("ids.remove"))}">×</button>`;
+    head.querySelector(".cg-name").textContent = (d.info && d.info.title) || d.name;
+    head.addEventListener("click", (e) => { if (e.target.closest(".cg-x")) return; d.collapsed = !d.collapsed; renderIdsList(); });
+    head.querySelector(".cg-x").addEventListener("click", () => unloadIdsEntry(d));
+    list.appendChild(head);
+    if (d.collapsed) continue;
+    const wrap = document.createElement("div");
+    wrap.className = "ids-grp-items";
+    list.appendChild(wrap);
+    if (!d.result) { wrap.innerHTML = `<div class="empty-note">${tr("ids.notChecked")}</div>`; continue; }
+    const rows = d.result.specs.filter(r => {
+      if (!idsOutcomeFilter.has(specOutcome(r))) return false;   // filtro a membership (i chip accesi = esiti mostrati)
+      if (!q) return true;
+      return (r.spec.name + " " + r.spec.identifier + " " + r.spec.description).toLowerCase().includes(q);
+    });
+    if (!rows.length) { wrap.innerHTML = `<div class="empty-note">${tr("ids.noMatch")}</div>`; continue; }
+    for (const r of rows) {
+      const oc = specOutcome(r);
+      const st = idsStatusOf(r);
+      const card = document.createElement("div");
+      card.className = "issue-card ids" + (r === activeIdsSpec ? " active" : "");
+      card.tabIndex = 0;
+      card.innerHTML = `
+        <div class="spine" style="background:${IDS_COLOR[oc]}"></div>
+        <div class="body">
+          <div class="title"></div>
+          <div class="meta">
+            <span>${tr("ids.applN", { n: r.applicable.length })}</span>
+            <span style="color:${IDS_COLOR.pass}">${tr("ids.passN", { n: r.passed.length })}</span>
+            <span style="color:${IDS_COLOR.fail}">${tr("ids.failN", { n: r.failed.length })}</span>
+            ${st ? `<span style="color:${statusColor(st)}">${esc(st)}</span>` : ""}
+          </div>
+        </div>`;
+      card.querySelector(".title").textContent = r.spec.name || r.spec.identifier || tr("ids.untitledSpec");
+      const open = () => openIdsSpec(r);
+      card.addEventListener("click", open);
+      card.addEventListener("keydown", e => { if (e.key === "Enter") open(); });
+      wrap.appendChild(card);
+    }
   }
 }
 
 function openIdsSpec(r) {
   activeIdsSpec = r;
+  activeTopic = null; activeReport = null;   // una sola issue attiva tra le modalità
   renderIdsList();
   const found = [], seen = new Set();
   for (const f of r.failed) {
@@ -5491,6 +5575,7 @@ function openIdsSpec(r) {
   else clearHighlight();
   $("ftHint").textContent = tr("ids.specHint", { name: r.spec.name || r.spec.identifier || "IDS", fail: r.failed.length, appl: r.applicable.length });
   renderIdsDetail(r);
+  $("detailBody").scrollTop = 0;
   openDetailPane();
 }
 
@@ -5500,36 +5585,98 @@ function reasonText(rs) {
   return tr("ids.rBadValue", { label: rs.label, expected: rs.expected || "—", got: rs.got || "∅" });
 }
 
+/* stato assegnato alla specifica (chiave stabile _skey) — entra nell'export BCF */
+const idsStatusOf = (r) => (r._skey && idsStatuses.get(r._skey)) || "";
+function setIdsStatus(r, s) {
+  s = s || "";
+  if (s === idsStatusOf(r)) return;
+  if (s) idsStatuses.set(r._skey, s); else idsStatuses.delete(r._skey);
+  renderIdsDetail(r);
+  renderIdsList();
+  toast(tr("toast.idsStatus", { s: s || tr("rep.noStatus") }));
+}
+
 function renderIdsDetail(r) {
   $("detailTitle").textContent = tr("ids.detailTitle");
   const body = $("detailBody");
   body.oninput = null; body.onchange = null;
+  const sc = body.scrollTop;   // i re-render (stato, comprimi/espandi) non devono far saltare lo scroll
   const oc = specOutcome(r);
-  let html = `<span class="d-status" style="background:${IDS_COLOR[oc]}">${esc(tr("ids." + oc))}</span>`;
+  const st = idsStatusOf(r);
+  let html = `<div class="d-statusrow">
+      <select id="idsStatusSel" class="d-status-sel" style="background:${st ? statusColor(st) : "var(--st-other)"}" title="${tr("title.changeStatus")}">
+        <option value=""${st ? "" : " selected"}>${esc(tr("rep.noStatus"))}</option>
+        ${allBcfStatuses(st).map(s => `<option value="${esc(s)}"${s === st ? " selected" : ""}>${esc(s)}</option>`).join("")}
+      </select>
+      <span class="d-status" style="background:${IDS_COLOR[oc]}">${esc(tr("ids." + oc))}</span>
+    </div>`;
   html += `<div class="d-title">${esc(r.spec.name || r.spec.identifier || tr("ids.untitledSpec"))}</div>`;
   if (r.spec.description) html += `<div class="ids-desc">${esc(r.spec.description)}</div>`;
   html += `<div class="ids-summary" style="margin:8px 0 12px">
       <span style="color:${IDS_COLOR.pass}">${tr("ids.passN", { n: r.passed.length })}</span>
       <span style="color:${IDS_COLOR.fail}">${tr("ids.failN", { n: r.failed.length })}</span>
-      <span>${tr("ids.applN", { n: r.applicable.length })}</span></div>`;
+      <span>${tr("ids.applN", { n: r.applicable.length })}</span>
+      ${r._doc ? `<span style="color:var(--faint)" title="${esc(r._doc.name)}">${esc(r._doc.name)}</span>` : ""}</div>`;
   if (!r.failed.length) {
     html += `<div class="empty-note">${r.applicable.length ? tr("ids.allPass") : tr("ids.notApplicable")}</div>`;
   } else {
-    html += `<div class="ids-fail-h">${tr("ids.failList")}</div>`;
+    /* elementi raggruppati per firma dei motivi: il motivo compare UNA volta con il
+       conteggio, sotto la lista compatta degli elementi (stile componenti report) */
+    if (!r._grpOpen) r._grpOpen = {};   // comprimi/espandi per gruppo, persiste tra i re-render del dettaglio
+    const groups = new Map();
     r.failed.forEach((f, i) => {
-      const nm = f.view.name || f.view.globalId || ("#" + f.view.eid);
-      const reasons = f.reasons.map(rs => `<li class="bad">${esc(reasonText(rs))}</li>`).join("");
-      html += `<div class="ids-el">
-          <div class="rep-comp" data-i="${i}" title="${esc(tr("ids.clickIsolate"))}"><span class="rc-name">${esc(nm)}</span><span class="rc-model">${esc(f.view.model.name)}</span><span class="rc-st">▸</span></div>
-          <ul class="ids-reasons">${reasons}</ul></div>`;
+      const texts = f.reasons.map(reasonText);
+      const sig = texts.slice().sort().join("\n");
+      let g = groups.get(sig);
+      if (!g) groups.set(sig, g = { reasons: texts, items: [] });
+      g.items.push(i);
+    });
+    r._grpSorted = [...groups.values()].sort((a, b) => b.items.length - a.items.length);
+    html += `<div class="ids-fail-h">${tr("ids.failList")}</div>`;
+    r._grpSorted.forEach((g, gi) => {
+      const open = r._grpOpen[gi] !== false;   // default: aperto
+      const reasons = g.reasons.map(t => `<div>${esc(t)}</div>`).join("");
+      const items = g.items.map(i => {
+        const f = r.failed[i];
+        const nm = f.view.name || f.view.globalId || ("#" + f.view.eid);
+        return `<div class="rep-comp" data-i="${i}" title="${esc(tr("ids.clickIsolate"))}"><span class="rc-name">${esc(nm)}</span><span class="rc-model">${esc(f.view.model.name)}</span><span class="rc-st">▸</span></div>`;
+      }).join("");
+      html += `<div class="ids-rgrp">
+          <div class="ids-rgrp-h" data-g="${gi}" title="${esc(tr("ids.grpClickT"))}">
+            <button class="cg-tw" title="${esc(tr("ids.grpToggleT"))}">${open ? "▾" : "▸"}</button>
+            <div class="rg-reasons">${reasons}</div>
+            <span class="cg-n">${tn(g.items.length, "ids.grpN1", "ids.grpN")}</span>
+          </div>
+          <div class="ids-rgrp-items"${open ? "" : " hidden"}>${items}</div>
+        </div>`;
     });
   }
   body.innerHTML = html;
+  body.scrollTop = sc;
+  const ss = $("idsStatusSel");
+  if (ss) ss.addEventListener("change", () => setIdsStatus(r, ss.value));
   body.querySelectorAll(".rep-comp[data-i]").forEach(el => el.addEventListener("click", () => {
     const f = r.failed[+el.dataset.i]; if (!f) return;
     const m = f.view.model, sel = geoIdsOf(m, f.view.eid).map(g => ({ model: m, eid: g }));
     if (sel.length) { const box = buildHighlight(sel); if (box) fitBox(box.clone().expandByScalar(box.getSize(new THREE.Vector3()).length() * 0.5 + 1)); }
   }));
+  body.querySelectorAll(".ids-rgrp-h").forEach(h => {
+    const gi = +h.dataset.g;
+    h.querySelector(".cg-tw").addEventListener("click", (e) => {
+      e.stopPropagation();
+      r._grpOpen[gi] = r._grpOpen[gi] === false;
+      renderIdsDetail(r);
+    });
+    h.addEventListener("click", () => {   // evidenzia e inquadra tutti gli elementi del gruppo
+      const g = r._grpSorted[gi]; if (!g) return;
+      const sel = [], seen = new Set();
+      for (const i of g.items) {
+        const f = r.failed[i], m = f.view.model;
+        for (const gid of geoIdsOf(m, f.view.eid)) { const k = m.uid + ":" + gid; if (!seen.has(k)) { seen.add(k); sel.push({ model: m, eid: gid }); } }
+      }
+      if (sel.length) { const box = buildHighlight(sel); if (box) fitBox(box.clone().expandByScalar(box.getSize(new THREE.Vector3()).length() * 0.3 + 2)); }
+    });
+  });
 }
 
 /* ===================== export non conformità IDS → BCF 2.1 =====================
@@ -5553,13 +5700,13 @@ function _projectGuidOf(model) {
   model._projGuid = g; return g;
 }
 function idsResultsToBcfTopics(results) {
-  const author = (results.info && results.info.author) || "APE Viewer";
   const created = nowIso();
   const MAX_ELEMS = 200;   // guardia: n° max di elementi elencati (descrizione + commenti) per topic
   const topics = [];
   let idx = 0;
   for (const r of results.specs) {
     if (!r.failed.length) continue;                       // solo specifiche con non conformità
+    const author = (r._doc && r._doc.info && r._doc.info.author) || "APE Viewer";
     const reasonCount = new Map(), components = [], seen = new Set(), files = new Map(), elems = [];
     for (const f of r.failed) {
       const m = f.view.model;
@@ -5585,8 +5732,8 @@ function idsResultsToBcfTopics(results) {
     topics.push({
       guid: uuid(), index: idx++,
       title: r.spec.name || r.spec.identifier || tr("ids.untitledSpec"),
-      description: parts.join("\n"), status: "Open", type: "Issue", author, created,
-      labels: ["IDS", r.spec.identifier].filter(Boolean),
+      description: parts.join("\n"), status: idsStatusOf(r) || "Open", type: "Issue", author, created,
+      labels: ["IDS", r._doc ? r._doc.name : "", r.spec.identifier].filter(Boolean),
       components, files: [...files.values()],
       elems, comments   // elems: runtime (snapshot); comments: dettaglio per-elemento
     });
@@ -5729,7 +5876,7 @@ async function exportIdsBcf() {
       if (view) zip.file(`${t.guid}/snapshot.png`, view.png, { base64: true });
     }
     const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
-    const base = ((idsSource && idsSource.name) || "ids").replace(/\.ids$/i, "");
+    const base = (idsDocs.length === 1 ? idsDocs[0].name : "ids").replace(/\.ids$/i, "");
     triggerDownload(blob, `${base}_non_conformita.bcf`);
     toast(tr("ids.bcfExported", { n: topics.length }));
   } catch (e) { console.error(e); toast(tr("toast.bcfExportErr", { e: e.message || e })); }
@@ -6995,7 +7142,7 @@ function renderReportList() {
 }
 
 function openReportTopic(t) {
-  activeReport = t; activeTopic = null;
+  activeReport = t; activeTopic = null; activeIdsSpec = null;
   statsOpen = false; $("btnReportStats").classList.remove("on");
   renderReportList();
   const found = [], seen = new Set();
@@ -7252,7 +7399,7 @@ function openReportStats() {
 /* ============================ apertura topic ============================ */
 function openTopic(topic) {
   activeTopic = topic;
-  activeReport = null;
+  activeReport = null; activeIdsSpec = null;
   renderIssueList();
   renderTopicDetail(topic);
   applyTopicSelection(topic);
@@ -8407,7 +8554,7 @@ document.querySelectorAll(".ltab").forEach(b => b.addEventListener("click", () =
 function dismissLanding() { const l = $("landing"); if (l) l.classList.add("hide"); }
 function showLandingIfEmpty() {
   /* il landing torna solo se non c'è proprio nulla caricato (modelli, BCF, report) */
-  const empty = (!models.length) && (!PCLOUD.sources.length) && (!topics || !topics.length) && (typeof reportTopics === "undefined" || !reportTopics || !reportTopics.length) && !idsDoc;
+  const empty = (!models.length) && (!PCLOUD.sources.length) && (!topics || !topics.length) && (typeof reportTopics === "undefined" || !reportTopics || !reportTopics.length) && !idsDocs.length;
   const l = $("landing"); if (l) l.classList.toggle("hide", !empty);
 }
 $("lpLoadIfc").addEventListener("click", () => $("fileIfc").click());
