@@ -49,10 +49,10 @@
      invece che dentro le funzioni delle feature, tiene il codice del viewer
      completamente pulito: nessuna chiamata sparsa da mantenere. */
   var EVENTS = {
-    /* apertura file */
-    btnIfc:          "ifc-open",
-    btnBcf:          "bcf-open",
-    btnPc:           "pointcloud-open",
+    /* NB: l'apertura dei file NON si misura da qui — vedi FILE_KINDS più sotto.
+       Un click sul bottone conta anche chi apre il dialogo e poi annulla, e
+       soprattutto non vede il drag & drop, che nel viewer è una via di
+       caricamento a pieno titolo. Misurava intenzioni, non caricamenti. */
     /* viste e navigazione */
     btnAlign:        "alignment",
     btnSection:      "section",
@@ -72,7 +72,6 @@
     /* verifica nuvola ↔ modello */
     btnC2dRun:       "cloud-distance",
     btnC2mScan:      "cloud-scan",
-    btnC2mBook:      "cloud-codebook",
     /* issue e report */
     btnExportBcf:    "bcf-export",
     btnReportStats:  "report-stats",
@@ -111,14 +110,62 @@
      ogni click premierebbe chi ripete un calcolo, non chi usa la feature. */
   var seen = Object.create(null);
 
-  document.addEventListener("click", function (ev) {
-    var el = ev.target && ev.target.closest ? ev.target.closest("button, a") : null;
-    if (!el || !el.id) return;
-
-    var name = EVENTS[el.id];
+  function send(name) {
     if (!name || seen[name]) return;
     seen[name] = true;
-
     if (ready) fire(name); else if (queue.length < 20) queue.push(name);
+  }
+
+  document.addEventListener("click", function (ev) {
+    var el = ev.target && ev.target.closest ? ev.target.closest("button, a") : null;
+    if (el && el.id) send(EVENTS[el.id]);
   }, true);   /* capture: registra anche se un handler ferma la propagazione */
+
+  /* ------------------------------------------------- caricamento di file ----
+     Un file "aperto" è un file DAVVERO scelto, non un bottone premuto. Il
+     bottone sbaglia in due modi opposti: conta chi annulla il dialogo, e non
+     vede chi trascina il file nella finestra. Si è visto nei dati reali —
+     l'evento `section` risultava più frequente di `ifc-open`, che è impossibile
+     senza un modello caricato.
+
+     Le due vie reali sono quindi il `change` degli input[type=file] e il `drop`
+     sulla finestra. La classificazione è per estensione, con le stesse regex
+     dell'handler "drop" del viewer, così i due percorsi non possono divergere. */
+  var FILE_KINDS = [
+    [/\.ifc$/i,              "ifc-open"],
+    [/\.(bcf|bcfzip|zip)$/i, "bcf-open"],
+    [/\.(xlsx|xlsm)$/i,      "report-open"],
+    [/\.(las|laz|e57)$/i,    "pointcloud-open"],
+    [/\.ids$/i,              "ids-open"],
+    [/\.(xml|landxml)$/i,    "landxml-open"]
+  ];
+
+  /* I .csv non sono distinguibili per estensione (catalogo dei codici o matrice
+     clash?), quindi per loro conta da quale campo arrivano. Non serve il ramo
+     drag & drop: il viewer i .csv trascinati non li accetta. */
+  var BY_INPUT = {
+    fileC2mBook:  "cloud-codebook",
+    fileClashMtx: "clash-matrix-load"
+  };
+
+  function classify(name) {
+    for (var i = 0; i < FILE_KINDS.length; i++)
+      if (FILE_KINDS[i][0].test(name)) return FILE_KINDS[i][1];
+    return null;                       /* estensione ignota: non si inventa */
+  }
+
+  function countFiles(files, inputId) {
+    if (!files || !files.length) return;
+    var forced = inputId && BY_INPUT[inputId];
+    for (var i = 0; i < files.length; i++) send(forced || classify(files[i].name));
+  }
+
+  document.addEventListener("change", function (ev) {
+    var el = ev.target;
+    if (el && el.type === "file") countFiles(el.files, el.id);
+  }, true);
+
+  window.addEventListener("drop", function (ev) {
+    if (ev.dataTransfer) countFiles(ev.dataTransfer.files, null);
+  }, true);   /* capture: gira prima dell'handler del viewer, che fa preventDefault */
 })();
