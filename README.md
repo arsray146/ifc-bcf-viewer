@@ -43,13 +43,13 @@ Most online IFC viewers either upload your model to a server or stop at visualiz
 
 ## Quick start
 
-No build step. The viewer is a standalone HTML file.
+No build step. The viewer is a single HTML file plus a `vendor/` folder with the rendering engine.
 
-1. Download `Viewer_IFC_BCF_V1_9_5.html` (or the latest version).
-2. Open it in a modern Chromium-based browser (**Chrome** or **Edge** recommended).
+1. Get the `viewer/` folder (`index.html` + `vendor/` with three.js and web-ifc).
+2. Serve it with any static server (see below) and open it in a modern Chromium-based browser (**Chrome** or **Edge** recommended). Opening the file directly via double-click does not work: browsers block ES-module imports from `file://`.
 3. Click **Load IFC**, select one or more `.ifc` files, then optionally **Load BCF**.
 
-On first run the viewer fetches the rendering engine from a CDN (see below), so an internet connection is needed the first time.
+The rendering engine is bundled locally in `viewer/vendor/`; only fonts and JSZip (used for BCF files) are still fetched from a CDN.
 
 ### Run it locally as a website
 
@@ -71,10 +71,12 @@ Then open `http://localhost:8080/`.
 
 - **Rendering:** [three.js](https://threejs.org/) `0.160.0` (MIT)
 - **IFC parsing:** [web-ifc](https://github.com/ThatOpen/engine_web-ifc) `0.0.77` (Mozilla Public License 2.0), WebAssembly
-- **App:** plain HTML / CSS / JavaScript, no framework, single-file build
+- **App:** plain HTML / CSS / JavaScript, no framework, no build step
 - **Fonts:** Barlow Semi Condensed, IBM Plex Sans, IBM Plex Mono
 
-> Dependencies are loaded from a CDN on first launch. To run fully offline, vendor `three` and `web-ifc` locally and update the import map in the HTML.
+> `three` and `web-ifc` are vendored locally under `viewer/vendor/` (pinned versions, no CDN latency). Fonts and JSZip still load from a CDN; to run fully offline, vendor those too.
+
+> **Third-party licenses:** every bundled and CDN-loaded component is listed in [`viewer/vendor/LICENSES.md`](viewer/vendor/LICENSES.md), together with the full license texts. Vendored files are kept byte-identical to upstream.
 
 ---
 
@@ -82,7 +84,9 @@ Then open `http://localhost:8080/`.
 
 ```
 index.html                     # Landing page (bilingual IT/EN)
-Viewer_IFC_BCF_V1_9_5.html     # The viewer (single-file app)
+viewer/index.html              # The viewer (single-file app)
+viewer/vendor/                 # Vendored three.js 0.160.0 + web-ifc 0.0.77
+viewer/vendor/LICENSES.md      # Third-party licenses + full texts
 favicon.svg                    # Icon (lime square + bee mark)
 favicon-32.png                 # Fallback favicon
 apple-touch-icon.png           # iOS home-screen icon
