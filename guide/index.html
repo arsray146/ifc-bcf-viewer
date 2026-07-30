@@ -11,258 +11,381 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Come usare il viewer · Viewer IFC · BCF</title>
-<meta name="description" content="Guida rapida al Viewer IFC · BCF: carica una federazione di modelli IFC, apri le issue BCF e coordina il progetto direttamente nel browser, senza upload né account.">
+<title>Guida · Viewer IFC · BCF</title>
+<meta name="description" content="La guida del Viewer IFC · BCF: caricare i modelli, navigare, sezionare, coordinare con BCF, clash e IDS, assi IFC4x3, nuvole di punti e strumenti. Tutto nel browser, senza upload né account.">
 <link rel="canonical" href="https://viewifc.com/guide/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://viewifc.com/guide/">
-<meta property="og:title" content="Come usare il viewer · Viewer IFC · BCF">
-<meta property="og:description" content="Guida rapida: carica IFC, apri i BCF e coordina nel browser. Nessun upload, nessun account.">
+<meta property="og:title" content="Guida · Viewer IFC · BCF">
+<meta property="og:description" content="Il manuale dello strumento: indice per aree di lavoro, tabelle di tasti, le stesse parole che usa il viewer.">
 <meta property="og:image" content="https://viewifc.com/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://viewifc.com/og-image.png">
-<meta name="theme-color" content="#0c110a">
+<meta name="theme-color" content="#141a12">
 <link rel="icon" type="image/png" href="data:image/png;base64,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">
 <link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
-  :root{
-    --lime:#bfd730; --lime-deep:#9ab313; --lime-ink:#23310a; --lime-soft:rgba(191,215,48,.14);
-    --acc:#bfd730; --glass:rgba(12,17,10,.72); --rot-glow:rgba(191,215,48,.35);
-    --bg:#0c110a; --bg2:#10160d; --card:#141b10; --card-2:#171f12;
-    --line:#232d1b; --line-2:#313d24;
-    --text:#edf2e2; --muted:#a9b59b; --faint:#79856c;
-    --red:#e0523f;
-    --shadow-lg:0 10px 40px rgba(0,0,0,.5);
-    /* scene isometriche: facce scure da wireframe, come il mockup della landing */
-    --iso-card:#141b10; --iso-ink:#4a5a2e;
-    --iso-light:#1d2616; --iso-mid:#26301c; --iso-deep:#313d24;
-    --iso-shadow:#10160d; --iso-txt:#a9b59b;
-    --mono:'IBM Plex Mono',ui-monospace,monospace;
-    --sans:'IBM Plex Sans',system-ui,sans-serif;
-    --disp:'Barlow Semi Condensed',var(--sans);
-  }
-  *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  body{
-    margin:0;background:var(--bg);color:var(--text);
-    font-family:var(--sans);font-size:16px;line-height:1.6;
-    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
-    overflow-x:hidden;
-  }
-  a{color:inherit;text-decoration:none}
-  ::selection{background:var(--lime);color:var(--lime-ink)}
+:root{
+  /* ---- palette lime (invariata) ---- */
+  --lime:#bfd730; --lime-deep:#a8c320; --lime-ink:#23310a;
+  --lime-soft:rgba(191,215,48,.13); --lime-line:rgba(191,215,48,.34);
+  --acc:var(--lime-deep);
+  /* ---- superfici: lastre di vetro su fondo scuro (identiche alla landing) ---- */
+  --bg:#141a12; --bg-rgb:20,26,18; --bg2:#262b24;
+  --pnl:rgba(15,20,13,.82); --pnl2:rgba(237,242,226,.05);
+  --hair:rgba(237,242,226,.09); --hair2:rgba(237,242,226,.06);
+  --inset:rgba(13,18,11,.5);
+  --grid:rgba(237,242,226,.05); --hover:rgba(237,242,226,.022);
+  --text:#edf2e2; --muted:#a9b59b; --faint:#79856c;
+  --red:#e0523f;
+  --sh:0 2px 8px rgba(0,0,0,.28),0 18px 44px rgba(0,0,0,.42);
+  --sh-sm:0 1px 3px rgba(0,0,0,.30),0 6px 18px rgba(0,0,0,.26);
+  --glow:0 4px 24px rgba(191,215,48,.20);
+  --r:24px; --r-md:18px; --r-sm:11px;
+  --blur:blur(20px) saturate(1.25);
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --disp:'Barlow Semi Condensed',var(--sans);
+  --maxw:1180px; --pad:clamp(20px,6vw,90px);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{margin:0}
+::selection{background:var(--lime);color:var(--lime-ink)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px;border-radius:6px}
 
-  /* ambient glow, tutta la pagina (come landing) */
-  .ambient{position:fixed;inset:0;pointer-events:none;z-index:0;
-    background:
-      radial-gradient(900px 520px at 18% -5%, rgba(191,215,48,.10), transparent 60%),
-      radial-gradient(760px 480px at 85% 12%, rgba(191,215,48,.05), transparent 60%);
-  }
+/* la griglia di fondo, unica per tutta la pagina */
+.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:44px 44px,44px 44px}
+.glowtop{position:absolute;left:0;right:0;top:0;height:520px;pointer-events:none;z-index:0;
+  background:radial-gradient(64% 70% at 50% 0%,rgba(191,215,48,.08) 0%,transparent 66%)}
 
-  /* ---------- top bar (glass, come landing) ---------- */
-  .topbar{position:sticky;top:0;z-index:50;
-    background:var(--glass);backdrop-filter:blur(14px) saturate(1.25);
-    -webkit-backdrop-filter:blur(14px) saturate(1.25);
-    border-bottom:1px solid var(--line)}
-  .topbar .wrap{display:flex;align-items:center;gap:16px;height:58px;max-width:none;padding:0 18px}
-  .brand-link{display:flex;align-items:center;gap:9px;text-decoration:none;color:inherit;border-radius:6px;padding:2px 4px;margin:-2px -4px;transition:background .12s}
-  .brand-link:hover{background:var(--card)}
-  .hdr-logo{width:30px;height:30px;border-radius:7px;display:block;flex:none}
-  .appname{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.06em;color:var(--text);line-height:1.2}
-  .appname small{display:block;font-family:var(--sans);font-weight:400;font-size:11px;letter-spacing:.04em;color:var(--muted)}
-  .spacer{flex:1}
-  .hdr-right{display:flex;align-items:center;gap:12px}
-  /* langSwitch — identico a landing/viewer */
-  .langsw{display:inline-flex;border:1px solid var(--line-2);border-radius:6px;overflow:hidden;background:var(--card)}
-  .langsw button{border:none;border-radius:0;background:none;color:var(--faint);font-family:var(--mono);
-    font-size:11.5px;letter-spacing:.06em;padding:7px 9px;min-width:32px;cursor:pointer;transition:background .12s,color .12s}
-  .langsw button+button{border-left:1px solid var(--line-2)}
-  .langsw button:hover{color:var(--text);background:var(--card-2)}
-  .langsw button.on{background:var(--lime-soft);color:var(--acc);font-weight:600}
-  /* toggle tema — identico alla landing */
-  .thm{width:34px;height:34px;flex:none;border-radius:7px;border:1px solid var(--line-2);background:var(--card);
-    display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);
-    transition:color .15s,border-color .15s}
-  .thm:hover{color:var(--text);border-color:var(--lime-deep)}
-  .thm svg{width:16px;height:16px}
-  html[data-theme="light"] .thm .moon{display:none}
-  html:not([data-theme="light"]) .thm .sun{display:none}
-  /* buttons — base identica a landing/viewer */
-  .btn{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;font-family:var(--disp);font-weight:600;font-size:13.5px;
-    letter-spacing:.05em;text-transform:uppercase;color:var(--text);background:var(--card);
-    border:1px solid var(--line-2);border-radius:7px;padding:8px 15px;cursor:pointer;text-decoration:none;
-    transition:border-color .15s,background .15s,box-shadow .2s,transform .15s}
-  .btn:hover{border-color:var(--lime-deep);background:var(--card-2)}
-  .btn.primary{background:var(--lime);border-color:var(--lime);color:var(--lime-ink);
-    font-weight:700;font-size:15px;letter-spacing:.02em;text-transform:none;
-    box-shadow:0 0 0 rgba(191,215,48,0)}
-  .btn.primary:hover{background:#cae23f;border-color:#cae23f;box-shadow:0 4px 32px rgba(191,215,48,.35);transform:translateY(-1px)}
-  .btn .ar{width:15px;height:15px}
-  .btn.lg{font-size:15.5px;padding:14px 24px}
+/* il testo si dissolve mentre passa sotto la pillola di navigazione:
+   sfocatura e velo del fondo, entrambi in dissolvenza verso il basso */
+.fadetop{position:fixed;left:0;right:0;top:0;height:116px;z-index:40;pointer-events:none;
+  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  background:linear-gradient(to bottom,
+    rgba(var(--bg-rgb),.92) 0%,rgba(var(--bg-rgb),.80) 46%,rgba(var(--bg-rgb),0) 100%);
+  -webkit-mask-image:linear-gradient(to bottom,#000 52%,rgba(0,0,0,.45) 78%,transparent 100%);
+  mask-image:linear-gradient(to bottom,#000 52%,rgba(0,0,0,.45) 78%,transparent 100%)}
 
-  /* ---------- hero ---------- */
-  main{position:relative;z-index:1;padding:clamp(40px,6vw,72px) clamp(18px,5vw,56px) 72px;max-width:1180px;margin:0 auto}
-  .hero-chip{display:inline-flex;align-items:center;gap:9px;margin-bottom:24px;
-    border:1px solid var(--line-2);background:rgba(191,215,48,.06);border-radius:99px;
-    padding:6px 14px;font-family:var(--mono);font-size:12px;color:var(--muted)}
-  .hero-chip .pulse{width:8px;height:8px;border-radius:50%;background:var(--lime);position:relative;flex:none}
-  .hero-chip .pulse::after{content:"";position:absolute;inset:-4px;border-radius:50%;
-    border:1px solid var(--lime);opacity:0;animation:pulse 2.2s ease-out infinite}
-  @keyframes pulse{0%{transform:scale(.5);opacity:.9}80%{transform:scale(1.5);opacity:0}100%{opacity:0}}
-  h1{
-    font-family:var(--disp);font-weight:800;font-size:clamp(40px,5.4vw,68px);
-    line-height:1.0;letter-spacing:.002em;margin:0 0 14px;max-width:16ch;color:var(--text);
-  }
-  h1 .lime{color:var(--acc);text-shadow:0 0 42px var(--rot-glow)}
-  .lede{font-size:clamp(16px,1.4vw,18.5px);line-height:1.65;color:var(--muted);max-width:58ch;margin:22px 0 18px}
-  .privacy{
-    display:inline-flex;flex-wrap:wrap;gap:8px;align-items:center;
-    font-family:var(--mono);font-size:12.5px;color:var(--faint);margin-bottom:8px;
-  }
-  .privacy b{color:var(--acc);font-weight:500}
-  .privacy .dot{width:4px;height:4px;border-radius:50%;background:var(--acc);display:inline-block}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--pad);position:relative;z-index:1}
 
-  /* ---------- steps grid (card scure con spotlight, come il bento) ---------- */
-  .steps{
-    display:grid;gap:16px;margin:clamp(30px,5vw,52px) 0 0;
-    grid-template-columns:repeat(2,1fr);align-items:stretch;
-  }
-  .step{
-    position:relative;background:linear-gradient(180deg,var(--card),var(--card-2));
-    border:1px solid var(--line);
-    border-radius:18px;padding:22px 24px;display:flex;gap:22px;align-items:flex-start;
-    overflow:hidden;transition:border-color .2s,transform .2s;
-  }
-  .step:hover{border-color:var(--line-2);transform:translateY(-2px)}
-  .step::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;
-    background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(191,215,48,.10),transparent 62%)}
-  .step:hover::after{opacity:1}
-  .step .scene{flex:0 0 auto;width:148px;height:118px;align-self:center}
-  .step-body{min-width:0;padding-top:2px;position:relative;z-index:1}
-  .step-num{
-    font-family:var(--mono);font-size:12px;color:var(--acc);
-    letter-spacing:.08em;margin-bottom:6px;
-  }
-  .step h2{
-    font-family:var(--disp);font-weight:600;font-size:clamp(19px,2.4vw,22px);
-    line-height:1.08;margin:0 0 6px;letter-spacing:.01em;color:var(--text);
-  }
-  .step p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.55}
+/* ---------- nav a pillola, flottante (identica alla landing) ---------- */
+.topbar{position:sticky;top:0;z-index:50;display:flex;justify-content:center;
+  padding:18px var(--pad) 0;pointer-events:none}
+.navpill{pointer-events:auto;max-width:100%;display:flex;align-items:center;gap:26px;
+  padding:8px 8px 8px 14px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh)}
+.brand{display:flex;align-items:center;gap:9px;flex:none}
+.hdr-logo{width:26px;height:26px;border-radius:8px;display:block;flex:none}
+.appname{font-family:var(--disp);font-weight:600;font-size:13.5px;letter-spacing:.03em;
+  line-height:1.2;color:var(--text);white-space:nowrap}
+.appname span{display:block;font-family:var(--sans);font-weight:400;font-size:10.5px;
+  letter-spacing:.02em;color:var(--muted)}
+.navlinks{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.navlinks a{padding:6px 10px;border-radius:999px;transition:color .15s}
+.navlinks a:hover{color:var(--text)}
+.navlinks a.on{background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line);
+  color:var(--text);font-weight:500}
+.nav-act{display:flex;align-items:center;gap:10px;flex:none}
+.langsw{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
+.langsw button{border:0;background:none;cursor:pointer;padding:5px 8px;border-radius:999px;
+  color:var(--faint);font:inherit;transition:color .12s,background .12s}
+.langsw button:hover{color:var(--text)}
+.langsw button.on{background:var(--lime-soft);color:var(--text)}
+.thm{width:28px;height:28px;flex:none;border-radius:999px;border:1px solid var(--hair);
+  background:var(--pnl2);display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--muted);transition:color .15s,border-color .15s}
+.thm:hover{color:var(--text);border-color:var(--lime-line)}
+.thm svg{width:14px;height:14px}
+html[data-theme="light"] .thm .moon{display:none}
+html:not([data-theme="light"]) .thm .sun{display:none}
 
-  @media (max-width:720px){
-    .steps{grid-template-columns:1fr}
-    .step{flex-direction:column;text-align:center;gap:14px;padding:24px 20px}
-    .step .scene{width:160px;height:124px}
-  }
+/* ---------- bottoni a pillola ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;white-space:nowrap;
+  border:1px solid transparent;border-radius:999px;cursor:pointer;
+  font-family:var(--disp);font-weight:600;letter-spacing:.02em;
+  transition:background .18s,border-color .18s,box-shadow .22s,transform .18s}
+.btn svg{flex:none}
+.btn.primary{background:var(--lime);color:var(--lime-ink);box-shadow:var(--glow)}
+.btn.primary:hover{background:#cae23f;box-shadow:0 6px 30px rgba(191,215,48,.32);transform:translateY(-1px)}
+.btn.hollow{background:var(--pnl2);border-color:var(--hair);color:var(--text)}
+.btn.hollow:hover{border-color:var(--lime-line)}
+.btn.sm{padding:9px 16px;font-size:12.5px}
+.btn.sm svg{width:13px;height:13px}
+.btn.lg{padding:13px 20px;font-size:13.5px}
+.btn.lg svg{width:15px;height:15px}
 
-  /* ---------- scene vive all'hover della card ----------
-     animazioni leggere di prodotto: restano attive anche con reduced-motion,
-     coerenti con la scelta "soft" della landing */
-  .scene .an{transform-box:fill-box;transform-origin:center;
-    transition:transform .5s cubic-bezier(.3,1.4,.4,1),opacity .5s ease}
-  .step:hover .an-pop{transform:scale(1.14)}
-  .step:hover .an-up{transform:translateY(-3px)}
-  /* i fogli IFC "federano": scendono sul modello davanti */
-  .step:hover .an-dn1{transform:translateY(12px);opacity:1}
-  .step:hover .an-dn2{transform:translateY(6px);opacity:1}
-  /* tratteggi in marcia (orbita, frecce, richiami) */
-  @keyframes dashMove{to{stroke-dashoffset:-70}}
-  .step:hover .an-dash{animation:dashMove 5s linear infinite}
-  /* il pin BCF rimbalza */
-  .an-pin{transform-box:fill-box;transform-origin:center}
-  @keyframes pinDrop{0%{transform:translateY(0)}35%{transform:translateY(-9px)}65%{transform:translateY(2px)}100%{transform:translateY(0)}}
-  .step:hover .an-pin{animation:pinDrop .9s cubic-bezier(.34,.8,.4,1) 1}
-  /* la matita scrive */
-  .an-pencil{transform-box:fill-box;transform-origin:center}
-  @keyframes wiggle{0%,100%{transform:rotate(0deg)}50%{transform:rotate(-10deg)}}
-  .step:hover .an-pencil{animation:wiggle .9s ease-in-out infinite}
-  /* i valori del pset si riscrivono, a cascata */
-  .an-bar{transform-box:fill-box;transform-origin:left center}
-  @keyframes barIn{from{transform:scaleX(0)}to{transform:scaleX(1)}}
-  .step:hover .an-bar{animation:barIn .45s ease-out both;animation-delay:var(--bd,0s)}
-  /* piano di sezione lungo l'asse + cursori di misura */
-  .an-sec,.an-dot7,.an-dot8{transform-box:fill-box;transform-origin:center}
-  @keyframes secSlide{0%,100%{transform:translate(0,0)}50%{transform:translate(30px,-12px)}}
-  .step:hover .an-sec{animation:secSlide 2.4s ease-in-out infinite}
-  @keyframes dotSlide{0%,100%{transform:translate(0,0)}50%{transform:translate(18px,-8px)}}
-  .step:hover .an-dot7{animation:dotSlide 2.4s ease-in-out infinite}
-  @keyframes dot8{0%,100%{transform:translateX(0)}50%{transform:translateX(30px)}}
-  .step:hover .an-dot8{animation:dot8 2s ease-in-out infinite}
+/* ---------- testata dell'articolo ---------- */
+.head{display:flex;align-items:flex-end;gap:48px;padding:62px 0 0}
+.head-l{flex:1;min-width:0;display:flex;flex-direction:column;gap:15px}
+.crumb{display:flex;align-items:center;flex-wrap:wrap;gap:9px;
+  font:400 10.5px/1.5 var(--mono);color:var(--faint)}
+.crumb a:hover{color:var(--muted)}
+.crumb .cur{color:var(--acc)}
+h1{font:600 clamp(34px,4.4vw,46px)/1.02 var(--disp);letter-spacing:-.008em;color:var(--text);
+  text-wrap:pretty}
+.lede{max-width:560px;margin:0;font-size:14.5px;line-height:1.7;color:var(--muted);text-wrap:pretty}
+.head-r{flex:0 0 300px;display:flex;flex-direction:column;gap:12px}
+.search{display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:999px;
+  background:var(--inset);box-shadow:inset 0 0 0 1px var(--hair);
+  transition:box-shadow .15s}
+.search:focus-within{box-shadow:inset 0 0 0 1px var(--lime-line)}
+.search svg{width:14px;height:14px;flex:none;color:var(--faint)}
+.search input{flex:1;min-width:0;border:0;background:none;outline:none;padding:2px 0;
+  font:400 11.5px/1.5 var(--mono);color:var(--text)}
+.search input::placeholder{color:var(--faint)}
+.kbd{display:inline-flex;align-items:center;justify-content:center;min-width:20px;
+  padding:3px 6px;border-radius:5px;background:var(--pnl2);
+  box-shadow:inset 0 0 0 1px var(--hair);font:500 10px/1 var(--mono);color:var(--muted)}
+.head-meta{display:flex;align-items:center;gap:14px;padding:0 4px;
+  font:400 10.5px/1 var(--mono);color:var(--faint)}
+.head-meta b{font-weight:600;color:var(--muted)}
+.head-meta .sep{width:1px;height:11px;background:var(--hair)}
 
-  /* ---------- jargon strip ---------- */
-  .terms{
-    display:grid;grid-template-columns:1fr 1fr;gap:16px;
-    margin:clamp(30px,5vw,48px) 0 0;
-  }
-  .term{
-    border:1px solid var(--line);border-radius:14px;padding:18px 20px;background:var(--card);
-  }
-  .term h3{
-    font-family:var(--mono);font-size:13px;letter-spacing:.05em;margin:0 0 6px;color:var(--acc);
-  }
-  .term p{margin:0;font-size:14px;color:var(--muted);line-height:1.55}
-  @media (max-width:560px){.terms{grid-template-columns:1fr}}
+/* ---------- impaginato a tre colonne ---------- */
+.doc{display:flex;align-items:flex-start;gap:44px;padding:46px 0 0}
+/* l'indice scorre senza barra: quando è più alto della finestra sfuma in basso,
+   ed è quella dissolvenza a dire che c'è dell'altro */
+.doc-idx{flex:0 0 226px;position:sticky;top:112px;display:flex;flex-direction:column;gap:22px;
+  max-height:calc(100vh - 140px);overflow-y:auto;padding-bottom:8px;
+  scrollbar-width:none;-ms-overflow-style:none;overscroll-behavior:contain}
+.doc-idx::-webkit-scrollbar{width:0;height:0;display:none}
+.doc-idx.over{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 40px),transparent);
+  mask-image:linear-gradient(to bottom,#000 calc(100% - 40px),transparent)}
+.idx-g{display:flex;flex-direction:column;gap:6px}
+.idx-g.sep{padding-top:6px;border-top:1px solid var(--hair)}
+.idx-t{padding:0 10px;font:500 9.5px/1 var(--mono);letter-spacing:.15em;
+  text-transform:uppercase;color:var(--faint)}
+.idx-g a{padding:7px 10px;border-radius:8px;font:400 12px/1.3 var(--sans);color:var(--muted);
+  transition:background .14s,color .14s}
+.idx-g a:hover{background:var(--pnl2);color:var(--text)}
+.idx-g a.on{background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line);
+  font-weight:500;color:var(--text)}
+.idx-empty{padding:8px 10px;font:400 11px/1.5 var(--mono);color:var(--faint)}
+.idx-toggle{display:none;align-items:center;gap:10px;width:100%;padding:12px 14px;cursor:pointer;
+  border:1px solid var(--hair);border-radius:var(--r-sm);background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);box-shadow:var(--sh-sm);
+  font:500 12px/1 var(--sans);color:var(--text)}
+.idx-toggle svg{width:15px;height:15px;flex:none;color:var(--muted)}
+.idx-toggle .sp{flex:1}
+.idx-toggle .chev{transition:transform .2s}
+.idx-toggle[aria-expanded="true"] .chev{transform:rotate(180deg)}
 
-  /* ---------- cta (banda scura con bagliore, come landing) ---------- */
-  .cta{
-    margin:clamp(40px,6vw,64px) 0 0;border:1px solid var(--line);border-radius:18px;
-    background:linear-gradient(180deg,var(--card),var(--card-2));
-    padding:clamp(36px,6vw,56px);text-align:center;position:relative;overflow:hidden;
-  }
-  .cta::before{content:"";position:absolute;left:50%;top:50%;width:640px;height:380px;
-    transform:translate(-50%,-50%);pointer-events:none;
-    background:radial-gradient(closest-side,rgba(191,215,48,.14),transparent)}
-  .cta h2{font-family:var(--disp);font-weight:800;font-size:clamp(26px,3.8vw,40px);margin:0 0 8px;color:var(--text);position:relative;letter-spacing:.005em}
-  .cta p{margin:0 0 22px;color:var(--muted);font-size:16px;position:relative}
-  .cta .btn.primary{position:relative}
+.doc-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:44px}
+.doc-anch{flex:0 0 156px;position:sticky;top:112px;display:flex;flex-direction:column;gap:11px;
+  padding-top:4px}
+.anch-t{font:500 9.5px/1 var(--mono);letter-spacing:.15em;text-transform:uppercase;color:var(--faint)}
+.anch-l{display:flex;flex-direction:column;gap:2px;border-left:1px solid var(--hair)}
+.anch-l a{padding:6px 0 6px 12px;font:400 11.5px/1.4 var(--sans);color:var(--muted);
+  transition:color .14s,box-shadow .14s}
+.anch-l a:hover{color:var(--text)}
+.anch-l a.on{box-shadow:inset 1px 0 0 var(--lime);font-weight:500;color:var(--text)}
+.anch-links{display:flex;flex-direction:column;gap:9px;margin-top:14px;padding-top:14px;
+  border-top:1px solid var(--hair)}
+.anch-links a{display:flex;align-items:center;gap:7px;font:400 11px/1.4 var(--mono);
+  color:var(--faint);transition:color .14s}
+.anch-links a:hover{color:var(--acc)}
+.anch-links svg{width:12px;height:12px;flex:none}
 
-  /* ---------- footer ---------- */
-  footer{
-    border-top:1px solid var(--line);background:var(--bg2);margin-top:64px;
-    padding:28px clamp(18px,5vw,56px);text-align:center;position:relative;z-index:1;
-  }
-  .foot-meta{font-family:var(--mono);font-size:12px;color:var(--faint);display:flex;gap:10px;justify-content:center;flex-wrap:wrap;align-items:center}
-  .foot-meta a{text-decoration:none;color:var(--muted)}
-  .foot-meta a:hover{color:var(--acc)}
-  .foot-disclaimer{font-family:var(--mono);font-size:11px;color:var(--faint);margin-top:10px;max-width:70ch;margin-left:auto;margin-right:auto;line-height:1.5}
+/* ---------- blocchi dell'articolo ---------- */
+.sec{display:flex;flex-direction:column;gap:16px;scroll-margin-top:118px}
+.sec-h{display:flex;align-items:baseline;gap:12px}
+.sec-h h2{font:600 24px/1.15 var(--disp);letter-spacing:.002em;color:var(--text)}
+.sec-h .tag{padding:4px 8px;border-radius:999px;background:var(--pnl2);
+  box-shadow:inset 0 0 0 1px var(--hair);font:500 9.5px/1 var(--mono);
+  letter-spacing:.08em;color:var(--muted);white-space:nowrap}
+.sec-h .rule{flex:1;height:1px;background:var(--hair)}
+.sec p{margin:0;font-size:13.5px;line-height:1.75;color:var(--muted);text-wrap:pretty}
+.sec p b{font-weight:500;color:var(--text)}
+.sec p a{color:var(--acc)}
+.sec p a:hover{text-decoration:underline}
 
-  /* ---------- reveal ---------- */
-  .rv{opacity:0;transform:translateY(18px);transition:opacity .7s ease,transform .7s ease;transition-delay:var(--d,0s)}
-  .rv.in{opacity:1;transform:none}
+/* tabella di tasti — misure del mockup: colonna tasti fissa, filetti sottili */
+.keys{display:flex;flex-direction:column;border-top:1px solid var(--hair)}
+.keys .kr{display:flex;align-items:center;gap:16px;padding:11px 4px;
+  border-bottom:1px solid var(--hair2);transition:background .14s}
+.keys .kr:last-child{border-bottom:0}
+.keys .kr:hover{background:var(--pnl2)}
+.keys .kk{flex:0 0 194px;display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.keys .kd{flex:1;min-width:0;font-size:12.5px;line-height:1.55;color:var(--muted)}
+/* varianti strette: accanto al tastierino (96px) e nelle due colonne (104px) */
+.keys.narrow .kr{gap:14px;padding:9px 2px}
+.keys.narrow .kk{flex:0 0 96px;gap:5px}
+.keys.narrow .kd{font-size:12.5px;line-height:1.5}
+.keys.split .kr{gap:12px;padding:9px 2px}
+.keys.split .kk{flex:0 0 104px;gap:4px}
+.keys.split .kd{font-size:12px;line-height:1.5}
+.k{display:inline-flex;align-items:center;justify-content:center;padding:4px 8px;border-radius:6px;
+  background:var(--pnl2);box-shadow:inset 0 0 0 1px var(--hair);
+  font:500 10.5px/1 var(--mono);color:var(--text);white-space:nowrap}
+.keys.split .k{min-width:22px;padding:4px 7px}
+/* nelle colonne strette le sigle lunghe vanno a capo dentro al tasto,
+   invece di sfondare la colonna */
+.keys.narrow .k,.keys.split .k{white-space:normal;text-align:center}
+.kor{font:400 10px/1 var(--mono);color:var(--faint)}
+.cols{display:flex;gap:34px}
+.cols>*{flex:1;min-width:0}
 
-  :focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:4px}
+/* tastierino di movimento: il riquadro del mockup, W sopra e A S D sotto */
+.padrow{display:flex;align-items:stretch;gap:22px}
+.pad{flex:0 0 152px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:7px;padding:18px 0;border-radius:var(--r-sm);background:var(--inset);
+  box-shadow:inset 0 0 0 1px var(--hair)}
+.pad .k{width:30px;height:26px;padding:0;font-size:11px}
+.pad .row{display:flex;gap:7px}
+.pad .cap{margin-top:4px;font:400 9.5px/1 var(--mono);letter-spacing:.1em;
+  text-transform:uppercase;color:var(--faint)}
+.padrow .keys{flex:1;min-width:0}
 
-  /* ---------- light mode (stessa architettura della landing) ---------- */
-  html[data-theme="light"]{
-    --acc:var(--lime-deep);
-    --bg:#f1f3ee; --bg2:#f6f8f3; --card:#ffffff; --card-2:#f6f8f3;
-    --line:#dfe5d8; --line-2:#ccd4c4;
-    --text:#212a23; --muted:#68756a; --faint:#9aa69c;
-    --glass:rgba(241,243,238,.82);
-    --rot-glow:rgba(154,179,19,.20);
-    --shadow-lg:0 6px 24px rgba(30,40,28,.10),0 24px 60px rgba(30,40,28,.10);
-    /* scene isometriche: palette chiara originale */
-    --iso-card:#ffffff; --iso-ink:#23310a;
-    --iso-light:#eaf2c4; --iso-mid:#cfe06a; --iso-deep:#a9c233;
-    --iso-shadow:#e7ecd6; --iso-txt:#23310a;
-  }
-  html[data-theme="light"] .ambient{background:
-    radial-gradient(900px 520px at 18% -5%, rgba(191,215,48,.18), transparent 60%),
-    radial-gradient(760px 480px at 85% 12%, rgba(191,215,48,.09), transparent 60%)}
-  html[data-theme="light"] .step,
-  html[data-theme="light"] .term{box-shadow:0 1px 3px rgba(30,40,28,.05)}
-  html[data-theme="light"] .step::after{background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(191,215,48,.16),transparent 62%)}
+/* elenco a filetti */
+.rows{display:flex;flex-direction:column;border-top:1px solid var(--hair)}
+.rows .r{display:flex;align-items:baseline;gap:16px;padding:11px 4px;
+  border-bottom:1px solid var(--hair2)}
+.rows .r:last-child{border-bottom:0}
+.rows .nm{flex:0 0 194px;font:500 11.5px/1.4 var(--mono);color:var(--text)}
+.rows .ds{flex:1;min-width:0;font-size:12.5px;line-height:1.55;color:var(--muted)}
 
-  /* reduced-motion "soft" come la landing: si spengono reveal e pulse,
-     restano gli hover leggeri */
-  @media (prefers-reduced-motion:reduce){
-    .rv{opacity:1;transform:none;transition:none}
-    html{scroll-behavior:auto}
-    .hero-chip .pulse::after{animation:none}
-  }
+/* riga di aiuto, la stessa che il viewer mostra in basso: la lastra di vetro
+   fa da cornice, dentro c'è la pillola scura del viewport */
+.helpbar{display:flex;flex-direction:column;gap:10px}
+.helpbar .glass{display:flex;justify-content:center;padding:10px;border-radius:var(--r-md);
+  background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh-sm)}
+.helpbar .pill{flex:1;min-width:0;padding:10px 16px;border-radius:999px;background:var(--inset);
+  box-shadow:inset 0 0 0 1px var(--hair);font:400 10px/1.75 var(--mono);color:var(--muted);
+  text-align:center;text-wrap:balance}
+.helpbar .cap{padding:0 4px;font:400 11px/1.6 var(--mono);color:var(--faint)}
+
+/* richiami */
+.tip{display:flex;gap:13px;padding:15px 17px;border-radius:var(--r-sm);
+  background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line)}
+.tip svg{width:16px;height:16px;flex:none;margin-top:2px;color:var(--acc)}
+.tip .in{display:flex;flex-direction:column;gap:5px}
+.tip .lb{font:600 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--acc)}
+.tip .tx{font-size:12.5px;line-height:1.6;color:var(--text);text-wrap:pretty}
+.tip.warn{background:var(--pnl2);box-shadow:inset 0 0 0 1px var(--hair)}
+.tip.warn svg,.tip.warn .lb{color:var(--muted)}
+
+/* scheda strumento */
+.toolcard{display:flex;align-items:center;gap:16px;padding:16px 18px;border-radius:var(--r-sm);
+  background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh-sm);transition:border-color .18s}
+.toolcard:hover{border-color:var(--lime-line)}
+.toolcard .tl{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.toolcard .tt{font:600 15px/1.25 var(--disp);letter-spacing:.01em;color:var(--text)}
+.toolcard .td{font-size:12.5px;line-height:1.5;color:var(--muted)}
+.toolcard svg{width:14px;height:14px;flex:none;color:var(--acc)}
+
+/* precedente / successivo */
+.pn{display:flex;gap:12px;padding-top:8px}
+.pn a{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px;padding:15px 17px;
+  border-radius:var(--r-sm);background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh-sm);transition:border-color .18s}
+.pn a:hover{border-color:var(--lime-line)}
+.pn .lb{display:flex;align-items:center;gap:7px;font:400 9.5px/1 var(--mono);
+  letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.pn .lb svg{width:11px;height:11px}
+.pn .tt{font:600 15px/1.25 var(--disp);letter-spacing:.01em;color:var(--text)}
+.pn a.next{align-items:flex-end;text-align:right}
+.pn a.ghost{visibility:hidden}
+
+/* ---------- banda finale ---------- */
+.cta-band{position:relative;z-index:1;margin-top:96px;padding:60px var(--pad);
+  background:var(--bg2);border-top:1px solid var(--hair)}
+.cta-band .wrap{display:flex;align-items:center;gap:44px;padding:0}
+.cta-l{flex:1;display:flex;flex-direction:column;gap:11px}
+.cta-l .kick{font:500 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.cta-l h2{max-width:640px;font:600 clamp(24px,3.4vw,30px)/1.1 var(--disp);letter-spacing:-.004em;
+  color:var(--text);text-wrap:pretty}
+.cta-l p{margin:0;max-width:520px;font-size:13px;line-height:1.7;color:var(--muted);text-wrap:pretty}
+.cta-r{flex:0 0 262px;display:flex;flex-direction:column;gap:9px}
+
+/* ---------- footer ---------- */
+footer{position:relative;z-index:1;padding:30px var(--pad) 26px;background:var(--bg2);
+  border-top:1px solid var(--hair)}
+footer .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:0}
+footer .appname{font-size:12px;color:var(--muted)}
+footer .hdr-logo{width:20px;height:20px;border-radius:6px}
+.spacer{flex:1}
+.foot-links{display:flex;flex-wrap:wrap;gap:20px;font:400 10.5px/1 var(--mono);color:var(--faint)}
+.foot-links a:hover{color:var(--muted)}
+.foot-disclaimer{width:100%;margin:12px 0 0;max-width:80ch;
+  font:400 10.5px/1.55 var(--mono);color:var(--faint)}
+
+/* ---------- responsive ---------- */
+@media (max-width:1080px){
+  .doc-anch{display:none}
+  .head{gap:32px}
+}
+@media (max-width:920px){
+  .navlinks{display:none}
+  .head{flex-direction:column;align-items:stretch;gap:24px;padding-top:46px}
+  .head-r{flex:1 1 auto}
+  .doc{flex-direction:column;gap:30px}
+  .doc-idx{position:static;flex:1 1 auto;max-height:none;overflow:visible;
+    flex-direction:row;flex-wrap:wrap;gap:18px 28px;padding:16px;border-radius:var(--r-sm);
+    background:var(--pnl2);box-shadow:inset 0 0 0 1px var(--hair)}
+  .doc-idx.over{-webkit-mask-image:none;mask-image:none}
+  .doc-idx .idx-g{flex:1 1 200px}
+  .idx-g.sep{padding-top:0;border-top:0}
+  .idx-toggle{display:flex}
+  .doc-idx{display:none}
+  .doc-idx.open{display:flex}
+  .cta-band .wrap{flex-direction:column;align-items:flex-start;gap:26px}
+  .cta-r{flex:1 1 auto;width:100%}
+}
+@media (max-width:760px){
+  .cols{flex-direction:column;gap:22px}
+}
+@media (max-width:640px){
+  .appname{display:none}
+  .navpill{gap:10px;padding:7px 7px 7px 10px}
+  .keys .kr{flex-direction:column;align-items:flex-start;gap:7px}
+  .keys .kk,.keys.narrow .kk,.keys.split .kk{flex:1 1 auto}
+  .padrow{flex-direction:column;gap:16px}
+  .pad{flex:1 1 auto}
+  .rows .r{flex-direction:column;gap:4px}
+  .rows .nm{flex:1 1 auto}
+  .pn{flex-direction:column}
+  .pn a.ghost{display:none}
+}
+
+/* ---------- tema chiaro (stessa architettura della landing) ---------- */
+html[data-theme="light"]{
+  --lime-deep:#67790d;
+  --bg:#f1f3ee; --bg-rgb:241,243,238; --bg2:#e9ece3;
+  --pnl:rgba(255,255,255,.80); --pnl2:rgba(33,42,35,.035);
+  --hair:rgba(33,42,35,.13); --hair2:rgba(33,42,35,.08);
+  --inset:rgba(33,42,35,.045);
+  --grid:rgba(33,42,35,.05); --hover:rgba(33,42,35,.025);
+  --text:#212a23; --muted:#5f6c61; --faint:#8b978d;
+  --lime-soft:rgba(191,215,48,.22); --lime-line:rgba(154,179,19,.45);
+  --sh:0 2px 8px rgba(30,40,28,.07),0 18px 44px rgba(30,40,28,.10);
+  --sh-sm:0 1px 3px rgba(30,40,28,.06),0 6px 18px rgba(30,40,28,.07);
+  --glow:0 4px 24px rgba(154,179,19,.28);
+}
+html[data-theme="light"] .glowtop{
+  background:radial-gradient(64% 70% at 50% 0%,rgba(191,215,48,.20) 0%,transparent 66%)}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .btn:hover{transform:none}
+}
 </style>
 
 <!-- Statistiche di visita anonime e senza cookie (GoatCounter) — vedi /analytics.js -->
@@ -271,483 +394,997 @@
 <body>
 
 <div class="ambient" aria-hidden="true"></div>
+<div class="glowtop" aria-hidden="true"></div>
+<div class="fadetop" aria-hidden="true"></div>
 
+<!-- ====================== NAV (pillola flottante) ====================== -->
 <header class="topbar">
-  <div class="wrap">
-    <a class="brand-link" href="../" data-i18n-title="hdr.back" title="Vai alla landing page" aria-label="Viewer IFC · BCF">
-      <img class="hdr-logo" src="data:image/png;base64,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" alt="Viewer IFC · BCF" width="30" height="30">
-      <span class="appname">Viewer IFC · BCF<small data-i18n="hdr.sub">Guida rapida</small></span>
+  <div class="navpill">
+    <a class="brand" href="../" data-i18n-title="hdr.back" title="Vai alla landing page" aria-label="Viewer IFC · BCF">
+      <img class="hdr-logo" src="data:image/png;base64,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" alt="APE" width="30" height="30">
+      <span class="appname">Viewer IFC · BCF<span data-i18n="appname.sub">Coordinamento openBIM nel browser</span></span>
     </a>
-    <span class="spacer"></span>
-    <div class="hdr-right">
-      <button class="thm" id="thmBtn" aria-label="Light / dark" title="Light / dark">
-        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-      </button>
+    <nav class="navlinks">
+      <a href="../#platform" data-i18n="nav.platform">Funzioni</a>
+      <a href="../#tools" data-i18n="nav.tools">Strumenti</a>
+      <a href="../#privacy" data-i18n="nav.privacy">Privacy</a>
+      <a href="../#opensource" data-i18n="nav.os">Open source</a>
+      <a class="on" href="./" data-i18n="nav.guide">Guida</a>
+    </nav>
+    <div class="nav-act">
       <div class="langsw" role="group" aria-label="Language">
         <button data-lang="it" class="on">IT</button>
         <button data-lang="en">EN</button>
       </div>
-      <a class="btn primary" href="../viewer/" data-i18n="hdr.open">Apri il viewer</a>
+      <button class="thm" id="thmBtn" aria-label="Light / dark" title="Light / dark">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <a class="btn primary sm" href="../viewer/">
+        <span data-i18n="cta.open">Apri il viewer</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
     </div>
   </div>
 </header>
 
-<main>
-  <div class="hero-chip rv"><span class="pulse"></span><span data-i18n="hero.eyebrow">Guida rapida · 8 passi</span></div>
-  <h1 class="rv" style="--d:.06s"><span data-i18n="hero.h1a">Coordina il progetto</span><br><span data-i18n="hero.h1b">nel </span><span class="lime" data-i18n="hero.h1c">browser.</span></h1>
-  <p class="lede rv" style="--d:.12s" data-i18n="hero.lede">Carica una federazione di modelli IFC, apri le issue BCF, seziona i tracciati e naviga tra problemi ed elementi senza mai perdere l'inquadratura. Tutto qui, in otto passi.</p>
-  <p class="privacy rv" style="--d:.18s">
-    <b data-i18n="hero.p1">100% nel browser</b><span class="dot"></span>
-    <b data-i18n="hero.p2">nessun upload</b><span class="dot"></span>
-    <b data-i18n="hero.p3">nessun account</b>
-  </p>
+<main class="wrap">
 
-  <section class="steps">
-
-    <!-- STEP 1 — Load models -->
-    <article class="step rv">
-      <svg class="scene" viewBox="0 0 148 118" role="img" aria-labelledby="s1t">
-        <title id="s1t" data-i18n="s1.title">Carica i modelli</title>
-        <!-- ground plane -->
-        <polygon points="74,84 134,108 74,118 14,108" fill="var(--iso-shadow)" opacity=".7"/>
-        <!-- three IFC sheets converging, stacked iso -->
-        <g class="an an-dn1" opacity=".55">
-          <polygon points="40,30 84,16 116,28 72,42" fill="var(--iso-light)" stroke="var(--iso-deep)" stroke-width="1.2"/>
-          <polygon points="40,30 72,42 72,50 40,38" fill="var(--iso-mid)" stroke="var(--iso-deep)" stroke-width="1.2"/>
-          <polygon points="72,42 116,28 116,36 72,50" fill="var(--iso-deep)" stroke="var(--iso-deep)" stroke-width="1.2"/>
-        </g>
-        <g class="an an-dn2" opacity=".8">
-          <polygon points="34,46 78,32 110,44 66,58" fill="var(--iso-light)" stroke="var(--iso-deep)" stroke-width="1.2"/>
-          <polygon points="34,46 66,58 66,66 34,54" fill="var(--iso-mid)" stroke="var(--iso-deep)" stroke-width="1.2"/>
-          <polygon points="66,58 110,44 110,52 66,66" fill="var(--iso-deep)" stroke="var(--iso-deep)" stroke-width="1.2"/>
-        </g>
-        <g>
-          <polygon points="28,64 72,50 104,62 60,76" fill="var(--iso-card)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-          <polygon points="28,64 60,76 60,84 28,72" fill="var(--iso-mid)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-          <polygon points="60,76 104,62 104,70 60,84" fill="var(--iso-deep)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-        </g>
-        <!-- plus marker -->
-        <g class="an an-pop">
-          <circle cx="118" cy="78" r="13" fill="var(--lime)" stroke="var(--iso-ink)" stroke-width="1.5"/>
-          <path d="M118 72v12M112 78h12" stroke="var(--lime-ink)" stroke-width="2" stroke-linecap="round"/>
-        </g>
-      </svg>
-      <div class="step-body">
-        <div class="step-num">01</div>
-        <h2 data-i18n="s1.title">Carica i modelli</h2>
-        <p data-i18n="s1.text">Trascina uno o più file IFC: si apre l'intera federazione, pronta da navigare.</p>
-      </div>
-    </article>
-
-    <!-- STEP 2 — Navigate -->
-    <article class="step rv">
-      <svg class="scene" viewBox="0 0 148 118" role="img" aria-labelledby="s2t">
-        <title id="s2t" data-i18n="s2.title">Naviga e ispeziona</title>
-        <polygon points="60,86 116,108 60,118 4,108" fill="var(--iso-shadow)" opacity=".7"/>
-        <!-- iso cube -->
-        <polygon points="56,30 92,44 56,58 20,44" fill="var(--iso-light)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-        <polygon points="20,44 56,58 56,92 20,78" fill="var(--iso-mid)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-        <polygon points="56,58 92,44 92,78 56,92" fill="var(--iso-deep)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-        <!-- orbit ring -->
-        <ellipse class="an-dash" cx="56" cy="61" rx="50" ry="20" fill="none" stroke="var(--acc)" stroke-width="1.4" stroke-dasharray="3 4" opacity=".8" transform="rotate(-9 56 61)"/>
-        <circle class="an an-pop" cx="103" cy="52" r="4" fill="var(--lime)" stroke="var(--iso-ink)" stroke-width="1.3"/>
-        <!-- properties panel -->
-        <g class="an an-up">
-          <rect x="106" y="64" width="38" height="46" rx="5" fill="var(--iso-card)" stroke="var(--iso-ink)" stroke-width="1.3"/>
-          <rect x="111" y="70" width="28" height="4" rx="2" fill="var(--iso-deep)"/>
-          <rect x="111" y="78" width="22" height="3" rx="1.5" fill="var(--line)"/>
-          <rect x="111" y="84" width="26" height="3" rx="1.5" fill="var(--line)"/>
-          <rect x="111" y="90" width="18" height="3" rx="1.5" fill="var(--line)"/>
-          <rect x="111" y="96" width="24" height="3" rx="1.5" fill="var(--line)"/>
-        </g>
-      </svg>
-      <div class="step-body">
-        <div class="step-num">02</div>
-        <h2 data-i18n="s2.title">Naviga e ispeziona</h2>
-        <p data-i18n="s2.text">Orbita, zooma e clicca un elemento: le sue proprietà compaiono nel pannello laterale.</p>
-      </div>
-    </article>
-
-    <!-- STEP 3 — Alignments (IFC4x3) -->
-    <article class="step rv">
-      <svg class="scene" viewBox="0 0 148 118" role="img" aria-labelledby="s7t">
-        <title id="s7t" data-i18n="s7.title">Apri i tracciati</title>
-        <polygon points="74,66 138,92 74,118 10,92" fill="var(--iso-shadow)" opacity=".7"/>
-        <!-- curve di livello -->
-        <path d="M24 92 C 44 84, 60 88, 76 80 S 110 68, 128 64" fill="none" stroke="var(--iso-ink)" stroke-width="1" opacity=".55"/>
-        <path d="M34 100 C 54 92, 70 96, 86 88 S 118 76, 134 72" fill="none" stroke="var(--iso-ink)" stroke-width="1" opacity=".55"/>
-        <!-- asse rosso -->
-        <path d="M16 98 C 44 88, 66 78, 86 70 S 120 56, 136 50" fill="none" stroke="var(--red)" stroke-width="2" stroke-linecap="round"/>
-        <!-- piano di sezione che scorre lungo l'asse all'hover -->
-        <g transform="translate(56,81)">
-          <g class="an-sec">
-            <rect x="-5" y="-15" width="10" height="28" rx="2" transform="rotate(18)" fill="rgba(191,215,48,.22)" stroke="var(--lime)" stroke-width="1.3"/>
-          </g>
-        </g>
-        <!-- pannello profilo -->
-        <g class="an an-up">
-          <rect x="92" y="10" width="48" height="34" rx="5" fill="var(--iso-card)" stroke="var(--iso-ink)" stroke-width="1.3"/>
-          <path d="M98 36 C 108 32, 116 24, 124 22 S 132 20, 134 19" fill="none" stroke="var(--red)" stroke-width="1.5"/>
-          <circle class="an-dot7" cx="104" cy="31" r="2.6" fill="var(--lime)"/>
-        </g>
-      </svg>
-      <div class="step-body">
-        <div class="step-num">03</div>
-        <h2 data-i18n="s7.title">Apri i tracciati</h2>
-        <p data-i18n="s7.text">Con i file IFC4x3 il viewer apre gli IfcAlignment: asse in 3D, profilo altimetrico interattivo, sezione ortogonale lungo la progressiva e minimap.</p>
-      </div>
-    </article>
-
-    <!-- STEP 4 — 2D section → DXF -->
-    <article class="step rv">
-      <svg class="scene" viewBox="0 0 148 118" role="img" aria-labelledby="s8t">
-        <title id="s8t" data-i18n="s8.title">Misura la sezione 2D</title>
-        <polygon points="74,88 132,106 74,118 16,106" fill="var(--iso-shadow)" opacity=".6"/>
-        <!-- sezione stradale -->
-        <path d="M18 76 L48 76 L62 56 L92 56 L106 76 L128 76 L128 86 L18 86 Z" fill="rgba(191,215,48,.16)" stroke="var(--lime)" stroke-width="1.4" stroke-linejoin="round"/>
-        <!-- quota orizzontale -->
-        <line x1="18" y1="36" x2="128" y2="36" stroke="var(--acc)" stroke-width="1.3"/>
-        <line x1="18" y1="31" x2="18" y2="41" stroke="var(--acc)" stroke-width="1.3"/>
-        <line x1="128" y1="31" x2="128" y2="41" stroke="var(--acc)" stroke-width="1.3"/>
-        <!-- richiamo tratteggiato + punto di misura che scorre sul ciglio -->
-        <line class="an-dash" x1="62" y1="52" x2="62" y2="40" stroke="var(--acc)" stroke-width="1" stroke-dasharray="2 3"/>
-        <circle class="an-dot8" cx="62" cy="56" r="3" fill="var(--lime)"/>
-        <!-- pill DXF -->
-        <g class="an an-pop">
-          <rect x="96" y="94" width="38" height="17" rx="8.5" fill="var(--lime)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-          <text x="115" y="106" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8.5" font-weight="600" fill="var(--lime-ink)">DXF</text>
-        </g>
-      </svg>
-      <div class="step-body">
-        <div class="step-num">04</div>
-        <h2 data-i18n="s8.title">Misura la sezione 2D</h2>
-        <p data-i18n="s8.text">Dalla sezione ricavi un disegno 2D misurabile: distanze, aree e quote sulla geometria reale, esportabili in DXF pronto per il CAD.</p>
-      </div>
-    </article>
-
-    <!-- STEP 5 — Load BCF -->
-    <article class="step rv">
-      <svg class="scene" viewBox="0 0 148 118" role="img" aria-labelledby="s3t">
-        <title id="s3t" data-i18n="s3.title">Apri un BCF</title>
-        <polygon points="62,88 118,110 62,118 6,108" fill="var(--iso-shadow)" opacity=".7"/>
-        <!-- low model slab -->
-        <polygon points="58,58 94,72 58,86 22,72" fill="var(--iso-light)" stroke="var(--iso-ink)" stroke-width="1.3"/>
-        <polygon points="22,72 58,86 58,96 22,82" fill="var(--iso-mid)" stroke="var(--iso-ink)" stroke-width="1.3"/>
-        <polygon points="58,86 94,72 94,82 58,96" fill="var(--iso-deep)" stroke="var(--iso-ink)" stroke-width="1.3"/>
-        <!-- descending BCF pin -->
-        <line class="an-dash" x1="62" y1="30" x2="62" y2="62" stroke="var(--acc)" stroke-width="1.4" stroke-dasharray="3 4"/>
-        <g class="an-pin">
-          <path d="M62 14c-11 0-20 8-20 18 0 13 20 30 20 30s20-17 20-30c0-10-9-18-20-18z" fill="var(--lime)" stroke="var(--iso-ink)" stroke-width="1.6"/>
-          <circle cx="62" cy="32" r="8" fill="var(--iso-card)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-          <text x="62" y="36" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="var(--acc)">!</text>
-        </g>
-      </svg>
-      <div class="step-body">
-        <div class="step-num">05</div>
-        <h2 data-i18n="s3.title">Apri un BCF</h2>
-        <p data-i18n="s3.text">Carica il file BCF: le issue di coordinamento si agganciano ai modelli, ognuna con la sua inquadratura.</p>
-      </div>
-    </article>
-
-    <!-- STEP 6 — Work on issues -->
-    <article class="step rv">
-      <svg class="scene" viewBox="0 0 148 118" role="img" aria-labelledby="s4t">
-        <title id="s4t" data-i18n="s4.title">Lavora sulle issue</title>
-        <polygon points="58,90 112,110 58,118 4,108" fill="var(--iso-shadow)" opacity=".6"/>
-        <!-- issue list card -->
-        <rect x="14" y="20" width="80" height="86" rx="7" fill="var(--iso-card)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-        <!-- header w/ checkbox -->
-        <rect x="14" y="20" width="80" height="18" rx="7" fill="var(--iso-light)"/>
-        <rect x="14" y="31" width="80" height="7" fill="var(--iso-light)"/>
-        <rect x="20" y="25" width="8" height="8" rx="2" fill="var(--lime)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-        <path d="M22 29l1.6 1.8 3-3.4" fill="none" stroke="var(--lime-ink)" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
-        <rect x="32" y="27" width="40" height="4" rx="2" fill="var(--acc)"/>
-        <!-- present rows -->
-        <g>
-          <rect x="20" y="46" width="6" height="6" rx="1.5" fill="var(--iso-deep)"/>
-          <rect x="30" y="47" width="46" height="4" rx="2" fill="var(--line)"/>
-          <rect x="20" y="58" width="6" height="6" rx="1.5" fill="var(--iso-deep)"/>
-          <rect x="30" y="59" width="40" height="4" rx="2" fill="var(--line)"/>
-        </g>
-        <!-- counter pill -->
-        <g class="an an-pop">
-          <rect x="20" y="74" width="40" height="16" rx="8" fill="var(--lime)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-          <text x="40" y="85" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" font-weight="600" fill="var(--lime-ink)">2 / 67</text>
-        </g>
-        <!-- camera arrow to model -->
-        <path class="an-dash" d="M98 60q18 0 26 8" fill="none" stroke="var(--acc)" stroke-width="1.6" stroke-dasharray="3 4"/>
-        <path d="M124 68l4-3-.5 5z" fill="var(--acc)"/>
-        <!-- mini target model -->
-        <polygon points="120,74 138,82 120,90 102,82" fill="var(--iso-mid)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-        <polygon points="102,82 120,90 120,98 102,90" fill="var(--iso-deep)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-      </svg>
-      <div class="step-body">
-        <div class="step-num">06</div>
-        <h2 data-i18n="s4.title">Lavora sulle issue</h2>
-        <p data-i18n="s4.text">Clicca una issue e la camera va sulla viewpoint. La spunta «solo nei modelli caricati» mostra i soli componenti presenti, con il contatore presenti/totali.</p>
-      </div>
-    </article>
-
-    <!-- STEP 7 — Jump without losing your place -->
-    <article class="step rv">
-      <svg class="scene" viewBox="0 0 148 118" role="img" aria-labelledby="s5t">
-        <title id="s5t" data-i18n="s5.title">Salta senza perderti</title>
-        <polygon points="74,90 128,110 74,118 20,110" fill="var(--iso-shadow)" opacity=".6"/>
-        <!-- central element -->
-        <polygon points="66,36 96,48 66,60 36,48" fill="var(--iso-light)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-        <polygon points="36,48 66,60 66,86 36,74" fill="var(--iso-mid)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-        <polygon points="66,60 96,48 96,74 66,86" fill="var(--iso-deep)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-        <!-- camera A: issue viewpoint (left) -->
-        <g>
-          <rect x="4" y="28" width="20" height="15" rx="3" fill="var(--iso-card)" stroke="var(--iso-ink)" stroke-width="1.3"/>
-          <polygon points="24,32 33,28 33,43 24,39" fill="var(--iso-deep)" stroke="var(--iso-ink)" stroke-width="1.3"/>
-          <text x="15" y="54" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="var(--muted)">issue</text>
-        </g>
-        <path d="M35 38q11 4 18 7" fill="none" stroke="var(--acc)" stroke-width="1.6"/>
-        <path d="M53 45l4.5-2-.5 5z" fill="var(--acc)"/>
-        <!-- camera B: user zoom (right), soft return -->
-        <g>
-          <rect x="124" y="28" width="20" height="15" rx="3" fill="var(--iso-card)" stroke="var(--iso-ink)" stroke-width="1.3"/>
-          <polygon points="124,32 115,28 115,43 124,39" fill="var(--lime)" stroke="var(--iso-ink)" stroke-width="1.3"/>
-          <text x="134" y="54" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" fill="var(--muted)">zoom</text>
-        </g>
-        <!-- soft (kept) return: dashed, stays put -->
-        <path class="an-dash" d="M113 38q-14 6 -18 11" fill="none" stroke="var(--acc)" stroke-width="1.6" stroke-dasharray="3 4"/>
-        <path d="M95 49l5-1-1 5z" fill="var(--acc)"/>
-        <!-- lock badge: camera stays -->
-        <g transform="translate(66,95)">
-          <g class="an an-pop">
-            <rect x="-42" y="0" width="84" height="17" rx="8.5" fill="var(--lime)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-            <path d="M-32 7a3 3 0 016 0v2h-6z M-33 9h8v5h-8z" fill="var(--lime-ink)"/>
-            <text x="5" y="12" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="8" font-weight="600" fill="var(--lime-ink)" data-i18n="s5.badge">camera ferma</text>
-          </g>
-        </g>
-      </svg>
-      <div class="step-body">
-        <div class="step-num">07</div>
-        <h2 data-i18n="s5.title">Salta senza perderti</h2>
-        <p data-i18n="s5.text">Zooma su un elemento per guardarlo da vicino: quando torni alla issue, la camera resta dove l'hai lasciata. Riapri la issue dall'elenco per tornare alla viewpoint originale.</p>
-      </div>
-    </article>
-
-    <!-- STEP 8 — Edit parameters (bulk) -->
-    <article class="step rv">
-      <svg class="scene" viewBox="0 0 148 118" role="img" aria-labelledby="s6t">
-        <title id="s6t" data-i18n="s6.title">Modifica i parametri</title>
-        <polygon points="62,90 118,110 62,118 6,108" fill="var(--iso-shadow)" opacity=".55"/>
-        <!-- three selected element blocks (a multi-selection) -->
-        <g>
-          <polygon points="22,30 40,24 52,30 34,36" fill="var(--iso-light)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-          <polygon points="22,30 34,36 34,48 22,42" fill="var(--iso-mid)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-          <polygon points="34,36 52,30 52,42 34,48" fill="var(--iso-deep)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-        </g>
-        <g>
-          <polygon points="22,52 40,46 52,52 34,58" fill="var(--iso-light)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-          <polygon points="22,52 34,58 34,70 22,64" fill="var(--iso-mid)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-          <polygon points="34,58 52,52 52,64 34,70" fill="var(--iso-deep)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-        </g>
-        <g>
-          <polygon points="22,74 40,68 52,74 34,80" fill="var(--iso-light)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-          <polygon points="22,74 34,80 34,92 22,86" fill="var(--iso-mid)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-          <polygon points="34,80 52,74 52,86 34,92" fill="var(--iso-deep)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-        </g>
-        <!-- bulk arrow -->
-        <path class="an-dash" d="M58 58q12 0 18 0" fill="none" stroke="var(--acc)" stroke-width="1.8" stroke-dasharray="3 4"/>
-        <path d="M76 54l6 4-6 4z" fill="var(--acc)"/>
-        <!-- pset table being rewritten -->
-        <g>
-          <rect x="86" y="34" width="54" height="52" rx="6" fill="var(--iso-card)" stroke="var(--iso-ink)" stroke-width="1.4"/>
-          <rect x="86" y="34" width="54" height="13" rx="6" fill="var(--iso-light)"/><rect x="86" y="41" width="54" height="6" fill="var(--iso-light)"/>
-          <text x="113" y="44" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="7" font-weight="600" fill="var(--iso-txt)">Pset</text>
-          <line x1="113" y1="50" x2="113" y2="84" stroke="var(--line)" stroke-width="1"/>
-          <rect x="91" y="53" width="16" height="3.5" rx="1.7" fill="var(--line)"/><rect class="an-bar" x="117" y="53" width="18" height="3.5" rx="1.7" fill="var(--lime)"/>
-          <rect x="91" y="61" width="16" height="3.5" rx="1.7" fill="var(--line)"/><rect class="an-bar" style="--bd:.1s" x="117" y="61" width="18" height="3.5" rx="1.7" fill="var(--lime)"/>
-          <rect x="91" y="69" width="16" height="3.5" rx="1.7" fill="var(--line)"/><rect class="an-bar" style="--bd:.2s" x="117" y="69" width="18" height="3.5" rx="1.7" fill="var(--lime)"/>
-          <rect x="91" y="77" width="16" height="3.5" rx="1.7" fill="var(--line)"/><rect class="an-bar" style="--bd:.3s" x="117" y="77" width="18" height="3.5" rx="1.7" fill="var(--lime)"/>
-        </g>
-        <!-- pencil accent -->
-        <g transform="translate(128,74) rotate(45)">
-          <g class="an-pencil">
-            <rect x="-3" y="-2" width="6" height="20" rx="1.5" fill="var(--lime)" stroke="var(--iso-ink)" stroke-width="1.2"/>
-            <polygon points="-3,18 3,18 0,24" fill="var(--lime-ink)"/>
-          </g>
-        </g>
-      </svg>
-      <div class="step-body">
-        <div class="step-num">08</div>
-        <h2 data-i18n="s6.title">Modifica i parametri</h2>
-        <p data-i18n="s6.text">Seleziona uno o più elementi e modifica i loro parametri IFC, anche in modo massivo: il viewer riscrive il file, pronto da esportare.</p>
-      </div>
-    </article>
-
-  </section>
-
-  <section class="terms">
-    <div class="term rv">
-      <h3>IFC</h3>
-      <p data-i18n="t.ifc">Industry Foundation Classes: il formato aperto dei modelli BIM. Qui ne carichi quanti vuoi insieme, come una federazione.</p>
+  <!-- ====================== TESTATA ARTICOLO ====================== -->
+  <div class="head">
+    <div class="head-l">
+      <nav class="crumb" aria-label="breadcrumb">
+        <a href="./" data-i18n="crumb.root">Guida</a>
+        <span>/</span>
+        <span id="crumbGroup"></span>
+        <span>/</span>
+        <span class="cur" id="crumbPage"></span>
+      </nav>
+      <h1 id="pgTitle"></h1>
+      <p class="lede" id="pgLede"></p>
     </div>
-    <div class="term rv" style="--d:.06s">
-      <h3>BCF</h3>
-      <p data-i18n="t.bcf">BIM Collaboration Format: le issue di coordinamento, ciascuna con la sua inquadratura e gli elementi collegati.</p>
+    <div class="head-r">
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
+        <input id="q" type="search" autocomplete="off" data-i18n-ph="search.ph" placeholder="Cerca nella guida" data-i18n-label="search.ph" aria-label="Cerca nella guida">
+        <span class="kbd">/</span>
+      </label>
+      <div class="head-meta">
+        <span><span data-i18n="meta.upd">Aggiornata per</span> <b>v2.8</b></span>
+        <span class="sep"></span>
+        <span id="pgRead"></span>
+      </div>
     </div>
-  </section>
+  </div>
 
-  <section class="cta rv">
-    <h2 data-i18n="cta.title">Pronto? Apri un modello.</h2>
-    <p data-i18n="cta.text">Nessuna installazione. I file restano sul tuo computer.</p>
-    <a class="btn primary lg" href="../viewer/">
-      <span data-i18n="cta.btn">Apri il viewer</span>
-      <svg class="ar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-    </a>
-  </section>
+  <!-- ====================== TRE COLONNE ====================== -->
+  <div class="doc">
+    <!-- sotto i 920px l'indice sta dietro a questo bottone, per non spingere
+         l'articolo mezzo schermo più in basso -->
+    <button class="idx-toggle" id="idxBtn" aria-expanded="false" aria-controls="idx">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+      <span data-i18n="idx.open">Indice della guida</span>
+      <span class="sp"></span>
+      <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+    <nav class="doc-idx" id="idx" aria-label="Indice della guida"></nav>
+
+    <article class="doc-main" id="art"></article>
+
+    <aside class="doc-anch" aria-label="In questa pagina">
+      <span class="anch-t" data-i18n="anch.title">In questa pagina</span>
+      <div class="anch-l" id="anch"></div>
+      <div class="anch-links">
+        <a href="https://github.com/arsray146/ifc-bcf-viewer" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L20 8l-4-4L4 16z"/></svg>
+          <span data-i18n="anch.edit">Migliora questa pagina</span>
+        </a>
+        <a href="https://github.com/arsray146/ifc-bcf-viewer/issues" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.7a8.5 8.5 0 0 1-.9-3.8A8.38 8.38 0 0 1 12.5 3 8.38 8.38 0 0 1 21 11.5z"/></svg>
+          <span data-i18n="anch.issue">Apri una issue</span>
+        </a>
+      </div>
+    </aside>
+  </div>
 </main>
 
-<footer>
-  <div class="foot-meta">
-    <span>Viewer IFC · BCF</span><span>·</span>
-    <a href="../" data-i18n="ft.home">Home</a><span>·</span>
-    <a href="https://github.com/arsray146/ifc-bcf-viewer" target="_blank" rel="noopener">GitHub</a><span>·</span>
-    <span>AGPL-3.0</span>
+<!-- ====================== BANDA FINALE ====================== -->
+<section class="cta-band">
+  <div class="wrap">
+    <div class="cta-l">
+      <span class="kick" data-i18n="band.kick">Non hai trovato quello che cercavi?</span>
+      <h2 data-i18n="band.h">La guida è nel repository, come tutto il resto.</h2>
+      <p data-i18n="band.p">Ogni pagina sta accanto al codice: correggila, aggiungi un caso che ti è capitato, apri una pull request. Le domande diventano pagine.</p>
+    </div>
+    <div class="cta-r">
+      <a class="btn primary lg" href="https://github.com/arsray146/ifc-bcf-viewer" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="opacity:.9"><path d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.53 2.36 1.09 2.94.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.5 9.5 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2z"/></svg>
+        <span data-i18n="band.b1">Contribuisci alla guida</span>
+      </a>
+      <a class="btn hollow lg" href="../viewer/">
+        <span data-i18n="band.b2">Apri il viewer 2.8</span>
+      </a>
+    </div>
   </div>
-  <p class="foot-disclaimer" data-i18n="ft.warranty">Software fornito «così com'è», senza alcuna garanzia. Verifica sempre i risultati rispetto ai file originali e al modello informativo di progetto.</p>
+</section>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="../">
+      <img class="hdr-logo" src="data:image/png;base64,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" alt="APE" width="30" height="30">
+      <span class="appname">Viewer IFC · BCF</span>
+    </a>
+    <span class="spacer"></span>
+    <nav class="foot-links">
+      <a href="../" data-i18n="ft.landing">Landing</a>
+      <a href="../#tools" data-i18n="nav.tools">Strumenti</a>
+      <a href="https://github.com/arsray146/ifc-bcf-viewer" target="_blank" rel="noopener">GitHub</a>
+      <span>© <span id="year">2026</span> Alessandro Perugini — AGPL-3.0</span>
+    </nav>
+    <p class="foot-disclaimer" data-i18n="ft.warranty">Software fornito «così com'è», senza alcuna garanzia. Verifica sempre i risultati rispetto ai file originali e al modello informativo di progetto.</p>
+  </div>
 </footer>
 
 <script>
-  const I18N = {
-    it:{
-      "hdr.sub":"Guida rapida",
-      "hdr.back":"Vai alla landing page",
-      "hdr.open":"Apri il viewer",
-      "hero.eyebrow":"Guida rapida · 8 passi",
-      "hero.h1a":"Coordina il progetto","hero.h1b":"nel ","hero.h1c":"browser.",
-      "hero.lede":"Carica una federazione di modelli IFC, apri le issue BCF, seziona i tracciati e naviga tra problemi ed elementi senza mai perdere l'inquadratura. Tutto qui, in otto passi.",
-      "hero.p1":"100% nel browser","hero.p2":"nessun upload","hero.p3":"nessun account",
-      "s1.title":"Carica i modelli",
-      "s1.text":"Trascina uno o più file IFC: si apre l'intera federazione, pronta da navigare.",
-      "s2.title":"Naviga e ispeziona",
-      "s2.text":"Orbita, zooma e clicca un elemento: le sue proprietà compaiono nel pannello laterale.",
-      "s3.title":"Apri un BCF",
-      "s3.text":"Carica il file BCF: le issue di coordinamento si agganciano ai modelli, ognuna con la sua inquadratura.",
-      "s4.title":"Lavora sulle issue",
-      "s4.text":"Clicca una issue e la camera va sulla viewpoint. La spunta «solo nei modelli caricati» mostra i soli componenti presenti, con il contatore presenti/totali.",
-      "s5.title":"Salta senza perderti",
-      "s5.text":"Zooma su un elemento per guardarlo da vicino: quando torni alla issue, la camera resta dove l'hai lasciata. Riapri la issue dall'elenco per tornare alla viewpoint originale.",
-      "s5.badge":"camera ferma",
-      "s6.title":"Modifica i parametri",
-      "s6.text":"Seleziona uno o più elementi e modifica i loro parametri IFC, anche in modo massivo: il viewer riscrive il file, pronto da esportare.",
-      "s7.title":"Apri i tracciati",
-      "s7.text":"Con i file IFC4x3 il viewer apre gli IfcAlignment: asse in 3D, profilo altimetrico interattivo, sezione ortogonale lungo la progressiva e minimap.",
-      "s8.title":"Misura la sezione 2D",
-      "s8.text":"Dalla sezione ricavi un disegno 2D misurabile: distanze, aree e quote sulla geometria reale, esportabili in DXF pronto per il CAD.",
-      "t.ifc":"Industry Foundation Classes: il formato aperto dei modelli BIM. Qui ne carichi quanti vuoi insieme, come una federazione.",
-      "t.bcf":"BIM Collaboration Format: le issue di coordinamento, ciascuna con la sua inquadratura e gli elementi collegati.",
-      "cta.title":"Pronto? Apri un modello.",
-      "cta.text":"Nessuna installazione. I file restano sul tuo computer.",
-      "cta.btn":"Apri il viewer",
-      "ft.home":"Home",
-      "ft.warranty":"Software fornito «così com'è», senza alcuna garanzia. Verifica sempre i risultati rispetto ai file originali e al modello informativo di progetto."
-    },
-    en:{
-      "hdr.sub":"Quick start",
-      "hdr.back":"Go to landing page",
-      "hdr.open":"Open the viewer",
-      "hero.eyebrow":"Quick start · 8 steps",
-      "hero.h1a":"Coordinate your project","hero.h1b":"in the ","hero.h1c":"browser.",
-      "hero.lede":"Load a federation of IFC models, open BCF issues, section the alignments, and move between problems and elements without ever losing your view. All here, in eight steps.",
-      "hero.p1":"100% in-browser","hero.p2":"no upload","hero.p3":"no account",
-      "s1.title":"Load the models",
-      "s1.text":"Drag in one or more IFC files: the whole federation opens, ready to explore.",
-      "s2.title":"Navigate and inspect",
-      "s2.text":"Orbit, zoom and click an element: its properties appear in the side panel.",
-      "s3.title":"Open a BCF",
-      "s3.text":"Load the BCF file: coordination issues snap onto the models, each with its own viewpoint.",
-      "s4.title":"Work on the issues",
-      "s4.text":"Click an issue and the camera flies to its viewpoint. The “only in loaded models” checkbox shows just the present components, with a present/total counter.",
-      "s5.title":"Jump without losing your place",
-      "s5.text":"Zoom in on an element to look closely: when you go back to the issue, the camera stays where you left it. Reopen the issue from the list to return to the original viewpoint.",
-      "s5.badge":"camera stays",
-      "s6.title":"Edit the parameters",
-      "s6.text":"Select one or more elements and edit their IFC parameters, in bulk too: the viewer rewrites the file, ready to export.",
-      "s7.title":"Open the alignments",
-      "s7.text":"With IFC4x3 files the viewer opens IfcAlignment: 3D axis, interactive elevation profile, orthogonal cross-section along the chainage and a minimap.",
-      "s8.title":"Measure the 2D section",
-      "s8.text":"Turn the section into a measurable 2D drawing: distances, areas and levels on the real geometry, exportable to a CAD-ready DXF.",
-      "t.ifc":"Industry Foundation Classes: the open format for BIM models. Here you load as many as you like together, as a federation.",
-      "t.bcf":"BIM Collaboration Format: coordination issues, each with its own viewpoint and linked elements.",
-      "cta.title":"Ready? Open a model.",
-      "cta.text":"No install. Your files stay on your computer.",
-      "cta.btn":"Open the viewer",
-      "ft.home":"Home",
-      "ft.warranty":"Software provided “as is”, without warranty of any kind. Always check results against the original files and the project information model."
-    }
-  };
-
-  /* tema condiviso con la landing (stessa chiave localStorage, default dark) */
-  (function initTheme(){
-    const meta = document.querySelector('meta[name="theme-color"]');
-    function setTheme(t){
-      if(t === "light") document.documentElement.setAttribute("data-theme","light");
-      else document.documentElement.removeAttribute("data-theme");
-      if(meta) meta.setAttribute("content", t === "light" ? "#f1f3ee" : "#0c110a");
-      try{ localStorage.setItem("viewer_landing_theme", t); }catch(e){}
-    }
-    let t = "dark";
-    try{ t = localStorage.getItem("viewer_landing_theme") || "dark"; }catch(e){}
-    setTheme(t);
-    const b = document.getElementById("thmBtn");
-    if(b) b.addEventListener("click", ()=>{
-      setTheme(document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light");
-    });
-  })();
-
-  /* lingua condivisa con la landing */
-  let lang = "it";
-  try{ lang = localStorage.getItem("viewer_landing_lang") || (navigator.language||"it").slice(0,2); }catch(e){}
-  if(!I18N[lang]) lang = "it";
-
-  function tr(){
-    const dict = I18N[lang];
-    document.documentElement.lang = lang;
-    document.querySelectorAll("[data-i18n]").forEach(el=>{
-      const k = el.getAttribute("data-i18n");
-      if(dict[k]!=null) el.textContent = dict[k];
-    });
-    document.querySelectorAll("[data-i18n-title]").forEach(el=>{
-      const k = el.getAttribute("data-i18n-title");
-      if(dict[k]!=null) el.setAttribute("title", dict[k]);
-    });
-    document.querySelectorAll(".langsw button").forEach(b=>{
-      b.classList.toggle("on", b.dataset.lang === lang);
-    });
-    document.title = (lang==="en"?"How to use the viewer":"Come usare il viewer")+" · Viewer IFC · BCF";
+/* ============================================================================
+   i18n della cornice — parità stretta IT/EN, funzione tr() (mai rinominare)
+   ========================================================================== */
+const I18N = {
+  it:{
+    "appname.sub":"Coordinamento openBIM nel browser",
+    "nav.platform":"Funzioni","nav.tools":"Strumenti","nav.privacy":"Privacy",
+    "nav.os":"Open source","nav.guide":"Guida",
+    "cta.open":"Apri il viewer",
+    "hdr.back":"Vai alla landing page",
+    "crumb.root":"Guida",
+    "search.ph":"Cerca nella guida",
+    "search.none":"Nessuna pagina",
+    "idx.open":"Indice della guida",
+    "meta.upd":"Aggiornata per",
+    "meta.read":"{n} min di lettura",
+    "anch.title":"In questa pagina",
+    "anch.edit":"Migliora questa pagina",
+    "anch.issue":"Apri una issue",
+    "pn.prev":"Precedente","pn.next":"Successivo",
+    "tip.lb":"Suggerimento","warn.lb":"Da sapere",
+    "tool.open":"Apri lo strumento",
+    "band.kick":"Non hai trovato quello che cercavi?",
+    "band.h":"La guida è nel repository, come tutto il resto.",
+    "band.p":"Ogni pagina sta accanto al codice: correggila, aggiungi un caso che ti è capitato, apri una pull request. Le domande diventano pagine.",
+    "band.b1":"Contribuisci alla guida","band.b2":"Apri il viewer 2.8",
+    "ft.landing":"Landing",
+    "ft.warranty":"Software fornito «così com'è», senza alcuna garanzia. Verifica sempre i risultati rispetto ai file originali e al modello informativo di progetto."
+  },
+  en:{
+    "appname.sub":"openBIM coordination in your browser",
+    "nav.platform":"Features","nav.tools":"Tools","nav.privacy":"Privacy",
+    "nav.os":"Open source","nav.guide":"Guide",
+    "cta.open":"Open the viewer",
+    "hdr.back":"Go to the landing page",
+    "crumb.root":"Guide",
+    "search.ph":"Search the guide",
+    "search.none":"No page",
+    "idx.open":"Guide index",
+    "meta.upd":"Updated for",
+    "meta.read":"{n} min read",
+    "anch.title":"On this page",
+    "anch.edit":"Improve this page",
+    "anch.issue":"Open an issue",
+    "pn.prev":"Previous","pn.next":"Next",
+    "tip.lb":"Tip","warn.lb":"Good to know",
+    "tool.open":"Open the tool",
+    "band.kick":"Didn't find what you were after?",
+    "band.h":"The guide lives in the repository, like everything else.",
+    "band.p":"Every page sits next to the code: fix it, add the case you ran into, open a pull request. Questions become pages.",
+    "band.b1":"Contribute to the guide","band.b2":"Open the viewer 2.8",
+    "ft.landing":"Landing",
+    "ft.warranty":"Software provided “as is”, without warranty of any kind. Always check results against the original files and the project information model."
   }
+};
 
-  document.querySelectorAll(".langsw button").forEach(b=>{
-    b.addEventListener("click", ()=>{
-      lang = b.dataset.lang;
-      try{ localStorage.setItem("viewer_landing_lang", lang); }catch(e){}
-      tr();
-    });
+/* ============================================================================
+   Struttura della guida — le stesse sezioni dell'indice del mockup
+   ========================================================================== */
+const GROUPS = [
+  {id:"start", pages:["load","formats","privacy"]},
+  {id:"work",  pages:["navigate","select","section","federated"]},
+  {id:"coord", pages:["bcf","clash","ids","qto"]},
+  {id:"infra", pages:["alignment","profile","cloud","asbuilt"]},
+  {id:"tools", pages:["class-patcher","progressiva","aln-landxml","merge"], sep:true}
+];
+const ORDER = GROUPS.reduce((a,g)=>a.concat(g.pages),[]);
+
+/* blocchi ammessi:
+   ["p", html] paragrafo · ["h", titolo, tag?] intestazione di sezione (finisce nelle ancore)
+   ["keys", [[[tasti…], testo], …], "narrow"?] tabella di tasti
+   ["pad", tastoSopra, [tastiSotto…], didascalia, [[[tasti…], testo], …]]
+      il tastierino di movimento nel suo riquadro, con la tabella di fianco
+   ["keys2", [[[tasti…], testo], …], [[[tasti…], testo], …]] due colonne di tasti
+   ["rows", [[nome, testo], …]] elenco a filetti
+   ["bar", riga mono, didascalia] la riga di aiuto del viewer
+   ["tip", testo] · ["warn", testo] · ["tool", href, nome, testo] */
+const DOC = {
+it:{
+  g:{start:"Primi passi", work:"Lavorare nel 3D", coord:"Coordinamento",
+     infra:"Infrastrutture e rilievo", tools:"Strumenti"},
+  p:{
+
+  load:{t:"Caricare un modello", d:"Il viewer si apre vuoto e resta in attesa di file. Trascini gli IFC dentro la finestra, oppure li scegli dal pulsante: da lì in poi il lavoro è tutto locale.", b:[
+    ["h","Aprire i file"],
+    ["p","Dalla schermata iniziale premi <b>Load IFC</b> e scegli uno o più file, oppure trascinali direttamente sul viewport. Puoi selezionarne quanti ne vuoi in una volta sola: vengono aperti insieme come una federazione, allineati sul primo modello caricato."],
+    ["p","Ogni file compare nell'elenco modelli con il suo colore e la sua spunta di visibilità. Puoi aggiungerne altri in qualsiasi momento senza ricominciare da capo, e togliere un modello dall'elenco quando non ti serve più."],
+    ["keys",[[["Load IFC"],"Apre il selettore di file: uno o più .ifc"],[["Trascina"],"Rilascia i file sul viewport, stesso risultato"],[["Load BCF"],"Aggiunge le issue di coordinamento ai modelli aperti"]]],
+    ["h","Mentre carica"],
+    ["p","Il caricamento avviene nel tuo computer: la barra di avanzamento mostra la lettura del file e la costruzione della geometria. Un modello di qualche centinaio di MB può richiedere un minuto o due — nessun dato viene inviato da nessuna parte, quindi il tempo dipende solo dalla tua macchina."],
+    ["tip","Se hai un federato molto grande, carica prima i modelli che ti servono davvero: puoi sempre aggiungere gli altri dopo, senza perdere la vista corrente."]
+  ]},
+
+  formats:{t:"Formati supportati", d:"Cosa entra e cosa esce. Il viewer legge i formati aperti del coordinamento e restituisce file che gli altri strumenti riescono a leggere.", b:[
+    ["h","In ingresso"],
+    ["rows",[
+      ["IFC 2x3 · 4 · 4x3","I modelli, anche molti insieme. IFC4x3 porta con sé gli assi (IfcAlignment)."],
+      ["BCF 2.x","Topic di coordinamento con viewpoint, commenti e snapshot. Legge anche i report esportati da Solibri."],
+      ["IDS","File di specifica per i controlli automatici sul modello."],
+      ["LAS · E57","Nuvole di punti da rilievo, caricate accanto agli IFC."],
+      ["LandXML","Assi esterni, per i modelli che non contengono IfcAlignment."]
+    ]],
+    ["h","In uscita"],
+    ["rows",[
+      ["IFC","Il modello riscritto con le proprietà che hai modificato."],
+      ["BCF 2.1","Le issue create dai clash o dalle non conformità IDS, compatibile Solibri."],
+      ["DXF","La sezione 2D misurata, pronta per il CAD."],
+      ["CSV","Il computo delle quantità, pronto per il foglio di calcolo."]
+    ]],
+    ["warn","LAZ (il LAS compresso) non è supportato: esporta la nuvola in LAS o E57. Da ReCap, il formato da usare è E57."]
+  ]},
+
+  privacy:{t:"Privacy, offline, limiti", d:"Non c'è un server a cui mandare i file, e non c'è un account da creare. Vale la pena sapere cosa comporta, in bene e in male.", b:[
+    ["h","Dove finiscono i tuoi file"],
+    ["p","In nessun posto. Il viewer è una pagina web che gira nel tuo browser: legge i file dal disco, li elabora in memoria e li scrive di nuovo sul disco quando esporti. Non c'è upload, non c'è un backend, non c'è un profilo utente. Dalla rete arrivano solo la pagina, i font e le librerie di rendering."],
+    ["p","Questo significa anche che <b>niente viene salvato</b>: chiudendo la scheda, la sessione sparisce. Esporta ciò che ti serve prima di uscire."],
+    ["h","Limiti da conoscere"],
+    ["rows",[
+      ["Memoria","Tutto sta nella RAM della scheda del browser. Su modelli enormi il limite lo dà il tuo computer, non il viewer."],
+      ["Browser","Chrome ed Edge aggiornati sono gli ambienti provati. Su Safari alcune funzioni di scrittura file si comportano diversamente."],
+      ["Nuvole grandi","Gli E57 vengono letti a fette e reggono file di diversi GB; i LAS oltre i 2 GB non sono ancora streamati."],
+      ["Geometrie patologiche","Alcuni IFC con booleani annidati molto profondi possono rallentare o interrompere la costruzione della geometria."]
+    ]],
+    ["tip","Serve la guida offline? La pagina che stai leggendo è statica: salvala dal browser e resta consultabile senza rete."]
+  ]},
+
+  navigate:{t:"Navigare nel modello", d:"Orbita, pan e zoom sono sul mouse; le frecce muovono la camera come in un CAD e il walk ti mette dentro l'edificio. Nessuna di queste operazioni tocca il file: la vista è solo tua.", b:[
+    ["h","Orbita, pan, zoom"],
+    ["p","La camera è in orbita attorno a un punto di interesse. Il tasto sinistro ruota, la rotella premuta trasla, lo scroll avvicina: sono gli stessi gesti di Revit e Navisworks, quindi non c'è niente da imparare. Il viewer ricorda l'ultima vista finché la sessione resta aperta."],
+    ["keys",[
+      [["Tasto sinistro"],"Orbita attorno al punto di interesse"],
+      [["Rotella premuta","o","Destro"],"Pan — trascina la vista sul piano dello schermo"],
+      [["Scroll"],"Zoom verso il puntatore, non verso il centro"],
+      [["2× clic rotella"],"Zoom esteso: inquadra tutti i modelli aperti"],
+      [["2× clic elemento"],"Esamina qui — zoom proporzionato all'ingombro dell'elemento"]
+    ]],
+    ["bar","Orbita: tasto sx · Pan: rotella premuta · Zoom: scroll · Frecce: muovi (Maiusc+↑↓: alza/abbassa) · 2× clic rotella: zoom esteso","La stessa riga di aiuto compare in basso nel viewer e cambia quando entri in walk."],
+    ["tip","Se ti perdi, doppio clic sulla rotella riporta tutto in quadro. Se un modello federato è lontanissimo dagli altri, doppio clic sul suo nome nell'elenco modelli: inquadra solo quello."],
+    ["h","Modalità Walk","PRIMA PERSONA"],
+    ["p","Il pulsante <b>Walk</b> nella barra strumenti stacca la camera dall'orbita e la mette all'altezza degli occhi. Serve per controllare altezze libere, passaggi e interferenze percepite — non per fare presentazioni. La rotella regola la velocità e il valore corrente resta scritto nella barra."],
+    ["pad","W",["A","S","D"],"o le frecce",[
+      [["Q","E"],"Scendi e sali di quota"],
+      [["Maiusc"],"Corri"],
+      [["Trascina"],"Guardati intorno"],
+      [["Rotella"],"Velocità di camminata, in m/s"],
+      [["Esc"],"Esci e torna in orbita"]
+    ]],
+    ["h","Tastiera, in orbita"],
+    ["keys2",[
+      [["←","→","↑","↓"],"Muovi la camera"],
+      [["Maiusc+↑↓"],"Alza e abbassa"],
+      [["Esc"],"Deseleziona, chiudi i pannelli"]
+    ],[
+      [["Maiusc+trascina"],"Sposta il piano di sezione"],
+      [["Ctrl / Maiusc+clic"],"Selezione multipla nelle liste"],
+      [["Tasto destro"],"Menu: GUID, isola, nascondi, section box"]
+    ]]
+  ]},
+
+  select:{t:"Selezione e proprietà", d:"Un clic su un elemento apre tutto quello che l'IFC sa di lui: classe, nome, GUID e ogni property set. Da lì puoi anche riscriverlo.", b:[
+    ["h","Selezionare e leggere"],
+    ["p","Clicca un elemento nel 3D o scegli il suo nodo nell'albero del modello: il pannello delle proprietà mostra classe IFC, nome, GUID e i property set con i loro valori. La selezione è condivisa fra 3D, albero e liste, così ti muovi avanti e indietro senza perdere il filo."],
+    ["keys",[
+      [["Clic"],"Seleziona un elemento"],
+      [["Ctrl / Maiusc+clic"],"Aggiungi alla selezione, anche nelle liste"],
+      [["Tasto destro"],"Menu: copia GUID, isola, nascondi, section box sull'elemento"],
+      [["Esc"],"Deseleziona"]
+    ]],
+    ["h","Isolare e nascondere"],
+    ["p","Dal menu contestuale puoi <b>isolare</b> la selezione — resta a schermo solo quella — o <b>nascondere</b> il singolo elemento che ti sta davanti. Le stesse voci sono disponibili dall'albero, sui rami interi, per lavorare per piani o per classi."],
+    ["h","Modificare i parametri"],
+    ["p","I valori delle property sono editabili, anche su più elementi selezionati insieme: scrivi una volta e il viewer applica la modifica a tutta la selezione. Quando esporti, il file IFC viene riscritto con i nuovi valori e resta un IFC valido per gli altri strumenti."],
+    ["warn","La modifica massiva è comoda e definitiva: controlla la selezione prima di confermare, e riesporta sempre con un nome nuovo."]
+  ]},
+
+  section:{t:"Sezionare: box e piano", d:"Due modi di tagliare il modello: la scatola di sezione, quando vuoi ritagliare una porzione, e il piano su faccia, quando ti serve un taglio allineato alla geometria.", b:[
+    ["h","Section box"],
+    ["p","La scatola di sezione ritaglia un volume del modello e nasconde tutto il resto: la sposti e la ridimensioni dalle sue maniglie, come in Revit. Dal menu contestuale di un elemento puoi far nascere la scatola già stretta attorno a quell'elemento — è il modo più rapido per andare al punto."],
+    ["h","Piano di sezione su faccia"],
+    ["p","Clicca una faccia e il piano di sezione si posiziona parallelo a lei. Da quel momento <b>Maiusc+trascina</b> lo fa avanzare e arretrare: è un taglio che segue la geometria reale, non gli assi globali, quindi funziona anche su pareti oblique e opere d'arte."],
+    ["keys",[
+      [["Clic su faccia"],"Posiziona il piano parallelo a quella faccia"],
+      [["Maiusc+trascina"],"Sposta il piano avanti e indietro"],
+      [["Esc","o","Canc"],"Esci dalla sezione e torna al modello intero"]
+    ]],
+    ["tip","Section box e piano convivono: usa la scatola per ritagliare la zona e il piano per il taglio fine dentro quella zona."]
+  ]},
+
+  federated:{t:"Modelli federati", d:"Più IFC aperti insieme, ciascuno con il suo colore e la sua visibilità. La federazione avviene sul primo modello caricato.", b:[
+    ["h","Come si federa"],
+    ["p","Il primo file che apri stabilisce il sistema di riferimento; gli altri si posizionano rispetto a lui usando la loro georeferenziazione. Nell'elenco modelli ogni file ha una spunta di visibilità e un colore, e un doppio clic sul suo nome lo inquadra da solo."],
+    ["h","Quando un modello finisce lontano"],
+    ["p","Se un IFC atterra a chilometri dagli altri, quasi sempre la causa è la sua georeferenziazione: una <b>IfcMapConversion</b> vuota o degenere, tipica di file riesportati da alcuni strumenti, sposta il modello sull'origine invece che al suo posto. Il viewer segnala il caso e continua a caricare gli altri modelli."],
+    ["p","È un problema del file, non della vista: la strada giusta è correggere la georeferenziazione a monte, nello strumento di authoring. Nel frattempo puoi lavorare disattivando il modello anomalo dall'elenco."],
+    ["tip","Doppio clic sul nome nell'elenco modelli inquadra solo quel file: è il modo più veloce per capire dove è finito davvero."]
+  ]},
+
+  bcf:{t:"Issue BCF", d:"Carichi il file BCF e le issue si agganciano ai modelli: ognuna con la sua inquadratura, i suoi commenti e i suoi componenti.", b:[
+    ["h","Aprire un BCF"],
+    ["p","Premi <b>Load BCF</b> e scegli il file: i topic compaiono nella lista, con titolo, stato e autore. Il viewer legge anche i report di coordinamento esportati da Solibri. Un clic su una issue porta la camera esattamente sulla viewpoint salvata da chi l'ha scritta."],
+    ["h","Componenti presenti e assenti"],
+    ["p","Le issue arrivano spesso da federazioni diverse dalla tua. La spunta <b>«solo nei modelli caricati»</b> filtra la lista dei componenti e mostra solo quelli che esistono davvero nei file che hai aperto, con il contatore presenti/totali sempre in vista."],
+    ["h","Muoversi senza perdere il posto"],
+    ["p","Puoi zoomare su un elemento per guardarlo da vicino: quando torni alla issue la camera resta dove l'hai lasciata, perché la vista è tua. Per tornare all'inquadratura originale dell'autore, riapri la issue dall'elenco."],
+    ["tip","Clash e controlli IDS producono BCF 2.1: puoi rileggerli qui, o passarli a chi coordina con Solibri o con l'authoring."]
+  ]},
+
+  clash:{t:"Clash detection", d:"Interferenze fra due insiemi di elementi, con la penetrazione reale misurata in millimetri e i risultati raggruppabili come issue.", b:[
+    ["h","Impostare il controllo"],
+    ["p","Scegli i due insiemi da confrontare — per modello, per classe o dalla selezione — e la tolleranza. Il valore di partenza è <b>50 mm</b>: sotto quella soglia il contatto non viene contato come clash. Il motore misura la penetrazione effettiva fra i solidi e riporta solo i casi che la superano, ordinati dal più grave."],
+    ["h","Leggere e raggruppare"],
+    ["p","Ogni riga porta i due elementi coinvolti e la penetrazione in millimetri; un clic inquadra il conflitto nel 3D. I clash che raccontano lo stesso problema si selezionano insieme (<b>Ctrl/Maiusc+clic</b>) e si raccolgono in un gruppo, richiudibile, con il menu del tasto destro."],
+    ["keys",[
+      [["Clic"],"Inquadra il clash nel 3D"],
+      [["Ctrl / Maiusc+clic"],"Selezione multipla"],
+      [["Tasto destro"],"Crea un gruppo dai clash selezionati"]
+    ]],
+    ["h","Esportare in BCF"],
+    ["p","L'export scrive un BCF 2.1 con <b>un topic per gruppo</b>: chi lo riceve trova una issue per problema, non centomila righe. I clash lasciati fuori dai gruppi diventano ciascuno una issue a sé."]
+  ]},
+
+  ids:{t:"Controlli IDS", d:"Verifica il modello contro una specifica IDS: quali elementi devono esistere, con quali proprietà e con quali valori.", b:[
+    ["h","Caricare le specifiche"],
+    ["p","Puoi caricare <b>più file IDS insieme</b>: i risultati restano raggruppati per file, ogni gruppo si apre e si chiude, così una verifica su capitolati diversi resta leggibile. Ogni specifica mostra quanti elementi ha esaminato e quanti l'hanno superata."],
+    ["h","Leggere gli scarti"],
+    ["p","Il dettaglio di una specifica raggruppa gli elementi <b>per motivo</b> della non conformità: proprietà mancante, valore fuori intervallo, classe non ammessa. Da lì si va al 3D con un clic. Lo stato che assegni a una specifica sopravvive ai ri-run: rilanci il controllo e non perdi il lavoro di lettura già fatto."],
+    ["h","Portare fuori il risultato"],
+    ["p","Le non conformità si esportano in BCF 2.1 compatibile Solibri, con lo stato che hai deciso. È il modo per chiudere il giro: chi ha modellato riceve le issue nel suo strumento."]
+  ]},
+
+  qto:{t:"Computi metrici", d:"Le quantità che l'IFC porta con sé, raggruppate come ti servono ed esportate in CSV.", b:[
+    ["h","Quantità e parametri"],
+    ["p","La scheda <b>QTO</b> legge le quantità standard dell'IFC (aree, volumi, lunghezze) e ti lascia aggiungere qualsiasi <b>parametro custom</b> presente nei property set: se il tuo capitolato conta per codice di voce, quella diventa una colonna come le altre."],
+    ["h","Raggruppare e isolare"],
+    ["p","Puoi raggruppare per classe IFC o per un parametro qualsiasi: il totale si ricalcola sul gruppo. Selezionando una riga isoli nel 3D esattamente gli elementi che l'hanno prodotta — è il controllo più veloce contro i doppi conteggi."],
+    ["h","Esportare"],
+    ["p","L'export CSV riporta le colonne che vedi a schermo, nell'ordine in cui le hai messe. Da lì il computo entra nel foglio di calcolo senza altri passaggi."],
+    ["warn","Le quantità sono quelle scritte nel modello: il viewer non le ricalcola dalla geometria. Se mancano nell'IFC, mancano anche qui."]
+  ]},
+
+  alignment:{t:"Assi IFC4x3", d:"Con i file IFC4x3 il viewer riconosce gli IfcAlignment e li tratta come oggetti veri: asse in 3D, progressive, minimap.", b:[
+    ["h","L'asse nel modello"],
+    ["p","Gli assi compaiono come polilinea rossa sopra il modello, con il loro nome e le progressive. Selezionandone uno si aprono gli strumenti dedicati: il profilo altimetrico, la sezione ortogonale e la minimap che mostra dove sei lungo il tracciato."],
+    ["h","Quando l'IFC non ha alignment"],
+    ["p","Molti modelli infrastrutturali sono ancora IFC2x3 o IFC4 e l'asse vive altrove. Puoi caricare un <b>LandXML</b> esterno: il viewer ne ricava gli stessi assi, con orientamento e progressiva iniziale, e da lì tutto funziona come sopra."],
+    ["tip","Alcuni strumenti annidano gli alignment con relazioni diverse dallo standard più comune: il viewer segue entrambe le catene, quindi assi che altrove risultano invisibili qui compaiono lo stesso."],
+    ["p","Ti serve l'asse fuori dal viewer? Lo strumento <b>Alignment to LandXML</b> lo estrae dall'IFC in un file che il CAD stradale legge."]
+  ]},
+
+  profile:{t:"Profilo e sezione 2D", d:"Dal tracciato al disegno: il profilo altimetrico, la sezione ortogonale alla progressiva e un 2D che si misura e si esporta in DXF.", b:[
+    ["h","Profilo e progressiva"],
+    ["p","Il profilo altimetrico si legge come un grafico: muovendo il cursore la sezione nel 3D si sposta con te. La progressiva si può anche <b>digitare</b>, quando devi andare esattamente a una stazione e non approssimativamente."],
+    ["h","Misurare la sezione"],
+    ["p","La sezione ortogonale all'asse diventa un disegno 2D misurabile: distanze, quote e aree si prendono sulla geometria reale, non su un'immagine. La modalità disegno resta attiva finché non esci, così puoi mettere più misure di seguito."],
+    ["keys",[
+      [["Clic"],"Posa un punto della misura"],
+      [["Ctrl+Z"],"Rimuove l'ultimo punto o l'ultima quota"],
+      [["Esc"],"Esce dalla misura in corso, senza chiudere il pannello"]
+    ]],
+    ["h","Portarla in CAD"],
+    ["p","Il pulsante <b>DXF</b> esporta la sezione così com'è, quote comprese: il file si apre in qualsiasi CAD e resta modificabile."]
+  ]},
+
+  cloud:{t:"Nuvole di punti", d:"Il rilievo accanto al modello: LAS ed E57 si caricano come gli IFC e vivono nella stessa scena.", b:[
+    ["h","Caricare la nuvola"],
+    ["p","Scegli un file <b>LAS</b> o <b>E57</b>: la nuvola entra nella scena georeferenziata insieme ai modelli, con la sua visibilità e la sua densità di visualizzazione. Gli E57 vengono letti a fette e decodificati man mano, quindi anche file di parecchi gigabyte restano gestibili."],
+    ["h","Limiti"],
+    ["rows",[
+      ["LAZ","Non supportato: converti in LAS o esporta in E57."],
+      ["LAS oltre 2 GB","Non ancora letto a fette: preferisci l'E57 per i rilievi molto grandi."],
+      ["ReCap","Il formato .rcp è chiuso: da ReCap esporta in E57."]
+    ]],
+    ["tip","Una nuvola densa costa in memoria quanto un modello grande: se il browser rallenta, riduci la densità di visualizzazione prima di togliere modelli."]
+  ]},
+
+  asbuilt:{t:"Verifica del costruito", d:"Il confronto fra nuvola e modello, punto per punto: quanto il costruito si scosta da quello che è stato disegnato.", b:[
+    ["h","Come funziona"],
+    ["p","Per ogni punto della nuvola il viewer cerca la superficie modellata più vicina e ne misura la distanza. Il risultato non è un numero solo: è una mappa a colori sulla nuvola, che ti dice subito dove il costruito segue il progetto e dove se ne allontana."],
+    ["h","Le soglie"],
+    ["p","Imposti due soglie — quella di accettazione e quella di allarme — e la nuvola si colora di conseguenza: <b>verde</b> dentro tolleranza, <b>giallo</b> nella fascia intermedia, <b>rosso</b> fuori. Le soglie vanno scelte sul capitolato dell'opera, non lasciate al caso."],
+    ["warn","La verifica vale quanto l'allineamento fra nuvola e modello: se il rilievo è georeferenziato male, tutto il resto slitta. Controlla sempre prima che i due oggetti si sovrappongano davvero."]
+  ]},
+
+  "class-patcher":{t:"Class Patcher", d:"Riassegna le classi IFC di elementi mal classificati, direttamente sul file, senza tornare nell'authoring.", b:[
+    ["h","A cosa serve"],
+    ["p","Capita di ricevere modelli dove tutto è IfcBuildingElementProxy, o dove un gruppo di oggetti è finito nella classe sbagliata. Il Class Patcher legge l'IFC, ti mostra le classi presenti e ti lascia riscriverle sugli elementi che scegli, restituendo un IFC valido."],
+    ["tool","../tools/ifc-class-patcher/","Class Patcher","Riclassifica gli elementi di un IFC e riscrive il file."]
+  ]},
+
+  progressiva:{t:"Progressiva Converter", d:"Converte fra progressive e coordinate lungo un asse, per non fare i conti a mano.", b:[
+    ["h","A cosa serve"],
+    ["p","Dato un asse, converte una progressiva nelle coordinate del punto corrispondente e viceversa: serve ogni volta che un documento parla per stazioni e il modello parla per coordinate."],
+    ["tool","../tools/ifc-progressiva-converter/","Progressiva Converter","Da progressiva a coordinate e ritorno, lungo l'asse."]
+  ]},
+
+  "aln-landxml":{t:"Alignment to LandXML", d:"Estrae gli assi da un IFC e li scrive in LandXML, il formato che i CAD stradali leggono.", b:[
+    ["h","A cosa serve"],
+    ["p","Quando il tracciato vive dentro l'IFC ma ti serve nel CAD, questo strumento legge gli IfcAlignment — planimetria e profilo — e li esporta in LandXML. È lo stesso parser che usa il viewer, quindi legge anche gli assi annidati in modo non standard."],
+    ["tool","../tools/ifc-alignment-to-landxml/","Alignment to LandXML","Assi IFC4x3 esportati in LandXML per il CAD."]
+  ]},
+
+  merge:{t:"IFC Merge", d:"Unisce più IFC in un unico file, mantenendo la georeferenziazione di ciascuno.", b:[
+    ["h","A cosa serve"],
+    ["p","Serve quando la federazione deve diventare un file solo: per consegnarla, per aprirla in uno strumento che non federa, per archiviarla. Lo strumento unisce i modelli rispettando la posizione di ognuno e scrive il risultato sul disco."],
+    ["warn","Se il browser rifiuta di scrivere direttamente nella cartella scelta — succede su percorsi di rete o dischi sincronizzati — l'unione non si ferma: il file arriva come normale download."],
+    ["tool","../tools/ifc-merge/","IFC Merge","Più IFC in un unico file, georeferenziazione compresa."]
+  ]}
+
+}},
+en:{
+  g:{start:"First steps", work:"Working in 3D", coord:"Coordination",
+     infra:"Infrastructure and survey", tools:"Tools"},
+  p:{
+
+  load:{t:"Loading a model", d:"The viewer opens empty and waits for files. Drag your IFCs into the window, or pick them from the button: from there on, all the work is local.", b:[
+    ["h","Opening the files"],
+    ["p","From the start screen press <b>Load IFC</b> and pick one or more files, or drop them straight onto the viewport. You can select as many as you like at once: they open together as a federation, aligned on the first model loaded."],
+    ["p","Every file appears in the model list with its own colour and visibility checkbox. You can add more at any time without starting over, and remove a model from the list when you no longer need it."],
+    ["keys",[[["Load IFC"],"Opens the file picker: one or more .ifc"],[["Drag"],"Drop the files on the viewport, same result"],[["Load BCF"],"Adds coordination issues to the open models"]]],
+    ["h","While it loads"],
+    ["p","Loading happens on your computer: the progress bar shows the file being read and the geometry being built. A few-hundred-MB model can take a minute or two — nothing is sent anywhere, so the time depends only on your machine."],
+    ["tip","With a very large federation, load the models you actually need first: you can always add the others later without losing your current view."]
+  ]},
+
+  formats:{t:"Supported formats", d:"What goes in and what comes out. The viewer reads the open coordination formats and returns files other tools can actually read.", b:[
+    ["h","Input"],
+    ["rows",[
+      ["IFC 2x3 · 4 · 4x3","The models, many at once. IFC4x3 also carries the alignments (IfcAlignment)."],
+      ["BCF 2.x","Coordination topics with viewpoints, comments and snapshots. Solibri-exported reports are read too."],
+      ["IDS","Specification files for automated model checks."],
+      ["LAS · E57","Survey point clouds, loaded alongside the IFCs."],
+      ["LandXML","External alignments, for models that carry no IfcAlignment."]
+    ]],
+    ["h","Output"],
+    ["rows",[
+      ["IFC","The model rewritten with the properties you edited."],
+      ["BCF 2.1","Issues from clashes or IDS non-conformities, Solibri-compatible."],
+      ["DXF","The measured 2D section, ready for CAD."],
+      ["CSV","The quantity take-off, ready for the spreadsheet."]
+    ]],
+    ["warn","LAZ (compressed LAS) is not supported: convert to LAS or export as E57. From ReCap, the format to use is E57."]
+  ]},
+
+  privacy:{t:"Privacy, offline, limits", d:"There is no server to send files to, and no account to create. It is worth knowing what that buys you, and what it costs.", b:[
+    ["h","Where your files end up"],
+    ["p","Nowhere. The viewer is a web page running in your browser: it reads files from disk, works on them in memory, and writes them back to disk when you export. No upload, no backend, no user profile. All that comes over the network is the page, the fonts and the rendering libraries."],
+    ["p","It also means <b>nothing is saved</b>: close the tab and the session is gone. Export what you need before you leave."],
+    ["h","Limits to know about"],
+    ["rows",[
+      ["Memory","Everything lives in the browser tab's RAM. On huge models the limit is your computer, not the viewer."],
+      ["Browser","Up-to-date Chrome and Edge are the tested environments. On Safari some file-writing features behave differently."],
+      ["Large clouds","E57 files are read in slices and handle several GB; LAS files above 2 GB are not streamed yet."],
+      ["Pathological geometry","Some IFCs with deeply nested booleans can slow down or interrupt geometry building."]
+    ]],
+    ["tip","Need the guide offline? The page you are reading is static: save it from the browser and it stays readable without a connection."]
+  ]},
+
+  navigate:{t:"Navigating the model", d:"Orbit, pan and zoom are on the mouse; the arrow keys move the camera like in a CAD, and walk puts you inside the building. None of this touches the file: the view is yours alone.", b:[
+    ["h","Orbit, pan, zoom"],
+    ["p","The camera orbits around a point of interest. Left button rotates, pressed wheel pans, scroll moves you closer: the same gestures as Revit and Navisworks, so there is nothing to learn. The viewer keeps your last view as long as the session stays open."],
+    ["keys",[
+      [["Left button"],"Orbit around the point of interest"],
+      [["Press wheel","or","Right"],"Pan — drag the view on the screen plane"],
+      [["Scroll"],"Zoom towards the pointer, not the centre"],
+      [["Wheel double-click"],"Fit all: frames every open model"],
+      [["Double-click element"],"Examine here — zoom scaled to the element's size"]
+    ]],
+    ["bar","Orbit: left button · Pan: press wheel · Zoom: scroll · Arrows: move (Shift+↑↓: raise/lower) · Wheel double-click: fit all","The same help line sits at the bottom of the viewer, and changes when you enter walk."],
+    ["tip","If you get lost, double-click the wheel to bring everything back into frame. If one federated model sits miles away from the others, double-click its name in the model list: it frames that one alone."],
+    ["h","Walk mode","FIRST PERSON"],
+    ["p","The <b>Walk</b> button in the toolbar takes the camera out of orbit and puts it at eye height. It is for checking clear heights, passages and perceived interferences — not for presentations. The wheel sets the speed, and the current value stays written in the bar."],
+    ["pad","W",["A","S","D"],"or the arrows",[
+      [["Q","E"],"Go down and up"],
+      [["Shift"],"Run"],
+      [["Drag"],"Look around"],
+      [["Wheel"],"Walking speed, in m/s"],
+      [["Esc"],"Exit and go back to orbit"]
+    ]],
+    ["h","Keyboard, in orbit"],
+    ["keys2",[
+      [["←","→","↑","↓"],"Move the camera"],
+      [["Shift+↑↓"],"Raise and lower"],
+      [["Esc"],"Deselect, close the panels"]
+    ],[
+      [["Shift+drag"],"Move the section plane"],
+      [["Ctrl / Shift+click"],"Multi-select in the lists"],
+      [["Right button"],"Menu: GUID, isolate, hide, section box"]
+    ]]
+  ]},
+
+  select:{t:"Selection and properties", d:"One click on an element opens everything the IFC knows about it: class, name, GUID and every property set. From there you can rewrite it too.", b:[
+    ["h","Selecting and reading"],
+    ["p","Click an element in the 3D or pick its node in the model tree: the properties panel shows the IFC class, the name, the GUID and the property sets with their values. Selection is shared between 3D, tree and lists, so you can move back and forth without losing your place."],
+    ["keys",[
+      [["Click"],"Select an element"],
+      [["Ctrl / Shift+click"],"Add to the selection, in the lists too"],
+      [["Right button"],"Menu: copy GUID, isolate, hide, section box on the element"],
+      [["Esc"],"Deselect"]
+    ]],
+    ["h","Isolating and hiding"],
+    ["p","From the context menu you can <b>isolate</b> the selection — only that stays on screen — or <b>hide</b> the single element in front of you. The same entries are available from the tree, on whole branches, to work storey by storey or class by class."],
+    ["h","Editing parameters"],
+    ["p","Property values are editable, including across several selected elements: write once and the viewer applies the change to the whole selection. When you export, the IFC file is rewritten with the new values and stays a valid IFC for other tools."],
+    ["warn","Bulk editing is convenient and final: check the selection before you confirm, and always re-export under a new name."]
+  ]},
+
+  section:{t:"Sectioning: box and plane", d:"Two ways to cut the model: the section box, when you want to carve out a portion, and the plane on a face, when you need a cut aligned to the geometry.", b:[
+    ["h","Section box"],
+    ["p","The section box carves out a volume of the model and hides everything else: move and resize it from its handles, like in Revit. From an element's context menu you can spawn the box already tight around that element — the fastest way to get to the point."],
+    ["h","Section plane on a face"],
+    ["p","Click a face and the section plane places itself parallel to it. From then on <b>Shift+drag</b> moves it back and forth: it is a cut that follows the real geometry, not the global axes, so it works on slanted walls and civil structures too."],
+    ["keys",[
+      [["Click a face"],"Places the plane parallel to that face"],
+      [["Shift+drag"],"Move the plane back and forth"],
+      [["Esc","or","Del"],"Leave the section and go back to the whole model"]
+    ]],
+    ["tip","Box and plane coexist: use the box to carve out the area and the plane for the fine cut inside it."]
+  ]},
+
+  federated:{t:"Federated models", d:"Several IFCs open together, each with its own colour and visibility. Federation happens on the first model loaded.", b:[
+    ["h","How federation works"],
+    ["p","The first file you open sets the reference system; the others place themselves relative to it using their own georeferencing. In the model list every file has a visibility checkbox and a colour, and a double-click on its name frames it alone."],
+    ["h","When a model lands far away"],
+    ["p","If an IFC lands kilometres away from the others, the cause is almost always its georeferencing: an empty or degenerate <b>IfcMapConversion</b>, typical of files re-exported by some tools, drops the model on the origin instead of in its place. The viewer flags the case and carries on loading the others."],
+    ["p","It is a problem in the file, not in the view: the right fix is to correct the georeferencing upstream, in the authoring tool. In the meantime you can keep working with the odd model switched off in the list."],
+    ["tip","Double-clicking the name in the model list frames that file alone: the quickest way to see where it really ended up."]
+  ]},
+
+  bcf:{t:"BCF issues", d:"Load the BCF file and the issues snap onto the models: each with its viewpoint, its comments and its components.", b:[
+    ["h","Opening a BCF"],
+    ["p","Press <b>Load BCF</b> and pick the file: the topics appear in the list with title, status and author. The viewer also reads coordination reports exported from Solibri. Clicking an issue takes the camera exactly to the viewpoint saved by whoever wrote it."],
+    ["h","Present and missing components"],
+    ["p","Issues often come from a different federation than yours. The <b>“only in loaded models”</b> checkbox filters the component list and shows only the ones that actually exist in the files you opened, with the present/total counter always in view."],
+    ["h","Moving without losing your place"],
+    ["p","You can zoom in on an element to look closely: when you go back to the issue the camera stays where you left it, because the view is yours. To return to the author's original framing, reopen the issue from the list."],
+    ["tip","Clashes and IDS checks produce BCF 2.1: you can read them back here, or hand them to whoever coordinates in Solibri or in the authoring tool."]
+  ]},
+
+  clash:{t:"Clash detection", d:"Interferences between two sets of elements, with real penetration measured in millimetres and results you can group as issues.", b:[
+    ["h","Setting the check up"],
+    ["p","Pick the two sets to compare — by model, by class or from the selection — and the tolerance. The starting value is <b>50 mm</b>: below that threshold contact is not counted as a clash. The engine measures the actual penetration between solids and reports only the cases above it, sorted worst first."],
+    ["h","Reading and grouping"],
+    ["p","Every row carries the two elements involved and the penetration in millimetres; a click frames the conflict in the 3D. Clashes that tell the same story can be selected together (<b>Ctrl/Shift+click</b>) and collected into a collapsible group with the right-click menu."],
+    ["keys",[
+      [["Click"],"Frame the clash in the 3D"],
+      [["Ctrl / Shift+click"],"Multi-select"],
+      [["Right button"],"Create a group from the selected clashes"]
+    ]],
+    ["h","Exporting to BCF"],
+    ["p","The export writes a BCF 2.1 with <b>one topic per group</b>: whoever receives it finds one issue per problem, not a hundred thousand rows. Clashes left outside groups each become an issue of their own."]
+  ]},
+
+  ids:{t:"IDS checks", d:"Check the model against an IDS specification: which elements must exist, with which properties and which values.", b:[
+    ["h","Loading the specifications"],
+    ["p","You can load <b>several IDS files together</b>: results stay grouped by file, and every group folds open and shut, so a check across different specifications stays readable. Each specification shows how many elements it examined and how many passed."],
+    ["h","Reading the failures"],
+    ["p","The detail of a specification groups elements <b>by reason</b> for the non-conformity: missing property, value out of range, class not allowed. From there one click takes you to the 3D. The status you assign to a specification survives re-runs: run the check again and you keep the reading work you already did."],
+    ["h","Taking the result out"],
+    ["p","Non-conformities export to Solibri-compatible BCF 2.1, with the status you decided. That closes the loop: whoever modelled receives the issues in their own tool."]
+  ]},
+
+  qto:{t:"Quantity take-off", d:"The quantities the IFC carries, grouped the way you need them and exported to CSV.", b:[
+    ["h","Quantities and parameters"],
+    ["p","The <b>QTO</b> tab reads the IFC's standard quantities (areas, volumes, lengths) and lets you add any <b>custom parameter</b> found in the property sets: if your bill of quantities counts by item code, that becomes a column like any other."],
+    ["h","Grouping and isolating"],
+    ["p","You can group by IFC class or by any parameter: the total recalculates on the group. Selecting a row isolates in the 3D exactly the elements that produced it — the fastest check against double counting."],
+    ["h","Exporting"],
+    ["p","The CSV export carries the columns you see on screen, in the order you put them in. From there the take-off goes into the spreadsheet with no further steps."],
+    ["warn","Quantities are the ones written in the model: the viewer does not recompute them from the geometry. If they are missing from the IFC, they are missing here too."]
+  ]},
+
+  alignment:{t:"IFC4x3 alignments", d:"With IFC4x3 files the viewer recognises IfcAlignment and treats it as a real object: 3D axis, chainages, minimap.", b:[
+    ["h","The axis in the model"],
+    ["p","Alignments appear as a red polyline over the model, with their name and chainages. Selecting one opens the dedicated tools: the elevation profile, the orthogonal section and the minimap that shows where you are along the route."],
+    ["h","When the IFC has no alignment"],
+    ["p","Many infrastructure models are still IFC2x3 or IFC4, with the axis living elsewhere. You can load an external <b>LandXML</b>: the viewer derives the same alignments from it, with orientation and start chainage, and from there everything works as above."],
+    ["tip","Some tools nest alignments through relationships other than the most common one: the viewer follows both chains, so axes that stay invisible elsewhere still show up here."],
+    ["p","Need the axis outside the viewer? The <b>Alignment to LandXML</b> tool extracts it from the IFC into a file road CAD reads."]
+  ]},
+
+  profile:{t:"Profile and 2D section", d:"From the alignment to the drawing: the elevation profile, the section orthogonal to the chainage, and a 2D you can measure and export to DXF.", b:[
+    ["h","Profile and chainage"],
+    ["p","The elevation profile reads like a chart: move the cursor and the section in the 3D moves with you. The chainage can also be <b>typed in</b>, for when you need to be exactly at a station rather than roughly there."],
+    ["h","Measuring the section"],
+    ["p","The section orthogonal to the axis becomes a measurable 2D drawing: distances, levels and areas are taken on the real geometry, not on an image. Drawing mode stays on until you leave, so you can lay down several measurements in a row."],
+    ["keys",[
+      [["Click"],"Place a measurement point"],
+      [["Ctrl+Z"],"Removes the last point or the last dimension"],
+      [["Esc"],"Leaves the measurement in progress, without closing the panel"]
+    ]],
+    ["h","Taking it to CAD"],
+    ["p","The <b>DXF</b> button exports the section as it stands, dimensions included: the file opens in any CAD and stays editable."]
+  ]},
+
+  cloud:{t:"Point clouds", d:"The survey next to the model: LAS and E57 load like IFCs and live in the same scene.", b:[
+    ["h","Loading the cloud"],
+    ["p","Pick a <b>LAS</b> or <b>E57</b> file: the cloud enters the georeferenced scene together with the models, with its own visibility and display density. E57 files are read in slices and decoded as they go, so even several-gigabyte files stay manageable."],
+    ["h","Limits"],
+    ["rows",[
+      ["LAZ","Not supported: convert to LAS or export as E57."],
+      ["LAS above 2 GB","Not sliced yet: prefer E57 for very large surveys."],
+      ["ReCap","The .rcp format is closed: from ReCap, export to E57."]
+    ]],
+    ["tip","A dense cloud costs as much memory as a large model: if the browser slows down, lower the display density before removing models."]
+  ]},
+
+  asbuilt:{t:"As-built verification", d:"Cloud against model, point by point: how far what was built departs from what was drawn.", b:[
+    ["h","How it works"],
+    ["p","For every point in the cloud the viewer finds the nearest modelled surface and measures the distance. The result is not a single number: it is a colour map on the cloud, telling you at a glance where the build follows the design and where it drifts away."],
+    ["h","The thresholds"],
+    ["p","You set two thresholds — acceptance and alarm — and the cloud colours accordingly: <b>green</b> within tolerance, <b>amber</b> in between, <b>red</b> outside. Pick the thresholds from the project specification, not at random."],
+    ["warn","The check is only as good as the alignment between cloud and model: if the survey is badly georeferenced, everything else shifts with it. Always confirm first that the two really overlap."]
+  ]},
+
+  "class-patcher":{t:"Class Patcher", d:"Reassign the IFC classes of badly classified elements, straight on the file, without going back to the authoring tool.", b:[
+    ["h","What it is for"],
+    ["p","Sometimes you receive models where everything is an IfcBuildingElementProxy, or where a group of objects ended up in the wrong class. The Class Patcher reads the IFC, shows you the classes it contains and lets you rewrite them on the elements you pick, returning a valid IFC."],
+    ["tool","../tools/ifc-class-patcher/","Class Patcher","Reclassify the elements of an IFC and rewrite the file."]
+  ]},
+
+  progressiva:{t:"Chainage Converter", d:"Converts between chainages and coordinates along an alignment, so you don't do the sums by hand.", b:[
+    ["h","What it is for"],
+    ["p","Given an alignment, it converts a chainage into the coordinates of the matching point and back again: useful every time a document speaks in stations and the model speaks in coordinates."],
+    ["tool","../tools/ifc-progressiva-converter/","Chainage Converter","From chainage to coordinates and back, along the axis."]
+  ]},
+
+  "aln-landxml":{t:"Alignment to LandXML", d:"Extracts alignments from an IFC and writes them to LandXML, the format road CAD packages read.", b:[
+    ["h","What it is for"],
+    ["p","When the alignment lives inside the IFC but you need it in CAD, this tool reads the IfcAlignment — plan and profile — and exports it to LandXML. It is the same parser the viewer uses, so it also reads alignments nested in non-standard ways."],
+    ["tool","../tools/ifc-alignment-to-landxml/","Alignment to LandXML","IFC4x3 alignments exported to LandXML for CAD."]
+  ]},
+
+  merge:{t:"IFC Merge", d:"Merges several IFCs into a single file, keeping each one's georeferencing.", b:[
+    ["h","What it is for"],
+    ["p","For when the federation has to become one file: to hand it over, to open it in a tool that cannot federate, to archive it. The tool merges the models respecting each one's position and writes the result to disk."],
+    ["warn","If the browser refuses to write straight into the chosen folder — it happens on network paths and synced drives — the merge does not stop: the file arrives as an ordinary download."],
+    ["tool","../tools/ifc-merge/","IFC Merge","Several IFCs into one file, georeferencing included."]
+  ]}
+
+}}
+};
+
+/* ============================================================================
+   stato: lingua e tema condivisi con landing e viewer
+   ========================================================================== */
+(function initTheme(){
+  const meta = document.querySelector('meta[name="theme-color"]');
+  function setTheme(t){
+    if(t === "light") document.documentElement.setAttribute("data-theme","light");
+    else document.documentElement.removeAttribute("data-theme");
+    if(meta) meta.setAttribute("content", t === "light" ? "#f1f3ee" : "#141a12");
+    try{ localStorage.setItem("viewer_landing_theme", t); }catch(e){}
+  }
+  let t = "dark";
+  try{ t = localStorage.getItem("viewer_landing_theme") || "dark"; }catch(e){}
+  setTheme(t);
+  const b = document.getElementById("thmBtn");
+  if(b) b.addEventListener("click", ()=>{
+    setTheme(document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light");
   });
+})();
 
-  tr();
+let lang = "it";
+try{ lang = localStorage.getItem("viewer_landing_lang") || (navigator.language||"it").slice(0,2); }catch(e){}
+if(!I18N[lang]) lang = "it";
 
-  /* scroll reveal (come landing) */
-  const io = new IntersectionObserver((entries)=>{
-    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
-  },{threshold:0.12, rootMargin:"0px 0px -40px 0px"});
-  document.querySelectorAll(".rv").forEach(el=>io.observe(el));
+let current = "load";      /* pagina aperta */
+let filter  = "";          /* testo cercato nell'indice */
 
-  /* spotlight sulle card step */
-  document.querySelectorAll(".step").forEach(card=>{
-    card.addEventListener("pointermove", (e)=>{
-      const r = card.getBoundingClientRect();
-      card.style.setProperty("--mx", (e.clientX - r.left) + "px");
-      card.style.setProperty("--my", (e.clientY - r.top) + "px");
+const $  = (s,r)=>(r||document).querySelector(s);
+const el = (tag,cls,txt)=>{ const n=document.createElement(tag); if(cls) n.className=cls;
+  if(txt!=null) n.textContent=txt; return n; };
+
+/* ============================================================================
+   render
+   ========================================================================== */
+function pageOf(id){ return DOC[lang].p[id]; }
+
+function renderIndex(){
+  const idx = $("#idx"); idx.textContent = "";
+  const q = filter.trim().toLowerCase();
+  let shown = 0;
+  GROUPS.forEach(g=>{
+    const pages = g.pages.filter(id=>{
+      if(!q) return true;
+      const p = pageOf(id);
+      return (p.t+" "+p.d).toLowerCase().includes(q) || DOC[lang].g[g.id].toLowerCase().includes(q);
     });
+    if(!pages.length) return;
+    shown += pages.length;
+    const box = el("div","idx-g"+(g.sep && !q ? " sep":""));
+    box.appendChild(el("span","idx-t",DOC[lang].g[g.id]));
+    pages.forEach(id=>{
+      const a = el("a",id===current?"on":"",pageOf(id).t);
+      a.href = "#/"+id;
+      if(id===current) a.setAttribute("aria-current","page");
+      box.appendChild(a);
+    });
+    idx.appendChild(box);
   });
+  if(!shown) idx.appendChild(el("div","idx-empty",I18N[lang]["search.none"]));
+  idxOverflow();
+}
+
+/* l'indice non ha barra di scorrimento: se non ci sta tutto sfuma in basso,
+   e la voce aperta viene portata dentro senza muovere la pagina */
+function idxOverflow(){
+  const idx = $("#idx");
+  idx.classList.toggle("over", idx.scrollHeight > idx.clientHeight + 2);
+  const a = idx.querySelector("a.on");
+  if(!a) return;
+  const top = a.offsetTop - idx.offsetTop, bot = top + a.offsetHeight;
+  if(top < idx.scrollTop) idx.scrollTop = Math.max(0, top - 10);
+  else if(bot > idx.scrollTop + idx.clientHeight) idx.scrollTop = bot - idx.clientHeight + 10;
+}
+addEventListener("resize", idxOverflow);
+
+function keyRow(keys, desc, narrow){
+  const r = el("div","kr");
+  const k = el("div","kk");
+  keys.forEach(s=>{
+    /* "o" / "or" restano parole, non tasti */
+    if(s==="o"||s==="or") k.appendChild(el("span","kor",s));
+    else k.appendChild(el("span","k",s));
+  });
+  r.appendChild(k);
+  r.appendChild(el("span","kd",desc));
+  return r;
+}
+
+const ICON = {
+  tip:'<path d="M9 18h6M10 21h4"></path><path d="M12 3a6 6 0 0 1 3.6 10.8c-.4.3-.6.8-.6 1.2v0H9v0c0-.4-.2-.9-.6-1.2A6 6 0 0 1 12 3z"></path>',
+  warn:'<circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path>',
+  arrow:'<path d="M5 12h13M13 6l6 6-6 6"></path>',
+  back:'<path d="M19 12H6M11 6 5 12l6 6"></path>'
+};
+function svg(paths, w){
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(w||1.8)+
+         '" stroke-linecap="round" stroke-linejoin="round">'+paths+'</svg>';
+}
+
+function renderArticle(){
+  const art = $("#art"); art.textContent = "";
+  const p = pageOf(current);
+  const anchors = [];
+  let sec = null;
+
+  const push = ()=>{ if(sec) art.appendChild(sec); };
+
+  p.b.forEach(b=>{
+    const kind = b[0];
+    if(kind === "h"){
+      push();
+      sec = el("section","sec");
+      const id = "sec-"+anchors.length;
+      sec.id = id; anchors.push({id, t:b[1]});
+      const h = el("div","sec-h");
+      h.appendChild(el("h2",null,b[1]));
+      if(b[2]) h.appendChild(el("span","tag",b[2]));
+      h.appendChild(el("span","rule"));
+      sec.appendChild(h);
+      return;
+    }
+    if(!sec){ sec = el("section","sec"); }        /* blocchi prima di ogni titolo */
+    if(kind === "p"){
+      const n = el("p"); n.innerHTML = b[1]; sec.appendChild(n);
+    } else if(kind === "keys"){
+      const t = el("div","keys"+(b[2]?" "+b[2]:""));
+      b[1].forEach(row=>{ t.appendChild(keyRow(row[0],row[1])); });
+      sec.appendChild(t);
+    } else if(kind === "pad"){
+      const wrap = el("div","padrow");
+      const pad  = el("div","pad");
+      pad.appendChild(el("span","k",b[1]));
+      const r = el("div","row");
+      b[2].forEach(k=>r.appendChild(el("span","k",k)));
+      pad.appendChild(r);
+      pad.appendChild(el("span","cap",b[3]));
+      wrap.appendChild(pad);
+      const t = el("div","keys narrow");
+      b[4].forEach(row=>{ t.appendChild(keyRow(row[0],row[1])); });
+      wrap.appendChild(t);
+      sec.appendChild(wrap);
+    } else if(kind === "keys2"){
+      const cols = el("div","cols");
+      [b[1],b[2]].forEach(list=>{
+        const t = el("div","keys split");
+        list.forEach(row=>{ t.appendChild(keyRow(row[0],row[1])); });
+        cols.appendChild(t);
+      });
+      sec.appendChild(cols);
+    } else if(kind === "rows"){
+      const t = el("div","rows");
+      b[1].forEach(row=>{
+        const r = el("div","r");
+        r.appendChild(el("span","nm",row[0]));
+        r.appendChild(el("span","ds",row[1]));
+        t.appendChild(r);
+      });
+      sec.appendChild(t);
+    } else if(kind === "bar"){
+      const w = el("div","helpbar");
+      const g = el("div","glass"); g.appendChild(el("span","pill",b[1])); w.appendChild(g);
+      w.appendChild(el("span","cap",b[2]));
+      sec.appendChild(w);
+    } else if(kind === "tip" || kind === "warn"){
+      const box = el("div","tip"+(kind==="warn"?" warn":""));
+      box.innerHTML = svg(ICON[kind],1.7);
+      const inn = el("div","in");
+      inn.appendChild(el("span","lb",I18N[lang][kind+".lb"]));
+      const tx = el("span","tx"); tx.innerHTML = b[1]; inn.appendChild(tx);
+      box.appendChild(inn); sec.appendChild(box);
+    } else if(kind === "tool"){
+      const a = el("a","toolcard"); a.href = b[1];
+      const l = el("div","tl");
+      l.appendChild(el("span","tt",b[2]));
+      l.appendChild(el("span","td",b[3]));
+      a.appendChild(l);
+      a.insertAdjacentHTML("beforeend", svg(ICON.arrow,2.1));
+      a.title = I18N[lang]["tool.open"];
+      sec.appendChild(a);
+    }
+  });
+  push();
+
+  /* precedente / successivo */
+  const i = ORDER.indexOf(current);
+  const pn = el("div","pn");
+  const card = (id,dir)=>{
+    const a = el("a",dir==="next"?"next":"");
+    if(!id){ a.className += " ghost"; a.href="#/"+current; a.appendChild(el("span","lb"," ")); a.appendChild(el("span","tt"," ")); return a; }
+    a.href = "#/"+id;
+    const lb = el("div","lb");
+    if(dir==="prev"){ lb.insertAdjacentHTML("beforeend", svg(ICON.back,2.2)); lb.appendChild(el("span",null,I18N[lang]["pn.prev"])); }
+    else{ lb.appendChild(el("span",null,I18N[lang]["pn.next"])); lb.insertAdjacentHTML("beforeend", svg(ICON.arrow,2.2)); }
+    a.appendChild(lb);
+    a.appendChild(el("span","tt",pageOf(id).t));
+    return a;
+  };
+  pn.appendChild(card(ORDER[i-1],"prev"));
+  pn.appendChild(card(ORDER[i+1],"next"));
+  art.appendChild(pn);
+
+  /* ancore di destra */
+  const box = $("#anch"); box.textContent = "";
+  anchors.forEach((a,n)=>{
+    const link = el("a",n===0?"on":"",a.t);
+    link.href = "#"+a.id;
+    link.dataset.sec = a.id;
+    box.appendChild(link);
+  });
+  spy();
+
+  /* testata */
+  const g = GROUPS.find(gr=>gr.pages.includes(current));
+  $("#crumbGroup").textContent = DOC[lang].g[g.id];
+  $("#crumbPage").textContent  = p.t;
+  $("#pgTitle").textContent    = p.t;
+  $("#pgLede").textContent     = p.d;
+  const words = (p.d + " " + art.textContent).trim().split(/\s+/).length;
+  $("#pgRead").textContent     = I18N[lang]["meta.read"].replace("{n}", Math.max(1, Math.round(words/170)));
+  document.title = p.t + " · " + (lang==="en" ? "Guide" : "Guida") + " · Viewer IFC · BCF";
+}
+
+/* evidenzia l'ancora della sezione in testa alla lettura: vince l'ultima
+   sezione il cui titolo ha superato il velo dell'header, non l'ultima
+   incrociata dall'observer (che a inizio pagina sceglieva quella sbagliata) */
+let spyTick = false;
+function spyUpdate(){
+  spyTick = false;
+  const secs  = Array.from(document.querySelectorAll(".sec[id]"));
+  const links = Array.from(document.querySelectorAll(".anch-l a"));
+  if(!secs.length || !links.length) return;
+  let cur = secs[0].id;
+  secs.forEach(s=>{ if(s.getBoundingClientRect().top <= 150) cur = s.id; });
+  links.forEach(l=>l.classList.toggle("on", l.dataset.sec === cur));
+}
+function spy(){ spyUpdate(); }
+addEventListener("scroll", ()=>{
+  if(spyTick) return;
+  spyTick = true;
+  requestAnimationFrame(spyUpdate);
+}, {passive:true});
+
+/* ============================================================================
+   tr() — mai rinominare in t(); parità stretta IT/EN
+   ========================================================================== */
+function tr(){
+  const dict = I18N[lang];
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-i18n]").forEach(e=>{
+    const k = e.getAttribute("data-i18n"); if(dict[k]!=null) e.textContent = dict[k];
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach(e=>{
+    const k = e.getAttribute("data-i18n-title"); if(dict[k]!=null) e.setAttribute("title", dict[k]);
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(e=>{
+    const k = e.getAttribute("data-i18n-ph"); if(dict[k]!=null) e.setAttribute("placeholder", dict[k]);
+  });
+  document.querySelectorAll("[data-i18n-label]").forEach(e=>{
+    const k = e.getAttribute("data-i18n-label"); if(dict[k]!=null) e.setAttribute("aria-label", dict[k]);
+  });
+  document.querySelectorAll(".langsw button").forEach(b=>b.classList.toggle("on", b.dataset.lang === lang));
+  renderIndex();
+  renderArticle();
+}
+
+document.querySelectorAll(".langsw button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    lang = b.dataset.lang;
+    try{ localStorage.setItem("viewer_landing_lang", lang); }catch(e){}
+    tr();
+  });
+});
+
+/* ---------------- routing: #/pagina ---------------- */
+function route(scroll){
+  const h = location.hash || "";
+  if(h.startsWith("#/")){
+    const id = h.slice(2);
+    if(DOC[lang].p[id] && id !== current){
+      current = id;
+      renderIndex(); renderArticle();
+      if(scroll) window.scrollTo({top:0, behavior:"smooth"});
+      return;
+    }
+    if(DOC[lang].p[id] && scroll) window.scrollTo({top:0, behavior:"smooth"});
+  }
+}
+window.addEventListener("hashchange", ()=>route(true));
+
+/* ---------------- indice a tendina, sotto i 920px ---------------- */
+const idxBtn = $("#idxBtn");
+idxBtn.addEventListener("click", ()=>{
+  const open = $("#idx").classList.toggle("open");
+  idxBtn.setAttribute("aria-expanded", open ? "true" : "false");
+});
+$("#idx").addEventListener("click", e=>{
+  if(e.target.closest("a")){
+    $("#idx").classList.remove("open");
+    idxBtn.setAttribute("aria-expanded","false");
+  }
+});
+
+/* ---------------- ricerca nell'indice ---------------- */
+const q = $("#q");
+q.addEventListener("input", ()=>{ filter = q.value; renderIndex(); });
+document.addEventListener("keydown", e=>{
+  if(e.key === "/" && document.activeElement !== q){ e.preventDefault(); q.focus(); }
+  if(e.key === "Escape" && document.activeElement === q){ q.value=""; filter=""; renderIndex(); q.blur(); }
+});
+
+/* ---------------- avvio ---------------- */
+const y = $("#year"); if(y) y.textContent = new Date().getFullYear();
+if(location.hash.startsWith("#/")){
+  const id = location.hash.slice(2);
+  if(DOC[lang].p[id]) current = id;
+}
+tr();
 </script>
 </body>
 </html>
