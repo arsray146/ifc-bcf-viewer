@@ -340,12 +340,12 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <div class="hs-row">
         <span class="hs-dot" style="background:var(--lime)"></span>
         <span class="hs-k" data-i18n="stat.ready">Pronti all'uso</span>
-        <span class="hs-v">4</span>
+        <span class="hs-v">5</span>
       </div>
       <div class="hs-row">
         <span class="hs-dot" style="background:var(--muted)"></span>
         <span class="hs-k" data-i18n="stat.wip">In lavorazione</span>
-        <span class="hs-v">8</span>
+        <span class="hs-v">7</span>
       </div>
       <span class="hs-note"><a href="https://github.com/arsray146/ifc-bcf-viewer/issues" target="_blank" rel="noopener" data-i18n="stat.note">L'ordine lo decidono le issue aperte.</a></span>
     </aside>
@@ -385,7 +385,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <div class="band-h">
         <span class="dot" style="background:var(--lime)"></span>
         <span class="t" data-i18n="band.ready">Pronti all'uso</span>
-        <span class="n" data-i18n="band.readyN">4 · online adesso</span>
+        <span class="n" data-i18n="band.readyN">5 · online adesso</span>
         <span class="ln"></span>
       </div>
       <div class="cards">
@@ -430,6 +430,16 @@ html:not([data-theme="light"]) .thm .sun{display:none}
           </div>
         </a>
 
+        <a class="card live" data-cat="struct" data-tool="05" href="ifc-split/">
+          <div class="card-top"><span class="badge">.ifc → .ifc ×n</span><span class="card-num">05</span></div>
+          <h3 class="card-t">IFC Split / Extractor</h3>
+          <p class="card-d" data-i18n="t05.d">L'inverso del Merge. Spunti nell'albero cosa tenere — un piano, un lotto, una classe — e scarichi un file ridotto: la chiusura sui riferimenti filtra invece di copiare.</p>
+          <div class="card-f">
+            <span class="card-cat" data-i18n="catS.struct">Struttura</span>
+            <span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </a>
+
       </div>
     </div>
 
@@ -438,20 +448,10 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <div class="band-h">
         <span class="dot" style="background:var(--muted)"></span>
         <span class="t" data-i18n="band.wip">In lavorazione</span>
-        <span class="n" data-i18n="band.wipN">8 · nell'ordine in cui li chiedete</span>
+        <span class="n" data-i18n="band.wipN">7 · nell'ordine in cui li chiedete</span>
         <span class="ln"></span>
       </div>
       <div class="cards">
-
-        <div class="card wip" data-cat="struct" data-tool="05">
-          <div class="card-top"><span class="badge">.ifc → .ifc</span><span class="card-num">05</span></div>
-          <h3 class="card-t">IFC Split / Extractor</h3>
-          <p class="card-d" data-i18n="t05.d">L'inverso del Merge. Spunti nell'albero cosa tenere — un piano, un lotto, una classe — e scarichi un file ridotto: la chiusura sui riferimenti filtra invece di copiare.</p>
-          <div class="card-f">
-            <span class="card-cat" data-i18n="catS.struct">Struttura</span>
-            <span class="ver">v2.9</span>
-          </div>
-        </div>
 
         <div class="card wip" data-cat="georef" data-tool="06">
           <div class="card-top"><span class="badge">.ifc → .ifc</span><span class="card-num">06</span></div>
@@ -571,19 +571,19 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <span class="c-s"><span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></span>
     </a>
 
+    <a class="lrow" data-cat="struct" data-tool="05" href="ifc-split/">
+      <span class="c-n">05</span>
+      <span class="c-t">IFC Split / Extractor</span>
+      <span class="c-d" data-i18n="t05.s">Spunti nell'albero cosa tenere e scarichi un IFC ridotto — l'inverso del Merge</span>
+      <span class="c-io">.ifc → .ifc ×n</span>
+      <span class="c-c" data-i18n="catS.struct">Struttura</span>
+      <span class="c-s"><span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></span>
+    </a>
+
     <div class="ldiv" id="listDiv">
       <span class="dot"></span>
       <span class="t" data-i18n="band.wip">In lavorazione</span>
       <span class="ln"></span>
-    </div>
-
-    <div class="lrow" data-cat="struct" data-tool="05">
-      <span class="c-n">05</span>
-      <span class="c-t">IFC Split / Extractor</span>
-      <span class="c-d" data-i18n="t05.s">Spunti nell'albero cosa tenere e scarichi un IFC ridotto — l'inverso del Merge</span>
-      <span class="c-io">.ifc → .ifc</span>
-      <span class="c-c" data-i18n="catS.struct">Struttura</span>
-      <span class="c-s"><span class="ver">v2.9</span></span>
     </div>
     <div class="lrow" data-cat="georef" data-tool="06">
       <span class="c-n">06</span>
@@ -698,8 +698,8 @@ const I18N = {
     "catS.georef":"Georef","catS.diag":"Diagnostica","catS.coord":"Coordinamento",
     "search.ph":"Filtra per nome o formato",
     "view.grid":"Griglia","view.list":"Elenco",
-    "band.ready":"Pronti all'uso","band.readyN":"4 · online adesso",
-    "band.wip":"In lavorazione","band.wipN":"8 · nell'ordine in cui li chiedete",
+    "band.ready":"Pronti all'uso","band.readyN":"5 · online adesso",
+    "band.wip":"In lavorazione","band.wipN":"7 · nell'ordine in cui li chiedete",
     "act.open":"Apri",
     "list.tool":"Strumento","list.what":"Cosa fa","list.io":"In → out","list.cat":"Materia","list.state":"Stato",
     "t01.d":"Riclassifica entità e PredefinedType in massa da una mappatura Excel, con anteprima delle regole non risolte.",
@@ -749,8 +749,8 @@ const I18N = {
     "catS.georef":"Georef","catS.diag":"Diagnostics","catS.coord":"Coordination",
     "search.ph":"Filter by name or format",
     "view.grid":"Grid","view.list":"List",
-    "band.ready":"Ready to use","band.readyN":"4 · online now",
-    "band.wip":"In the works","band.wipN":"8 · in the order you ask for them",
+    "band.ready":"Ready to use","band.readyN":"5 · online now",
+    "band.wip":"In the works","band.wipN":"7 · in the order you ask for them",
     "act.open":"Open",
     "list.tool":"Tool","list.what":"What it does","list.io":"In → out","list.cat":"Topic","list.state":"State",
     "t01.d":"Bulk-reclassifies entities and PredefinedTypes from an Excel mapping, previewing the unresolved rules.",
