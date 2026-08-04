@@ -284,8 +284,20 @@ html:not([data-theme="light"]) .thm .sun{display:none}
 .row .tg{flex:none;font:400 10px/1 var(--mono);color:var(--faint)}
 
 /* ---------- strumenti ---------- */
-.tools-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.tool{display:flex;flex-direction:column;gap:12px;padding:18px 19px 17px;
+/* scroller orizzontale: card a larghezza fissa, si scorre destra-sinistra
+   (regge la crescita della collezione senza schiacciare le card).
+   Niente scrollbar: si scorre col tocco, con la rotella o avvicinando il
+   mouse al bordo (auto-scroll in JS). La card tagliata sfuma via mask,
+   solo dal lato dove c'è altro contenuto (--fL/--fR le aggiorna il JS).
+   Il padding verticale assorbe il translateY dell'hover e l'ombra,
+   che altrimenti verrebbero tagliati dal contenitore che scrolla. */
+.tools-grid{display:flex;gap:12px;overflow-x:auto;padding:6px 2px 16px;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 var(--fL,0px),#000 calc(100% - var(--fR,0px)),transparent 100%);
+  mask-image:linear-gradient(90deg,transparent 0,#000 var(--fL,0px),#000 calc(100% - var(--fR,0px)),transparent 100%)}
+.tools-grid::-webkit-scrollbar{display:none}
+.tool{flex:0 0 272px;
+  display:flex;flex-direction:column;gap:12px;padding:18px 19px 17px;
   border-radius:var(--r-md);background:var(--pnl);
   backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
   border:1px solid var(--hair);box-shadow:var(--sh-sm);
@@ -301,6 +313,13 @@ html:not([data-theme="light"]) .thm .sun{display:none}
 .tool-go{display:flex;align-items:center;gap:7px;font:500 11px/1 var(--mono);color:var(--acc)}
 .tool-go svg{width:12px;height:12px;transition:transform .18s}
 .tool:hover .tool-go svg{transform:translateX(4px)}
+/* rimando discreto alla pagina indice /tools/: stesso registro dei tool-go */
+.tools-all-row{display:flex;justify-content:flex-end;margin-top:8px}
+.tools-all{display:inline-flex;align-items:center;gap:7px;
+  font:500 11px/1 var(--mono);color:var(--acc);transition:color .15s,gap .15s}
+.tools-all:hover{color:var(--lime);gap:11px}
+.tools-all svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round}
 
 /* ---------- privacy ---------- */
 .privacy-panel{display:flex;align-items:stretch;padding:44px 46px;border-radius:var(--r);
@@ -375,9 +394,6 @@ footer .hdr-logo{width:20px;height:20px;border-radius:6px}
 .rv.in{opacity:1;transform:none}
 
 /* ---------- responsive ---------- */
-@media (max-width:1080px){
-  .tools-grid{grid-template-columns:repeat(2,1fr)}
-}
 /* schermi bassi (portatili 1280×720 e simili): l'hero si stringe, così il
    telaio del viewer arriva più su e si vede per davvero sopra la piega */
 @media (min-width:920px) and (max-height:860px){
@@ -408,7 +424,6 @@ footer .hdr-logo{width:20px;height:20px;border-radius:6px}
   .formats .rule{display:none}
 }
 @media (max-width:600px){
-  .tools-grid{grid-template-columns:1fr}
   .hero{padding-top:56px}
   .hero-cta{flex-direction:column;align-items:stretch;width:100%}
   .frame-wrap{padding-top:40px}
@@ -985,6 +1000,14 @@ html[data-theme="light"] .mk-badgetxt{fill:#67790d}
         <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
       </a>
     </div>
+    <!-- rimando alla pagina indice /tools/: qui restano le card dei 4 pronti,
+         l'elenco completo (con la roadmap degli 8 in lavorazione) vive lì -->
+    <div class="rv tools-all-row">
+      <a class="tools-all" href="tools/">
+        <span data-i18n="tools.all">Tutti gli strumenti — anche quelli in arrivo</span>
+        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
   </div>
 </section>
 
@@ -1161,6 +1184,7 @@ const I18N = {
     "tools.eyebrow":"Strumenti","tools.h2":"Utility openBIM, stessa filosofia.",
     "tools.p":"Una collezione di strumenti che cresce accanto al viewer: file singolo, tutto client-side, nessun upload e nessuna installazione.",
     "tools.tag":"Client-side","tools.soon":"In arrivo","tools.open":"Apri lo strumento",
+    "tools.all":"Tutti gli strumenti — anche quelli in arrivo",
     "tools.t1t":"IFC Class Patcher","tools.t1d":"Riclassifica gli elementi in blocco: cambia classe IFC e PredefinedType da una mappatura Excel (Classe → Entità → ENUMTYPE). Scegli le colonne, scarichi l'IFC corretto.",
     "tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converte le progressive IFC tra metri e formato chilometrico K+MMM,CC, nei due sensi. Scegli quali parametri convertire, scarichi l'IFC aggiornato.",
     "tools.t3t":"IFC Alignment to LandXML","tools.t3d":"Estrae le entità IfcAlignment da un file IFC4x3 e le esporta in LandXML 1.2 (planimetrico Linea/Curva/Clotoide e altimetrico PVI/ParaCurve), pronte per Dalux.",
@@ -1246,6 +1270,7 @@ const I18N = {
     "tools.eyebrow":"Tools","tools.h2":"openBIM utilities, same philosophy.",
     "tools.p":"A set of tools growing alongside the viewer: single file, fully client-side, no upload and no install.",
     "tools.tag":"Client-side","tools.soon":"Coming soon","tools.open":"Open the tool",
+    "tools.all":"All the tools — including the upcoming ones",
     "tools.t1t":"IFC Class Patcher","tools.t1d":"Bulk-reclassify elements: change the IFC class and PredefinedType from an Excel mapping (Class → Entity → ENUMTYPE). You pick the columns, you download the corrected IFC.",
     "tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converts IFC chainage values between metres and the kilometric format K+MMM,CC, both ways. You choose which parameters to convert, you download the updated IFC.",
     "tools.t3t":"IFC Alignment to LandXML","tools.t3d":"Extracts the IfcAlignment entities from an IFC4x3 file and exports them as LandXML 1.2 (horizontal Line/Curve/Spiral and vertical PVI/ParaCurve), ready for Dalux.",
@@ -1354,6 +1379,40 @@ document.getElementById("year").textContent = new Date().getFullYear();
       rw.classList.remove("pre");
     }, 330);
   }, 2600);
+})();
+
+/* scroller degli strumenti: sfumatura ai bordi e auto-scroll di prossimità.
+   La mask (--fL/--fR) sfuma la card tagliata SOLO dal lato dove c'è ancora
+   contenuto: a inizio corsa niente sfumatura a sinistra, a fine corsa
+   niente a destra. Avvicinando il mouse a un bordo si scorre da soli, con
+   velocità proporzionale alla vicinanza; rotella e tocco restano attivi. */
+(function toolsScroller(){
+  const g = document.querySelector(".tools-grid");
+  if(!g) return;
+  const FADE = "56px", EDGE = 72, VMAX = 640;   /* px/s: indipendente dal refresh */
+  function fades(){
+    const max = g.scrollWidth - g.clientWidth;
+    g.style.setProperty("--fL", g.scrollLeft > 4 ? FADE : "0px");
+    g.style.setProperty("--fR", g.scrollLeft < max - 4 ? FADE : "0px");
+  }
+  g.addEventListener("scroll", fades, {passive:true});
+  window.addEventListener("resize", fades);
+  fades();
+  let vx = 0, raf = 0, last = 0;
+  function step(now){
+    if(!vx){ raf = 0; return; }
+    if(last) g.scrollLeft += vx*(now - last)/1000;
+    last = now;
+    raf = requestAnimationFrame(step);
+  }
+  g.addEventListener("mousemove",(e)=>{
+    const r = g.getBoundingClientRect(), x = e.clientX - r.left;
+    if(x < EDGE) vx = -VMAX*(1 - x/EDGE);
+    else if(x > r.width - EDGE) vx = VMAX*(1 - (r.width - x)/EDGE);
+    else vx = 0;
+    if(vx && !raf){ last = 0; raf = requestAnimationFrame(step); }
+  });
+  g.addEventListener("mouseleave",()=>{ vx = 0; });
 })();
 
 /* scroll reveal */

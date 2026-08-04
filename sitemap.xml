@@ -21,6 +21,12 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://viewifc.com/tools/</loc>
+    <lastmod>2026-08-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://viewifc.com/tools/ifc-class-patcher/</loc>
     <lastmod>2026-07-30</lastmod>
     <changefreq>monthly</changefreq>
