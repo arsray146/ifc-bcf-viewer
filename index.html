@@ -999,6 +999,12 @@ html[data-theme="light"] .mk-badgetxt{fill:#67790d}
         <p data-i18n="tools.t4d">Unisce più IFC in un unico modello federato: un solo IfcProject, un IfcSite riconoscibile per file, property set, tipi, materiali e colori conservati.</p>
         <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
       </a>
+      <a class="tool rv" style="--d:.24s" href="tools/ifc-split/">
+        <div class="tool-top"><span class="tool-num">05</span><span class="tool-tag" data-i18n="tools.tag">Client-side</span></div>
+        <h3 data-i18n="tools.t5t">IFC Split / Extractor</h3>
+        <p data-i18n="tools.t5d">L'inverso del Merge: spunti nell'albero cosa tenere, o filtri per classe e per valore di Pset, e scarichi un IFC ridotto — oppure lo dividi in più file per piano, classe o Pset.</p>
+        <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
+      </a>
     </div>
     <!-- rimando alla pagina indice /tools/: qui restano le card dei 4 pronti,
          l'elenco completo (con la roadmap degli 8 in lavorazione) vive lì -->
@@ -1189,6 +1195,7 @@ const I18N = {
     "tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converte le progressive IFC tra metri e formato chilometrico K+MMM,CC, nei due sensi. Scegli quali parametri convertire, scarichi l'IFC aggiornato.",
     "tools.t3t":"IFC Alignment to LandXML","tools.t3d":"Estrae le entità IfcAlignment da un file IFC4x3 e le esporta in LandXML 1.2 (planimetrico Linea/Curva/Clotoide e altimetrico PVI/ParaCurve), pronte per Dalux.",
     "tools.t4t":"IFC Merge","tools.t4d":"Unisce più IFC in un unico modello federato: un solo IfcProject, un IfcSite riconoscibile per file, property set, tipi, materiali e colori conservati.",
+    "tools.t5t":"IFC Split / Extractor","tools.t5d":"L'inverso del Merge: spunti nell'albero cosa tenere, o filtri per classe e per valore di Pset, e scarichi un IFC ridotto — oppure lo dividi in più file per piano, classe o Pset.",
     "priv.eyebrow":"Privacy",
     "priv.h2a":"I tuoi file non lasciano","priv.h2b":"il tuo computer.",
     "priv.p":"Il viewer gira interamente nel browser con web-ifc compilato in WebAssembly. Non c'è un server che riceve i modelli, perché non c'è un upload: apri la pagina, trascini il file e lavori — anche offline.",
@@ -1275,6 +1282,7 @@ const I18N = {
     "tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converts IFC chainage values between metres and the kilometric format K+MMM,CC, both ways. You choose which parameters to convert, you download the updated IFC.",
     "tools.t3t":"IFC Alignment to LandXML","tools.t3d":"Extracts the IfcAlignment entities from an IFC4x3 file and exports them as LandXML 1.2 (horizontal Line/Curve/Spiral and vertical PVI/ParaCurve), ready for Dalux.",
     "tools.t4t":"IFC Merge","tools.t4d":"Merges several IFCs into a single federated model: one IfcProject, one recognisable IfcSite per file, property sets, types, materials and colours preserved.",
+    "tools.t5t":"IFC Split / Extractor","tools.t5d":"The inverse of Merge: tick what to keep in the tree, or filter by class and Pset value, and download a reduced IFC — or split it into several files by storey, class or Pset.",
     "priv.eyebrow":"Privacy",
     "priv.h2a":"Your files never leave","priv.h2b":"your computer.",
     "priv.p":"The viewer runs entirely in the browser on web-ifc compiled to WebAssembly. There is no server receiving the models, because there is no upload: you open the page, drop the file and work — offline too.",
