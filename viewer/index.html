@@ -17,7 +17,7 @@
 <meta name="description" content="Free and open-source BIM viewer for IFC and BCF files, right in your browser. Your models never leave your computer: no upload, no account, privacy by design.">
 <meta name="author" content="Alessandro Perugini">
 <meta name="keywords" content="IFC viewer, BCF viewer, BIM, web-ifc, openBIM, BIM coordination, online IFC viewer, BCF browser, free IFC viewer">
-<meta name="theme-color" content="#0c110a">
+<meta name="theme-color" content="#f1f3ee">
 <link rel="canonical" href="https://viewifc.com/viewer/">
 
 <!-- Open Graph (LinkedIn, WhatsApp, Slack, Facebook) -->
@@ -51,9 +51,21 @@
 <!-- defer: JSZip serve solo al caricamento/export BCF (azioni utente), non deve bloccare il parsing -->
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
-/* tema v2: letto prima del paint per evitare il flash scuro→chiaro; il toggle è cablato nel modulo.
-   Chiave viewer_landing_theme condivisa con landing e guida (default: dark). */
-try{ if(localStorage.getItem("viewer_landing_theme")==="light") document.documentElement.setAttribute("data-theme","light"); }catch(e){}
+/* tema v2: letto prima del paint per evitare il flash di tema; il toggle è cablato nel modulo.
+   Chiave viewer_landing_theme condivisa con landing e guida (default: light).
+   L'attributo si applica subito e si toglie solo su scelta esplicita "dark": così il chiaro
+   regge anche quando localStorage non è leggibile (Safari privato, iframe, file://).
+   Migrazione una tantum (viewifc_theme_migr_light): al primo caricamento dopo il passaggio al
+   chiaro il valore salvato in precedenza viene sovrascritto — tutti ripartono da light — e da
+   lì in poi la scelta dell'utente vale come sempre, chi mette dark resta dark. */
+document.documentElement.setAttribute("data-theme","light");
+try{
+  if(localStorage.getItem("viewifc_theme_migr_light")!=="1"){
+    localStorage.setItem("viewifc_theme_migr_light","1");
+    localStorage.setItem("viewer_landing_theme","light");
+  }
+  if(localStorage.getItem("viewer_landing_theme")==="dark") document.documentElement.removeAttribute("data-theme");
+}catch(e){}
 </script>
 <style>
 /* ============================ tema v3 "rail + pod" (studio UI redesign) ============================
