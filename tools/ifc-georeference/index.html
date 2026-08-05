@@ -1,0 +1,2316 @@
+<!DOCTYPE html>
+<!--
+  IFC Georeference Editor — strumento accessorio di viewifc.com
+  Autore: Alessandro Perugini — BIM Coordinator. Licenza AGPL-3.0.
+  100% client-side: nessun file viene caricato su un server.
+
+  UI v3 — design 9a+9b del canvas "Viewer UI Redesign", fusi in un banco solo:
+  a sinistra due schede — "L'audit" (i tre slot con il loro valore attuale e il
+  disaccordo in chiaro: scegli quale fa da verità) e "La pianta" (l'origine si
+  mette al suo posto trascinando, con due punti noti o incollando coordinate);
+  a destra "Cosa esce": i tre slot con il prima e il dopo, la verifica e i
+  controlli prima di scrivere.
+
+  Il problema che risolve: l'IFC ha TRE posti dove dichiarare dove si trova —
+  IfcMapConversion (+IfcProjectedCRS), RefLatitude/RefLongitude del Site e il
+  TrueNorth del contesto — e nei file reali dicono cose diverse, o niente.
+  Il tool li legge tutti, segnala i disaccordi (incluso il MapConversion
+  degenere xa=xo=0 degli export Navisworks, caso reale 10-17041) e li riscrive
+  coerenti. La geometria NON si tocca: byte-patch di poche entità, id invariati.
+
+  Scelte v1 (punti lasciati aperti dal canvas):
+  - niente mappa di sfondo: le URL delle tile rivelerebbero la posizione del
+    cantiere a un server terzo. La pianta è griglia metrica + graticola.
+  - quota = ortometrica (sul geoide/livello del mare), la convenzione di
+    OrthogonalHeight e RefElevation nella spec; resta un controllo "da
+    confermare" prima di scrivere.
+  - conversioni geodetiche in tabella chiusa (Transverse Mercator + Helmert):
+    ETRS89/WGS84 UTM, RDN2008, Gauss-Boaga, Gauss-Krüger DHDN, OSGB. Un EPSG
+    fuori tabella si scrive comunque, senza conversioni geografiche.
+  - su IFC2X3 lo schema non ha IfcMapConversion: si scrivono lat/long e
+    TrueNorth, lo slot resta dichiarato "non presente nello schema".
+-->
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IFC Georeference Editor — viewifc.com</title>
+
+<meta name="description" content="Legge IfcMapConversion, latitudine e longitudine del sito e TrueNorth di un file IFC, mostra dove si contraddicono e li riscrive coerenti, direttamente nel browser. La geometria non si tocca. Nessun upload.">
+<meta name="author" content="Alessandro Perugini">
+<meta name="theme-color" content="#141a12">
+<link rel="canonical" href="https://viewifc.com/tools/ifc-georeference/">
+<link rel="icon" type="image/png" href="../../favicon-32.png">
+<script>try{ if(localStorage.getItem("viewer_landing_theme")==="light") document.documentElement.setAttribute("data-theme","light"); }catch(e){}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* =========================================================================
+   Sistema di vetro condiviso con landing, viewer e pagine strumento (v3).
+   Chiave tema: viewer_landing_theme — comune a tutto il sito.
+   ========================================================================= */
+:root{
+  --lime:#bfd730; --lime-deep:#a8c320; --lime-ink:#23310a;
+  --lime-soft:rgba(191,215,48,.13); --lime-line:rgba(191,215,48,.34);
+  --acc:var(--lime-deep);
+  --bg:#141a12; --bg2:#262b24;
+  --pnl:rgba(15,20,13,.82); --pnl2:rgba(237,242,226,.05);
+  --hair:rgba(237,242,226,.09); --hair2:rgba(237,242,226,.06);
+  --inset:rgba(13,18,11,.5);
+  --grid:rgba(237,242,226,.05); --hover:rgba(237,242,226,.022);
+  --text:#edf2e2; --muted:#a9b59b; --faint:#79856c;
+  --red:#e0523f; --amber:#e0a63a; --green:#8dc63f;
+  --amber-bg:rgba(224,166,58,.10);
+  --sh:0 2px 8px rgba(0,0,0,.28),0 18px 44px rgba(0,0,0,.42);
+  --sh-sm:0 1px 3px rgba(0,0,0,.30),0 6px 18px rgba(0,0,0,.26);
+  --glow:0 4px 24px rgba(191,215,48,.20);
+  --r:24px; --r-md:14px; --r-sm:11px; --r-xs:8px;
+  --blur:blur(20px) saturate(1.25);
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --disp:'Barlow Semi Condensed',var(--sans);
+  --maxw:1180px; --pad:clamp(20px,6vw,90px);
+}
+html[data-theme="light"]{
+  --lime-deep:#67790d;
+  --bg:#f1f3ee; --bg2:#e9ece3;
+  --pnl:rgba(255,255,255,.80); --pnl2:rgba(33,42,35,.035);
+  --hair:rgba(33,42,35,.13); --hair2:rgba(33,42,35,.08);
+  --inset:rgba(33,42,35,.04);
+  --grid:rgba(33,42,35,.05); --hover:rgba(33,42,35,.025);
+  --text:#212a23; --muted:#5f6c61; --faint:#8b978d;
+  --lime-soft:rgba(191,215,48,.22); --lime-line:rgba(154,179,19,.45);
+  --amber:#8f6008; --amber-bg:rgba(224,166,58,.14);
+  --red:#b03a2a;
+  --sh:0 2px 8px rgba(30,40,28,.07),0 18px 44px rgba(30,40,28,.10);
+  --sh-sm:0 1px 3px rgba(30,40,28,.06),0 6px 18px rgba(30,40,28,.07);
+  --glow:0 4px 24px rgba(154,179,19,.28);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{margin:0}
+::selection{background:var(--lime);color:var(--lime-ink)}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px;border-radius:6px}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input{font:inherit}
+
+.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:44px 44px,44px 44px}
+.glow{position:absolute;left:0;right:0;top:0;height:560px;z-index:0;pointer-events:none;
+  background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.085) 0%,transparent 64%)}
+html[data-theme="light"] .glow{background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.20) 0%,transparent 64%)}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--pad);position:relative;z-index:1}
+
+/* ---------- nav a pillola, con briciole (come le altre pagine tool) ---------- */
+.topbar{position:sticky;top:0;z-index:50;display:flex;justify-content:center;
+  padding:18px var(--pad) 0;pointer-events:none}
+.navpill{pointer-events:auto;max-width:100%;display:flex;align-items:center;gap:26px;
+  padding:8px 8px 8px 14px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh)}
+.brand{display:flex;align-items:center;gap:9px;flex:none}
+.hdr-logo{width:26px;height:26px;border-radius:8px;display:block;flex:none}
+.appname{font-family:var(--disp);font-weight:600;font-size:13.5px;letter-spacing:.03em;
+  line-height:1.2;color:var(--text);white-space:nowrap}
+.crumbs{display:flex;align-items:center;gap:9px;font:400 12px/1 var(--sans);color:var(--muted);min-width:0}
+.crumbs .up{display:flex;align-items:center;gap:6px;transition:color .15s;white-space:nowrap}
+.crumbs .up:hover{color:var(--text)}
+.crumbs .up svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+.crumbs .sep{color:var(--faint)}
+.crumbs .here{font-weight:500;color:var(--text);white-space:nowrap}
+.nav-act{display:flex;align-items:center;gap:10px;flex:none;margin-left:auto}
+.langsw{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
+.langsw button{padding:5px 8px;border-radius:999px;color:var(--faint);transition:color .12s,background .12s}
+.langsw button:hover{color:var(--text)}
+.langsw button.on{background:var(--lime-soft);color:var(--text)}
+.thm{width:28px;height:28px;flex:none;border-radius:999px;border:1px solid var(--hair);
+  background:var(--pnl2);display:inline-flex;align-items:center;justify-content:center;
+  color:var(--muted);transition:color .15s,border-color .15s}
+.thm:hover{color:var(--text);border-color:var(--lime-line)}
+.thm svg{width:14px;height:14px}
+html[data-theme="light"] .thm .moon{display:none}
+html:not([data-theme="light"]) .thm .sun{display:none}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;white-space:nowrap;
+  border:1px solid transparent;border-radius:999px;cursor:pointer;
+  font-family:var(--disp);font-weight:600;letter-spacing:.02em;
+  transition:background .18s,border-color .18s,box-shadow .22s,transform .18s,color .18s}
+.btn svg{flex:none}
+.btn.primary{background:var(--lime);color:var(--lime-ink);box-shadow:var(--glow)}
+.btn.primary:hover:not(:disabled){background:#cae23f;box-shadow:0 6px 30px rgba(191,215,48,.32);transform:translateY(-1px)}
+.btn.hollow{background:transparent;border-color:var(--hair);color:var(--text)}
+.btn.hollow:hover:not(:disabled){border-color:var(--lime-line)}
+.btn.sm{padding:9px 16px;font-size:12.5px}
+.btn.sm svg{width:13px;height:13px}
+.btn:disabled{cursor:not-allowed;opacity:.42;box-shadow:none;transform:none}
+
+/* ---------- testata ---------- */
+.head{display:flex;align-items:flex-end;gap:60px;padding:62px 0 0}
+.head-l{flex:1;min-width:0;display:flex;flex-direction:column;gap:13px}
+.head-tags{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kicker{font:500 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.tag{padding:4px 8px;border-radius:999px;background:var(--lime-soft);
+  font:500 9px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--acc)}
+.tag.line{background:none;border:1px solid var(--hair);color:var(--faint)}
+.h1{max-width:620px;font-family:var(--disp);font-weight:600;font-size:clamp(34px,3.9vw,46px);
+  line-height:1.02;letter-spacing:-.006em;color:var(--text)}
+.lead{max-width:560px;margin:0;font:400 14px/1.7 var(--sans);color:var(--muted)}
+.spec{flex:0 0 300px;display:flex;flex-direction:column;gap:9px;padding-bottom:6px}
+.spec-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.spec-row:not(:last-child){padding-bottom:9px;border-bottom:1px solid var(--hair)}
+.spec-k{font:400 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.spec-v{font:500 11.5px/1 var(--mono);color:var(--text)}
+
+/* ---------- riga file + diagnosi ---------- */
+.filebar{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:34px 0 0}
+.fcard{display:flex;align-items:center;gap:11px;padding:8px 10px 8px 14px;border-radius:999px;
+  background:var(--pnl2);border:1px dashed var(--hair);cursor:pointer;max-width:100%;
+  transition:border-color .15s,background .15s}
+.fcard:hover{border-color:var(--lime-line)}
+.fcard.drag{border-color:var(--lime);background:var(--lime-soft)}
+.fcard.set{border-style:solid;border-color:var(--lime-line)}
+.fcard svg.doc{flex:none;width:13px;height:13px;fill:none;stroke:var(--acc);stroke-width:1.8;stroke-linejoin:round}
+.fcard-n{font:500 12px/1 var(--sans);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcard:not(.set) .fcard-n{color:var(--muted);font-weight:400}
+.fcard-m{font:400 11px/1 var(--mono);color:var(--faint);white-space:nowrap}
+.fcard-x{flex:none;display:none;width:20px;height:20px;align-items:center;justify-content:center;color:var(--faint);transition:color .15s}
+.fcard.set .fcard-x{display:flex}
+.fcard-x:hover{color:var(--text)}
+.fcard-x svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+
+/* pillola di diagnosi: lo stato dei tre slot in una riga */
+.diag{display:flex;align-items:center;gap:11px;padding:9px 16px 9px 13px;border-radius:999px;
+  background:var(--amber-bg);border:1px solid rgba(224,166,58,.28);max-width:100%}
+.diag svg{flex:none;width:14px;height:14px;fill:none;stroke:var(--amber);stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+.diag .d1{font:500 12.5px/1.3 var(--sans);color:var(--text)}
+.diag .d2{font:400 11.5px/1.3 var(--sans);color:var(--muted)}
+.diag.ok{background:var(--lime-soft);border-color:var(--lime-line)}
+.diag.ok svg{stroke:var(--acc)}
+.diag.bad{background:rgba(224,82,63,.08);border-color:rgba(224,82,63,.3)}
+.diag.bad svg{stroke:var(--red)}
+
+/* velo di attesa (come lo Split: lo spinner è un transform, gira anche col main thread pieno) */
+.veil{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+  background:rgba(13,18,11,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+html[data-theme="light"] .veil{background:rgba(241,243,238,.6)}
+.veil .sp{width:34px;height:34px;border-radius:50%;
+  border:3px solid var(--lime-soft);border-top-color:var(--lime);
+  animation:vspin .8s linear infinite}
+@keyframes vspin{to{transform:rotate(360deg)}}
+.veil .lb{font:500 12px/1 var(--mono);color:var(--text)}
+
+/* ---------- il banco ---------- */
+.bench{display:flex;align-items:stretch;margin-top:16px;border-radius:var(--r);
+  background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh);overflow:hidden;min-height:420px}
+.bench-l{flex:1;min-width:0;display:flex;flex-direction:column}
+.tree-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 24px 13px;flex-wrap:wrap}
+.tree-hd .t{font:600 15px/1 var(--disp);letter-spacing:.02em;color:var(--text)}
+.tree-hd .hint{font:400 11px/1 var(--sans);color:var(--faint)}
+.tabs{display:flex;align-items:center;gap:14px;font:400 11.5px/1 var(--sans)}
+.tabs button{padding-bottom:3px;color:var(--faint);border-bottom:1px solid transparent;transition:color .12s}
+.tabs button:hover{color:var(--text)}
+.tabs button.on{color:var(--acc);border-bottom-color:var(--lime-line)}
+
+/* stato vuoto (nessun file): grande area di rilascio dentro il banco */
+.drop0{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;margin:24px;border-radius:var(--r-md);border:1px dashed var(--hair);
+  color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s;text-align:center}
+.drop0:hover{border-color:var(--lime-line)}
+.drop0.drag{border-color:var(--lime);background:var(--lime-soft)}
+.drop0 svg{width:26px;height:26px;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linejoin:round}
+.drop0 .t1{font:500 13.5px/1.4 var(--sans);color:var(--text)}
+.drop0 .t2{font:400 11px/1.6 var(--mono);color:var(--faint);max-width:380px}
+
+/* --- scheda L'audit: le righe dei tre slot, a scelta singola --- */
+.audit{display:flex;flex-direction:column;border-top:1px solid var(--hair);flex:1 1 auto}
+.arow{display:flex;align-items:flex-start;gap:13px;padding:15px 24px;text-align:left;
+  border-bottom:1px solid var(--hair2);transition:background .1s;cursor:pointer}
+.arow:hover{background:var(--pnl2)}
+.arow.on{background:var(--lime-soft)}
+.arow.dis{cursor:not-allowed;opacity:.55}
+.arow .rd{flex:none;width:15px;height:15px;margin-top:2px;border-radius:50%;
+  border:1px solid var(--hair);background:rgba(237,242,226,.03);
+  display:flex;align-items:center;justify-content:center}
+html[data-theme="light"] .arow .rd{background:rgba(33,42,35,.03)}
+.arow.on .rd{background:var(--lime);border-color:var(--lime)}
+.arow.on .rd::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--lime-ink)}
+.arow .bd{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.arow .hd{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.arow .nm{font:400 12px/1 var(--mono);color:var(--text)}
+.arow.on .nm{font-weight:500}
+.arow .why{font:400 11.5px/1.55 var(--sans);color:var(--faint);text-wrap:pretty;margin:0}
+.arow .xtra{font:400 10.5px/1 var(--mono);color:var(--faint)}
+.badge{padding:3px 7px;border-radius:5px;font:500 9.5px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.badge.ok{background:rgba(191,215,48,.16);color:var(--acc)}
+.badge.warn{background:rgba(224,166,58,.12);color:var(--amber)}
+.badge.bad{background:rgba(224,82,63,.12);color:var(--red)}
+.badge.off{background:none;border:1px solid var(--hair);color:var(--faint)}
+.vals{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.vcell{display:flex;flex-direction:column;gap:4px}
+.vcell .k{font:400 9.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.vcell .v{font:500 13px/1 var(--mono);color:var(--text)}
+/* rimando alla pianta in coda all'audit */
+.a-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:13px 24px;margin-top:auto}
+.a-foot .k{font:500 10.5px/1 var(--mono);letter-spacing:.13em;color:var(--faint)}
+.a-foot button{display:flex;align-items:center;gap:7px;font:400 11.5px/1 var(--sans);color:var(--acc);transition:gap .15s}
+.a-foot button:hover{gap:11px;color:var(--lime)}
+.a-foot svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+
+/* --- scheda La pianta --- */
+.plan{display:flex;flex-direction:column;border-top:1px solid var(--hair);flex:1 1 auto}
+.plan-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 24px;flex-wrap:wrap}
+.plan-hd .hint{font:400 11px/1 var(--sans);color:var(--faint)}
+.ptabs{display:flex;align-items:center;gap:14px;font:400 11.5px/1 var(--sans)}
+.ptabs button{padding-bottom:3px;color:var(--faint);border-bottom:1px solid transparent;transition:color .12s}
+.ptabs button:hover{color:var(--text)}
+.ptabs button.on{color:var(--acc);border-bottom-color:var(--lime-line)}
+.stage{position:relative;height:330px;border-top:1px solid var(--hair);
+  overflow:hidden;background:var(--inset)}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;
+  cursor:grab;touch-action:none}
+.stage canvas.dragging{cursor:grabbing}
+.stage canvas.rot{cursor:crosshair}
+/* pannelli in overlay sul canvas */
+.ov{position:absolute;display:flex;flex-direction:column;gap:7px;padding:13px 14px;
+  border-radius:var(--r-md);background:var(--pnl);backdrop-filter:var(--blur);
+  -webkit-backdrop-filter:var(--blur);border:1px solid var(--hair);box-shadow:var(--sh)}
+.ov .k{font:500 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.ov-org{left:18px;top:16px;min-width:196px}
+.orow{display:flex;align-items:center;gap:7px}
+.orow .ax{width:16px;font:400 10.5px/1 var(--mono);color:var(--faint)}
+.orow input{flex:1;min-width:0;width:120px;padding:6px 9px;border-radius:7px;border:1px solid var(--hair);
+  background:var(--inset);outline:none;font:500 11.5px/1 var(--mono);color:var(--text);
+  transition:border-color .15s}
+.orow input:focus{border-color:var(--lime-line)}
+.ov-north{right:18px;top:16px;align-items:center}
+.dial{position:relative;width:56px;height:56px;border-radius:50%;border:1px solid var(--hair);
+  background:var(--inset);cursor:grab}
+.dial .yaxis{position:absolute;left:50%;top:50%;width:1px;height:22px;margin:-22px 0 0 -.5px;background:var(--faint)}
+.dial .nd{position:absolute;inset:0}
+.dial .nd i{position:absolute;left:50%;top:6px;width:2px;height:22px;margin-left:-1px;border-radius:2px;background:var(--lime)}
+.dial .nd b{position:absolute;left:50%;top:3px;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;background:var(--lime)}
+.dial .pin{position:absolute;left:50%;top:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:var(--text)}
+.ov-north input{width:76px;padding:5px 8px;border-radius:6px;border:1px solid var(--hair);
+  background:var(--lime-soft);outline:none;font:500 10.5px/1 var(--mono);color:var(--text);text-align:center}
+.ov-north input:focus{border-color:var(--lime-line)}
+/* due punti noti / incolla coordinate */
+.ov-two{left:18px;top:16px;max-width:330px}
+.tp-grid{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 7px;align-items:center}
+.tp-grid .lb{font:400 10px/1 var(--mono);color:var(--faint);white-space:nowrap}
+.tp-grid .hd2{font:400 9px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);text-align:left}
+.tp-grid input{width:100%;min-width:0;padding:5px 8px;border-radius:6px;border:1px solid var(--hair);
+  background:var(--inset);outline:none;font:400 10.5px/1 var(--mono);color:var(--text)}
+.tp-grid input:focus{border-color:var(--lime-line)}
+.ov-two .act,.ov-paste .act{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:3px}
+.ov-two .res,.ov-paste .res{font:400 10px/1.5 var(--mono);color:var(--faint)}
+.ov-two .res.bad,.ov-paste .res.bad{color:var(--amber)}
+.gobtn{padding:7px 13px;border-radius:999px;background:var(--lime);color:var(--lime-ink);
+  font:600 11px/1 var(--disp);letter-spacing:.02em;transition:background .15s}
+.gobtn:hover{background:#cae23f}
+.gobtn:disabled{opacity:.4;cursor:not-allowed}
+.ov-paste{left:18px;top:16px;width:330px}
+.ov-paste textarea{resize:none;height:52px;padding:8px 10px;border-radius:8px;border:1px solid var(--hair);
+  background:var(--inset);outline:none;font:400 11px/1.5 var(--mono);color:var(--text)}
+.ov-paste textarea:focus{border-color:var(--lime-line)}
+/* scala grafica + attribuzione */
+.scalebar{position:absolute;left:18px;bottom:14px;display:flex;align-items:center;gap:10px}
+.scalebar .ln{display:flex;flex-direction:column;gap:4px}
+.scalebar .ln i{display:block;height:1px;background:var(--faint)}
+.scalebar .ln span{font:400 9.5px/1 var(--mono);color:var(--faint)}
+.scalebar .att{padding:5px 9px;border-radius:999px;background:var(--pnl);border:1px solid var(--hair);
+  font:400 10.5px/1 var(--sans);color:var(--muted)}
+.plan-foot{display:flex;align-items:center;gap:9px;padding:14px 24px 17px;flex-wrap:wrap}
+.pchip{display:flex;align-items:center;gap:8px;padding:8px 13px;border-radius:999px;border:1px solid var(--hair);
+  font:400 11.5px/1 var(--sans);color:var(--muted);transition:border-color .15s,color .15s}
+.pchip:hover{border-color:var(--lime-line);color:var(--text)}
+.pchip svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.plan-foot .ll{margin-left:auto;font:400 11px/1 var(--mono);color:var(--faint)}
+
+/* --- colonna destra: cosa esce --- */
+.bench-r{flex:0 0 400px;display:flex;flex-direction:column;border-left:1px solid var(--hair);background:var(--inset)}
+.out-top{display:flex;flex-direction:column;gap:12px;padding:17px 24px 14px}
+.out-hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.out-hd .t{font:600 15px/1 var(--disp);letter-spacing:.02em;color:var(--text)}
+.agree{display:flex;align-items:center;gap:6px;font:400 11px/1 var(--sans);color:var(--acc)}
+.agree i{width:6px;height:6px;border-radius:50%;background:var(--lime)}
+.agree.no{color:var(--faint)}
+.agree.no i{background:var(--faint)}
+/* selettore del sistema di riferimento (pannello custom, niente select nativi) */
+.crsrow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.crsrow .k{font:500 10.5px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.pp{position:relative;min-width:0}
+.pp-btn{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;max-width:250px;
+  background:var(--pnl2);border:1px solid var(--hair);font:400 11.5px/1 var(--mono);color:var(--muted);
+  transition:border-color .15s,color .15s}
+.pp-btn:hover{border-color:var(--lime-line)}
+.pp-btn.set{color:var(--text);border-color:var(--lime-line)}
+.pp-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pp-btn svg{flex:none;width:11px;height:11px;fill:none;stroke:var(--faint);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.pp-panel{position:absolute;right:0;top:calc(100% + 6px);z-index:40;width:310px;
+  display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:var(--r-md);
+  background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh)}
+.pp-panel input[type="search"]{border:0;outline:none;background:var(--inset);border-radius:8px;
+  padding:8px 11px;font:400 11.5px var(--mono);color:var(--text)}
+.pp-panel input::placeholder{color:var(--faint)}
+.pp-list{display:flex;flex-direction:column;max-height:250px;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--hair) transparent}
+.pp-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;
+  font:400 11.5px/1.3 var(--mono);color:var(--text);text-align:left;transition:background .1s}
+.pp-item:hover{background:var(--pnl2)}
+.pp-item.sel{background:var(--lime-soft)}
+.pp-item i{font-style:normal;margin-left:auto;color:var(--faint);font-size:10px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:170px}
+.pp-empty{padding:10px;font:400 11px/1.5 var(--sans);color:var(--faint)}
+.pp-group{padding:9px 10px 3px;font:500 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.pp-free{display:flex;align-items:center;gap:7px;padding-top:2px;border-top:1px solid var(--hair2)}
+.pp-free input{flex:1;min-width:0;border:1px solid var(--hair);outline:none;background:var(--inset);
+  border-radius:8px;padding:7px 10px;font:400 11px var(--mono);color:var(--text)}
+.pp-free input:focus{border-color:var(--lime-line)}
+
+/* schede degli slot in uscita */
+.slots{display:flex;flex-direction:column;gap:7px}
+.slot{display:flex;flex-direction:column;gap:6px;padding:11px 13px;border-radius:12px;
+  background:var(--pnl2);border:1px solid var(--hair)}
+.slot.hi{border-color:var(--lime-line)}
+.slot.ghost{background:none;border-style:dashed}
+.slot-hd{display:flex;align-items:center;gap:8px}
+.slot-hd svg{flex:none;width:12px;height:12px;fill:none;stroke:var(--acc);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.slot-hd svg.dim{stroke:var(--faint)}
+.slot-hd .ring{flex:none;width:12px;height:12px;border-radius:50%;border:1px solid var(--hair)}
+.slot-hd .nm{flex:1;min-width:0;font:500 11.5px/1 var(--mono);color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot-hd .nm.dim{font-weight:400;color:var(--muted)}
+.slot-hd .st{font:400 9.5px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.slot-hd .st.did{color:var(--acc)}
+.slot-kv{display:flex;flex-direction:column;gap:4px;padding-left:20px}
+.skv{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.skv .k{font:400 10.5px/1 var(--mono);color:var(--faint)}
+.skv .v{font:500 11px/1 var(--mono);color:var(--text);text-align:right}
+.chg{display:flex;align-items:center;gap:9px;padding-left:20px}
+.chg .old{font:400 11px/1 var(--mono);color:var(--faint);text-decoration:line-through}
+.chg .new{font:500 11.5px/1 var(--mono);color:var(--text)}
+.chg svg{flex:none;width:12px;height:12px;fill:none;stroke:var(--faint);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* verifica + controlli */
+.checks{display:flex;flex-direction:column;gap:9px;padding:2px 24px 16px}
+.checks .k{font:500 10.5px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.vbox{display:flex;flex-direction:column;gap:9px;padding:14px 15px;border-radius:var(--r-md);
+  background:var(--pnl2);border:1px solid var(--hair)}
+.vrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.vrow .k2{font:400 12px/1.35 var(--sans);color:var(--muted)}
+.vrow .v2{font:500 12px/1 var(--mono);color:var(--text);text-align:right}
+.vrow .v2.good{color:var(--acc)}
+.vrow .v2.warn{color:var(--amber)}
+.vtot{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-top:10px;border-top:1px solid var(--hair)}
+.vtot .k2{font:500 12px/1 var(--sans);color:var(--text)}
+.vtot .v2{font:600 13px/1.35 var(--mono);color:var(--text);text-align:right}
+.crow{display:flex;align-items:center;gap:10px;padding:10px 13px;border-radius:var(--r-sm);
+  background:var(--pnl2);border:1px solid var(--hair)}
+.crow.warn{background:var(--amber-bg);border-color:rgba(224,166,58,.24)}
+.crow svg{flex:none;width:12px;height:12px;fill:none;stroke:var(--acc);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.crow.warn svg{stroke:var(--amber);stroke-width:1.9}
+.crow .t3{flex:1;min-width:0;font:400 12px/1.4 var(--sans);color:var(--muted);text-wrap:pretty}
+.crow .r3{font:400 11px/1 var(--mono);color:var(--faint);white-space:nowrap}
+.crow .r3.good{font-weight:500;color:var(--text)}
+.note{display:flex;align-items:flex-start;gap:9px;padding-top:2px}
+.note svg{flex:none;width:13px;height:13px;margin-top:2px;fill:none;stroke:var(--acc);
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.note span{font:400 11px/1.6 var(--sans);color:var(--faint);text-wrap:pretty}
+
+/* barra di esecuzione */
+.exec{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:auto;
+  padding:16px 24px;border-top:1px solid var(--hair);background:var(--pnl2)}
+.exec .st{flex:1;min-width:0;font:400 11px/1.4 var(--sans);color:var(--faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exec .st.err{color:var(--red)}
+.btn.run{padding:12px 20px;font-size:13.5px}
+.btn.run svg{width:14px;height:14px}
+
+/* ---------- chiusura di pagina ---------- */
+.pagefoot{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
+  margin:34px 0;padding-top:20px;border-top:1px solid var(--hair)}
+.pagefoot p{margin:0;font:400 11.5px/1.6 var(--sans);color:var(--faint)}
+.pagefoot nav{display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  font:400 11.5px/1 var(--sans);color:var(--muted)}
+.pagefoot nav a{transition:color .15s}
+.pagefoot nav a:hover{color:var(--text)}
+.pagefoot nav a.go{display:flex;align-items:center;gap:7px;color:var(--acc);transition:gap .15s}
+.pagefoot nav a.go:hover{gap:11px;color:var(--lime)}
+.pagefoot nav svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round}
+
+@media (max-width:980px){
+  .bench{flex-direction:column}
+  .bench-r{flex:none;border-left:0;border-top:1px solid var(--hair)}
+  .head{flex-direction:column;align-items:stretch;gap:24px}
+  .spec{flex:none}
+  .ov-org{position:static;margin:12px 12px 0}
+  .ov-two,.ov-paste{position:static;margin:12px 12px 0;max-width:none;width:auto}
+  .ov-north{top:auto;bottom:52px}
+}
+</style>
+
+<!-- Statistiche di visita anonime e senza cookie (GoatCounter) — vedi /analytics.js -->
+<script src="/analytics.js" defer></script>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true"></div>
+
+<!-- ================= NAV ================= -->
+<header class="topbar">
+  <div class="navpill">
+    <a class="brand" href="../../" data-i18n-title="nav.home" title="Vai a viewifc.com" aria-label="viewifc.com">
+      <img class="hdr-logo" src="../../favicon-32.png" alt="APE" width="26" height="26">
+      <span class="appname">Viewer IFC · BCF</span>
+    </a>
+    <nav class="crumbs" aria-label="breadcrumb">
+      <a class="up" href="../">
+        <svg viewBox="0 0 24 24"><path d="M19 12H6M11 18l-6-6 6-6"/></svg>
+        <span data-i18n="nav.tools">Strumenti</span>
+      </a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span class="here" aria-current="page" data-i18n="nav.here">Georeferenziazione</span>
+    </nav>
+    <div class="nav-act">
+      <div class="langsw" role="group" aria-label="Language">
+        <button data-lang="it" class="on">IT</button>
+        <button data-lang="en">EN</button>
+      </div>
+      <button class="thm" id="thmBtn" aria-label="Light / dark" title="Light / dark">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <a class="btn hollow sm" href="../../viewer/">
+        <span data-i18n="cta.open">Apri il viewer</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="glow" aria-hidden="true"></div>
+
+<main class="wrap">
+
+  <!-- ================= TESTATA ================= -->
+  <section class="head">
+    <div class="head-l">
+      <div class="head-tags">
+        <span class="kicker" data-i18n="head.kicker">Strumento 06</span>
+        <span class="tag" data-i18n="head.tag">Client-side</span>
+        <span class="tag line" data-i18n="head.beta">Prima versione</span>
+      </div>
+      <h1 class="h1">Georeference Editor</h1>
+      <p class="lead" data-i18n="head.lead">Legge tutti i posti in cui un IFC può dichiarare dove si trova, ti dice quali sono in disaccordo e li riscrive coerenti. Le coordinate non si toccano: cambia solo la dichiarazione, la geometria resta dov'era.</p>
+    </div>
+    <div class="spec">
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.in">Ingresso</span>
+        <span class="spec-v" data-i18n="spec.inV">1 file .ifc</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.out">Uscita</span>
+        <span class="spec-v" data-i18n="spec.outV">1 .ifc georeferenziato</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.geom">Geometria</span>
+        <span class="spec-v" data-i18n="spec.geomV">intatta</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FILE + DIAGNOSI ================= -->
+  <div class="filebar">
+    <div class="fcard" id="fileCard" role="button" tabindex="0">
+      <svg class="doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+      <span class="fcard-n" id="fileName" data-i18n="drop.chip">Trascina il file .ifc o sfoglia</span>
+      <span class="fcard-m" id="fileMeta"></span>
+      <button class="fcard-x" id="fileClear" type="button" data-i18n-title="f.remove" title="Rimuovi il file" aria-label="Rimuovi il file">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="diag" id="diag" hidden>
+      <svg viewBox="0 0 24 24"><path d="M12 9v5M12 17.5v.01"/><path d="M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+      <span class="d1" id="diagT"></span>
+      <span class="d2" id="diagS"></span>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept=".ifc" hidden>
+  <input type="file" id="donorInput" accept=".ifc" hidden>
+
+  <!-- ================= BANCO ================= -->
+  <section class="bench">
+
+    <!-- --- sinistra: audit / pianta --- -->
+    <div class="bench-l">
+      <div class="tree-hd">
+        <span class="t" id="leftT" data-i18n="left.audit">Cosa dice il file adesso</span>
+        <div class="tabs" id="viewTabs">
+          <button class="on" data-view="audit" data-i18n="tab.audit">L'audit</button>
+          <button data-view="plan" data-i18n="tab.plan">La pianta</button>
+        </div>
+        <span class="hint" id="leftHint" data-i18n="hint.audit">scegli quale slot fa da verità: gli altri si allineano</span>
+      </div>
+
+      <!-- stato vuoto -->
+      <div class="drop0" id="drop0">
+        <svg viewBox="0 0 24 24"><path d="M12 21s7-5.6 7-11a7 7 0 1 0-14 0c0 5.4 7 11 7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>
+        <span class="t1" data-i18n="drop.big">Trascina qui il file .ifc, o clicca per sfogliare</span>
+        <span class="t2" data-i18n="drop.hint">nessun upload: la lettura avviene nel browser · l'audit dei tre slot compare qui</span>
+      </div>
+
+      <!-- scheda L'audit: i tre slot + inserimento a mano -->
+      <div class="audit" id="auditView" hidden></div>
+
+      <!-- scheda La pianta -->
+      <div class="plan" id="planView" hidden>
+        <div class="plan-hd">
+          <div class="ptabs" id="planTabs">
+            <button class="on" data-ptab="drag" data-i18n="ptab.drag">Trascina</button>
+            <button data-ptab="two" data-i18n="ptab.two">Due punti noti</button>
+            <button data-ptab="paste" data-i18n="ptab.paste">Incolla coordinate</button>
+          </div>
+          <span class="hint" id="planHint" data-i18n="plan.hintDrag">trascina per spostare · Alt-trascina per ruotare · rotella per lo zoom</span>
+        </div>
+        <div class="stage" id="stage">
+          <canvas id="planCv"></canvas>
+
+          <!-- Trascina: origine E/N/H -->
+          <div class="ov ov-org" id="ovOrg">
+            <span class="k" data-i18n="plan.org">Origine del modello</span>
+            <div class="orow"><span class="ax">E</span><input id="inE" inputmode="decimal" autocomplete="off" spellcheck="false"></div>
+            <div class="orow"><span class="ax">N</span><input id="inN" inputmode="decimal" autocomplete="off" spellcheck="false"></div>
+            <div class="orow"><span class="ax">H</span><input id="inH" inputmode="decimal" autocomplete="off" spellcheck="false"></div>
+          </div>
+
+          <!-- Due punti noti -->
+          <div class="ov ov-two" id="ovTwo" hidden>
+            <span class="k" data-i18n="two.k">Due punti noti</span>
+            <div class="tp-grid">
+              <span class="lb"></span><span class="hd2" data-i18n="two.loc">locale x · y</span><span class="hd2" data-i18n="two.map">mappa E · N</span>
+              <span class="lb">P1</span>
+              <span style="display:flex;gap:5px;min-width:0"><input id="p1x" placeholder="x" inputmode="decimal"><input id="p1y" placeholder="y" inputmode="decimal"></span>
+              <span style="display:flex;gap:5px;min-width:0"><input id="p1E" placeholder="E" inputmode="decimal"><input id="p1N" placeholder="N" inputmode="decimal"></span>
+              <span class="lb">P2</span>
+              <span style="display:flex;gap:5px;min-width:0"><input id="p2x" placeholder="x" inputmode="decimal"><input id="p2y" placeholder="y" inputmode="decimal"></span>
+              <span style="display:flex;gap:5px;min-width:0"><input id="p2E" placeholder="E" inputmode="decimal"><input id="p2N" placeholder="N" inputmode="decimal"></span>
+            </div>
+            <div class="act">
+              <span class="res" id="twoRes"></span>
+              <button class="gobtn" id="twoGo" type="button" data-i18n="two.go">Calcola e applica</button>
+            </div>
+          </div>
+
+          <!-- Incolla coordinate -->
+          <div class="ov ov-paste" id="ovPaste" hidden>
+            <span class="k" data-i18n="paste.k">Incolla una coppia di coordinate</span>
+            <textarea id="pasteIn" data-i18n-placeholder="paste.ph" placeholder="514320,45  5034812,10   ·oppure·   45,47850  9,22611" spellcheck="false"></textarea>
+            <div class="act">
+              <span class="res" id="pasteRes"></span>
+              <button class="gobtn" id="pasteGo" type="button" disabled data-i18n="paste.go">Applica</button>
+            </div>
+          </div>
+
+          <!-- Nord -->
+          <div class="ov ov-north" id="ovNorth">
+            <span class="k" data-i18n="plan.north">Nord</span>
+            <div class="dial" id="dial" title="">
+              <span class="yaxis"></span>
+              <div class="nd" id="dialNd"><i></i><b></b></div>
+              <span class="pin"></span>
+            </div>
+            <input id="inRot" inputmode="decimal" autocomplete="off" spellcheck="false">
+          </div>
+
+          <div class="scalebar">
+            <span class="ln"><i id="sbLine" style="width:70px"></i><span id="sbTxt">20 m</span></span>
+            <span class="att" data-i18n="plan.att">Sfondo: griglia metrica — nessuna mappa esterna, le coordinate non lasciano il browser</span>
+          </div>
+        </div>
+        <div class="plan-foot">
+          <button class="pchip" id="donorBtn" type="button">
+            <svg viewBox="0 0 24 24"><path d="M4 20 20 4M14 4h6v6"/></svg>
+            <span data-i18n="plan.donor">Prendi da un altro IFC</span>
+          </button>
+          <button class="pchip" id="resetBtn" type="button">
+            <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9M3 12h6M12 3v6"/></svg>
+            <span data-i18n="plan.reset">Rimetti come era</span>
+          </button>
+          <span class="ll" id="planLL"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- --- destra: cosa esce --- -->
+    <div class="bench-r">
+      <div class="out-top">
+        <div class="out-hd">
+          <span class="t" data-i18n="out.t">Cosa esce</span>
+          <span class="agree no" id="agree" hidden><i></i><span id="agreeT"></span></span>
+        </div>
+        <div class="crsrow">
+          <span class="k" data-i18n="crs.k">Sistema di riferimento</span>
+          <div class="pp" id="crsWrap">
+            <button class="pp-btn" id="crsBtn" type="button" aria-haspopup="listbox">
+              <span id="crsLbl" data-i18n="crs.pick">Scegli il sistema…</span>
+              <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="pp-panel" id="crsPanel" hidden>
+              <input id="crsFilter" type="search" autocomplete="off" data-i18n-placeholder="crs.filter" placeholder="Cerca per codice o nome…">
+              <div class="pp-list" id="crsList" role="listbox"></div>
+              <div class="pp-free">
+                <input id="crsFree" inputmode="numeric" autocomplete="off" data-i18n-placeholder="crs.free" placeholder="altro codice EPSG…">
+                <button class="gobtn" id="crsFreeGo" type="button" data-i18n="crs.freeGo">Usa</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="slots" id="slots"></div>
+      </div>
+
+      <div class="checks" id="checks" hidden>
+        <span class="k" data-i18n="chk.k">Verifica</span>
+        <div class="vbox" id="vbox"></div>
+        <span class="k" style="padding-top:6px" data-i18n="chk.k2">Controlli prima di scrivere</span>
+        <div class="slots" id="crows"></div>
+        <div class="note">
+          <svg viewBox="0 0 24 24"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg>
+          <span id="geomNote" data-i18n="chk.note">Nessun vertice viene ricalcolato: cambiano solo le entità della dichiarazione, le coordinate locali degli elementi restano identiche.</span>
+        </div>
+      </div>
+
+      <div class="exec">
+        <span class="st" id="execSt" data-i18n="exec.hint">Carica un IFC per leggere la sua georeferenziazione.</span>
+        <button class="btn primary run" id="runBtn" disabled>
+          <span data-i18n="btn.run">Scrivi e scarica</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CHIUSURA ================= -->
+  <div class="pagefoot">
+    <p><span data-i18n="foot.note">Nessun file lascia il computer: lettura e riscrittura avvengono interamente nel browser.</span></p>
+    <nav>
+      <a href="https://github.com/arsray146/ifc-bcf-viewer" target="_blank" rel="noopener" data-i18n="foot.src">Codice sorgente</a>
+      <a class="go" href="../"><span data-i18n="foot.more">Altri strumenti</span>
+        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
+    </nav>
+  </div>
+
+</main>
+
+<!-- velo di attesa (caricamento / scrittura) -->
+<div class="veil" id="veil" hidden>
+  <div class="sp" aria-hidden="true"></div>
+  <span class="lb" id="veilLb"></span>
+</div>
+<!-- =========================================================================
+     MOTORE — funzioni pure, senza DOM, testabili da Node (test/test_georef.js
+     estrae questo blocco per id: NON rinominarlo).
+     ========================================================================= -->
+<script type="text/engine" id="georefEngine">
+"use strict";
+/* ---- scanner STEP a byte, quote-aware ----------------------------------
+   Un solo passaggio sulla Uint8Array (stesso schema dello Split, senza la
+   raccolta dei riferimenti: qui le entità interessate sono una manciata e i
+   loro riferimenti si risolvono on-demand). Registra id, tipo e intervallo
+   di byte di ogni istruzione + la posizione di ENDSEC per gli inserimenti. */
+function geoScan(bytes){
+  const n = bytes.length;
+  const HASH=35, SEMI=59, QUOTE=39, EQ=61, LPAR=40;
+  const dec = new TextDecoder();
+  const ids=[], starts=[], ends=[], typeIdx=[];
+  const typeNames=[], typeMap=new Map();
+  let dataStart=-1;
+  for(let i=0;i<n-4;i++){
+    if(bytes[i]===68&&bytes[i+1]===65&&bytes[i+2]===84&&bytes[i+3]===65&&bytes[i+4]===SEMI){ dataStart=i+5; break; }
+  }
+  if(dataStart<0) throw new Error("no DATA section");
+  // header: schema dichiarato + stile di newline (per riscritture omogenee)
+  const head=dec.decode(bytes.subarray(0,Math.min(4096,n)));
+  const ms=head.match(/FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'/);
+  const schema=ms?ms[1].toUpperCase():"";
+  const nl=head.indexOf("\r\n")>=0?"\r\n":"\n";
+  let endsecPos=n;
+  let i=dataStart;
+  while(i<n){
+    while(i<n && bytes[i]!==HASH){
+      if(bytes[i]===69&&bytes[i+1]===78&&bytes[i+2]===68&&bytes[i+3]===83&&bytes[i+4]===69&&bytes[i+5]===67){ endsecPos=i; i=n; }
+      else i++;
+    }
+    if(i>=n) break;
+    const st=i; i++;
+    let id=0;
+    while(i<n && bytes[i]>=48 && bytes[i]<=57){ id=id*10+(bytes[i]-48); i++; }
+    while(i<n && bytes[i]!==EQ && bytes[i]!==SEMI) i++;
+    if(bytes[i]!==EQ){ i++; continue; }
+    i++;
+    while(i<n && (bytes[i]===32||bytes[i]===10||bytes[i]===13||bytes[i]===9)) i++;
+    const t0=i;
+    while(i<n && bytes[i]!==LPAR && bytes[i]!==SEMI) i++;
+    let tEnd=i; while(tEnd>t0 && bytes[tEnd-1]<=32) tEnd--;
+    const tName = dec.decode(bytes.subarray(t0,tEnd));
+    let inQ=false;
+    while(i<n){
+      const b=bytes[i];
+      if(inQ){ if(b===QUOTE){ if(bytes[i+1]===QUOTE) i++; else inQ=false; } }
+      else if(b===QUOTE) inQ=true;
+      else if(b===SEMI) break;
+      i++;
+    }
+    i++;
+    let ti=typeMap.get(tName);
+    if(ti===undefined){ ti=typeNames.length; typeNames.push(tName); typeMap.set(tName,ti); }
+    ids.push(id); starts.push(st); ends.push(i); typeIdx.push(ti);
+  }
+  const m=ids.length, idMap=new Map(); let maxId=0;
+  for(let k=0;k<m;k++){ idMap.set(ids[k],k); if(ids[k]>maxId) maxId=ids[k]; }
+  const byType=new Map();
+  for(let k=0;k<m;k++){
+    const t=typeNames[typeIdx[k]];
+    let a=byType.get(t); if(!a){ a=[]; byType.set(t,a); }
+    a.push(k);
+  }
+  return { bytes, dataStart, endsecPos, count:m, ids, starts, ends, typeIdx, typeNames, idMap, byType, dec, schema, nl, maxId };
+}
+
+/* argomenti top-level di un'istruzione (stringhe grezze), quote/parentesi-aware */
+function geoArgs(text){
+  const p0=text.indexOf("("), p1=text.lastIndexOf(")");
+  if(p0<0||p1<p0) return [];
+  const s=text.slice(p0+1,p1), out=[]; let d=0,q=false,cur="";
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(q){ cur+=c; if(c==="'"){ if(s[i+1]==="'"){cur+="'";i++;} else q=false; } continue; }
+    if(c==="'"){ q=true; cur+=c; }
+    else if(c==="("){ d++; cur+=c; }
+    else if(c===")"){ d--; cur+=c; }
+    else if(c===","&&d===0){ out.push(cur.trim()); cur=""; }
+    else cur+=c;
+  }
+  if(cur.trim()!=="") out.push(cur.trim());
+  return out;
+}
+function stmtOf(model,k){ return model.dec.decode(model.bytes.subarray(model.starts[k],model.ends[k])); }
+function argStr(a){ return (a&&a[0]==="'") ? a.slice(1,-1).replace(/''/g,"'") : null; }
+function refIdx(model,a){ if(!a||a[0]!=="#") return -1; const id=parseInt(a.slice(1),10); const k=model.idMap.get(id); return k===undefined?-1:k; }
+function listOf(a){ if(!a||a[0]!=="(") return []; return geoArgs("x"+a); }
+function numOf(a,def){ if(a==null||a==="$"||a==="*"||a==="") return def; const v=parseFloat(a); return isFinite(v)?v:def; }
+
+/* ---- angoli e numeri STEP ---------------------------------------------- */
+const D2R=Math.PI/180, R2D=180/Math.PI;
+function angDiff(a,b){ return ((a-b+540)%360)-180; }
+/* real STEP: sempre col punto decimale, zeri di coda tolti ("514320.45", "0.") */
+function stepReal(x,dec){
+  if(!isFinite(x)||Object.is(x,-0)) x=Math.abs(x)===Infinity?0:(x||0);
+  let s=x.toFixed(dec==null?6:dec);
+  if(s.indexOf(".")<0) s+=".";
+  s=s.replace(/(\.\d*?)0+$/,"$1");
+  if(s==="-0."||s==="-0") s="0.";
+  return s;
+}
+/* IfcCompoundPlaneAngleMeasure: (gradi, minuti, secondi, milionesimi di secondo),
+   componenti tutte con lo stesso segno. */
+function toCompound(deg){
+  const sg=deg<0?-1:1; let a=Math.abs(deg);
+  let d=Math.floor(a); let r=(a-d)*60;
+  let m=Math.floor(r); r=(r-m)*60;
+  let s=Math.floor(r);
+  let u=Math.round((r-s)*1e6);
+  if(u>=1e6){ u-=1e6; s++; }
+  if(s>=60){ s-=60; m++; }
+  if(m>=60){ m-=60; d++; }
+  return [sg*d,sg*m,sg*s,sg*u];
+}
+function fmtCompound(c){ return "("+c.join(",")+")"; }
+/* lettura tollerante: lista compound (3 o 4 componenti) o numero nudo in gradi
+   decimali (file non standard) → gradi decimali, null se assente */
+function parseCompound(a){
+  if(a==null||a==="$"||a==="*"||a==="") return null;
+  if(a[0]==="("){
+    const p=listOf(a).map(x=>parseFloat(x)).filter(x=>isFinite(x));
+    if(!p.length) return null;
+    const sg=p.find(x=>x!==0)<0?-1:1;
+    const d=Math.abs(p[0]||0), m=Math.abs(p[1]||0), s=Math.abs(p[2]||0), u=Math.abs(p[3]||0);
+    return sg*(d+m/60+s/3600+u/3.6e9);
+  }
+  const v=parseFloat(a);
+  return isFinite(v)?v:null;
+}
+
+/* ---- geodesia: Trasversa di Mercatore (serie di Krüger) + Helmert -------
+   Tabella chiusa di CRS proiettati; precisione della serie ~0,1 mm, i datum
+   non-ETRS89/WGS84 usano parametri medi nazionali (±1–4 m, marcati approx). */
+function ellSetup(a,invf){
+  const f=1/invf, n=f/(2-f), n2=n*n, n3=n2*n, n4=n2*n2;
+  return { a, f, e2:f*(2-f),
+    A:a/(1+n)*(1+n2/4+n4/64),
+    al:[n/2-2*n2/3+5*n3/16+41*n4/180, 13*n2/48-3*n3/5+557*n4/1440,
+        61*n3/240-103*n4/140, 49561*n4/161280],
+    be:[n/2-2*n2/3+37*n3/96-n4/360, n2/48+n3/15-437*n4/1440,
+        17*n3/480-37*n4/840, 4397*n4/161280] };
+}
+const ELL={
+  GRS80: ellSetup(6378137,298.257222101),
+  WGS84: ellSetup(6378137,298.257223563),
+  INTL:  ellSetup(6378388,297),
+  BESSEL:ellSetup(6377397.155,299.1528128),
+  AIRY:  ellSetup(6377563.396,299.3249646)
+};
+function tmXi(ell,phi,lam){
+  const s=Math.sin(phi), es=Math.sqrt(ell.e2);
+  const t=Math.sinh(Math.atanh(s)-es*Math.atanh(es*s));
+  const xip=Math.atan2(t,Math.cos(lam));
+  const etp=Math.asinh(Math.sin(lam)/Math.hypot(t,Math.cos(lam)));
+  let xi=xip, eta=etp;
+  for(let j=1;j<=4;j++){
+    xi +=ell.al[j-1]*Math.sin(2*j*xip)*Math.cosh(2*j*etp);
+    eta+=ell.al[j-1]*Math.cos(2*j*xip)*Math.sinh(2*j*etp);
+  }
+  return {xi,eta};
+}
+function tmFwd(c,lat,lon){
+  const q=tmXi(c._ell,lat*D2R,(lon-c.lon0)*D2R);
+  return { E:c.fe+c.k0*c._ell.A*q.eta, N:c.fn+c.k0*c._ell.A*q.xi-c._m0 };
+}
+function tmInv(c,E,N){
+  const ell=c._ell;
+  const xi=(N-c.fn+c._m0)/(c.k0*ell.A), eta=(E-c.fe)/(c.k0*ell.A);
+  let xip=xi, etp=eta;
+  for(let j=1;j<=4;j++){
+    xip-=ell.be[j-1]*Math.sin(2*j*xi)*Math.cosh(2*j*eta);
+    etp-=ell.be[j-1]*Math.cos(2*j*xi)*Math.sinh(2*j*eta);
+  }
+  /* conformale → geodetica: iterazione esatta (converge in pochi giri,
+     precisione da macchina — la serie troncata lasciava ~0,4 mm) */
+  const sinChi=Math.sin(xip)/Math.cosh(etp);
+  const es=Math.sqrt(ell.e2), psi=Math.atanh(sinChi);
+  let s=sinChi;
+  for(let i=0;i<8;i++) s=Math.tanh(psi+es*Math.atanh(es*s));
+  return { lat:Math.asin(s)*R2D, lon:c.lon0+Math.atan2(Math.sinh(etp),Math.cos(xip))*R2D };
+}
+function ecefOf(ell,lat,lon,h){
+  const s=Math.sin(lat*D2R), c=Math.cos(lat*D2R);
+  const N=ell.a/Math.sqrt(1-ell.e2*s*s);
+  return [ (N+h)*c*Math.cos(lon*D2R), (N+h)*c*Math.sin(lon*D2R), (N*(1-ell.e2)+h)*s ];
+}
+function geoOf(ell,X,Y,Z){
+  const p=Math.hypot(X,Y);
+  let phi=Math.atan2(Z,p*(1-ell.e2));
+  for(let i=0;i<6;i++){
+    const s=Math.sin(phi), N=ell.a/Math.sqrt(1-ell.e2*s*s);
+    phi=Math.atan2(Z+ell.e2*N*s,p);
+  }
+  return { lat:phi*R2D, lon:Math.atan2(Y,X)*R2D };
+}
+/* Helmert a 7 parametri, convenzione Position Vector; l'inversa parte dalla
+   trasposta e si raffina a punto fisso (l'inversa "a parametri negati"
+   lasciava ~1 mm a rotazioni di qualche secondo d'arco) */
+function helm(v,p,inv){
+  const S=Math.PI/648000;
+  const rx=p[3]*S, ry=p[4]*S, rz=p[5]*S, m=1+p[6]*1e-6;
+  if(!inv)
+    return [ p[0] + m*( v[0] - rz*v[1] + ry*v[2]),
+             p[1] + m*( rz*v[0] + v[1] - rx*v[2]),
+             p[2] + m*(-ry*v[0] + rx*v[1] + v[2]) ];
+  const x0=(v[0]-p[0])/m, y0=(v[1]-p[1])/m, z0=(v[2]-p[2])/m;
+  let x=[ x0+rz*y0-ry*z0, -rz*x0+y0+rx*z0, ry*x0-rx*y0+z0 ];
+  for(let i=0;i<2;i++){
+    const f=helm(x,p,false);
+    x=[ x[0]+(v[0]-f[0])/m, x[1]+(v[1]-f[1])/m, x[2]+(v[2]-f[2])/m ];
+  }
+  return x;
+}
+function wgsFromCrs(c,E,N){
+  const g=tmInv(c,E,N);
+  if(!c.hel) return g;
+  const v=helm(ecefOf(c._ell,g.lat,g.lon,0),c.hel,false);
+  return geoOf(ELL.WGS84,v[0],v[1],v[2]);
+}
+function crsFromWgs(c,lat,lon){
+  if(!c.hel) return tmFwd(c,lat,lon);
+  const v=helm(ecefOf(ELL.WGS84,lat,lon,0),c.hel,true);
+  const g=geoOf(c._ell,v[0],v[1],v[2]);
+  return tmFwd(c,g.lat,g.lon);
+}
+function buildCrsDb(){
+  const db=new Map();
+  function put(code,name,ellName,lon0,k0,fe,fn,x){
+    const c=Object.assign({code,name,ell:ellName,lon0,k0,fe,fn,lat0:0,zw:6,hel:null,
+      datum:null,proj:null,zone:null,grp:"",approx:false},x||{});
+    c._ell=ELL[ellName];
+    c._m0=c.lat0?c.k0*c._ell.A*tmXi(c._ell,c.lat0*D2R,0).xi:0;
+    db.set(code,c);
+  }
+  for(let z=28;z<=38;z++)
+    put(25800+z,"ETRS89 / UTM zone "+z+"N","GRS80",z*6-183,0.9996,500000,0,
+      {datum:"ETRS89",proj:"UTM",zone:z+"N",grp:"ETRS89 · UTM"});
+  [[6707,32],[6708,33],[6709,34]].forEach(p=>
+    put(p[0],"RDN2008 / UTM zone "+p[1]+"N","GRS80",p[1]*6-183,0.9996,500000,0,
+      {datum:"RDN2008",proj:"UTM",zone:p[1]+"N",grp:"RDN2008 · UTM"}));
+  for(let z=1;z<=60;z++){
+    put(32600+z,"WGS 84 / UTM zone "+z+"N","WGS84",z*6-183,0.9996,500000,0,
+      {datum:"WGS 84",proj:"UTM",zone:z+"N",grp:"WGS 84 · UTM"});
+    put(32700+z,"WGS 84 / UTM zone "+z+"S","WGS84",z*6-183,0.9996,500000,1e7,
+      {datum:"WGS 84",proj:"UTM",zone:z+"S",grp:"WGS 84 · UTM"});
+  }
+  const RM40=[-104.1,-49.1,-9.9,0.971,-2.917,0.714,-11.68];   // media nazionale, ±3–4 m
+  put(3003,"Monte Mario / Italy zone 1 (Gauss-Boaga Ovest)","INTL",9,0.9996,1500000,0,
+    {hel:RM40,datum:"Roma 1940",proj:"Gauss-Boaga",zone:"Ovest",approx:true,grp:"Gauss-Boaga (Roma40)"});
+  put(3004,"Monte Mario / Italy zone 2 (Gauss-Boaga Est)","INTL",15,0.9996,2520000,0,
+    {hel:RM40,datum:"Roma 1940",proj:"Gauss-Boaga",zone:"Est",approx:true,grp:"Gauss-Boaga (Roma40)"});
+  const DHDN=[598.1,73.7,418.2,0.202,0.045,-2.455,6.7];       // media nazionale DE
+  [[31466,2],[31467,3],[31468,4],[31469,5]].forEach(p=>
+    put(p[0],"DHDN / 3-degree Gauss-Krüger zone "+p[1],"BESSEL",p[1]*3,1,p[1]*1e6+500000,0,
+      {hel:DHDN,datum:"DHDN",proj:"Gauss-Krüger",zone:String(p[1]),approx:true,zw:3,grp:"DHDN · Gauss-Krüger"}));
+  put(27700,"OSGB36 / British National Grid","AIRY",-2,0.9996012717,400000,-100000,
+    {lat0:49,hel:[446.448,-125.157,542.06,0.1502,0.247,0.8421,-20.4894],
+     datum:"OSGB36",proj:"Transverse Mercator",zone:null,approx:true,zw:10,grp:"OSGB"});
+  return db;
+}
+const CRS_DB=buildCrsDb();
+function crsGet(code){ return CRS_DB.get(code)||null; }
+function epsgFromText(s){
+  if(!s) return null;
+  const m=String(s).match(/EPSG\s*[:#]?\s*(\d{4,5})/i);
+  return m?parseInt(m[1],10):null;
+}
+/* le coordinate stanno nel fuso del CRS? (controllo largo, via inversa) */
+function crsCheckEN(c,E,N){
+  const g=tmInv(c,E,N);
+  return Math.abs(g.lat)<85 && Math.abs(angDiff(g.lon,c.lon0))<=c.zw/2+0.75;
+}
+
+/* ---- lettura dei tre slot ---------------------------------------------- */
+const PREFIX_F={ ".EXA.":1e18,".PETA.":1e15,".TERA.":1e12,".GIGA.":1e9,".MEGA.":1e6,
+  ".KILO.":1e3,".HECTO.":1e2,".DECA.":10,".DECI.":.1,".CENTI.":.01,".MILLI.":1e-3,
+  ".MICRO.":1e-6,".NANO.":1e-9 };
+function geoRead(model){
+  const T=model.typeNames, TI=model.typeIdx;
+  const g={ schema:model.schema, schemaHasMap:!/^IFC2X/.test(model.schema),
+    entityCount:model.count, unitFactor:1, nonSI:false, metreUnitId:null,
+    contexts:[], ctxMain:null, trueNorth:null, mapConv:null, mapConvCount:0,
+    site:null, siteCount:0, wcsOrigin:null };
+  /* unità di lunghezza del PROGETTO: solo quelle nell'IfcUnitAssignment —
+     un IFCSIUNIT sciolto (es. il metro del MapUnit, che scriviamo noi)
+     non deve inquinare il fattore. Fallback: qualunque unità di lunghezza. */
+  const unitSet=new Set();
+  for(const k of (model.byType.get("IFCUNITASSIGNMENT")||[]))
+    listOf(geoArgs(stmtOf(model,k))[0]).forEach(a=>{ const r=refIdx(model,a); if(r>=0) unitSet.add(r); });
+  let lenFound=false;
+  const scanSi=(gate)=>{
+    for(const k of (model.byType.get("IFCSIUNIT")||[])){
+      if(lenFound) break;
+      if(gate&&!unitSet.has(k)) continue;
+      const a=geoArgs(stmtOf(model,k));
+      if(a[1]===".LENGTHUNIT."&&a[3]===".METRE."){
+        g.unitFactor=(a[2]==="$"||a[2]==null)?1:(PREFIX_F[a[2]]||1);
+        lenFound=true;
+      }
+    }
+  };
+  scanSi(unitSet.size>0);
+  if(!lenFound) scanSi(false);
+  for(const k of (model.byType.get("IFCSIUNIT")||[])){
+    const a=geoArgs(stmtOf(model,k));
+    if(a[1]===".LENGTHUNIT."&&a[3]===".METRE."&&(a[2]==="$"||a[2]==null)){ g.metreUnitId=model.ids[k]; break; }
+  }
+  for(const k of (model.byType.get("IFCCONVERSIONBASEDUNIT")||[])){
+    if(unitSet.size>0&&!unitSet.has(k)) continue;
+    const a=geoArgs(stmtOf(model,k));
+    if(a[1]===".LENGTHUNIT."){
+      g.nonSI=true;
+      const mw=refIdx(model,a[3]);
+      if(mw>=0){
+        const wa=geoArgs(stmtOf(model,mw));
+        const mm=(wa[0]||"").match(/\(\s*([-+0-9.Ee]+)\s*\)/);
+        if(mm&&isFinite(parseFloat(mm[1]))) g.unitFactor=parseFloat(mm[1]);
+      }
+    }
+  }
+  // contesti top-level (il SubContext è un tipo diverso ed eredita)
+  for(const k of (model.byType.get("IFCGEOMETRICREPRESENTATIONCONTEXT")||[])){
+    const a=geoArgs(stmtOf(model,k));
+    const c={ k, args:a, ctype:argStr(a[1])||"", dim:numOf(a[2],0),
+      wcsK:refIdx(model,a[4]), tnK:refIdx(model,a[5]), tn:null };
+    if(c.tnK>=0){
+      const da=geoArgs(stmtOf(model,c.tnK));
+      const r=listOf(da[0]).map(x=>parseFloat(x));
+      if(r.length>=2&&isFinite(r[0])&&isFinite(r[1]))
+        c.tn={ x:r[0], y:r[1], deg:Math.atan2(r[0],r[1])*R2D };
+    }
+    g.contexts.push(c);
+  }
+  g.ctxMain=g.contexts.find(c=>c.dim===3)||g.contexts.find(c=>/model/i.test(c.ctype))||g.contexts[0]||null;
+  if(g.ctxMain&&g.ctxMain.tn) g.trueNorth={ k:g.ctxMain.k, deg:g.ctxMain.tn.deg, x:g.ctxMain.tn.x, y:g.ctxMain.tn.y };
+  // origine del WorldCoordinateSystem (diagnostica: alcuni file mettono qui l'assoluto)
+  if(g.ctxMain&&g.ctxMain.wcsK>=0){
+    const pa=geoArgs(stmtOf(model,g.ctxMain.wcsK));
+    const pk=refIdx(model,pa[0]);
+    if(pk>=0){
+      const co=listOf(geoArgs(stmtOf(model,pk))[0]).map(x=>parseFloat(x));
+      if(co.length>=2&&co.some(v=>Math.abs(v)>1e-9))
+        g.wcsOrigin={ x:(co[0]||0)*g.unitFactor, y:(co[1]||0)*g.unitFactor, z:(co[2]||0)*g.unitFactor };
+    }
+  }
+  // IfcMapConversion (+ IfcProjectedCRS)
+  const mcs=model.byType.get("IFCMAPCONVERSION")||[];
+  g.mapConvCount=mcs.length;
+  let mk=mcs.find(k=>g.ctxMain&&refIdx(model,geoArgs(stmtOf(model,k))[0])===g.ctxMain.k);
+  if(mk===undefined) mk=mcs[0];
+  if(mk!==undefined){
+    const a=geoArgs(stmtOf(model,mk));
+    const xaR=numOf(a[5],NaN), xoR=numOf(a[6],NaN);
+    let xa=isFinite(xaR)?xaR:1, xo=isFinite(xoR)?xoR:0;
+    /* export NWC→IFC reali (Navisworks): (...,$,$,$,0.,0.,0.) — direzione nulla,
+       vietata dalla spec: normalizzata collasserebbe il modello (caso 10-17041).
+       Direzione degenere = nessuna rotazione, come readGeoref del viewer. */
+    const d=Math.hypot(xa,xo);
+    const degen=isFinite(xaR)&&isFinite(xoR)&&d<1e-12;
+    if(d<1e-12){ xa=1; xo=0; } else { xa/=d; xo/=d; }
+    const mc={ k:mk, srcK:refIdx(model,a[0]), crsK:refIdx(model,a[1]),
+      E:numOf(a[2],NaN), N:numOf(a[3],NaN), H:numOf(a[4],NaN),
+      xa, xo, deg:Math.atan2(xo,xa)*R2D, degenerate:degen,
+      scale:numOf(a[7],1)||1, crs:null };
+    if(mc.crsK>=0&&T[TI[mc.crsK]]==="IFCPROJECTEDCRS"){
+      const ca=geoArgs(stmtOf(model,mc.crsK));
+      mc.crs={ k:mc.crsK, name:argStr(ca[0])||"", desc:argStr(ca[1])||"",
+        datum:argStr(ca[2])||"", proj:argStr(ca[4])||"", zone:argStr(ca[5])||"",
+        unitRef:ca[6]||"$",
+        epsg:epsgFromText(argStr(ca[0]))||epsgFromText(argStr(ca[1])) };
+    }
+    g.mapConv=mc;
+  }
+  // IfcSite: lat/long/quota (la quota RefElevation è in unità del file)
+  const sks=model.byType.get("IFCSITE")||[];
+  g.siteCount=sks.length;
+  if(sks.length){
+    const k=sks[0], a=geoArgs(stmtOf(model,k));
+    const elevRaw=numOf(a[11],NaN);
+    g.site={ k, name:argStr(a[2])||"", lat:parseCompound(a[9]), lon:parseCompound(a[10]),
+      elev:isFinite(elevRaw)?elevRaw*g.unitFactor:null };
+  }
+  return g;
+}
+
+/* ---- scrittura ----------------------------------------------------------
+   dec = { E,N,H (metri), deg (rotazione γ=atan2(xo,xa)), latlon:{lat,lon}|null,
+           crs:{code,name,datum,proj,zone}|null }.
+   Byte-patch: entità riscritte in place (id INVARIATI), nuove entità con id
+   oltre il massimo, inserite prima di ENDSEC. La direction del TrueNorth si
+   crea SEMPRE nuova (mai riscritta in place: potrebbe essere condivisa da
+   altra geometria — la vecchia resta, innocua). Ritorna { out, touched } in
+   dry-run e in più { parts } quando si scrive davvero. */
+function geoApply(model,geo,dec,dryRun){
+  const nl=model.nl, uf=geo.unitFactor||1;
+  const T=model.typeNames, TI=model.typeIdx;
+  const rewrites=new Map(), adds=[];
+  let nextId=model.maxId+1;
+  const esc=s=>String(s).replace(/'/g,"''");
+  const out={ map:"skip", crs:"skip", site:"none", north:"same", unit:null, northCount:0 };
+  const wantDeg=isFinite(dec.deg)?dec.deg:0;
+
+  // --- TrueNorth: una direction nuova, puntata da tutti i context che differiscono
+  const needTn=geo.contexts.filter(c=>{
+    const cur=c.tn?c.tn.deg:null;
+    return cur==null||Math.abs(angDiff(cur,wantDeg))>1e-4;
+  });
+  if(needTn.length){
+    const dirId=nextId++;
+    adds.push("#"+dirId+"=IFCDIRECTION(("+stepReal(Math.sin(wantDeg*D2R),12)+","+stepReal(Math.cos(wantDeg*D2R),12)+"));"+nl);
+    for(const c of needTn){
+      const a=geoArgs(stmtOf(model,c.k)); while(a.length<6) a.push("$");
+      a[5]="#"+dirId;
+      rewrites.set(c.k,"#"+model.ids[c.k]+"="+T[TI[c.k]]+"("+a.join(",")+");");
+    }
+    out.north="write"; out.northCount=needTn.length;
+  }
+
+  // --- IfcSite: lat/long (compound) + RefElevation in unità del file
+  if(geo.site){
+    if(dec.latlon&&isFinite(dec.latlon.lat)&&isFinite(dec.latlon.lon)){
+      const a=geoArgs(stmtOf(model,geo.site.k));
+      if(a.length>=12){
+        const sameLL=geo.site.lat!=null&&geo.site.lon!=null&&
+          Math.abs(geo.site.lat-dec.latlon.lat)<1e-8&&Math.abs(geo.site.lon-dec.latlon.lon)<1e-8;
+        const sameH=!isFinite(dec.H)||(geo.site.elev!=null&&Math.abs(geo.site.elev-dec.H)<5e-4);
+        if(sameLL&&sameH) out.site="same";
+        else{
+          a[9]=fmtCompound(toCompound(dec.latlon.lat));
+          a[10]=fmtCompound(toCompound(dec.latlon.lon));
+          if(isFinite(dec.H)) a[11]=stepReal(dec.H/uf,6);
+          rewrites.set(geo.site.k,"#"+model.ids[geo.site.k]+"="+T[TI[geo.site.k]]+"("+a.join(",")+");");
+          out.site="write";
+        }
+      }
+    } else out.site="skip";
+  }
+
+  // --- IfcMapConversion + IfcProjectedCRS (solo schemi che li hanno: IFC4+)
+  if(!geo.schemaHasMap){ out.map="na"; out.crs="na"; }
+  else if(dec.crs&&isFinite(dec.E)&&isFinite(dec.N)){
+    let unitRef=null;
+    const mkUnit=()=>{
+      if(unitRef!=null) return unitRef;
+      if(geo.metreUnitId!=null){ unitRef=geo.metreUnitId; out.unit="reuse"; }
+      else{ unitRef=nextId++; adds.push("#"+unitRef+"=IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.);"+nl); out.unit="create"; }
+      return unitRef;
+    };
+    const wantName="EPSG:"+dec.crs.code;
+    let crsId;
+    if(geo.mapConv&&geo.mapConv.crs){
+      const c0=geo.mapConv.crs;
+      crsId=model.ids[c0.k];
+      if(c0.epsg===dec.crs.code) out.crs="same";
+      else{
+        const a=geoArgs(stmtOf(model,c0.k)); while(a.length<7) a.push("$");
+        a[0]="'"+esc(wantName)+"'";
+        a[1]=dec.crs.name?"'"+esc(dec.crs.name)+"'":"$";
+        if(dec.crs.datum) a[2]="'"+esc(dec.crs.datum)+"'";
+        if(dec.crs.proj)  a[4]="'"+esc(dec.crs.proj)+"'";
+        if(dec.crs.zone)  a[5]="'"+esc(dec.crs.zone)+"'";
+        if(a[6]==="$"||a[6]==="") a[6]="#"+mkUnit();
+        rewrites.set(c0.k,"#"+crsId+"=IFCPROJECTEDCRS("+a.join(",")+");");
+        out.crs="rewrite";
+      }
+    }else{
+      crsId=nextId++;
+      adds.push("#"+crsId+"=IFCPROJECTEDCRS("+[
+        "'"+esc(wantName)+"'",
+        dec.crs.name?"'"+esc(dec.crs.name)+"'":"$",
+        dec.crs.datum?"'"+esc(dec.crs.datum)+"'":"$",
+        "$",
+        dec.crs.proj?"'"+esc(dec.crs.proj)+"'":"$",
+        dec.crs.zone?"'"+esc(dec.crs.zone)+"'":"$",
+        "#"+mkUnit()
+      ].join(",")+");"+nl);
+      out.crs="create";
+    }
+    const scale=uf, xa=Math.cos(wantDeg*D2R), xo=Math.sin(wantDeg*D2R);
+    if(geo.mapConv){
+      const mc=geo.mapConv;
+      const same=!mc.degenerate&&
+        isFinite(mc.E)&&Math.abs(mc.E-dec.E)<5e-4&&
+        isFinite(mc.N)&&Math.abs(mc.N-dec.N)<5e-4&&
+        (!isFinite(dec.H)||(isFinite(mc.H)&&Math.abs(mc.H-dec.H)<5e-4))&&
+        Math.abs(angDiff(mc.deg,wantDeg))<1e-4&&
+        Math.abs((mc.scale||1)-scale)<1e-9&&
+        mc.crsK>=0;
+      if(same) out.map="same";
+      else{
+        const a=geoArgs(stmtOf(model,mc.k)); while(a.length<8) a.push("$");
+        a[1]="#"+crsId;
+        a[2]=stepReal(dec.E,4); a[3]=stepReal(dec.N,4);
+        a[4]=stepReal(isFinite(dec.H)?dec.H:0,4);
+        a[5]=stepReal(xa,12); a[6]=stepReal(xo,12); a[7]=stepReal(scale,9);
+        rewrites.set(mc.k,"#"+model.ids[mc.k]+"="+T[TI[mc.k]]+"("+a.join(",")+");");
+        out.map="rewrite";
+      }
+    }else if(geo.ctxMain){
+      adds.push("#"+(nextId++)+"=IFCMAPCONVERSION(#"+model.ids[geo.ctxMain.k]+",#"+crsId+","+
+        stepReal(dec.E,4)+","+stepReal(dec.N,4)+","+stepReal(isFinite(dec.H)?dec.H:0,4)+","+
+        stepReal(xa,12)+","+stepReal(xo,12)+","+stepReal(scale,9)+");"+nl);
+      out.map="create";
+    }
+  }
+
+  const touched=rewrites.size+adds.length;
+  if(dryRun) return { out, touched };
+
+  // --- emissione: slice zero-copy fra una riscrittura e l'altra
+  const enc=new TextEncoder();
+  const list=[...rewrites.entries()].sort((x,y)=>model.starts[x[0]]-model.starts[y[0]]);
+  const parts=[]; let pos=0;
+  for(const [k,txt] of list){
+    if(model.starts[k]>pos) parts.push(model.bytes.subarray(pos,model.starts[k]));
+    parts.push(enc.encode(txt));
+    pos=model.ends[k];
+  }
+  if(model.endsecPos>pos) parts.push(model.bytes.subarray(pos,model.endsecPos));
+  if(adds.length) parts.push(enc.encode(adds.join("")));
+  parts.push(model.bytes.subarray(model.endsecPos));
+  return { out, touched, parts };
+}
+</script>
+<script>
+/* =========================================================================
+   i18n — parità chiavi IT/EN (convenzione di progetto)
+   ========================================================================= */
+const I18N = {
+  it:{
+    "nav.home":"Vai a viewifc.com","nav.tools":"Strumenti","nav.here":"Georeferenziazione","cta.open":"Apri il viewer",
+    "head.kicker":"Strumento 06","head.tag":"Client-side","head.beta":"Prima versione",
+    "head.lead":"Legge tutti i posti in cui un IFC può dichiarare dove si trova, ti dice quali sono in disaccordo e li riscrive coerenti. Le coordinate non si toccano: cambia solo la dichiarazione, la geometria resta dov'era.",
+    "spec.in":"Ingresso","spec.inV":"1 file .ifc","spec.out":"Uscita","spec.outV":"1 .ifc georeferenziato",
+    "spec.geom":"Geometria","spec.geomV":"intatta",
+    "drop.chip":"Trascina il file .ifc o sfoglia",
+    "drop.big":"Trascina qui il file .ifc, o clicca per sfogliare",
+    "drop.hint":"nessun upload: la lettura avviene nel browser · l'audit dei tre slot compare qui",
+    "f.remove":"Rimuovi il file",
+    "left.audit":"Cosa dice il file adesso","left.plan":"Metti il modello al suo posto",
+    "tab.audit":"L'audit","tab.plan":"La pianta",
+    "hint.audit":"scegli quale slot fa da verità: gli altri si allineano",
+    "hint.plan":"la colonna a destra dice cosa verrà scritto",
+    "ptab.drag":"Trascina","ptab.two":"Due punti noti","ptab.paste":"Incolla coordinate",
+    "plan.hintDrag":"trascina la griglia · Alt-trascina per ruotare · rotella per lo zoom",
+    "plan.hintTwo":"coordinate locali del file → coordinate mappa: origine e rotazione escono da sole",
+    "plan.hintPaste":"E N, N E o lat long — con virgola o punto, come le hai",
+    "plan.org":"Origine del modello","plan.north":"Nord",
+    "plan.att":"Sfondo: griglia metrica — nessuna mappa esterna, le coordinate non lasciano il browser",
+    "plan.donor":"Prendi da un altro IFC","plan.reset":"Rimetti come era",
+    "plan.noCrs":"Serve un sistema di riferimento (EPSG) per usare la pianta",
+    "plan.legend":"Tratteggio: com'è nel file · Pieno: come uscirà · l'ingombro è simbolico, la geometria non si legge",
+    "plan.orig":"0,0 del modello",
+    "two.k":"Due punti noti","two.loc":"locale x · y","two.map":"mappa E · N",
+    "two.go":"Calcola e applica","two.need":"servono due punti distinti, locali e mappa",
+    "two.res":"residuo su P2: {m} m · scala {s}",
+    "two.unit":"coordinate locali nelle unità del file ({u})",
+    "paste.k":"Incolla una coppia di coordinate",
+    "paste.ph":"514320,45  5034812,10   ·oppure·   45,47850  9,22611",
+    "paste.go":"Applica","paste.err":"non riconosco una coppia di coordinate",
+    "paste.readEN":"letto: E {e} · N {n}","paste.readLL":"letto: {lat} · {lon}","paste.readH":" · H {h}",
+    "paste.needCrs":"per usare lat/long scegli prima il sistema di riferimento",
+    "crs.k":"Sistema di riferimento","crs.pick":"Scegli il sistema…","crs.filter":"Cerca per codice o nome…",
+    "crs.free":"altro codice EPSG…","crs.freeGo":"Usa","crs.none":"Nessun sistema corrisponde alla ricerca.",
+    "crs.custom":"fuori tabella: nessuna conversione geografica, il codice si scrive com'è",
+    "slot.map":"IfcMapConversion","slot.site":"IfcSite · RefLat / RefLong","slot.north":"TrueNorth","slot.crs":"IfcProjectedCRS · MapUnit",
+    "a.map.nm":"IfcMapConversion","a.site.nm":"IfcSite · RefLatitude / RefLongitude","a.north.nm":"GeometricRepresentationContext · TrueNorth",
+    "a.map.why":"È lo slot che i software leggono per primo e l'unico che porta anche la scala e la rotazione.",
+    "a.map.whyAbs":"È lo slot che i software leggono per primo e l'unico che porta anche la scala e la rotazione. Nel file non c'è: chi apre il modello lo trova all'origine.",
+    "a.map.whyDegen":"Gli assi dichiarati sono (0,0): una direzione nulla, vietata dalla spec — il modello collassa sull'origine. Tipico export Navisworks: da riscrivere, non da credere.",
+    "a.map.whyNa":"Lo schema IFC2X3 non ha IfcMapConversion: questo slot non esiste nel file. Si scrivono latitudine/longitudine del sito e TrueNorth.",
+    "a.map.noCrs":"IfcProjectedCRS non dichiarato",
+    "a.site.why":"Latitudine e longitudine WGS84 del sito, in gradi-minuti-secondi. Non portano rotazione né scala, ma dicono dove sei nel mondo.",
+    "a.site.whyAbs":"Latitudine e longitudine WGS84 del sito. Nel file sono vuote: nessuna posizione geografica dichiarata.",
+    "a.north.why":"Dichiara la direzione del nord geografico rispetto agli assi del modello. Vale per tutti i contesti geometrici del file.",
+    "a.north.whyZero":"Dichiara il nord allineato all'asse Y del modello. Se il fabbricato in pianta è ruotato, il nord è stato messo nel disegno, non nel dato.",
+    "a.north.whyAbs":"Il contesto geometrico non dichiara un TrueNorth: i software assumono il nord sull'asse Y del modello.",
+    "a.manual.t":"Inserisco io i valori a mano","a.manual.s":"— da un punto noto o dal rilievo: si fa nella pianta",
+    "b.filled":"compilato","b.absent":"assente","b.zero":"a zero","b.degen":"degenere","b.na":"non nello schema",
+    "k.lat":"Latitudine","k.lon":"Longitudine","k.h":"Quota","k.rot":"Rotazione","k.e":"Eastings","k.n":"Northings",
+    "mc.oh":"OrthogonalHeight","mc.xax":"XAxisAbscissa / Ordinate","mc.tcrs":"TargetCRS","mc.scale":"Scale",
+    "out.t":"Cosa esce","agree.yes":"i tre slot escono d'accordo","agree.two":"gli slot escono d'accordo",
+    "st.create":"creato","st.fix":"corretto","st.same":"invariato","st.na":"non nello schema","st.pick":"scegli il sistema","st.realign":"riallineato",
+    "g.na":"IFC2X3: lo schema non ha questo slot — si scrivono lat/long e TrueNorth",
+    "g.pickCrs":"scegli il sistema di riferimento per scriverla",
+    "g.noSite":"nessun IfcSite nel file: lat/long non scrivibili",
+    "g.unitReuse":"MapUnit → metro (unità riusata)","g.unitCreate":"MapUnit → metro (unità creata)",
+    "chk.k":"Verifica","chk.k2":"Controlli prima di scrivere",
+    "chk.note":"Nessun vertice viene ricalcolato: cambiano solo le entità della dichiarazione, le coordinate locali degli elementi restano identiche.",
+    "v.file":"Scarto fra gli slot nel file","v.out":"Scarto in uscita","v.rot":"Rotazione dichiarata","v.fall":"Il 0,0 cade a",
+    "c.zone":"Coordinate dentro il fuso {z}","c.zoneBad":"Coordinate fuori dal fuso {z}: controlla EPSG e valori",
+    "c.ok":"ok","c.conf":"da confermare","c.fixed":"riscritta",
+    "c.h":"Quota sul livello del mare (geoide), non ellissoidica — la convenzione IFC",
+    "c.degen":"MapConversion degenere in ingresso (xa = xo = 0, export Navisworks)",
+    "c.approx":"Datum {d}: trasformazione con parametri medi nazionali (±1–4 m)",
+    "c.wcs":"Il WorldCoordinateSystem ha già un'origine a {e} · {n} — resta com'è",
+    "c.nonsi":"Unità di lunghezza non SI (fattore {f} m)",
+    "c.sites":"{n} IfcSite nel file: si scrive sul primo",
+    "c.mcs":"{n} IfcMapConversion nel file: si aggiorna la prima",
+    "exec.hint":"Carica un IFC per leggere la sua georeferenziazione.",
+    "exec.ready":"{n} entità toccate su {tot}","exec.zero":"Già coerente: niente da scrivere.",
+    "btn.run":"Scrivi e scarica",
+    "m.reading":"lettura del file…","m.scanning":"scansione delle entità…","m.writing":"scrittura del file…",
+    "m.done":"→ scaricato: ","m.err":"Errore: ",
+    "diag.degen":"MapConversion degenere (xa = xo = 0)","diag.degenS":"— tipico export Navisworks: il modello collassa sull'origine",
+    "diag.none":"Nessuno slot compilato","diag.noneS":"— il file non dichiara dove si trova",
+    "diag.dis":"Slot in disaccordo di {m}","diag.disS":"— il viewer di destinazione userà il primo che trova",
+    "diag.partial":"{n} slot compilati su {tot}","diag.partialS":"— gli altri restano vuoti",
+    "diag.ok":"Gli slot compilati sono d'accordo","diag.okS":"— pronti da riscrivere coerenti",
+    "donor.take":"presi da {f}: E {e} · N {n}","donor.none":"in {f} non c'è una georeferenziazione leggibile",
+    "foot.note":"Nessun file lascia il computer: lettura e riscrittura avvengono interamente nel browser.",
+    "foot.src":"Codice sorgente","foot.more":"Altri strumenti"
+  },
+  en:{
+    "nav.home":"Go to viewifc.com","nav.tools":"Tools","nav.here":"Georeferencing","cta.open":"Open the viewer",
+    "head.kicker":"Tool 06","head.tag":"Client-side","head.beta":"First version",
+    "head.lead":"Reads every place an IFC can declare where it is, tells you which ones disagree and rewrites them consistent. Coordinates are untouched: only the declaration changes, the geometry stays where it was.",
+    "spec.in":"Input","spec.inV":"1 .ifc file","spec.out":"Output","spec.outV":"1 georeferenced .ifc",
+    "spec.geom":"Geometry","spec.geomV":"untouched",
+    "drop.chip":"Drop the .ifc file or browse",
+    "drop.big":"Drop the .ifc file here, or click to browse",
+    "drop.hint":"no upload: reading happens in the browser · the three-slot audit appears here",
+    "f.remove":"Remove file",
+    "left.audit":"What the file says now","left.plan":"Put the model in its place",
+    "tab.audit":"The audit","tab.plan":"The plan",
+    "hint.audit":"pick which slot is the truth: the others fall in line",
+    "hint.plan":"the right-hand column says what will be written",
+    "ptab.drag":"Drag","ptab.two":"Two known points","ptab.paste":"Paste coordinates",
+    "plan.hintDrag":"drag the grid · Alt-drag to rotate · wheel to zoom",
+    "plan.hintTwo":"local file coordinates → map coordinates: origin and rotation come out by themselves",
+    "plan.hintPaste":"E N, N E or lat long — comma or dot, as you have them",
+    "plan.org":"Model origin","plan.north":"North",
+    "plan.att":"Background: metric grid — no external map, coordinates never leave the browser",
+    "plan.donor":"Take from another IFC","plan.reset":"Put back as it was",
+    "plan.noCrs":"Pick a coordinate reference system (EPSG) to use the plan",
+    "plan.legend":"Dashed: as in the file · Solid: as it will leave · footprint is symbolic, geometry is not read",
+    "plan.orig":"model 0,0",
+    "two.k":"Two known points","two.loc":"local x · y","two.map":"map E · N",
+    "two.go":"Compute and apply","two.need":"two distinct points are needed, local and map",
+    "two.res":"residual on P2: {m} m · scale {s}",
+    "two.unit":"local coordinates in file units ({u})",
+    "paste.k":"Paste a coordinate pair",
+    "paste.ph":"514320.45  5034812.10   ·or·   45.47850  9.22611",
+    "paste.go":"Apply","paste.err":"cannot recognise a coordinate pair",
+    "paste.readEN":"read: E {e} · N {n}","paste.readLL":"read: {lat} · {lon}","paste.readH":" · H {h}",
+    "paste.needCrs":"to use lat/long pick the reference system first",
+    "crs.k":"Reference system","crs.pick":"Pick the system…","crs.filter":"Search by code or name…",
+    "crs.free":"other EPSG code…","crs.freeGo":"Use","crs.none":"No system matches the search.",
+    "crs.custom":"outside the table: no geographic conversion, the code is written as-is",
+    "slot.map":"IfcMapConversion","slot.site":"IfcSite · RefLat / RefLong","slot.north":"TrueNorth","slot.crs":"IfcProjectedCRS · MapUnit",
+    "a.map.nm":"IfcMapConversion","a.site.nm":"IfcSite · RefLatitude / RefLongitude","a.north.nm":"GeometricRepresentationContext · TrueNorth",
+    "a.map.why":"The slot software reads first, and the only one that also carries scale and rotation.",
+    "a.map.whyAbs":"The slot software reads first, and the only one that also carries scale and rotation. It is not in the file: whoever opens the model finds it at the origin.",
+    "a.map.whyDegen":"The declared axes are (0,0): a null direction, forbidden by the spec — the model collapses onto the origin. Typical Navisworks export: to be rewritten, not believed.",
+    "a.map.whyNa":"The IFC2X3 schema has no IfcMapConversion: this slot does not exist in the file. Site latitude/longitude and TrueNorth are written instead.",
+    "a.map.noCrs":"IfcProjectedCRS not declared",
+    "a.site.why":"WGS84 latitude and longitude of the site, in degrees-minutes-seconds. No rotation or scale, but they say where you are in the world.",
+    "a.site.whyAbs":"WGS84 latitude and longitude of the site. Empty in this file: no geographic position declared.",
+    "a.north.why":"Declares the direction of geographic north against the model axes. It applies to every geometric context in the file.",
+    "a.north.whyZero":"Declares north aligned with the model Y axis. If the building is rotated in plan, north was put in the drawing, not in the data.",
+    "a.north.whyAbs":"The geometric context declares no TrueNorth: software assumes north on the model Y axis.",
+    "a.manual.t":"I enter the values myself","a.manual.s":"— from a known point or the survey: done in the plan",
+    "b.filled":"filled","b.absent":"absent","b.zero":"at zero","b.degen":"degenerate","b.na":"not in schema",
+    "k.lat":"Latitude","k.lon":"Longitude","k.h":"Elevation","k.rot":"Rotation","k.e":"Eastings","k.n":"Northings",
+    "mc.oh":"OrthogonalHeight","mc.xax":"XAxisAbscissa / Ordinate","mc.tcrs":"TargetCRS","mc.scale":"Scale",
+    "out.t":"What comes out","agree.yes":"the three slots leave in agreement","agree.two":"the slots leave in agreement",
+    "st.create":"created","st.fix":"corrected","st.same":"unchanged","st.na":"not in schema","st.pick":"pick the system","st.realign":"realigned",
+    "g.na":"IFC2X3: the schema has no such slot — lat/long and TrueNorth are written",
+    "g.pickCrs":"pick the reference system to write it",
+    "g.noSite":"no IfcSite in the file: lat/long cannot be written",
+    "g.unitReuse":"MapUnit → metre (unit reused)","g.unitCreate":"MapUnit → metre (unit created)",
+    "chk.k":"Check","chk.k2":"Checks before writing",
+    "chk.note":"No vertex is recomputed: only the declaration entities change, the local coordinates of every element stay identical.",
+    "v.file":"Disagreement between slots in the file","v.out":"Disagreement on output","v.rot":"Declared rotation","v.fall":"The 0,0 lands at",
+    "c.zone":"Coordinates inside zone {z}","c.zoneBad":"Coordinates outside zone {z}: check EPSG and values",
+    "c.ok":"ok","c.conf":"to confirm","c.fixed":"rewritten",
+    "c.h":"Height above sea level (geoid), not ellipsoidal — the IFC convention",
+    "c.degen":"Degenerate MapConversion in input (xa = xo = 0, Navisworks export)",
+    "c.approx":"Datum {d}: transformation with national mean parameters (±1–4 m)",
+    "c.wcs":"The WorldCoordinateSystem already has an origin at {e} · {n} — left as is",
+    "c.nonsi":"Non-SI length unit (factor {f} m)",
+    "c.sites":"{n} IfcSite in the file: writing on the first",
+    "c.mcs":"{n} IfcMapConversion in the file: updating the first",
+    "exec.hint":"Load an IFC to read its georeferencing.",
+    "exec.ready":"{n} entities touched out of {tot}","exec.zero":"Already consistent: nothing to write.",
+    "btn.run":"Write and download",
+    "m.reading":"reading the file…","m.scanning":"scanning the entities…","m.writing":"writing the file…",
+    "m.done":"→ downloaded: ","m.err":"Error: ",
+    "diag.degen":"Degenerate MapConversion (xa = xo = 0)","diag.degenS":"— typical Navisworks export: the model collapses onto the origin",
+    "diag.none":"No slot filled","diag.noneS":"— the file does not declare where it is",
+    "diag.dis":"Slots disagree by {m}","diag.disS":"— the destination viewer will use the first one it finds",
+    "diag.partial":"{n} slots filled out of {tot}","diag.partialS":"— the others stay empty",
+    "diag.ok":"The filled slots agree","diag.okS":"— ready to be rewritten consistent",
+    "donor.take":"taken from {f}: E {e} · N {n}","donor.none":"no readable georeferencing in {f}",
+    "foot.note":"No file leaves your computer: reading and rewriting happen entirely in the browser.",
+    "foot.src":"Source code","foot.more":"More tools"
+  }
+};
+let LANG = "it";
+function tr(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : (I18N.it[k] ?? k); }
+function fmt(k,vars){ let s=tr(k); for(const v in vars) s=s.replace("{"+v+"}",vars[v]); return s; }
+function nf(n,dec){ return Number(n).toLocaleString(LANG==="it"?"it-IT":"en-US",{maximumFractionDigits:dec==null?2:dec,minimumFractionDigits:0}); }
+function nfF(n,dec){ return Number(n).toLocaleString(LANG==="it"?"it-IT":"en-US",{maximumFractionDigits:dec,minimumFractionDigits:dec}); }
+function mb(bytes){ return (bytes/1048576).toLocaleString(LANG==="it"?"it-IT":"en-US",{maximumFractionDigits:1}); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+function applyLang(lang){
+  LANG = I18N[lang] ? lang : "it";
+  document.documentElement.lang = LANG;
+  const dict = I18N[LANG];
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    const k = el.getAttribute("data-i18n");
+    if(dict[k] != null) el.textContent = dict[k];
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach(el=>{
+    const k = el.getAttribute("data-i18n-title");
+    if(dict[k] != null){ el.title = dict[k]; if(el.hasAttribute("aria-label")) el.setAttribute("aria-label", dict[k]); }
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>{
+    const k = el.getAttribute("data-i18n-placeholder");
+    if(dict[k] != null) el.placeholder = dict[k];
+  });
+  document.querySelectorAll(".langsw button").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
+  try{ localStorage.setItem("viewifc_tool_lang", LANG); }catch(e){}
+  syncLeftHead();
+  if(STATE.model) renderAll();
+}
+
+/* =========================================================================
+   Carica il motore: il blocco text/engine diventa un vero <script>, così le
+   funzioni finiscono nel global scope anche con "use strict" in testa.
+   ========================================================================= */
+(function loadEngine(){
+  const s=document.createElement("script");
+  s.textContent=document.getElementById("georefEngine").textContent;
+  document.head.appendChild(s);
+})();
+
+/* =========================================================================
+   Stato e riferimenti UI
+   ========================================================================= */
+const $ = id => document.getElementById(id);
+const ui = {
+  fileCard:$("fileCard"), fileName:$("fileName"), fileMeta:$("fileMeta"), fileClear:$("fileClear"),
+  fileInput:$("fileInput"), donorInput:$("donorInput"), drop0:$("drop0"),
+  diag:$("diag"), diagT:$("diagT"), diagS:$("diagS"),
+  viewTabs:$("viewTabs"), leftT:$("leftT"), leftHint:$("leftHint"),
+  auditView:$("auditView"), planView:$("planView"),
+  planTabs:$("planTabs"), planHint:$("planHint"), stage:$("stage"), planCv:$("planCv"),
+  ovOrg:$("ovOrg"), ovTwo:$("ovTwo"), ovPaste:$("ovPaste"), ovNorth:$("ovNorth"),
+  inE:$("inE"), inN:$("inN"), inH:$("inH"), inRot:$("inRot"), dial:$("dial"), dialNd:$("dialNd"),
+  p1x:$("p1x"), p1y:$("p1y"), p1E:$("p1E"), p1N:$("p1N"),
+  p2x:$("p2x"), p2y:$("p2y"), p2E:$("p2E"), p2N:$("p2N"),
+  twoGo:$("twoGo"), twoRes:$("twoRes"),
+  pasteIn:$("pasteIn"), pasteGo:$("pasteGo"), pasteRes:$("pasteRes"),
+  sbLine:$("sbLine"), sbTxt:$("sbTxt"),
+  donorBtn:$("donorBtn"), resetBtn:$("resetBtn"), planLL:$("planLL"),
+  agree:$("agree"), agreeT:$("agreeT"),
+  crsBtn:$("crsBtn"), crsLbl:$("crsLbl"), crsPanel:$("crsPanel"), crsFilter:$("crsFilter"),
+  crsList:$("crsList"), crsFree:$("crsFree"), crsFreeGo:$("crsFreeGo"),
+  slots:$("slots"), checks:$("checks"), vbox:$("vbox"), crows:$("crows"),
+  execSt:$("execSt"), runBtn:$("runBtn"), veil:$("veil"), veilLb:$("veilLb"),
+};
+const STATE = {
+  file:null, model:null, geo:null,
+  truth:null,                       // 'map' | 'site' | 'north' | 'manual'
+  dec:{ E:NaN, N:NaN, H:NaN, deg:0, crsCode:null, ll:null },
+  orig:null,                        // com'era nel file: {E,N,deg} per il tratteggio
+  initDec:null, initTruth:null,     // per "Rimetti come era"
+  view:"audit", ptab:"drag",
+  ppm:2, busy:false,
+  pasteVal:null,
+};
+const yieldUI = () => new Promise(r=>setTimeout(r,0));
+const paint = () => new Promise(r=>{
+  let done=false; const f=()=>{ if(!done){ done=true; r(); } };
+  requestAnimationFrame(()=>requestAnimationFrame(f));
+  setTimeout(f,120);
+});
+async function veil(msg){
+  ui.veil.hidden = msg==null;
+  if(msg!=null){ ui.veilLb.textContent=msg; await paint(); }
+}
+function setStatus(msg,err){ ui.execSt.textContent=msg; ui.execSt.classList.toggle("err",!!err); }
+
+/* ---- utilità di formato -------------------------------------------------- */
+function parseNumLoose(str){
+  let s=String(str==null?"":str).trim(); if(!s) return NaN;
+  s=s.replace(/\s/g,"");
+  if(s.includes(",")&&s.includes(".")){
+    if(s.lastIndexOf(",")>s.lastIndexOf(".")) s=s.replace(/\./g,"").replace(",",".");
+    else s=s.replace(/,/g,"");
+  }else if(s.includes(",")){
+    s=(s.match(/,/g).length===1)?s.replace(",","."):s.replace(/,/g,"");
+  }
+  return parseFloat(s);
+}
+function fmtField(x,dec){ return isFinite(x)?String(Math.round(x*Math.pow(10,dec==null?3:dec))/Math.pow(10,dec==null?3:dec)):""; }
+function fmtDMS(deg,kind){
+  if(deg==null||!isFinite(deg)) return "—";
+  const hemi = kind==="lat" ? (deg<0?"S":"N") : (deg<0?"W":"E");
+  const a=Math.abs(deg);
+  let d=Math.floor(a), m=Math.floor((a-d)*60);
+  let s=((a-d)*60-m)*60;
+  if(s>=59.95){ s=0; m++; if(m===60){ m=0; d++; } }
+  const ss=s.toFixed(1); const sTxt=LANG==="it"?ss.replace(".",","):ss;
+  return d+"° "+String(m).padStart(2,"0")+"′ "+sTxt+"″ "+hemi;
+}
+function fmtDeg(deg,dec){
+  if(deg==null||!isFinite(deg)) return "—";
+  return nfF(deg,dec==null?2:dec)+"°";
+}
+function fmtLLpair(ll){
+  if(!ll) return "—";
+  return nfF(ll.lat,5)+"° "+(ll.lat<0?"S":"N")+" · "+nfF(Math.abs(ll.lon),5)+"° "+(ll.lon<0?"W":"E");
+}
+function curCrs(){ return STATE.dec.crsCode ? crsGet(STATE.dec.crsCode) : null; }
+function decLatlon(){
+  const c=curCrs();
+  if(c&&isFinite(STATE.dec.E)&&isFinite(STATE.dec.N)) return wgsFromCrs(c,STATE.dec.E,STATE.dec.N);
+  return STATE.dec.ll||null;
+}
+function decCrsObj(){
+  const code=STATE.dec.crsCode; if(!code) return null;
+  const e=crsGet(code);
+  return e?{code,name:e.name,datum:e.datum,proj:e.proj,zone:e.zone}
+          :{code,name:null,datum:null,proj:null,zone:null};
+}
+function decForApply(){
+  return { E:STATE.dec.E, N:STATE.dec.N, H:STATE.dec.H, deg:STATE.dec.deg,
+    latlon:decLatlon(), crs:decCrsObj() };
+}
+/* disaccordo fra gli slot COM'È nel file (per diagnosi e verifica) */
+function fileDisagree(){
+  const g=STATE.geo; if(!g) return {dist:null,dAng:null};
+  let dist=null,dAng=null;
+  const crs=g.mapConv&&g.mapConv.crs&&g.mapConv.crs.epsg?crsGet(g.mapConv.crs.epsg):null;
+  if(g.mapConv&&isFinite(g.mapConv.E)&&isFinite(g.mapConv.N)&&g.site&&g.site.lat!=null&&g.site.lon!=null&&crs&&!g.mapConv.degenerate){
+    const p=crsFromWgs(crs,g.site.lat,g.site.lon);
+    dist=Math.hypot(p.E-g.mapConv.E,p.N-g.mapConv.N);
+  }
+  if(g.mapConv&&!g.mapConv.degenerate&&g.trueNorth)
+    dAng=Math.abs(angDiff(g.mapConv.deg,g.trueNorth.deg));
+  return {dist,dAng};
+}
+</script>
+<script>
+/* =========================================================================
+   Caricamento file e lettura dei tre slot
+   ========================================================================= */
+async function loadFile(file){
+  STATE.file=file; STATE.model=null; STATE.geo=null; STATE.pasteVal=null;
+  ui.fileCard.classList.add("set");
+  ui.fileName.textContent=file.name;
+  ui.fileMeta.textContent="…";
+  setStatus(tr("m.reading"));
+  await veil(tr("m.reading"));
+  try{
+    const buf=new Uint8Array(await file.arrayBuffer());
+    setStatus(tr("m.scanning")); await veil(tr("m.scanning"));
+    const model=geoScan(buf);
+    const geo=geoRead(model);
+    STATE.model=model; STATE.geo=geo;
+    ui.fileMeta.textContent=(model.schema||"IFC")+" · "+mb(file.size)+" MB";
+    // CRS iniziale: quello dichiarato dal file, se leggibile
+    STATE.dec.crsCode = geo.mapConv&&geo.mapConv.crs&&geo.mapConv.crs.epsg ? geo.mapConv.crs.epsg : null;
+    // verità di partenza: il candidato più credibile
+    let truth="manual";
+    if(geo.mapConv&&!geo.mapConv.degenerate&&isFinite(geo.mapConv.E)&&isFinite(geo.mapConv.N)) truth="map";
+    else if(geo.site&&geo.site.lat!=null&&geo.site.lon!=null) truth="site";
+    else if(geo.trueNorth&&Math.abs(geo.trueNorth.deg)>1e-6) truth="north";
+    setTruth(truth,true);
+    // com'era nel file (per il tratteggio in pianta)
+    STATE.orig=null;
+    if(geo.mapConv&&isFinite(geo.mapConv.E)&&isFinite(geo.mapConv.N)&&!geo.mapConv.degenerate)
+      STATE.orig={E:geo.mapConv.E,N:geo.mapConv.N,deg:geo.mapConv.deg};
+    else if(geo.site&&geo.site.lat!=null&&curCrs()){
+      const p=crsFromWgs(curCrs(),geo.site.lat,geo.site.lon);
+      STATE.orig={E:p.E,N:p.N,deg:geo.trueNorth?geo.trueNorth.deg:0};
+    }
+    STATE.initDec=Object.assign({},STATE.dec,{ll:STATE.dec.ll?Object.assign({},STATE.dec.ll):null});
+    STATE.initTruth=STATE.truth;
+    STATE.ppm=2;
+    ui.drop0.hidden=true;
+    syncCrsBtn();
+    setView("audit");
+    renderAll();
+  }catch(err){
+    setStatus(tr("m.err")+err.message,true);
+    clearFile(true);
+  }finally{
+    veil(null);
+  }
+}
+function clearFile(keepMsg){
+  STATE.file=null; STATE.model=null; STATE.geo=null; STATE.orig=null;
+  ui.fileCard.classList.remove("set");
+  ui.fileName.textContent=tr("drop.chip");
+  ui.fileMeta.textContent="";
+  ui.diag.hidden=true;
+  ui.drop0.hidden=false;
+  ui.auditView.hidden=true; ui.planView.hidden=true;
+  ui.checks.hidden=true; ui.agree.hidden=true;
+  ui.slots.innerHTML="";
+  ui.runBtn.disabled=true;
+  if(!keepMsg) setStatus(tr("exec.hint"));
+}
+
+/* =========================================================================
+   La verità scelta inizializza la decisione; ogni modifica manuale
+   sposta la scelta su "a mano".
+   ========================================================================= */
+function setTruth(t,silent){
+  const g=STATE.geo; if(!g) return;
+  STATE.truth=t;
+  const d=STATE.dec;
+  if(t==="map"&&g.mapConv){
+    d.E=g.mapConv.E; d.N=g.mapConv.N;
+    d.H=isFinite(g.mapConv.H)?g.mapConv.H:(g.site&&g.site.elev!=null?g.site.elev:0);
+    d.deg=g.mapConv.degenerate?0:g.mapConv.deg;
+    d.ll=null;
+  }else if(t==="site"&&g.site&&g.site.lat!=null){
+    const c=curCrs();
+    if(c){
+      const p=crsFromWgs(c,g.site.lat,g.site.lon);
+      d.E=p.E; d.N=p.N; d.ll=null;
+    }else{
+      d.E=NaN; d.N=NaN; d.ll={lat:g.site.lat,lon:g.site.lon};
+    }
+    d.H=g.site.elev!=null?g.site.elev:(g.mapConv&&isFinite(g.mapConv.H)?g.mapConv.H:0);
+    d.deg=(g.mapConv&&!g.mapConv.degenerate)?g.mapConv.deg:(g.trueNorth?g.trueNorth.deg:0);
+  }else if(t==="north"&&g.trueNorth){
+    d.deg=g.trueNorth.deg;
+    if(!isFinite(d.E)&&g.mapConv&&isFinite(g.mapConv.E)){ d.E=g.mapConv.E; d.N=g.mapConv.N; }
+    if(!isFinite(d.H)) d.H=g.site&&g.site.elev!=null?g.site.elev:0;
+  }else{
+    // a mano: si parte da quel che c'è, i campi della pianta comandano
+    if(!isFinite(d.deg)) d.deg=0;
+  }
+  if(!silent) renderAll();
+}
+/* modifica manuale dei valori → la verità diventa "a mano" */
+function setDec(patch,fromDrag){
+  Object.assign(STATE.dec,patch);
+  if(patch.E!==undefined||patch.N!==undefined||patch.deg!==undefined||patch.H!==undefined) STATE.dec.ll=null;
+  STATE.truth="manual";
+  renderAll(fromDrag);
+}
+
+/* =========================================================================
+   Render
+   ========================================================================= */
+function syncLeftHead(){
+  ui.leftT.textContent=tr(STATE.view==="audit"?"left.audit":"left.plan");
+  ui.leftHint.textContent=tr(STATE.view==="audit"?"hint.audit":"hint.plan");
+}
+function setView(v){
+  STATE.view=v;
+  ui.viewTabs.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.view===v));
+  syncLeftHead();
+  if(!STATE.model) return;
+  ui.auditView.hidden=v!=="audit";
+  ui.planView.hidden=v!=="plan";
+  if(v==="plan") requestAnimationFrame(drawPlan);
+}
+function setPtab(p){
+  STATE.ptab=p;
+  ui.planTabs.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.ptab===p));
+  ui.ovOrg.hidden=p!=="drag";
+  ui.ovTwo.hidden=p!=="two";
+  ui.ovPaste.hidden=p!=="paste";
+  ui.planHint.textContent=tr(p==="drag"?"plan.hintDrag":p==="two"?"plan.hintTwo":"plan.hintPaste");
+}
+function renderAll(fromDrag){
+  if(!STATE.model) return;
+  renderDiag();
+  renderAudit();
+  renderOut();
+  if(!fromDrag){ syncPlanInputs(); }
+  if(STATE.view==="plan") drawPlan();
+  ui.planLL.textContent=fmtLLpair(decLatlon());
+}
+
+/* ---- pillola di diagnosi ---- */
+function renderDiag(){
+  const g=STATE.geo, dis=fileDisagree();
+  const pm=!!(g.mapConv&&isFinite(g.mapConv.E)&&!g.mapConv.degenerate);
+  const ps=!!(g.site&&g.site.lat!=null&&g.site.lon!=null);
+  const pn=!!g.trueNorth;
+  const tot=g.schemaHasMap?3:2;
+  const n=(g.schemaHasMap?(pm?1:0):0)+(ps?1:0)+(pn?1:0);
+  let cls="",t="",s="";
+  if(g.mapConv&&g.mapConv.degenerate){ cls="bad"; t=tr("diag.degen"); s=tr("diag.degenS"); }
+  else if(n===0){ t=tr("diag.none"); s=tr("diag.noneS"); }
+  else if((dis.dist!=null&&dis.dist>1)||(dis.dAng!=null&&dis.dAng>0.5)){
+    const m=dis.dist!=null&&dis.dist>1?nf(dis.dist,1)+" m":fmtDeg(dis.dAng,1);
+    t=fmt("diag.dis",{m}); s=tr("diag.disS");
+  }
+  else if(n<tot){ t=fmt("diag.partial",{n,tot}); s=tr("diag.partialS"); }
+  else{ cls="ok"; t=tr("diag.ok"); s=tr("diag.okS"); }
+  ui.diag.className="diag"+(cls?" "+cls:"");
+  ui.diagT.textContent=t; ui.diagS.textContent=s;
+  ui.diag.hidden=false;
+}
+
+/* ---- scheda L'audit ---- */
+function badge(cls,k){ return '<span class="badge '+cls+'">'+esc(tr(k))+'</span>'; }
+function vcell(k,v){ return '<div class="vcell"><span class="k">'+esc(k)+'</span><span class="v">'+v+'</span></div>'; }
+function renderAudit(){
+  const g=STATE.geo, rows=[];
+  // — IfcMapConversion
+  {
+    const mc=g.mapConv;
+    let b,x="",why,vals="",dis=false;
+    if(!g.schemaHasMap){ b=badge("off","b.na"); why=tr("a.map.whyNa"); dis=true; }
+    else if(!mc){ b=badge("warn","b.absent"); x='<span class="xtra">'+esc(tr("a.map.noCrs"))+"</span>"; why=tr("a.map.whyAbs"); dis=true; }
+    else if(mc.degenerate){ b=badge("bad","b.degen"); x='<span class="xtra">xa = xo = 0</span>'; why=tr("a.map.whyDegen"); dis=true; }
+    else{
+      b=badge("ok","b.filled");
+      const crsTxt=mc.crs?(mc.crs.name||mc.crs.desc||""):tr("a.map.noCrs");
+      x='<span class="xtra">'+esc(crsTxt)+"</span>";
+      why=tr("a.map.why");
+      vals='<div class="vals">'+
+        vcell(tr("k.e"),nf(mc.E,3))+vcell(tr("k.n"),nf(mc.N,3))+
+        vcell(tr("k.h"),isFinite(mc.H)?nf(mc.H,2)+" m":"—")+
+        vcell(tr("k.rot"),fmtDeg(mc.deg))+
+        (Math.abs((mc.scale||1)-1)>1e-12?vcell(tr("mc.scale"),String(mc.scale)):"")+
+        "</div>";
+    }
+    rows.push({t:"map",dis,html:'<div class="hd"><span class="nm">'+esc(tr("a.map.nm"))+"</span>"+b+x+"</div>"+vals+'<p class="why">'+esc(why)+"</p>"});
+  }
+  // — IfcSite
+  {
+    const s=g.site;
+    let b,vals="",why,dis=false;
+    if(s&&s.lat!=null&&s.lon!=null){
+      b=badge("ok","b.filled"); why=tr("a.site.why");
+      vals='<div class="vals">'+
+        vcell(tr("k.lat"),fmtDMS(s.lat,"lat"))+vcell(tr("k.lon"),fmtDMS(s.lon,"lon"))+
+        vcell(tr("k.h"),s.elev!=null?nf(s.elev,2)+" m":"—")+"</div>";
+    }else{ b=badge("warn","b.absent"); why=tr("a.site.whyAbs"); dis=true; }
+    rows.push({t:"site",dis,html:'<div class="hd"><span class="nm">'+esc(tr("a.site.nm"))+"</span>"+b+"</div>"+vals+'<p class="why">'+esc(why)+"</p>"});
+  }
+  // — TrueNorth
+  {
+    const tn=g.trueNorth;
+    let b,x="",why,dis=false;
+    if(!tn){ b=badge("warn","b.absent"); why=tr("a.north.whyAbs"); dis=true; }
+    else if(Math.abs(tn.deg)<1e-6){ b=badge("warn","b.zero"); x='<span class="xtra">'+fmtDeg(0)+"</span>"; why=tr("a.north.whyZero"); }
+    else{ b=badge("ok","b.filled"); x='<span class="xtra">'+fmtDeg(tn.deg)+"</span>"; why=tr("a.north.why"); }
+    rows.push({t:"north",dis,html:'<div class="hd"><span class="nm">'+esc(tr("a.north.nm"))+"</span>"+b+x+"</div>"+'<p class="why">'+esc(why)+"</p>"});
+  }
+  let html="";
+  for(const r of rows){
+    html+='<button type="button" class="arow'+(STATE.truth===r.t?" on":"")+(r.dis?" dis":"")+'" data-truth="'+r.t+'"'+(r.dis?" disabled":"")+">"+
+      '<span class="rd"></span><div class="bd">'+r.html+"</div></button>";
+  }
+  html+='<button type="button" class="arow'+(STATE.truth==="manual"?" on":"")+'" data-truth="manual" style="border-bottom:0">'+
+    '<span class="rd"></span><div class="bd"><div class="hd"><span class="nm" style="font-family:var(--sans)">'+esc(tr("a.manual.t"))+"</span>"+
+    '<span class="xtra" style="font-family:var(--sans)">'+esc(tr("a.manual.s"))+"</span></div></div></button>";
+  ui.auditView.innerHTML=html;
+  ui.auditView.hidden=STATE.view!=="audit";
+  ui.auditView.querySelectorAll(".arow").forEach(b=>b.addEventListener("click",()=>{
+    if(b.disabled) return;
+    const t=b.dataset.truth;
+    if(t==="manual"){ STATE.truth="manual"; setView("plan"); renderAll(); }
+    else setTruth(t);
+  }));
+}
+
+/* ---- colonna destra: slot in uscita + verifica + controlli ---- */
+const SVG_CHECK='<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>';
+const SVG_WARN='<svg viewBox="0 0 24 24"><path d="M12 9v5M12 17.5v.01"/><path d="M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>';
+const SVG_ARROW='<svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>';
+function stLbl(st){
+  return st==="create"?tr("st.create"):st==="rewrite"?tr("st.fix"):st==="same"?tr("st.same")
+    :st==="na"?tr("st.na"):st==="write"?tr("st.realign"):tr("st.same");
+}
+function skv(k,v){ return '<div class="skv"><span class="k">'+esc(k)+'</span><span class="v">'+v+"</span></div>"; }
+function renderOut(){
+  const g=STATE.geo, d=STATE.dec, plan=geoApply(STATE.model,g,decForApply(),true);
+  const o=plan.out, ll=decLatlon(), crs=curCrs();
+  let html="";
+  // — IfcMapConversion
+  if(o.map==="na")
+    html+='<div class="slot ghost"><div class="slot-hd"><span class="ring"></span><span class="nm dim">'+esc(tr("slot.map"))+'</span><span class="st">'+esc(tr("st.na"))+'</span></div><div class="slot-kv"><span style="font:400 10.5px/1.5 var(--sans);color:var(--faint)">'+esc(tr("g.na"))+"</span></div></div>";
+  else if(o.map==="skip")
+    html+='<div class="slot ghost"><div class="slot-hd"><span class="ring"></span><span class="nm dim">'+esc(tr("slot.map"))+'</span><span class="st">'+esc(tr("st.pick"))+'</span></div><div class="slot-kv"><span style="font:400 10.5px/1.5 var(--sans);color:var(--faint)">'+esc(tr("g.pickCrs"))+"</span></div></div>";
+  else{
+    const did=o.map!=="same";
+    html+='<div class="slot'+(did?" hi":"")+'"><div class="slot-hd">'+SVG_CHECK+'<span class="nm">'+esc(tr("slot.map"))+'</span><span class="st'+(did?" did":"")+'">'+esc(stLbl(o.map))+"</span></div>"+
+      '<div class="slot-kv">'+
+      skv(tr("k.e"),nf(d.E,3))+skv(tr("k.n"),nf(d.N,3))+
+      skv(tr("mc.oh"),isFinite(d.H)?nf(d.H,2):"0")+
+      skv(tr("mc.xax"),nfF(Math.cos(d.deg*D2R),4)+" / "+nfF(Math.sin(d.deg*D2R),4))+
+      skv(tr("mc.tcrs"),"EPSG:"+d.crsCode)+
+      (g.unitFactor!==1?skv(tr("mc.scale"),String(g.unitFactor)):"")+
+      "</div></div>";
+  }
+  // — IfcSite
+  if(o.site==="none")
+    html+='<div class="slot ghost"><div class="slot-hd"><span class="ring"></span><span class="nm dim">'+esc(tr("slot.site"))+'</span></div><div class="slot-kv"><span style="font:400 10.5px/1.5 var(--sans);color:var(--faint)">'+esc(tr("g.noSite"))+"</span></div></div>";
+  else if(o.site==="write"){
+    const oldTxt=g.site.lat!=null?fmtDMS(g.site.lat,"lat")+" · "+fmtDMS(g.site.lon,"lon"):"—";
+    html+='<div class="slot hi"><div class="slot-hd">'+SVG_CHECK+'<span class="nm">'+esc(tr("slot.site"))+'</span><span class="st did">'+esc(stLbl("write"))+"</span></div>"+
+      '<div class="chg"><span class="old">'+esc(oldTxt)+"</span>"+SVG_ARROW+'<span class="new">'+esc(ll?fmtDMS(ll.lat,"lat")+" · "+fmtDMS(ll.lon,"lon"):"—")+"</span></div></div>";
+  }else
+    html+='<div class="slot"><div class="slot-hd">'+SVG_CHECK.replace("<svg",'<svg class="dim"')+'<span class="nm dim">'+esc(tr("slot.site"))+'</span><span class="st">'+esc(tr("st.same"))+"</span></div></div>";
+  // — TrueNorth
+  if(o.north==="write"){
+    const oldDeg=g.trueNorth?fmtDeg(g.trueNorth.deg):"—";
+    html+='<div class="slot hi"><div class="slot-hd">'+SVG_CHECK+'<span class="nm">'+esc(tr("slot.north"))+'</span><span class="st did">'+esc(tr("st.fix"))+"</span></div>"+
+      '<div class="chg"><span class="old">'+esc(oldDeg)+"</span>"+SVG_ARROW+'<span class="new">'+esc(fmtDeg(d.deg))+"</span></div></div>";
+  }else
+    html+='<div class="slot"><div class="slot-hd">'+SVG_CHECK.replace("<svg",'<svg class="dim"')+'<span class="nm dim">'+esc(tr("slot.north"))+'</span><span class="st">'+esc(tr("st.same"))+"</span></div></div>";
+  // — IfcProjectedCRS
+  if(o.crs==="na"){ /* già coperto dal ghost della MapConversion */ }
+  else if(o.crs==="skip"){ /* idem */ }
+  else{
+    const did=o.crs!=="same";
+    const unitTxt=o.unit==="create"?tr("g.unitCreate"):o.unit==="reuse"?tr("g.unitReuse"):null;
+    html+='<div class="slot'+(did?"":" ghost")+'"><div class="slot-hd">'+(did?SVG_CHECK:'<span class="ring"></span>')+'<span class="nm'+(did?"":" dim")+'">'+esc(tr("slot.crs"))+'</span><span class="st'+(did?" did":"")+'">'+esc(stLbl(o.crs))+"</span></div>"+
+      (did?'<div class="slot-kv">'+skv("Name","EPSG:"+d.crsCode)+(crs?skv("Description",esc(crs.name)):"")+(unitTxt?'<span style="font:400 10px/1.4 var(--mono);color:var(--faint)">'+esc(unitTxt)+"</span>":"")+"</div>":"")+
+      "</div>";
+  }
+  ui.slots.innerHTML=html;
+
+  // — accordo in uscita
+  const nOut=(o.map==="na"||o.map==="skip"?0:1)+(o.site==="none"?0:1)+1;
+  ui.agree.hidden=false;
+  const allOk=(o.map!=="skip")&&(ll!=null||o.map==="na");
+  ui.agree.className="agree"+(allOk?"":" no");
+  ui.agreeT.textContent=tr(nOut>=3?"agree.yes":"agree.two");
+
+  // — verifica
+  const dis=fileDisagree();
+  let vb="";
+  let fileTxt="—";
+  if(dis.dist!=null) fileTxt=nf(dis.dist,2)+" m"+(dis.dAng!=null?" · "+fmtDeg(dis.dAng,2):"");
+  else if(dis.dAng!=null) fileTxt=fmtDeg(dis.dAng,2);
+  const fileWarn=(dis.dist!=null&&dis.dist>1)||(dis.dAng!=null&&dis.dAng>0.5);
+  vb+='<div class="vrow"><span class="k2">'+esc(tr("v.file"))+'</span><span class="v2'+(fileWarn?" warn":"")+'">'+esc(fileTxt)+"</span></div>";
+  vb+='<div class="vrow"><span class="k2">'+esc(tr("v.out"))+'</span><span class="v2 good">0 m · 0°</span></div>';
+  vb+='<div class="vrow"><span class="k2">'+esc(tr("v.rot"))+'</span><span class="v2">'+esc(fmtDeg(d.deg))+"</span></div>";
+  vb+='<div class="vtot"><span class="k2">'+esc(tr("v.fall"))+'</span><span class="v2">'+(ll?esc(fmtDMS(ll.lat,"lat"))+"<br>"+esc(fmtDMS(ll.lon,"lon")):"—")+"</span></div>";
+  ui.vbox.innerHTML=vb;
+
+  // — controlli prima di scrivere
+  let cr="";
+  const crow=(warn,txt,r,good)=>'<div class="crow'+(warn?" warn":"")+'">'+(warn?SVG_WARN:SVG_CHECK)+'<span class="t3">'+txt+'</span>'+(r?'<span class="r3'+(good?" good":"")+'">'+esc(r)+"</span>":"")+"</div>";
+  if(g.mapConv&&g.mapConv.degenerate) cr+=crow(false,esc(tr("c.degen")),tr("c.fixed"),true);
+  if(crs&&isFinite(d.E)&&isFinite(d.N)){
+    const okZ=crsCheckEN(crs,d.E,d.N);
+    const z=crs.zone||crs.name;
+    cr+=okZ?crow(false,esc(fmt("c.zone",{z})),tr("c.ok")):crow(true,esc(fmt("c.zoneBad",{z})),null);
+  }
+  cr+=crow(true,esc(tr("c.h")),tr("c.conf"));
+  if(crs&&crs.approx) cr+=crow(true,esc(fmt("c.approx",{d:crs.datum})),null);
+  if(g.wcsOrigin) cr+=crow(true,esc(fmt("c.wcs",{e:nf(g.wcsOrigin.x,1),n:nf(g.wcsOrigin.y,1)})),null);
+  if(g.nonSI) cr+=crow(true,esc(fmt("c.nonsi",{f:String(g.unitFactor)})),null);
+  if(g.siteCount>1) cr+=crow(true,esc(fmt("c.sites",{n:g.siteCount})),null);
+  if(g.mapConvCount>1) cr+=crow(true,esc(fmt("c.mcs",{n:g.mapConvCount})),null);
+  ui.crows.innerHTML=cr;
+  ui.checks.hidden=false;
+
+  // — barra di esecuzione
+  if(plan.touched>0){
+    ui.runBtn.disabled=STATE.busy;
+    setStatus(fmt("exec.ready",{n:plan.touched,tot:nf(g.entityCount)}));
+  }else{
+    ui.runBtn.disabled=true;
+    setStatus(tr("exec.zero"));
+  }
+}
+
+/* ---- campi della pianta ---- */
+function syncPlanInputs(){
+  const d=STATE.dec;
+  ui.inE.value=fmtField(d.E);
+  ui.inN.value=fmtField(d.N);
+  ui.inH.value=fmtField(d.H);
+  ui.inRot.value=isFinite(d.deg)?fmtField(d.deg,2)+"°":"";
+  ui.dialNd.style.transform="rotate("+(isFinite(d.deg)?d.deg:0)+"deg)";
+}
+
+/* =========================================================================
+   La pianta: canvas con griglia metrica; la vista è centrata sull'origine
+   del modello, trascinare muove la griglia sotto di lui (stile mappa).
+   ========================================================================= */
+function niceStep(minM){
+  const p=Math.pow(10,Math.floor(Math.log10(minM)));
+  for(const m of [1,2,5,10]) if(p*m>=minM) return p*m;
+  return p*10;
+}
+function cssVar(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function drawPlan(){
+  const cv=ui.planCv; if(!cv||ui.planView.hidden) return;
+  const dpr=window.devicePixelRatio||1;
+  const w=cv.clientWidth||ui.stage.clientWidth, h=cv.clientHeight||ui.stage.clientHeight;
+  if(!w||!h) return;
+  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){ cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); }
+  const x=cv.getContext("2d");
+  x.setTransform(dpr,0,0,dpr,0,0);
+  x.clearRect(0,0,w,h);
+  const cText=cssVar("--text"),cFaint=cssVar("--faint"),cHair=cssVar("--hair"),cLime=cssVar("--lime"),cAcc=cssVar("--lime-deep")||cLime;
+  const d=STATE.dec, ppm=STATE.ppm;
+  const hasEN=isFinite(d.E)&&isFinite(d.N)&&curCrs();
+  x.font='9.5px "IBM Plex Mono",monospace';
+  if(!hasEN){
+    x.fillStyle=cFaint; x.textAlign="center";
+    x.fillText(tr("plan.noCrs"),w/2,h/2);
+    ui.sbTxt.textContent="—";
+    return;
+  }
+  const cx=d.E, cy=d.N;
+  const sx=E=>w/2+(E-cx)*ppm, sy=N=>h/2-(N-cy)*ppm;
+  // griglia
+  const step=niceStep(56/ppm);
+  x.strokeStyle=cHair; x.lineWidth=1; x.fillStyle=cFaint; x.textAlign="left";
+  const e0=Math.floor((cx-w/2/ppm)/step)*step, e1=cx+w/2/ppm;
+  for(let e=e0;e<=e1;e+=step){
+    const px=Math.round(sx(e))+.5;
+    x.beginPath(); x.moveTo(px,0); x.lineTo(px,h); x.stroke();
+    x.fillText(nf(e,0)+" E",px+4,h-8);
+  }
+  const n0=Math.floor((cy-h/2/ppm)/step)*step, n1=cy+h/2/ppm;
+  for(let nn=n0;nn<=n1;nn+=step){
+    const py=Math.round(sy(nn))+.5;
+    x.beginPath(); x.moveTo(0,py); x.lineTo(w,py); x.stroke();
+    x.fillText(nf(nn,0)+" N",6,py-4);
+  }
+  // ingombro simbolico: angolo sull'origine, ruotato di γ (γ antiorario in mappa)
+  const W=60,Dp=34;
+  const drawRect=(E,N,deg,solid)=>{
+    const a=deg*D2R, ca=Math.cos(a), sa=Math.sin(a);
+    const pts=[[0,0],[W,0],[W,Dp],[0,Dp]].map(p=>[E+ca*p[0]-sa*p[1],N+sa*p[0]+ca*p[1]]);
+    x.beginPath();
+    pts.forEach((p,i)=>{ const px=sx(p[0]),py=sy(p[1]); i?x.lineTo(px,py):x.moveTo(px,py); });
+    x.closePath();
+    if(solid){
+      x.fillStyle="rgba(191,215,48,.15)"; x.fill();
+      x.strokeStyle=cLime; x.lineWidth=1.5; x.setLineDash([]); x.stroke();
+      pts.forEach(p=>{ x.fillStyle=cLime; x.fillRect(sx(p[0])-3,sy(p[1])-3,6,6); });
+    }else{
+      x.strokeStyle=cFaint; x.lineWidth=1; x.setLineDash([4,4]); x.stroke(); x.setLineDash([]);
+    }
+  };
+  if(STATE.orig&&isFinite(STATE.orig.E)&&(Math.abs(STATE.orig.E-d.E)>1e-9||Math.abs(STATE.orig.N-d.N)>1e-9||Math.abs(angDiff(STATE.orig.deg,d.deg))>1e-9))
+    drawRect(STATE.orig.E,STATE.orig.N,STATE.orig.deg,false);
+  drawRect(d.E,d.N,d.deg,true);
+  // origine
+  x.strokeStyle=cAcc; x.lineWidth=1;
+  const ox=sx(d.E),oy=sy(d.N);
+  x.beginPath(); x.moveTo(ox-8,oy); x.lineTo(ox+8,oy); x.moveTo(ox,oy-8); x.lineTo(ox,oy+8); x.stroke();
+  x.fillStyle=cAcc; x.textAlign="left";
+  x.fillText(tr("plan.orig"),ox+11,oy+14);
+  // legenda
+  x.fillStyle=cFaint; x.textAlign="center";
+  x.fillText(tr("plan.legend"),w/2,14);
+  // scala grafica
+  const sbM=niceStep(50/ppm);
+  ui.sbLine.style.width=Math.round(sbM*ppm)+"px";
+  ui.sbTxt.textContent=nf(sbM,0)+" m";
+}
+</script>
+<script>
+/* =========================================================================
+   Interazioni della pianta: drag (griglia), Alt-drag (rotazione), rotella
+   ========================================================================= */
+(function planInteractions(){
+  const cv=ui.planCv;
+  let drag=null;
+  cv.addEventListener("pointerdown",e=>{
+    if(!STATE.model||!isFinite(STATE.dec.E)) return;
+    cv.setPointerCapture(e.pointerId);
+    const r=cv.getBoundingClientRect();
+    const px=e.clientX-r.left, py=e.clientY-r.top;
+    if(e.altKey){
+      // rotazione attorno all'origine (che sta al centro)
+      const a0=Math.atan2(-(py-r.height/2),px-r.width/2);   // CCW schermo→mondo
+      drag={mode:"rot",a0,deg0:STATE.dec.deg};
+      cv.classList.add("rot");
+    }else{
+      drag={mode:"move",x0:px,y0:py,E0:STATE.dec.E,N0:STATE.dec.N};
+      cv.classList.add("dragging");
+    }
+  });
+  cv.addEventListener("pointermove",e=>{
+    if(!drag) return;
+    const r=cv.getBoundingClientRect();
+    const px=e.clientX-r.left, py=e.clientY-r.top;
+    if(drag.mode==="move"){
+      // si trascina la griglia sotto il modello: destra = l'origine va a ovest
+      const dE=(px-drag.x0)/STATE.ppm, dN=-(py-drag.y0)/STATE.ppm;
+      setDec({E:drag.E0-dE,N:drag.N0-dN},true);
+    }else{
+      const a=Math.atan2(-(py-r.height/2),px-r.width/2);
+      setDec({deg:norm180(drag.deg0+(a-drag.a0)*R2D)},true);
+    }
+    syncPlanInputs();
+  });
+  const up=e=>{ if(drag){ drag=null; cv.classList.remove("dragging","rot"); renderAll(); } };
+  cv.addEventListener("pointerup",up); cv.addEventListener("pointercancel",up);
+  cv.addEventListener("wheel",e=>{
+    if(!STATE.model) return;
+    e.preventDefault();
+    const f=Math.exp(-e.deltaY*0.0012);
+    STATE.ppm=Math.min(80,Math.max(0.02,STATE.ppm*f));
+    drawPlan();
+  },{passive:false});
+  new ResizeObserver(()=>drawPlan()).observe(ui.stage);
+})();
+function norm180(a){ return ((a+540)%360)-180; }
+
+/* bussola: trascina la lancetta */
+(function dialInteractions(){
+  let on=false;
+  ui.dial.addEventListener("pointerdown",e=>{
+    if(!STATE.model) return;
+    on=true; ui.dial.setPointerCapture(e.pointerId); moveTo(e);
+  });
+  ui.dial.addEventListener("pointermove",e=>{ if(on) moveTo(e); });
+  const off=()=>{ if(on){ on=false; renderAll(); } };
+  ui.dial.addEventListener("pointerup",off); ui.dial.addEventListener("pointercancel",off);
+  function moveTo(e){
+    const r=ui.dial.getBoundingClientRect();
+    const dx=e.clientX-(r.left+r.width/2), dy=e.clientY-(r.top+r.height/2);
+    // lancetta = vettore TrueNorth (sin γ, cos γ): in alto γ=0, a destra γ=+90
+    const deg=Math.atan2(dx,-dy)*R2D;
+    setDec({deg:Math.round(deg*100)/100},true);
+    syncPlanInputs();
+  }
+})();
+
+/* campi numerici dell'origine e della rotazione */
+function hookNum(inp,key){
+  inp.addEventListener("change",()=>{
+    const v=parseNumLoose(inp.value.replace(/°/g,""));
+    if(isFinite(v)) setDec({[key]:key==="deg"?norm180(v):v});
+    else syncPlanInputs();
+  });
+}
+hookNum(ui.inE,"E"); hookNum(ui.inN,"N"); hookNum(ui.inH,"H"); hookNum(ui.inRot,"deg");
+
+/* =========================================================================
+   Due punti noti → origine + rotazione (similitudine a scala bloccata a 1)
+   ========================================================================= */
+ui.twoGo.addEventListener("click",()=>{
+  const g=STATE.geo; if(!g) return;
+  const uf=g.unitFactor||1;
+  const v=id=>parseNumLoose(ui[id].value);
+  const x1=v("p1x")*uf,y1=v("p1y")*uf,x2=v("p2x")*uf,y2=v("p2y")*uf;
+  const E1=v("p1E"),N1=v("p1N"),E2=v("p2E"),N2=v("p2N");
+  const all=[x1,y1,x2,y2,E1,N1,E2,N2];
+  ui.twoRes.classList.remove("bad");
+  if(all.some(n=>!isFinite(n))||Math.hypot(x2-x1,y2-y1)<1e-9||Math.hypot(E2-E1,N2-N1)<1e-9){
+    ui.twoRes.textContent=tr("two.need"); ui.twoRes.classList.add("bad"); return;
+  }
+  const deg=norm180((Math.atan2(N2-N1,E2-E1)-Math.atan2(y2-y1,x2-x1))*R2D);
+  const scale=Math.hypot(E2-E1,N2-N1)/Math.hypot(x2-x1,y2-y1);
+  const ca=Math.cos(deg*D2R),sa=Math.sin(deg*D2R);
+  const E0=E1-(ca*x1-sa*y1), N0=N1-(sa*x1+ca*y1);
+  const res=Math.hypot(E0+ca*x2-sa*y2-E2, N0+sa*x2+ca*y2-N2);
+  setDec({E:E0,N:N0,deg});
+  const sTxt=nfF(scale,4);
+  ui.twoRes.textContent=fmt("two.res",{m:nf(res,2),s:sTxt});
+  if(res>0.2||Math.abs(scale-1)>0.005) ui.twoRes.classList.add("bad");
+});
+
+/* =========================================================================
+   Incolla coordinate: E N (o N E), lat long, con virgole o punti
+   ========================================================================= */
+function parsePaste(txt){
+  let s=String(txt||"").trim(); if(!s) return null;
+  if(/[0-9],[0-9]/.test(s)&&!s.includes(".")) s=s.replace(/([0-9]),([0-9])/g,"$1.$2");
+  const nums=s.split(/[\s;,]+/).map(t=>parseFloat(t)).filter(n=>isFinite(n));
+  if(nums.length<2||nums.length>3) return null;
+  const [a,b]=nums, H=nums.length===3?nums[2]:null;
+  if(Math.abs(a)<=90&&Math.abs(b)<=180&&(Math.abs(a)<400&&Math.abs(b)<400))
+    return {kind:"ll",lat:a,lon:b,H};
+  let E=a,N=b,flip=false;
+  if(a>1.5e6&&b<1.5e6&&b>0){ E=b;N=a;flip=true; }        // "N E" invertiti (N grande prima)
+  return {kind:"en",E,N,H,flip};
+}
+ui.pasteIn.addEventListener("input",()=>{
+  const p=parsePaste(ui.pasteIn.value);
+  STATE.pasteVal=p;
+  ui.pasteRes.classList.remove("bad");
+  if(!p){ ui.pasteRes.textContent=ui.pasteIn.value.trim()?tr("paste.err"):""; ui.pasteGo.disabled=true;
+    if(ui.pasteIn.value.trim()) ui.pasteRes.classList.add("bad");
+    return; }
+  const hTxt=p.H!=null?fmt("paste.readH",{h:nf(p.H,2)}):"";
+  if(p.kind==="ll"){
+    ui.pasteRes.textContent=fmt("paste.readLL",{lat:fmtDMS(p.lat,"lat"),lon:fmtDMS(p.lon,"lon")})+hTxt;
+    if(!curCrs()){ ui.pasteRes.textContent+=" — "+tr("paste.needCrs"); ui.pasteRes.classList.add("bad"); ui.pasteGo.disabled=true; return; }
+  }else{
+    ui.pasteRes.textContent=fmt("paste.readEN",{e:nf(p.E,2),n:nf(p.N,2)})+hTxt;
+  }
+  ui.pasteGo.disabled=false;
+});
+ui.pasteGo.addEventListener("click",()=>{
+  const p=STATE.pasteVal; if(!p) return;
+  const patch={};
+  if(p.kind==="ll"){
+    const c=curCrs(); if(!c) return;
+    const q=crsFromWgs(c,p.lat,p.lon);
+    patch.E=q.E; patch.N=q.N;
+  }else{ patch.E=p.E; patch.N=p.N; }
+  if(p.H!=null) patch.H=p.H;
+  setDec(patch);
+});
+
+/* =========================================================================
+   Prendi da un altro IFC / Rimetti come era
+   ========================================================================= */
+ui.donorBtn.addEventListener("click",()=>{ if(STATE.model) ui.donorInput.click(); });
+ui.donorInput.addEventListener("change",async ()=>{
+  const f=ui.donorInput.files[0]; ui.donorInput.value="";
+  if(!f||!STATE.model) return;
+  await veil(tr("m.scanning"));
+  try{
+    const dm=geoScan(new Uint8Array(await f.arrayBuffer()));
+    const dg=geoRead(dm);
+    let ok=false;
+    if(dg.mapConv&&isFinite(dg.mapConv.E)&&!dg.mapConv.degenerate){
+      const patch={E:dg.mapConv.E,N:dg.mapConv.N,deg:dg.mapConv.deg};
+      if(isFinite(dg.mapConv.H)) patch.H=dg.mapConv.H;
+      if(dg.mapConv.crs&&dg.mapConv.crs.epsg) STATE.dec.crsCode=dg.mapConv.crs.epsg;
+      setDec(patch); ok=true;
+    }else if(dg.site&&dg.site.lat!=null&&curCrs()){
+      const q=crsFromWgs(curCrs(),dg.site.lat,dg.site.lon);
+      const patch={E:q.E,N:q.N};
+      if(dg.site.elev!=null) patch.H=dg.site.elev;
+      if(dg.trueNorth) patch.deg=dg.trueNorth.deg;
+      setDec(patch); ok=true;
+    }
+    setStatus(ok?fmt("donor.take",{f:f.name,e:nf(STATE.dec.E,2),n:nf(STATE.dec.N,2)})
+                :fmt("donor.none",{f:f.name}),!ok);
+    if(ok) syncCrsBtn();
+  }catch(err){
+    setStatus(tr("m.err")+err.message,true);
+  }finally{ veil(null); }
+});
+ui.resetBtn.addEventListener("click",()=>{
+  if(!STATE.model||!STATE.initDec) return;
+  STATE.dec=Object.assign({},STATE.initDec,{ll:STATE.initDec.ll?Object.assign({},STATE.initDec.ll):null});
+  STATE.truth=STATE.initTruth;
+  syncCrsBtn(); renderAll();
+});
+
+/* =========================================================================
+   Selettore del sistema di riferimento (pannello custom, come lo Split)
+   ========================================================================= */
+function syncCrsBtn(){
+  const code=STATE.dec.crsCode;
+  if(!code){ ui.crsLbl.textContent=tr("crs.pick"); ui.crsBtn.classList.remove("set"); return; }
+  const e=crsGet(code);
+  ui.crsLbl.textContent="EPSG:"+code+(e?" · "+e.name:"");
+  ui.crsBtn.title=e?e.name:tr("crs.custom");
+  ui.crsBtn.classList.add("set");
+}
+function renderCrsList(){
+  const q=(ui.crsFilter.value||"").trim().toLowerCase();
+  const groups=new Map();
+  for(const c of CRS_DB.values()){
+    if(q&&!(String(c.code).includes(q)||c.name.toLowerCase().includes(q))) continue;
+    let a=groups.get(c.grp); if(!a){ a=[]; groups.set(c.grp,a); }
+    a.push(c);
+  }
+  ui.crsList.innerHTML="";
+  if(!groups.size){
+    const d=document.createElement("div"); d.className="pp-empty";
+    d.textContent=tr("crs.none"); ui.crsList.appendChild(d); return;
+  }
+  for(const [grp,list] of groups){
+    const h=document.createElement("div"); h.className="pp-group"; h.textContent=grp;
+    ui.crsList.appendChild(h);
+    for(const c of list){
+      const b=document.createElement("button");
+      b.type="button"; b.className="pp-item"+(c.code===STATE.dec.crsCode?" sel":"");
+      b.setAttribute("role","option");
+      b.innerHTML="EPSG:"+c.code+"<i>"+esc(c.name)+"</i>";
+      b.addEventListener("click",()=>{ pickCrs(c.code); });
+      ui.crsList.appendChild(b);
+    }
+  }
+}
+function pickCrs(code){
+  const prev=curCrs(), prevLL=decLatlon();
+  STATE.dec.crsCode=code;
+  const now=curCrs();
+  /* cambiando sistema, il punto geografico resta lo stesso: si riconvertono E/N */
+  if(now&&prevLL){
+    const q=crsFromWgs(now,prevLL.lat,prevLL.lon);
+    STATE.dec.E=q.E; STATE.dec.N=q.N; STATE.dec.ll=null;
+  }else if(!now&&prevLL){
+    STATE.dec.ll=prevLL;
+  }
+  ui.crsPanel.hidden=true;
+  syncCrsBtn(); renderAll();
+}
+ui.crsBtn.addEventListener("click",e=>{
+  e.stopPropagation();
+  ui.crsPanel.hidden=!ui.crsPanel.hidden;
+  if(!ui.crsPanel.hidden){ renderCrsList(); ui.crsFilter.focus(); }
+});
+ui.crsFilter.addEventListener("input",renderCrsList);
+ui.crsFreeGo.addEventListener("click",()=>{
+  const code=parseInt(ui.crsFree.value,10);
+  if(code>=1000&&code<=99999) pickCrs(code);
+});
+ui.crsFree.addEventListener("keydown",e=>{ if(e.key==="Enter") ui.crsFreeGo.click(); });
+document.addEventListener("click",e=>{ if(!e.target.closest("#crsWrap")) ui.crsPanel.hidden=true; });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") ui.crsPanel.hidden=true; });
+
+/* =========================================================================
+   Esecuzione: riscrittura + download
+   ========================================================================= */
+ui.runBtn.addEventListener("click",async ()=>{
+  if(!STATE.model||STATE.busy) return;
+  STATE.busy=true; ui.runBtn.disabled=true;
+  try{
+    await veil(tr("m.writing"));
+    const r=geoApply(STATE.model,STATE.geo,decForApply(),false);
+    const blob=new Blob(r.parts,{type:"application/octet-stream"});
+    const outName=STATE.file.name.replace(/\.ifc$/i,"")+"_georef.ifc";
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download=outName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    setStatus(tr("m.done")+outName);
+  }catch(err){
+    setStatus(tr("m.err")+err.message,true);
+  }finally{
+    STATE.busy=false; ui.runBtn.disabled=false;
+    veil(null);
+  }
+});
+
+/* =========================================================================
+   File, schede, init
+   ========================================================================= */
+function hookDrop(el){
+  el.addEventListener("click",()=>ui.fileInput.click());
+  el.addEventListener("dragover",e=>{ e.preventDefault(); el.classList.add("drag"); });
+  el.addEventListener("dragleave",()=>el.classList.remove("drag"));
+  el.addEventListener("drop",e=>{
+    e.preventDefault(); el.classList.remove("drag");
+    const f=[...e.dataTransfer.files].find(f=>/\.ifc$/i.test(f.name));
+    if(f) loadFile(f);
+  });
+}
+hookDrop(ui.fileCard); hookDrop(ui.drop0);
+ui.fileInput.addEventListener("change",()=>{ if(ui.fileInput.files[0]) loadFile(ui.fileInput.files[0]); ui.fileInput.value=""; });
+ui.fileClear.addEventListener("click",e=>{ e.stopPropagation(); clearFile(); });
+
+ui.viewTabs.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+  if(!STATE.model) return;
+  setView(b.dataset.view);
+}));
+ui.planTabs.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>setPtab(b.dataset.ptab)));
+
+document.querySelectorAll(".langsw button").forEach(b=> b.addEventListener("click", ()=>applyLang(b.dataset.lang)));
+(function initLang(){
+  let lang="it";
+  try{ lang=localStorage.getItem("viewifc_tool_lang")||(navigator.language||"it").slice(0,2); }catch(e){}
+  applyLang(I18N[lang]?lang:"it");
+})();
+(function initTheme(){
+  const meta=document.querySelector('meta[name="theme-color"]');
+  function setTheme(t){
+    if(t==="light") document.documentElement.setAttribute("data-theme","light");
+    else document.documentElement.removeAttribute("data-theme");
+    if(meta) meta.setAttribute("content",t==="light"?"#f1f3ee":"#141a12");
+    try{ localStorage.setItem("viewer_landing_theme",t); }catch(e){}
+    if(STATE.model&&STATE.view==="plan") requestAnimationFrame(drawPlan);
+  }
+  let t="dark";
+  try{ t=localStorage.getItem("viewer_landing_theme")||"dark"; }catch(e){}
+  setTheme(t);
+  const b=$("thmBtn");
+  if(b) b.addEventListener("click",()=>setTheme(document.documentElement.getAttribute("data-theme")==="light"?"dark":"light"));
+})();
+setPtab("drag");
+</script>
+</body>
+</html>
