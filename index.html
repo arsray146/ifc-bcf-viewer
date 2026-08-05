@@ -10,7 +10,7 @@
 <meta name="description" content="Free and open-source openBIM coordination suite in your browser: federate IFC models, review BCF issues, section IFC4x3 alignments, edit properties and re-export. No upload — your models never leave your computer.">
 <meta name="author" content="Alessandro Perugini">
 <meta name="keywords" content="IFC viewer, BCF viewer, BIM, web-ifc, openBIM, BIM coordination, online IFC viewer, BCF browser, free IFC viewer, IFC4x3 alignment, LandXML">
-<meta name="theme-color" content="#0c110a">
+<meta name="theme-color" content="#f1f3ee">
 <link rel="canonical" href="https://viewifc.com/">
 
 <meta property="og:type" content="website">
@@ -86,6 +86,21 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<script>/* Tema chiaro di default (chiave viewer_landing_theme, condivisa da tutto il sito), letto prima
+   del paint per evitare il flash. L'attributo si applica subito e si toglie SOLO su scelta
+   esplicita "dark": così il chiaro regge anche dove localStorage non è leggibile.
+   Migrazione una tantum (viewifc_theme_migr_light): al primo caricamento dopo il passaggio al
+   chiaro il valore salvato in precedenza viene sovrascritto — tutti ripartono da light — e da
+   lì in poi la scelta dell'utente vale come sempre, chi mette dark resta dark. */
+document.documentElement.setAttribute("data-theme","light");
+try{
+  if(localStorage.getItem("viewifc_theme_migr_light")!=="1"){
+    localStorage.setItem("viewifc_theme_migr_light","1");
+    localStorage.setItem("viewer_landing_theme","light");
+  }
+  if(localStorage.getItem("viewer_landing_theme")==="dark") document.documentElement.removeAttribute("data-theme");
+}catch(e){}</script>
 
 <style>
 :root{
@@ -1360,7 +1375,7 @@ function applyLang(lang){
 /* year */
 document.getElementById("year").textContent = new Date().getFullYear();
 
-/* theme (default: dark) */
+/* theme (default: light) */
 (function initTheme(){
   const meta = document.querySelector('meta[name="theme-color"]');
   function setTheme(t){
@@ -1369,8 +1384,8 @@ document.getElementById("year").textContent = new Date().getFullYear();
     if(meta) meta.setAttribute("content", t === "light" ? "#f1f3ee" : "#141a12");
     try{ localStorage.setItem("viewer_landing_theme", t); }catch(e){}
   }
-  let t = "dark";
-  try{ t = localStorage.getItem("viewer_landing_theme") || "dark"; }catch(e){}
+  let t = "light";
+  try{ t = localStorage.getItem("viewer_landing_theme") || "light"; }catch(e){}
   setTheme(t);
   const b = document.getElementById("thmBtn");
   if(b) b.addEventListener("click", ()=>{
