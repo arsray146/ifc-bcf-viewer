@@ -18,10 +18,22 @@
 
 <meta name="description" content="Utilità openBIM che girano interamente nel browser: riclassifica, unisci, dividi, confronta e converti file IFC senza upload e senza installare niente. Ogni strumento fa una cosa sola.">
 <meta name="author" content="Alessandro Perugini">
-<meta name="theme-color" content="#141a12">
+<meta name="theme-color" content="#f1f3ee">
 <link rel="canonical" href="https://viewifc.com/tools/">
 <link rel="icon" type="image/png" href="../favicon-32.png">
-<script>try{ if(localStorage.getItem("viewer_landing_theme")==="light") document.documentElement.setAttribute("data-theme","light"); }catch(e){}</script>
+<script>/* Tema chiaro di default (chiave viewer_landing_theme, condivisa da tutto il sito): l'attributo
+   si applica subito e si toglie SOLO su scelta esplicita "dark".
+   Migrazione una tantum (viewifc_theme_migr_light): al primo caricamento dopo il passaggio al
+   chiaro il valore salvato in precedenza viene sovrascritto — tutti ripartono da light — e da
+   lì in poi la scelta dell'utente vale come sempre, chi mette dark resta dark. */
+document.documentElement.setAttribute("data-theme","light");
+try{
+  if(localStorage.getItem("viewifc_theme_migr_light")!=="1"){
+    localStorage.setItem("viewifc_theme_migr_light","1");
+    localStorage.setItem("viewer_landing_theme","light");
+  }
+  if(localStorage.getItem("viewer_landing_theme")==="dark") document.documentElement.removeAttribute("data-theme");
+}catch(e){}</script>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -894,7 +906,7 @@ document.querySelectorAll(".langsw button").forEach(b=> b.addEventListener("clic
   try{ v = localStorage.getItem("viewifc_tools_view") || "grid"; }catch(e){}
   setView(v);
 })();
-/* tema (default: dark) — chiave condivisa con landing e viewer */
+/* tema (default: light) — chiave condivisa con landing e viewer */
 (function initTheme(){
   const meta = document.querySelector('meta[name="theme-color"]');
   function setTheme(t){
@@ -903,8 +915,8 @@ document.querySelectorAll(".langsw button").forEach(b=> b.addEventListener("clic
     if(meta) meta.setAttribute("content", t === "light" ? "#f1f3ee" : "#141a12");
     try{ localStorage.setItem("viewer_landing_theme", t); }catch(e){}
   }
-  let t = "dark";
-  try{ t = localStorage.getItem("viewer_landing_theme") || "dark"; }catch(e){}
+  let t = "light";
+  try{ t = localStorage.getItem("viewer_landing_theme") || "light"; }catch(e){}
   setTheme(t);
   const b = document.getElementById("thmBtn");
   if(b) b.addEventListener("click", ()=>{
