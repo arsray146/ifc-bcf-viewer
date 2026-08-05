@@ -22,7 +22,7 @@
   </url>
   <url>
     <loc>https://viewifc.com/tools/</loc>
-    <lastmod>2026-08-04</lastmod>
+    <lastmod>2026-08-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -53,6 +53,12 @@
   <url>
     <loc>https://viewifc.com/tools/ifc-split/</loc>
     <lastmod>2026-08-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://viewifc.com/tools/ifc-georeference/</loc>
+    <lastmod>2026-08-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
