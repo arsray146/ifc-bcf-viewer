@@ -1,0 +1,2210 @@
+<!DOCTYPE html>
+<!--
+  IFC Data Extractor — strumento accessorio di viewifc.com
+  Autore: Alessandro Perugini — BIM Coordinator. Licenza AGPL-3.0.
+  100% client-side: nessun file viene caricato su un server.
+
+  UI v3 — design 10a+10b del canvas "Viewer UI Redesign", fusi in un banco solo:
+  a sinistra due schede — "Schema delle colonne" (le colonne scelte, in ordine,
+  con la copertura di ciascuna, e sotto il catalogo delle proprietà trovate nel
+  file da cui pescarle) e "Anteprima del foglio" (il foglio vero con i dati veri,
+  un tab per classe, i buchi come celle vuote); a destra "Cosa esce": righe,
+  colonne, fogli, le colonne che escono bucate e gli interruttori d'uscita.
+
+  Il lavoro qui non è esportare: è DECIDERE LE COLONNE. Le proprietà stanno
+  sparse fra Pset d'istanza, Pset di tipo e quantità, e ogni esportatore le
+  chiama a modo suo — così ogni colonna dichiara su quante righe è davvero
+  compilata. La copertura è la prima informazione, non una nota a piè di pagina.
+
+  Scelte v1 (punti lasciati aperti dal canvas, o divergenze volute):
+  - niente "Mostrale nel viewer" / "Isola nel viewer": i tool non passano
+    selezioni al viewer. Al loro posto: "Escludi la colonna" e, in anteprima,
+    il filtro "solo le righe con celle vuote".
+  - niente colonne calcolate: territorio del futuro Pset Editor.
+  - niente streaming: file in memoria come lo Split (limite = RAM, lo scanner
+    è a byte quindi il tetto dei 512 MiB per stringa JS non c'entra).
+  - CSV = un file unico, separatore ';', decimali secondo la lingua della UI,
+    colonna "Classe" in testa quando i fogli sarebbero più di uno; il "Segna
+    le celle vuote" (riempimento ambra) vale solo per l'xlsx.
+  - valori nelle unità del file, nessuna conversione: l'etichetta dell'unità
+    viene dall'IfcUnitAssignment (gated, come nel Georeference Editor).
+  - gli spazi (IfcSpace) e i contenitori spaziali sono contenitori, non righe.
+  - lo schema delle colonne si salva da solo in localStorage e al file
+    successivo viene riproposto: l'estrazione del lotto dopo è un clic.
+-->
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IFC Data Extractor — viewifc.com</title>
+
+<meta name="description" content="Porta proprietà e quantità di un file IFC in un foglio Excel o CSV, direttamente nel browser. Ogni colonna dichiara su quante righe è compilata: quello che manca nel modello si vede prima di esportarlo. Nessun upload.">
+<meta name="author" content="Alessandro Perugini">
+<meta name="theme-color" content="#f1f3ee">
+<link rel="canonical" href="https://viewifc.com/tools/ifc-data-extractor/">
+<link rel="icon" type="image/png" href="../../favicon-32.png">
+<script>/* Tema chiaro di default (chiave viewer_landing_theme, condivisa da tutto il sito): l'attributo
+   si applica subito e si toglie SOLO su scelta esplicita "dark".
+   Migrazione una tantum (viewifc_theme_migr_light): al primo caricamento dopo il passaggio al
+   chiaro il valore salvato in precedenza viene sovrascritto — tutti ripartono da light — e da
+   lì in poi la scelta dell'utente vale come sempre, chi mette dark resta dark. */
+document.documentElement.setAttribute("data-theme","light");
+try{
+  if(localStorage.getItem("viewifc_theme_migr_light")!=="1"){
+    localStorage.setItem("viewifc_theme_migr_light","1");
+    localStorage.setItem("viewer_landing_theme","light");
+  }
+  if(localStorage.getItem("viewer_landing_theme")==="dark") document.documentElement.removeAttribute("data-theme");
+}catch(e){}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* =========================================================================
+   Sistema di vetro condiviso con landing, viewer e pagine strumento (v3).
+   Chiave tema: viewer_landing_theme — comune a tutto il sito.
+   ========================================================================= */
+:root{
+  --lime:#bfd730; --lime-deep:#a8c320; --lime-ink:#23310a;
+  --lime-soft:rgba(191,215,48,.13); --lime-line:rgba(191,215,48,.34);
+  --acc:var(--lime-deep);
+  --bg:#141a12; --bg2:#262b24;
+  --pnl:rgba(15,20,13,.82); --pnl2:rgba(237,242,226,.05);
+  --hair:rgba(237,242,226,.09); --hair2:rgba(237,242,226,.06);
+  --inset:rgba(13,18,11,.5);
+  --grid:rgba(237,242,226,.05); --hover:rgba(237,242,226,.022);
+  --text:#edf2e2; --muted:#a9b59b; --faint:#79856c;
+  --red:#e0523f; --amber:#e0a63a; --green:#8dc63f;
+  --amber-bg:rgba(224,166,58,.10);
+  --sh:0 2px 8px rgba(0,0,0,.28),0 18px 44px rgba(0,0,0,.42);
+  --sh-sm:0 1px 3px rgba(0,0,0,.30),0 6px 18px rgba(0,0,0,.26);
+  --glow:0 4px 24px rgba(191,215,48,.20);
+  --r:24px; --r-md:14px; --r-sm:11px; --r-xs:8px;
+  --blur:blur(20px) saturate(1.25);
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --disp:'Barlow Semi Condensed',var(--sans);
+  --maxw:1180px; --pad:clamp(20px,6vw,90px);
+}
+html[data-theme="light"]{
+  --lime-deep:#67790d;
+  --bg:#f1f3ee; --bg2:#e9ece3;
+  --pnl:rgba(255,255,255,.80); --pnl2:rgba(33,42,35,.035);
+  --hair:rgba(33,42,35,.13); --hair2:rgba(33,42,35,.08);
+  --inset:rgba(33,42,35,.04);
+  --grid:rgba(33,42,35,.05); --hover:rgba(33,42,35,.025);
+  --text:#212a23; --muted:#5f6c61; --faint:#8b978d;
+  --lime-soft:rgba(191,215,48,.22); --lime-line:rgba(154,179,19,.45);
+  --amber:#8f6008; --amber-bg:rgba(224,166,58,.14);
+  --red:#b03a2a;
+  --sh:0 2px 8px rgba(30,40,28,.07),0 18px 44px rgba(30,40,28,.10);
+  --sh-sm:0 1px 3px rgba(30,40,28,.06),0 6px 18px rgba(30,40,28,.07);
+  --glow:0 4px 24px rgba(154,179,19,.28);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{margin:0}
+::selection{background:var(--lime);color:var(--lime-ink)}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px;border-radius:6px}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input{font:inherit}
+
+.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:44px 44px,44px 44px}
+.glow{position:absolute;left:0;right:0;top:0;height:560px;z-index:0;pointer-events:none;
+  background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.085) 0%,transparent 64%)}
+html[data-theme="light"] .glow{background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.20) 0%,transparent 64%)}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--pad);position:relative;z-index:1}
+
+/* ---------- nav a pillola, con briciole (come le altre pagine tool) ---------- */
+.topbar{position:sticky;top:0;z-index:50;display:flex;justify-content:center;
+  padding:18px var(--pad) 0;pointer-events:none}
+.navpill{pointer-events:auto;max-width:100%;display:flex;align-items:center;gap:26px;
+  padding:8px 8px 8px 14px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh)}
+.brand{display:flex;align-items:center;gap:9px;flex:none}
+.hdr-logo{width:26px;height:26px;border-radius:8px;display:block;flex:none}
+.appname{font-family:var(--disp);font-weight:600;font-size:13.5px;letter-spacing:.03em;
+  line-height:1.2;color:var(--text);white-space:nowrap}
+.crumbs{display:flex;align-items:center;gap:9px;font:400 12px/1 var(--sans);color:var(--muted);min-width:0}
+.crumbs .up{display:flex;align-items:center;gap:6px;transition:color .15s;white-space:nowrap}
+.crumbs .up:hover{color:var(--text)}
+.crumbs .up svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+.crumbs .sep{color:var(--faint)}
+.crumbs .here{font-weight:500;color:var(--text);white-space:nowrap}
+.nav-act{display:flex;align-items:center;gap:10px;flex:none;margin-left:auto}
+.langsw{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
+.langsw button{padding:5px 8px;border-radius:999px;color:var(--faint);transition:color .12s,background .12s}
+.langsw button:hover{color:var(--text)}
+.langsw button.on{background:var(--lime-soft);color:var(--text)}
+.thm{width:28px;height:28px;flex:none;border-radius:999px;border:1px solid var(--hair);
+  background:var(--pnl2);display:inline-flex;align-items:center;justify-content:center;
+  color:var(--muted);transition:color .15s,border-color .15s}
+.thm:hover{color:var(--text);border-color:var(--lime-line)}
+.thm svg{width:14px;height:14px}
+html[data-theme="light"] .thm .moon{display:none}
+html:not([data-theme="light"]) .thm .sun{display:none}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;white-space:nowrap;
+  border:1px solid transparent;border-radius:999px;cursor:pointer;
+  font-family:var(--disp);font-weight:600;letter-spacing:.02em;
+  transition:background .18s,border-color .18s,box-shadow .22s,transform .18s,color .18s}
+.btn svg{flex:none}
+.btn.primary{background:var(--lime);color:var(--lime-ink);box-shadow:var(--glow)}
+.btn.primary:hover:not(:disabled){background:#cae23f;box-shadow:0 6px 30px rgba(191,215,48,.32);transform:translateY(-1px)}
+.btn.hollow{background:transparent;border-color:var(--hair);color:var(--text)}
+.btn.hollow:hover:not(:disabled){border-color:var(--lime-line)}
+.btn.sm{padding:9px 16px;font-size:12.5px}
+.btn.sm svg{width:13px;height:13px}
+.btn:disabled{cursor:not-allowed;opacity:.42;box-shadow:none;transform:none}
+
+/* ---------- testata ---------- */
+.head{display:flex;align-items:flex-end;gap:60px;padding:62px 0 0}
+.head-l{flex:1;min-width:0;display:flex;flex-direction:column;gap:13px}
+.head-tags{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kicker{font:500 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.tag{padding:4px 8px;border-radius:999px;background:var(--lime-soft);
+  font:500 9px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--acc)}
+.tag.line{background:none;border:1px solid var(--hair);color:var(--faint)}
+.h1{max-width:620px;font-family:var(--disp);font-weight:600;font-size:clamp(34px,3.9vw,46px);
+  line-height:1.02;letter-spacing:-.006em;color:var(--text)}
+.lead{max-width:580px;margin:0;font:400 14px/1.7 var(--sans);color:var(--muted)}
+.spec{flex:0 0 300px;display:flex;flex-direction:column;gap:9px;padding-bottom:6px}
+.spec-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.spec-row:not(:last-child){padding-bottom:9px;border-bottom:1px solid var(--hair)}
+.spec-k{font:400 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.spec-v{font:500 11.5px/1 var(--mono);color:var(--text)}
+
+/* ---------- riga schede + file ---------- */
+.filebar{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:34px 0 0}
+.seg{display:flex;align-items:center;gap:4px;padding:4px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh-sm)}
+.seg button{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;
+  color:var(--muted);font:600 12.5px/1 var(--disp);letter-spacing:.02em;
+  transition:color .15s,background .15s}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--lime);color:var(--lime-ink)}
+.seg button svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round}
+.fcard{display:flex;align-items:center;gap:11px;padding:8px 10px 8px 14px;border-radius:999px;
+  background:var(--pnl2);border:1px dashed var(--hair);cursor:pointer;max-width:100%;
+  transition:border-color .15s,background .15s}
+.fcard:hover{border-color:var(--lime-line)}
+.fcard.drag{border-color:var(--lime);background:var(--lime-soft)}
+.fcard.set{border-style:solid;border-color:var(--lime-line)}
+.fcard svg.doc{flex:none;width:13px;height:13px;fill:none;stroke:var(--acc);stroke-width:1.8;stroke-linejoin:round}
+.fcard-n{font:500 12px/1 var(--sans);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcard:not(.set) .fcard-n{color:var(--muted);font-weight:400}
+.fcard-m{font:400 11px/1 var(--mono);color:var(--faint);white-space:nowrap}
+.fcard-x{flex:none;display:none;width:20px;height:20px;align-items:center;justify-content:center;color:var(--faint);transition:color .15s}
+.fcard.set .fcard-x{display:flex}
+.fcard-x:hover{color:var(--text)}
+.fcard-x svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+
+/* pillola dello schema ripreso */
+.diag{display:flex;align-items:center;gap:11px;padding:9px 16px 9px 13px;border-radius:999px;
+  background:var(--lime-soft);border:1px solid var(--lime-line);max-width:100%}
+.diag svg{flex:none;width:14px;height:14px;fill:none;stroke:var(--acc);stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+.diag .d1{font:500 12.5px/1.3 var(--sans);color:var(--text)}
+.diag button{font:400 11.5px/1.3 var(--sans);color:var(--acc);white-space:nowrap}
+.diag button:hover{color:var(--lime)}
+
+/* velo di attesa */
+.veil{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+  background:rgba(13,18,11,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+html[data-theme="light"] .veil{background:rgba(241,243,238,.6)}
+.veil .sp{width:34px;height:34px;border-radius:50%;
+  border:3px solid var(--lime-soft);border-top-color:var(--lime);
+  animation:vspin .8s linear infinite}
+@keyframes vspin{to{transform:rotate(360deg)}}
+.veil .lb{font:500 12px/1 var(--mono);color:var(--text)}
+
+/* ---------- il banco ---------- */
+.bench{display:flex;align-items:stretch;margin-top:16px;border-radius:var(--r);
+  background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh);overflow:hidden;min-height:420px}
+.bench-l{flex:1;min-width:0;display:flex;flex-direction:column}
+.tree-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 24px 13px;flex-wrap:wrap}
+.tree-hd .tl{display:flex;align-items:baseline;gap:12px;min-width:0}
+.tree-hd .t{font:600 15px/1 var(--disp);letter-spacing:.02em;color:var(--text)}
+.tree-hd .n{font:400 11px/1 var(--mono);color:var(--faint)}
+.tree-hd .hint{font:400 11px/1 var(--sans);color:var(--faint)}
+
+/* stato vuoto */
+.drop0{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;margin:24px;border-radius:var(--r-md);border:1px dashed var(--hair);
+  color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s;text-align:center}
+.drop0:hover{border-color:var(--lime-line)}
+.drop0.drag{border-color:var(--lime);background:var(--lime-soft)}
+.drop0 svg{width:26px;height:26px;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linejoin:round}
+.drop0 .t1{font:500 13.5px/1.4 var(--sans);color:var(--text)}
+.drop0 .t2{font:400 11px/1.6 var(--mono);color:var(--faint);max-width:380px}
+
+/* --- scheda Schema: righe colonna --- */
+.schema{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}
+.chead{display:flex;align-items:center;gap:12px;padding:9px 24px;border-top:1px solid var(--hair);
+  border-bottom:1px solid var(--hair);background:var(--hover)}
+.chead span{font:400 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.chead .c1{flex:0 0 18px}
+.chead .c2{flex:1;min-width:0}
+.chead .c3{flex:0 0 178px}
+.chead .c4{flex:0 0 116px}
+.chead .c5{flex:0 0 20px}
+.cols{display:flex;flex-direction:column}
+.crow2{display:flex;align-items:center;gap:12px;padding:8px 24px;border-bottom:1px solid var(--hair2);
+  transition:background .1s}
+.crow2:hover{background:var(--pnl2)}
+.crow2.gap-b{background:var(--amber-bg)}
+.crow2.dragging{opacity:.45}
+.crow2.dragover{box-shadow:inset 0 2px 0 var(--lime)}
+.crow2 .grip{flex:0 0 18px;display:flex;align-items:center;cursor:grab;color:var(--faint)}
+.crow2 .grip svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.crow2 .hd3{flex:1;min-width:0;display:flex;align-items:center;gap:9px}
+.crow2 .hd3 input{min-width:0;flex:0 1 auto;width:100%;max-width:230px;padding:4px 7px;margin-left:-8px;
+  border-radius:6px;border:1px solid transparent;background:none;outline:none;
+  font:500 12px/1.3 var(--sans);color:var(--text);transition:border-color .15s,background .15s}
+.crow2 .hd3 input:hover{border-color:var(--hair)}
+.crow2 .hd3 input:focus{border-color:var(--lime-line);background:var(--inset)}
+.pill-gap{flex:none;padding:3px 7px;border-radius:5px;background:rgba(224,166,58,.12);
+  font:400 9.5px/1 var(--mono);color:var(--amber);white-space:nowrap}
+.pill-info{flex:none;padding:3px 7px;border-radius:5px;background:var(--pnl2);
+  font:400 9.5px/1 var(--mono);color:var(--faint);white-space:nowrap}
+.crow2 .src{flex:0 0 178px;display:flex;align-items:center;gap:7px;min-width:0}
+.crow2 .src .s{font:400 11px/1.3 var(--mono);color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill-typ{flex:none;padding:2px 6px;border-radius:4px;background:var(--lime-soft);
+  font:400 9px/1 var(--mono);color:var(--acc)}
+.covc{flex:0 0 116px;display:flex;align-items:center;gap:8px}
+.covc .bar{flex:1;height:4px;border-radius:2px;background:var(--hair);overflow:hidden}
+.covc .bar i{display:block;height:100%;background:var(--lime)}
+.covc.gap .bar i{background:var(--amber)}
+.covc .pc{flex:none;width:34px;text-align:right;font:400 10.5px/1 var(--mono);color:var(--muted)}
+.covc.gap .pc{font-weight:500;color:var(--amber)}
+.crow2 .rm{flex:0 0 20px;display:flex;align-items:center;justify-content:center;
+  color:var(--faint);opacity:0;transition:opacity .12s,color .12s}
+.crow2:hover .rm{opacity:1}
+.crow2 .rm:hover{color:var(--red)}
+.crow2 .rm svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.addrow{display:flex;align-items:center;gap:12px;padding:11px 24px;border-bottom:1px solid var(--hair2);
+  color:var(--acc);transition:background .1s;text-align:left}
+.addrow:hover{background:var(--pnl2)}
+.addrow svg{flex:0 0 18px;width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.addrow span{font:400 11.5px/1 var(--sans)}
+
+/* --- catalogo delle proprietà --- */
+.cat{display:flex;flex-direction:column;gap:10px;padding:16px 24px 4px;border-top:1px solid var(--hair)}
+.cat-hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.cat-hd .k{font:500 10.5px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.cat-hd input{width:190px;padding:6px 10px;border-radius:999px;border:1px solid var(--hair);
+  background:var(--inset);outline:none;font:400 11px var(--sans);color:var(--text);
+  transition:border-color .15s}
+.cat-hd input:focus{border-color:var(--lime-line)}
+.cat-hd input::placeholder{color:var(--faint)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.pchip2{display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:8px;
+  background:var(--pnl2);border:1px solid var(--hair);font:400 11px/1 var(--mono);color:var(--muted);
+  transition:border-color .12s,background .12s,color .12s;max-width:100%}
+.pchip2 .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pchip2:hover{border-color:var(--lime-line);color:var(--text)}
+.pchip2.on{background:var(--lime-soft);border-color:var(--lime-line);color:var(--text)}
+.pchip2 .pc{flex:none;color:var(--acc)}
+.pchip2 .pc.lo{color:var(--amber)}
+.pchip2 .pc.dim{color:var(--faint)}
+.pchip2.more{background:none;border-color:transparent;color:var(--faint)}
+.pchip2.more:hover{color:var(--text)}
+/* catalogo raggruppato per Pset, gruppi collassabili */
+.cat-group{display:flex;flex-direction:column;gap:7px}
+.cat-gh{display:flex;align-items:center;gap:8px;padding-top:4px;width:100%;text-align:left}
+.cat-gh .cv{flex:none;width:11px;height:11px;fill:none;stroke:var(--faint);stroke-width:2.2;
+  stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
+.cat-gh.closed .cv{transform:rotate(-90deg)}
+.cat-gh .gn{font:500 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);transition:color .12s}
+.cat-gh:hover .gn{color:var(--text)}
+.cat-gh .gc{font:400 10px/1 var(--mono);color:var(--faint)}
+.cat-gh .gsel{font:400 10px/1 var(--mono);color:var(--acc)}
+.cat-gh .gl{flex:1;height:1px;background:var(--hair2);align-self:center}
+
+/* --- modalità righe (in coda a entrambe le schede) --- */
+.rowsbar{display:flex;align-items:center;gap:16px;padding:15px 24px 18px;margin-top:auto;flex-wrap:wrap}
+.rowsbar .k{font:500 10.5px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.rowsbar .set2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mchip{padding:7px 12px;border-radius:999px;border:1px solid var(--hair);
+  font:400 11.5px/1 var(--sans);color:var(--muted);transition:border-color .12s,color .12s,background .12s}
+.mchip:hover{border-color:var(--lime-line);color:var(--text)}
+.mchip.on{background:var(--lime-soft);border-color:var(--lime-line);color:var(--text);font-weight:500}
+.rowsbar .rhint{margin-left:auto;font:400 11px/1 var(--mono);color:var(--faint)}
+
+/* --- scheda Anteprima --- */
+.prev{display:flex;flex-direction:column;flex:1 1 auto;min-width:0}
+.prev-hd{display:flex;align-items:center;gap:16px;padding:15px 24px 13px;flex-wrap:wrap}
+.sheettabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.stab{display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:8px;border:1px solid var(--hair);
+  font:400 11.5px/1 var(--sans);color:var(--muted);transition:border-color .12s,color .12s,background .12s}
+.stab:hover{border-color:var(--lime-line);color:var(--text)}
+.stab.on{background:var(--lime-soft);border-color:var(--lime-line);color:var(--text);font-weight:500}
+.stab .n2{font:400 10px/1 var(--mono);color:var(--faint)}
+.stab.more{border-color:transparent;color:var(--faint)}
+.stab.more:hover{color:var(--text)}
+.prev-hd .hint{margin-left:auto;font:400 11px/1 var(--sans);color:var(--faint)}
+.tblwrap{border-top:1px solid var(--hair);overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;table-layout:auto}
+.tbl th,.tbl td{border-right:1px solid var(--hair2);border-bottom:1px solid var(--hair2);
+  padding:9px 11px;text-align:left;vertical-align:middle;max-width:220px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl th:last-child,.tbl td:last-child{border-right:0}
+.tbl thead th{background:var(--hover);border-bottom:1px solid var(--hair);padding:8px 11px}
+.tbl thead .htx{display:flex;align-items:center;gap:6px;font:500 10.5px/1.3 var(--sans);color:var(--text)}
+.tbl thead .htx .u{font:400 9.5px/1 var(--mono);color:var(--faint)}
+.tbl thead .htx .pc{font:400 9.5px/1 var(--mono);color:var(--amber)}
+.tbl thead .cb{height:3px;border-radius:2px;background:var(--hair);overflow:hidden;margin-top:5px}
+.tbl thead .cb i{display:block;height:100%;background:var(--lime)}
+.tbl thead .cb i.gap{background:var(--amber)}
+.tbl thead th.gap-b{background:var(--amber-bg)}
+.tbl .rn{width:32px;text-align:center;font:400 10px/1 var(--mono);color:var(--faint)}
+.tbl td{font:400 11.5px/1.3 var(--sans);color:var(--text)}
+.tbl td.mono{font:400 10.5px/1.3 var(--mono);color:var(--muted)}
+.tbl td.num{font:400 11px/1.3 var(--mono);text-align:right}
+.tbl td.dim{color:var(--muted)}
+.tbl tr.gap-b td{background:rgba(224,166,58,.035)}
+.tbl td.emp .ph{display:inline-flex;align-items:center;gap:7px}
+.tbl td.emp .ph i{width:16px;height:1px;background:rgba(224,166,58,.55)}
+.tbl td.emp .ph span{font:400 10px/1 var(--mono);color:var(--amber)}
+.tbl th.addc{width:36px;text-align:center;cursor:pointer}
+.tbl th.addc svg{width:13px;height:13px;fill:none;stroke:var(--acc);stroke-width:2.2;stroke-linecap:round;vertical-align:middle}
+/* bottone allarga/chiudi + vista flottante dell'anteprima */
+.xbtn{flex:none;width:26px;height:26px;border-radius:8px;border:1px solid var(--hair);
+  display:inline-flex;align-items:center;justify-content:center;color:var(--muted);
+  transition:color .15s,border-color .15s}
+.xbtn:hover{color:var(--text);border-color:var(--lime-line)}
+.xbtn svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.xbtn .shr{display:none}
+.prev-backdrop{position:fixed;inset:0;z-index:78;background:rgba(13,18,11,.45);
+  backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+html[data-theme="light"] .prev-backdrop{background:rgba(33,42,35,.28)}
+.prev-overlay{position:fixed;inset:20px;z-index:80;display:flex;flex-direction:column;
+  border-radius:var(--r);background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh);overflow:hidden}
+.prev-overlay .prev{flex:1;min-height:0}
+.prev-overlay .tblwrap{flex:1;min-height:0;overflow:auto}
+.prev-overlay .xbtn .exp{display:none}
+.prev-overlay .xbtn .shr{display:block}
+.prev-more{display:flex;align-items:center;gap:10px;padding:10px 24px;border-bottom:1px solid var(--hair2)}
+.prev-more .n3{font:400 11px/1 var(--mono);color:var(--faint)}
+.prev-more button{margin-left:auto;font:400 11px/1 var(--sans);color:var(--acc)}
+.prev-more button:hover{color:var(--lime)}
+.prev-more button.on{color:var(--amber)}
+/* pannello aggiungi-colonna (riusa la grammatica pp del georef) */
+.pp-panel{position:absolute;z-index:40;width:330px;
+  display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:var(--r-md);
+  background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh)}
+.pp-panel input[type="search"]{border:0;outline:none;background:var(--inset);border-radius:8px;
+  padding:8px 11px;font:400 11.5px var(--mono);color:var(--text)}
+.pp-panel input::placeholder{color:var(--faint)}
+.pp-list{display:flex;flex-direction:column;max-height:250px;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--hair) transparent}
+.pp-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;
+  font:400 11.5px/1.3 var(--mono);color:var(--text);text-align:left;transition:background .1s;max-width:100%}
+.pp-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pp-item:hover{background:var(--pnl2)}
+.pp-item.sel{background:var(--lime-soft)}
+.pp-item i{font-style:normal;margin-left:auto;color:var(--faint);font-size:10px;white-space:nowrap}
+.pp-empty{padding:10px;font:400 11px/1.5 var(--sans);color:var(--faint)}
+
+/* --- colonna destra: cosa esce --- */
+.bench-r{flex:0 0 400px;display:flex;flex-direction:column;border-left:1px solid var(--hair);background:var(--inset)}
+.out-top{display:flex;flex-direction:column;gap:12px;padding:17px 22px 16px}
+.out-hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.out-hd .t{font:600 15px/1 var(--disp);letter-spacing:.02em;color:var(--text)}
+.out-hd .fmt{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
+.out-hd .fmt button{padding:5px 8px;border-radius:999px;color:var(--faint);transition:color .12s,background .12s}
+.out-hd .fmt button:hover{color:var(--text)}
+.out-hd .fmt button.on{background:var(--lime-soft);color:var(--text)}
+.fname{display:flex;align-items:center;gap:2px;padding:10px 12px;border-radius:var(--r-sm);
+  background:var(--inset);border:1px solid var(--lime-line)}
+.fname input{flex:1;min-width:0;border:0;outline:none;background:none;
+  font:400 12px/1 var(--mono);color:var(--text)}
+.fname .ext{font:400 12px/1 var(--mono);color:var(--faint);white-space:nowrap}
+.stat2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.scard{display:flex;flex-direction:column;gap:5px;padding:11px 13px;border-radius:12px;
+  background:var(--pnl2);border:1px solid var(--hair)}
+.scard .v{font:600 19px/1 var(--disp);color:var(--text)}
+.scard .k{font:400 9.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.sheetrow{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:11px 13px;border-radius:12px;background:var(--pnl2);border:1px solid var(--hair)}
+.sheetrow .k{font:400 11.5px/1.4 var(--sans);color:var(--muted)}
+.sheetrow .v{font:500 11.5px/1 var(--mono);color:var(--text);text-align:right}
+
+/* dove il modello è incompleto */
+.gaps{display:flex;flex-direction:column;gap:9px;padding:0 22px 16px}
+.gaps .k{font:500 10.5px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.gcard{display:flex;flex-direction:column;gap:8px;padding:13px 14px;border-radius:var(--r-md);
+  background:rgba(224,166,58,.05);border:1px solid rgba(224,166,58,.22)}
+.gcard .hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.gcard .nm{font:500 11.5px/1.35 var(--sans);color:var(--text)}
+.gcard .n{font:500 11.5px/1 var(--mono);color:var(--amber)}
+.gcard .why{margin:0;font:400 10.5px/1.5 var(--sans);color:var(--faint);text-wrap:pretty}
+.gcard .act{display:flex;align-items:center;gap:14px;padding-top:3px}
+.gcard .act button{font:400 11px/1 var(--sans);color:var(--muted);transition:color .12s}
+.gcard .act button:hover{color:var(--text)}
+.gcard .act button.pri{color:var(--acc)}
+.gcard .act button.pri:hover{color:var(--lime)}
+.gok{display:flex;align-items:center;gap:9px;padding:10px 13px;border-radius:var(--r-sm);
+  border:1px solid var(--hair);font:400 11.5px/1.4 var(--sans);color:var(--muted)}
+.gok svg{flex:none;width:12px;height:12px;fill:none;stroke:var(--acc);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+/* interruttori */
+.togl{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 13px;border-radius:var(--r-sm);background:var(--pnl2);border:1px solid var(--hair);
+  cursor:pointer;transition:border-color .12s}
+.togl:hover{border-color:var(--lime-line)}
+.togl.off{background:none;border-color:var(--hair2)}
+.togl.dis{opacity:.5;cursor:not-allowed}
+.togl .lb2{font:400 12px/1.35 var(--sans);color:var(--muted)}
+.togl.off .lb2{color:var(--faint)}
+.sw{position:relative;flex:none;width:32px;height:18px;border-radius:999px;background:var(--hair);transition:background .15s}
+.togl:not(.off) .sw{background:var(--lime)}
+.sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+  background:var(--faint);transition:left .15s,background .15s}
+.togl:not(.off) .sw i{left:16px;background:var(--lime-ink)}
+
+/* barra di esecuzione */
+.exec{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:auto;
+  padding:16px 22px;border-top:1px solid var(--hair);background:var(--pnl2)}
+.exec .st{flex:1;min-width:0;font:400 11px/1.4 var(--sans);color:var(--faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exec .st.err{color:var(--red)}
+.btn.run{padding:12px 20px;font-size:13.5px}
+.btn.run svg{width:14px;height:14px}
+
+/* ---------- chiusura di pagina ---------- */
+.pagefoot{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
+  margin:34px 0;padding-top:20px;border-top:1px solid var(--hair)}
+.pagefoot p{margin:0;font:400 11.5px/1.6 var(--sans);color:var(--faint);max-width:560px;text-wrap:pretty}
+.pagefoot nav{display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  font:400 11.5px/1 var(--sans);color:var(--muted)}
+.pagefoot nav a{transition:color .15s}
+.pagefoot nav a:hover{color:var(--text)}
+.pagefoot nav a.go{display:flex;align-items:center;gap:7px;color:var(--acc);transition:gap .15s}
+.pagefoot nav a.go:hover{gap:11px;color:var(--lime)}
+.pagefoot nav svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round}
+
+@media (max-width:980px){
+  .bench{flex-direction:column}
+  .bench-r{flex:none;border-left:0;border-top:1px solid var(--hair)}
+  .head{flex-direction:column;align-items:stretch;gap:24px}
+  .spec{flex:none}
+  .chead .c3,.crow2 .src{flex-basis:130px}
+}
+</style>
+
+<!-- Statistiche di visita anonime e senza cookie (GoatCounter) — vedi /analytics.js -->
+<script src="/analytics.js" defer></script>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true"></div>
+
+<!-- ================= NAV ================= -->
+<header class="topbar">
+  <div class="navpill">
+    <a class="brand" href="../../" data-i18n-title="nav.home" title="Vai a viewifc.com" aria-label="viewifc.com">
+      <img class="hdr-logo" src="../../favicon-32.png" alt="APE" width="26" height="26">
+      <span class="appname">Viewer IFC · BCF</span>
+    </a>
+    <nav class="crumbs" aria-label="breadcrumb">
+      <a class="up" href="../">
+        <svg viewBox="0 0 24 24"><path d="M19 12H6M11 18l-6-6 6-6"/></svg>
+        <span data-i18n="nav.tools">Strumenti</span>
+      </a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span class="here" aria-current="page" data-i18n="nav.here">Estrazione dati</span>
+    </nav>
+    <div class="nav-act">
+      <div class="langsw" role="group" aria-label="Language">
+        <button data-lang="it" class="on">IT</button>
+        <button data-lang="en">EN</button>
+      </div>
+      <button class="thm" id="thmBtn" aria-label="Light / dark" title="Light / dark">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <a class="btn hollow sm" href="../../viewer/">
+        <span data-i18n="cta.open">Apri il viewer</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="glow" aria-hidden="true"></div>
+
+<main class="wrap">
+
+  <!-- ================= TESTATA ================= -->
+  <section class="head">
+    <div class="head-l">
+      <div class="head-tags">
+        <span class="kicker" data-i18n="head.kicker">Strumento 07</span>
+        <span class="tag" data-i18n="head.tag">Client-side</span>
+        <span class="tag line" data-i18n="head.beta">Prima versione</span>
+      </div>
+      <h1 class="h1">IFC Data Extractor</h1>
+      <p class="lead" data-i18n="head.lead">Porta le proprietà dell'IFC in un foglio di calcolo. Ogni colonna dichiara su quante righe è compilata: quello che manca nel modello si vede prima di esportarlo, non dopo.</p>
+    </div>
+    <div class="spec">
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.in">Ingresso</span>
+        <span class="spec-v" data-i18n="spec.inV">1 file .ifc</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.out">Uscita</span>
+        <span class="spec-v">.xlsx · .csv</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.ret">Ritorno</span>
+        <span class="spec-v" data-i18n="spec.retV">no · solo lettura</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SCHEDE + FILE ================= -->
+  <div class="filebar">
+    <div class="seg" id="viewSeg" role="tablist">
+      <button class="on" data-view="schema" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16M9 5v14M15 5v14"/></svg>
+        <span data-i18n="tab.schema">Schema delle colonne</span>
+      </button>
+      <button data-view="prev" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zM3 9h18M8 9v10"/></svg>
+        <span data-i18n="tab.prev">Anteprima del foglio</span>
+      </button>
+    </div>
+    <div class="diag" id="diag" hidden>
+      <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+      <span class="d1" id="diagT"></span>
+      <button id="diagReset" type="button" data-i18n="schema.fresh">riparti dalle colonne di base</button>
+    </div>
+    <div class="fcard" id="fileCard" role="button" tabindex="0">
+      <svg class="doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
+      <span class="fcard-n" id="fileName" data-i18n="drop.chip">Trascina il file .ifc o sfoglia</span>
+      <span class="fcard-m" id="fileMeta"></span>
+      <button class="fcard-x" id="fileClear" type="button" data-i18n-title="f.remove" title="Rimuovi il file" aria-label="Rimuovi il file">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept=".ifc" hidden>
+
+  <!-- ================= BANCO ================= -->
+  <section class="bench">
+
+    <!-- --- sinistra: schema / anteprima --- -->
+    <div class="bench-l">
+
+      <!-- stato vuoto -->
+      <div class="drop0" id="drop0">
+        <svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zM3 10h18M9 10v9M15 10v9"/></svg>
+        <span class="t1" data-i18n="drop.big">Trascina qui il file .ifc, o clicca per sfogliare</span>
+        <span class="t2" data-i18n="drop.hint">nessun upload: la lettura avviene nel browser · le proprietà trovate compaiono qui</span>
+      </div>
+
+      <!-- scheda Schema delle colonne -->
+      <div class="schema" id="schemaView" hidden>
+        <div class="tree-hd">
+          <div class="tl">
+            <span class="t" data-i18n="sch.t">Colonne del foglio</span>
+            <span class="n" id="schN"></span>
+          </div>
+          <span class="hint" data-i18n="sch.hint">clic sull'intestazione per rinominarla · trascina per riordinare</span>
+        </div>
+        <div class="chead">
+          <span class="c1"></span>
+          <span class="c2" data-i18n="sch.h1">Intestazione</span>
+          <span class="c3" data-i18n="sch.h2">Da</span>
+          <span class="c4" data-i18n="sch.h3">Compilata</span>
+          <span class="c5"></span>
+        </div>
+        <div class="cols" id="colList"></div>
+        <button class="addrow" id="addBtn" type="button">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          <span data-i18n="sch.add">Aggiungi una colonna — cerca nel catalogo qui sotto</span>
+        </button>
+        <div class="cat">
+          <div class="cat-hd">
+            <span class="k" id="catK"></span>
+            <input id="catSearch" type="search" autocomplete="off" data-i18n-placeholder="cat.search" placeholder="cerca una proprietà…">
+          </div>
+          <div class="chips" id="catChips"></div>
+        </div>
+        <div class="rowsbar">
+          <span class="k" data-i18n="rows.k">Righe</span>
+          <div class="set2" id="modeChips1"></div>
+        </div>
+      </div>
+
+      <!-- scheda Anteprima del foglio -->
+      <div class="prev" id="prevView" hidden>
+        <div class="prev-hd">
+          <div class="sheettabs" id="sheetTabs"></div>
+          <span class="hint" data-i18n="prev.hint">l'anteprima è il foglio: quello che vedi qui è quello che si apre in Excel</span>
+          <button class="xbtn" id="prevExpand" type="button" data-i18n-title="prev.expand" title="Allarga il foglio" aria-label="Allarga il foglio">
+            <svg class="exp" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            <svg class="shr" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="tblwrap">
+          <table class="tbl" id="prevTbl"></table>
+        </div>
+        <div class="prev-more" id="prevMore">
+          <span class="n3" id="prevMoreN"></span>
+          <button id="onlyEmptyBtn" type="button" data-i18n="prev.onlyEmpty">mostra solo le righe con celle vuote</button>
+        </div>
+        <div class="rowsbar">
+          <span class="k" data-i18n="rows.k">Righe</span>
+          <div class="set2" id="modeChips2"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- --- destra: cosa esce --- -->
+    <div class="bench-r">
+      <div class="out-top">
+        <div class="out-hd">
+          <span class="t" data-i18n="out.t">Cosa esce</span>
+          <div class="fmt" id="fmtSeg">
+            <button class="on" data-fmt="xlsx">.xlsx</button>
+            <button data-fmt="csv">.csv</button>
+          </div>
+        </div>
+        <div class="fname">
+          <input id="outName" autocomplete="off" spellcheck="false" disabled>
+          <span class="ext" id="outExt">.xlsx</span>
+        </div>
+        <div class="stat2">
+          <div class="scard"><span class="v" id="stRows">—</span><span class="k" data-i18n="out.rows">Righe</span></div>
+          <div class="scard"><span class="v" id="stCols">—</span><span class="k" data-i18n="out.cols">Colonne</span></div>
+        </div>
+        <div class="sheetrow">
+          <span class="k" data-i18n="out.sheets">Fogli</span>
+          <span class="v" id="stSheets">—</span>
+        </div>
+      </div>
+
+      <div class="gaps" id="gaps" hidden>
+        <span class="k" data-i18n="gap.k">Dove il modello è incompleto</span>
+        <div id="gapCards"></div>
+        <div class="togl" id="tgMark" role="switch" aria-checked="true" tabindex="0">
+          <span class="lb2" data-i18n="tg.mark">Segna le celle vuote</span>
+          <span class="sw"><i></i></span>
+        </div>
+        <div class="togl" id="tgInherit" role="switch" aria-checked="true" tabindex="0">
+          <span class="lb2" data-i18n="tg.inherit">Eredita dal tipo se manca</span>
+          <span class="sw"><i></i></span>
+        </div>
+        <div class="togl off" id="tgSkip" role="switch" aria-checked="false" tabindex="0">
+          <span class="lb2" data-i18n="tg.skip">Salta le righe incomplete</span>
+          <span class="sw"><i></i></span>
+        </div>
+      </div>
+
+      <div class="exec">
+        <span class="st" id="execSt" data-i18n="exec.hint">Carica un IFC per leggere le sue proprietà.</span>
+        <button class="btn primary run" id="runBtn" disabled>
+          <span data-i18n="btn.run">Esporta</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CHIUSURA ================= -->
+  <div class="pagefoot">
+    <p><span data-i18n="foot.note">Lo schema delle colonne si salva e si riusa: sul lotto successivo l'estrazione è un clic, e le coperture si confrontano fra revisioni. Nessun file lascia il computer.</span></p>
+    <nav>
+      <a href="https://github.com/arsray146/ifc-bcf-viewer" target="_blank" rel="noopener" data-i18n="foot.src">Codice sorgente</a>
+      <a class="go" href="../"><span data-i18n="foot.more">Altri strumenti</span>
+        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
+    </nav>
+  </div>
+
+</main>
+
+<!-- vista flottante dell'anteprima: la scheda .prev viene SPOSTATA qui dentro
+     (unica fonte di verità, niente markup duplicato) e riportata al banco alla chiusura -->
+<div class="prev-backdrop" id="prevBk" hidden></div>
+<div class="prev-overlay" id="prevOv" hidden></div>
+
+<!-- velo di attesa (caricamento / scrittura) -->
+<div class="veil" id="veil" hidden>
+  <div class="sp" aria-hidden="true"></div>
+  <span class="lb" id="veilLb"></span>
+</div>
+<!-- =========================================================================
+     MOTORE — estratto e testato da test/test_extract.js per id: NON rinominare
+     il blocco. Caricato come vero script, non con eval (che in strict mode
+     terrebbe le funzioni nel suo scope).
+     ========================================================================= -->
+<script type="text/engine" id="extractEngine">
+"use strict";
+/* ---- scanner STEP a byte, quote-aware (stesso dello Split, senza refPool) --
+   Un solo passaggio sulla Uint8Array: per ogni istruzione registra id, tipo e
+   intervallo di byte. Si decodificano solo le porzioni che servono.          */
+function extScan(bytes){
+  const n = bytes.length;
+  const HASH=35, SEMI=59, QUOTE=39, EQ=61, LPAR=40;
+  const dec = new TextDecoder();
+  const ids=[], starts=[], ends=[], typeIdx=[];
+  const typeNames=[], typeMap=new Map();
+  let dataStart = -1;
+  for(let i=0;i<n-4;i++){
+    if(bytes[i]===68&&bytes[i+1]===65&&bytes[i+2]===84&&bytes[i+3]===65&&bytes[i+4]===SEMI){ dataStart=i+5; break; }
+  }
+  if(dataStart<0) throw new Error("no DATA section");
+  let i = dataStart;
+  while(i<n){
+    while(i<n && bytes[i]!==HASH){
+      if(bytes[i]===69&&bytes[i+1]===78&&bytes[i+2]===68&&bytes[i+3]===83&&bytes[i+4]===69&&bytes[i+5]===67){ i=n; }
+      else i++;
+    }
+    if(i>=n) break;
+    const st=i; i++;
+    let id=0;
+    while(i<n && bytes[i]>=48 && bytes[i]<=57){ id=id*10+(bytes[i]-48); i++; }
+    while(i<n && bytes[i]!==EQ && bytes[i]!==SEMI) i++;
+    if(bytes[i]!==EQ){ i++; continue; }
+    i++;
+    while(i<n && (bytes[i]===32||bytes[i]===10||bytes[i]===13||bytes[i]===9)) i++;
+    const t0=i;
+    while(i<n && bytes[i]!==LPAR && bytes[i]!==SEMI) i++;
+    let tEnd=i; while(tEnd>t0 && bytes[tEnd-1]<=32) tEnd--;
+    const tName = dec.decode(bytes.subarray(t0,tEnd));
+    let inQ=false;
+    while(i<n){
+      const b=bytes[i];
+      if(inQ){ if(b===QUOTE){ if(bytes[i+1]===QUOTE) i++; else inQ=false; } }
+      else if(b===QUOTE) inQ=true;
+      else if(b===SEMI) break;
+      i++;
+    }
+    i++;
+    let ti = typeMap.get(tName);
+    if(ti===undefined){ ti=typeNames.length; typeNames.push(tName); typeMap.set(tName,ti); }
+    ids.push(id); starts.push(st); ends.push(i); typeIdx.push(ti);
+  }
+  const m = ids.length;
+  const idMap = new Map();
+  for(let k=0;k<m;k++) idMap.set(ids[k],k);
+  return { bytes, dataStart, count:m, ids, starts, ends, typeIdx, typeNames, typeMap, idMap, dec };
+}
+
+/* argomenti top-level di un'istruzione (stringhe grezze), quote/parentesi-aware */
+function extArgs(text){
+  const p0=text.indexOf("("), p1=text.lastIndexOf(")");
+  if(p0<0||p1<p0) return [];
+  const s=text.slice(p0+1,p1), out=[]; let d=0,q=false,cur="";
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(q){ cur+=c; if(c==="'"){ if(s[i+1]==="'"){cur+="'";i++;} else q=false; } continue; }
+    if(c==="'"){ q=true; cur+=c; }
+    else if(c==="("){ d++; cur+=c; }
+    else if(c===")"){ d--; cur+=c; }
+    else if(c===","&&d===0){ out.push(cur.trim()); cur=""; }
+    else cur+=c;
+  }
+  if(cur.trim()!=="") out.push(cur.trim());
+  return out;
+}
+function stmtText(model,k){ return model.dec.decode(model.bytes.subarray(model.starts[k],model.ends[k])); }
+function argName(a){ return (a&&a[0]==="'") ? a.slice(1,-1).replace(/''/g,"'") : null; }
+function refArg(a,model){ if(!a||a[0]!=="#") return -1; const id=parseInt(a.slice(1),10); const k=model.idMap.get(id); return k===undefined?-1:k; }
+function listArgs(a){ if(!a||a[0]!=="(") return []; return extArgs("x"+a); }
+function prettyClass(t){
+  // IFCWALLSTANDARDCASE → IfcWallStandardCase non è derivabile: basta la forma Ifc + resto capitalizzato
+  const MAP={IFCWALL:"IfcWall",IFCWALLSTANDARDCASE:"IfcWallStandardCase",IFCSLAB:"IfcSlab",IFCDOOR:"IfcDoor",IFCWINDOW:"IfcWindow",IFCCOVERING:"IfcCovering",IFCBEAM:"IfcBeam",IFCCOLUMN:"IfcColumn",IFCSTAIR:"IfcStair",IFCSTAIRFLIGHT:"IfcStairFlight",IFCRAILING:"IfcRailing",IFCROOF:"IfcRoof",IFCFURNISHINGELEMENT:"IfcFurnishingElement",IFCFLOWTERMINAL:"IfcFlowTerminal",IFCFLOWSEGMENT:"IfcFlowSegment",IFCFLOWFITTING:"IfcFlowFitting",IFCBUILDINGELEMENTPROXY:"IfcBuildingElementProxy",IFCPLATE:"IfcPlate",IFCMEMBER:"IfcMember",IFCFOOTING:"IfcFooting",IFCPILE:"IfcPile",IFCCURTAINWALL:"IfcCurtainWall",IFCSPACE:"IfcSpace",IFCOPENINGELEMENT:"IfcOpeningElement",IFCALIGNMENT:"IfcAlignment",IFCANNOTATION:"IfcAnnotation",IFCELEMENTASSEMBLY:"IfcElementAssembly"};
+  return MAP[t] || ("Ifc"+t.slice(3).charAt(0)+t.slice(4).toLowerCase());
+}
+
+/* ---- valore di una IfcValue / argomento grezzo --------------------------
+   'X' → testo · IFCLABEL('X') → testo · IFCREAL(2.5) / 2.5 → numero ·
+   .T./.F. → TRUE/FALSE · .ENUM. → ENUM · $ / * → null                      */
+function ifcVal(raw){
+  let s=(raw==null?"":String(raw)).trim();
+  if(!s||s==="$"||s==="*") return null;
+  const mm=s.match(/^[A-Z0-9_]+\((.*)\)$/s);
+  if(mm) s=mm[1].trim();
+  if(!s||s==="$") return null;
+  if(s[0]==="'") return { v:s.slice(1,-1).replace(/''/g,"'"), num:false };
+  if(s===".T.") return { v:"TRUE", num:false };
+  if(s===".F.") return { v:"FALSE", num:false };
+  if(s===".U.") return null;
+  const en=s.match(/^\.([A-Z0-9_]+)\.$/);
+  if(en) return { v:en[1], num:false };
+  const f=parseFloat(s.replace(/[eE]([+-]?\d+)$/,"e$1"));
+  if(isFinite(f) && /^[+-]?[\d.]/.test(s)) return { v:f, num:true };
+  return { v:s, num:false };
+}
+
+/* ---- unità: SOLO quelle dentro l'IfcUnitAssignment (gated, come nel
+   Georeference Editor: un IFCSIUNIT sciolto non deve inquinare le etichette) */
+function extUnits(model){
+  const T=model.typeNames, TI=model.typeIdx, m=model.count;
+  const out={};
+  let ua=-1;
+  for(let k=0;k<m;k++) if(T[TI[k]]==="IFCUNITASSIGNMENT"){ ua=k; break; }
+  if(ua<0) return out;
+  const PFX={EXA:"E",PETA:"P",TERA:"T",GIGA:"G",MEGA:"M",KILO:"k",HECTO:"h",DECA:"da",DECI:"d",CENTI:"c",MILLI:"m",MICRO:"µ",NANO:"n"};
+  const BASE={METRE:"m",SQUARE_METRE:"m²",CUBIC_METRE:"m³",GRAM:"g",SECOND:"s",DEGREE_CELSIUS:"°C",NEWTON:"N",WATT:"W"};
+  const list=listArgs(extArgs(stmtText(model,ua))[0]);
+  for(const r of list){
+    const k=refArg(r,model); if(k<0) continue;
+    const t=T[TI[k]], a=extArgs(stmtText(model,k));
+    if(t==="IFCSIUNIT"){
+      const kind=(a[1]||"").replace(/\./g,"");
+      const pfx=(a[2]||"").replace(/\./g,""), base=(a[3]||"").replace(/\./g,"");
+      let lbl=(PFX[pfx]||"")+(BASE[base]||base.toLowerCase());
+      /* il prefisso su m²/m³ nella pratica è sul lato lineare: mm² → si scrive così */
+      if(base==="SQUARE_METRE"&&PFX[pfx]) lbl=PFX[pfx]+"m²";
+      if(base==="CUBIC_METRE"&&PFX[pfx]) lbl=PFX[pfx]+"m³";
+      out[kind]=lbl;
+    }else if(t==="IFCCONVERSIONBASEDUNIT"){
+      const kind=(a[1]||"").replace(/\./g,"");
+      const nm=argName(a[2]); if(nm) out[kind]=nm;
+    }
+  }
+  return out;
+}
+
+/* ---- indice: righe, piani, tipi, Pset, quantità -------------------------- */
+const EXT_SPATIAL = new Set(["IFCPROJECT","IFCSITE","IFCBUILDING","IFCBUILDINGSTOREY","IFCSPACE","IFCFACILITY","IFCROAD","IFCRAILWAY","IFCBRIDGE","IFCMARINEFACILITY","IFCFACILITYPART","IFCROADPART","IFCRAILWAYPART","IFCBRIDGEPART","IFCMARINEPART","IFCFACILITYPARTCOMMON"]);
+const QKIND={IFCQUANTITYLENGTH:"LENGTHUNIT",IFCQUANTITYAREA:"AREAUNIT",IFCQUANTITYVOLUME:"VOLUMEUNIT",IFCQUANTITYCOUNT:"",IFCQUANTITYWEIGHT:"MASSUNIT",IFCQUANTITYTIME:"TIMEUNIT"};
+function extIndex(model){
+  const T=model.typeNames, TI=model.typeIdx, m=model.count;
+  const contain=[], refd=[], aggr=new Map();
+  const defProps=[], elemType=new Map(), typeSet=new Set();
+  const psets=new Map(), qtos=new Map(), psv=new Map(), qty=new Map();
+  for(let k=0;k<m;k++){
+    const t=T[TI[k]];
+    if(t==="IFCRELCONTAINEDINSPATIALSTRUCTURE"||t==="IFCRELREFERENCEDINSPATIALSTRUCTURE"){
+      const a=extArgs(stmtText(model,k));
+      const kids=listArgs(a[4]).map(x=>refArg(x,model)).filter(x=>x>=0), st=refArg(a[5],model);
+      if(st<0) continue;
+      (t==="IFCRELCONTAINEDINSPATIALSTRUCTURE"?contain:refd).push({st,kids});
+    }else if(t==="IFCRELAGGREGATES"||t==="IFCRELNESTS"){
+      const a=extArgs(stmtText(model,k));
+      const rel=refArg(a[4],model), kids=listArgs(a[5]).map(x=>refArg(x,model)).filter(x=>x>=0);
+      if(rel<0) continue;
+      aggr.set(rel,(aggr.get(rel)||[]).concat(kids));       // CONCATENATE: un exporter può emettere una relazione per figlio
+    }else if(t==="IFCRELDEFINESBYPROPERTIES"){
+      const a=extArgs(stmtText(model,k));
+      const els=listArgs(a[4]).map(x=>refArg(x,model)).filter(x=>x>=0), pd=refArg(a[5],model);
+      if(pd>=0&&els.length) defProps.push({els,pd});
+    }else if(t==="IFCRELDEFINESBYTYPE"){
+      const a=extArgs(stmtText(model,k));
+      const els=listArgs(a[4]).map(x=>refArg(x,model)).filter(x=>x>=0), ty=refArg(a[5],model);
+      if(ty<0) continue;
+      typeSet.add(ty);
+      for(const e of els) if(!elemType.has(e)) elemType.set(e,ty);
+    }else if(t==="IFCPROPERTYSET"){
+      const a=extArgs(stmtText(model,k));
+      psets.set(k,{name:argName(a[2])||"Pset",list:listArgs(a[4]).map(x=>refArg(x,model)).filter(x=>x>=0)});
+    }else if(t==="IFCELEMENTQUANTITY"){
+      const a=extArgs(stmtText(model,k));
+      qtos.set(k,{name:argName(a[2])||"Qto",list:listArgs(a[5]).map(x=>refArg(x,model)).filter(x=>x>=0)});
+    }else if(t==="IFCPROPERTYSINGLEVALUE"){
+      const a=extArgs(stmtText(model,k));
+      const nm=argName(a[0]); if(!nm) continue;
+      const v=ifcVal(a[2]); if(v!=null) psv.set(k,{name:nm,val:v.v,num:v.num});
+    }else if(t==="IFCPROPERTYENUMERATEDVALUE"){
+      const a=extArgs(stmtText(model,k));
+      const nm=argName(a[0]); if(!nm) continue;
+      const vals=listArgs(a[2]).map(ifcVal).filter(Boolean).map(x=>x.v);
+      if(vals.length) psv.set(k,{name:nm,val:vals.join(", "),num:false});
+    }else if(QKIND[t]!==undefined){
+      const a=extArgs(stmtText(model,k));
+      const nm=argName(a[0]); if(!nm) continue;
+      const f=parseFloat(a[3]);
+      if(isFinite(f)) qty.set(k,{name:nm,val:f,ukind:QKIND[t]});
+    }
+  }
+  /* spaziale = tipo noto OPPURE usato come RelatingStructure (contenitori
+     inventati dagli exporter infrastrutturali, lezione SS106 dello Split) */
+  const structSet=new Set();
+  for(const r of contain) structSet.add(r.st);
+  for(const r of refd) structSet.add(r.st);
+  const isSp = k => EXT_SPATIAL.has(T[TI[k]]) || structSet.has(k);
+  /* catena spaziale per il piano: figlio spaziale → padre spaziale */
+  const spParent=new Map();
+  for(const [rel,kids] of aggr) if(isSp(rel)) for(const c of kids) if(isSp(c)&&!spParent.has(c)) spParent.set(c,rel);
+  const nameCache=new Map();
+  const nameOf = k => {
+    let nm=nameCache.get(k);
+    if(nm===undefined){ nm=argName(extArgs(stmtText(model,k))[2])||""; nameCache.set(k,nm); }
+    return nm;
+  };
+  function storeyOf(st){
+    let cur=st, hops=0;
+    while(cur!=null&&hops<64){
+      if(T[TI[cur]]==="IFCBUILDINGSTOREY") return nameOf(cur)||"?";
+      cur=spParent.get(cur); hops++;
+    }
+    return nameOf(st)||prettyClass(T[TI[st]]);        // niente piano: vale il contenitore (strade, parti)
+  }
+  /* universo delle righe: contenuti (Contained prima, Referenced solo se non
+     già dentro) + figli non spaziali dei nodi spaziali (alignment & co.) +
+     discesa negli assembly via Aggregates/Nests                              */
+  const rowIdx=new Map();                              // idx entità → posizione riga
+  const rows=[];
+  function addRow(k,st){
+    if(rowIdx.has(k)||isSp(k)) return;
+    rowIdx.set(k,rows.length);
+    rows.push({k, clsRaw:T[TI[k]], storey:storeyOf(st), st});
+    for(const c of (aggr.get(k)||[])) addRow(c,st);    // parti di assembly: stessa collocazione dell'antenato
+  }
+  for(const r of contain) for(const c of r.kids) addRow(c,r.st);
+  for(const [rel,kids] of aggr) if(isSp(rel)) for(const c of kids) if(!isSp(c)) addRow(c,rel);
+  for(const r of refd) for(const c of r.kids) addRow(c,r.st);
+  /* valori per riga (chiavi complete: p:Pset.Prop · q:Qto.Q) e per tipo */
+  const values=new Map(), typeVals=new Map();
+  function bagOf(map,k){ let b=map.get(k); if(!b){ b=new Map(); map.set(k,b); } return b; }
+  function addDef(target,pd){
+    const ps=psets.get(pd);
+    if(ps){ for(const p of ps.list){ const pv=psv.get(p); if(pv&&!target.has("p:"+ps.name+"."+pv.name)) target.set("p:"+ps.name+"."+pv.name,{v:pv.val,num:pv.num}); } return; }
+    const q=qtos.get(pd);
+    if(q){ for(const p of q.list){ const qv=qty.get(p); if(qv&&!target.has("q:"+q.name+"."+qv.name)) target.set("q:"+q.name+"."+qv.name,{v:qv.val,num:true,ukind:qv.ukind}); } }
+  }
+  for(const {els,pd} of defProps){
+    for(const e of els){
+      if(rowIdx.has(e)) addDef(bagOf(values,e),pd);
+      else if(typeSet.has(e)) addDef(bagOf(typeVals,e),pd);   // RelDefinesByProperties può puntare anche a un tipo
+    }
+  }
+  for(const ty of typeSet){                            // HasPropertySets del tipo (arg 5 di IfcTypeObject)
+    const a=extArgs(stmtText(model,ty));
+    for(const r of listArgs(a[5])){
+      const pd=refArg(r,model); if(pd>=0) addDef(bagOf(typeVals,ty),pd);
+    }
+  }
+  /* attributi diretti + tipo per riga */
+  for(const row of rows){
+    const a=extArgs(stmtText(model,row.k));
+    row.gid=argName(a[0])||""; row.name=argName(a[2])||"";
+    row.desc=argName(a[3])||""; row.otype=argName(a[4])||"";
+    const ty=elemType.get(row.k);
+    row.ty=(ty===undefined)?-1:ty;
+    row.typeName=(ty===undefined)?"":(nameOf(ty)||"");
+  }
+  /* catalogo sorgenti con conteggio righe compilate */
+  const total=rows.length;
+  const sources=new Map();
+  function bump(key,meta){
+    let s=sources.get(key);
+    if(!s){ s=Object.assign({count:0},meta); sources.set(key,s); }
+    s.count++;
+    return s;
+  }
+  const units=extUnits(model);
+  for(const row of rows){
+    if(row.gid) bump("a:GlobalId",{kind:"a",label:"GlobalId"});
+    if(row.name) bump("a:Name",{kind:"a",label:"Name"});
+    if(row.desc) bump("a:Description",{kind:"a",label:"Description"});
+    if(row.otype) bump("a:ObjectType",{kind:"a",label:"ObjectType"});
+    bump("m:class",{kind:"m",label:"is_a()"});
+    if(row.storey) bump("m:storey",{kind:"m",label:"IfcBuildingStorey.Name"});
+    if(row.typeName) bump("m:type",{kind:"m",label:"Type.Name",typ:true});
+    const vm=values.get(row.k);
+    if(vm) for(const [key,val] of vm){
+      const s=bump(key,{kind:key[0]==="q"?"q":"p",label:key.slice(2),num:!!val.num});
+      if(val.ukind!=null&&s.unit==null) s.unit=units[val.ukind]||null;
+      if(val.num) s.num=true;
+    }
+    /* chiavi portate SOLO dal tipo: contano come "tp:" (badge tipo) */
+    if(row.ty>=0){
+      const tv=typeVals.get(row.ty);
+      if(tv) for(const [key,val] of tv){
+        if(values.get(row.k)&&values.get(row.k).has(key)) continue;
+        const s=bump("t"+key,{kind:"tp",label:key.slice(2),num:!!val.num,typ:true});
+        if(val.ukind!=null&&s.unit==null) s.unit=units[val.ukind]||null;
+      }
+    }
+  }
+  /* classi ordinate per numerosità */
+  const clsCount=new Map();
+  for(const row of rows){ row.cls=prettyClass(row.clsRaw); clsCount.set(row.cls,(clsCount.get(row.cls)||0)+1); }
+  const classes=[...clsCount.entries()].map(([cls,n])=>({cls,n})).sort((x,y)=>y.n-x.n||(x.cls<y.cls?-1:1));
+  let psetNames=new Set();
+  for(const ps of psets.values()) psetNames.add(ps.name);
+  return { model, rows, values, typeVals, sources, classes, units, total, psetCount:psetNames.size };
+}
+
+/* ---- cella per riga + chiave -------------------------------------------
+   opts.inherit: per le chiavi p:* mancanti sull'istanza vale il tipo.
+   Ritorna {v,num} o null.                                                   */
+function extCell(idx,row,key,opts){
+  const inherit=!(opts&&opts.inherit===false);
+  switch(key){
+    case "a:GlobalId": return row.gid?{v:row.gid,num:false}:null;
+    case "a:Name": return row.name?{v:row.name,num:false}:null;
+    case "a:Description": return row.desc?{v:row.desc,num:false}:null;
+    case "a:ObjectType": return row.otype?{v:row.otype,num:false}:null;
+    case "m:class": return {v:row.cls,num:false};
+    case "m:storey": return row.storey?{v:row.storey,num:false}:null;
+    case "m:type": return row.typeName?{v:row.typeName,num:false}:null;
+  }
+  if(key.startsWith("tp:")||key.startsWith("tq:")){
+    if(row.ty<0) return null;
+    const tv=idx.typeVals.get(row.ty);
+    return (tv&&tv.get(key.slice(1)))||null;
+  }
+  const vm=idx.values.get(row.k);
+  const own=vm&&vm.get(key);
+  if(own) return own;
+  if(inherit&&row.ty>=0){
+    const tv=idx.typeVals.get(row.ty);
+    const tvv=tv&&tv.get(key);
+    if(tvv) return tvv;
+  }
+  return null;
+}
+
+/* copertura globale (sulle righe-elemento, qualunque sia la modalità) */
+function extCoverage(idx,keys,opts){
+  const out=new Map();
+  for(const key of keys) out.set(key,0);
+  for(const row of idx.rows)
+    for(const key of keys)
+      if(extCell(idx,row,key,opts)!=null) out.set(key,out.get(key)+1);
+  return out;
+}
+
+/* dove mancano: distribuzione delle celle vuote di una colonna per piano */
+function extGapWhere(idx,key,opts){
+  const per=new Map();
+  for(const row of idx.rows){
+    if(extCell(idx,row,key,opts)!=null) continue;
+    const s=row.storey||"?";
+    per.set(s,(per.get(s)||0)+1);
+  }
+  return [...per.entries()].map(([storey,n])=>({storey,n})).sort((a,b)=>b.n-a.n);
+}
+
+/* ---- fogli --------------------------------------------------------------
+   cols: [{key,header}] · opts:{mode:'el'|'group', groupKey, inherit, skip,
+   mixedLabel, groupHeader, countHeader} — i vecchi mode 'type'/'storey'
+   restano come alias di group su m:type / m:storey.
+   In modalità group la colonna raggruppata ESCE dalle colonne e diventa
+   l'etichetta del gruppo (prima colonna), seguita dal conteggio elementi.
+   Ritorna [{name, cols:[{key,header,unit,num}], rows:[[cell|null]],
+             empties:[n per colonna], hidden:righe saltate}]                 */
+function extSheets(idx,cols,opts){
+  opts=opts||{};
+  let mode=opts.mode||"el", gkey=null;
+  if(mode==="group") gkey=opts.groupKey||null;
+  else if(mode==="type"){ gkey="m:type"; mode="group"; }
+  else if(mode==="storey"){ gkey="m:storey"; mode="group"; }
+  if(mode==="group"&&!gkey) mode="el";
+  const meta=cols.filter(c=>mode!=="group"||c.key!==gkey).map(c=>{
+    const s=idx.sources.get(c.key);
+    return { key:c.key, header:c.header, unit:(s&&s.unit)||null, num:!!(s&&s.num) };
+  });
+  const out=[];
+  for(const {cls} of idx.classes){
+    const rws=idx.rows.filter(r=>r.cls===cls);
+    let name=cls, table=[], hidden=0;
+    if(mode==="el"){
+      for(const row of rws){
+        const line=meta.map(c=>extCell(idx,row,c.key,opts));
+        if(opts.skip&&line.some(x=>x==null)){ hidden++; continue; }
+        table.push(line);
+      }
+      out.push({name, cols:meta.slice(), rows:table, hidden});
+    }else{
+      const keyOf = r => { const x=extCell(idx,r,gkey,opts); return x==null?"—":String(x.v); };
+      const groups=new Map();
+      for(const row of rws){
+        let g=groups.get(keyOf(row)); if(!g){ g=[]; groups.set(keyOf(row),g); }
+        g.push(row);
+      }
+      const gsel=cols.find(c=>c.key===gkey);
+      const gcols=[{key:"_g",header:opts.groupHeader||(gsel&&gsel.header)||gkey.replace(/^[a-z]+:/,""),unit:null,num:false},
+                   {key:"_n",header:opts.countHeader||"Elementi",unit:null,num:true}].concat(meta);
+      for(const [gname,grows] of groups){
+        const line=[{v:gname,num:false},{v:grows.length,num:true}];
+        for(const c of meta){
+          if(c.num){
+            let sum=0, any=false;
+            for(const row of grows){ const x=extCell(idx,row,c.key,opts); if(x!=null&&x.num){ sum+=x.v; any=true; } }
+            line.push(any?{v:Math.round(sum*100)/100,num:true}:null);
+          }else{
+            let first, mixed=false, any=false;
+            for(const row of grows){
+              const x=extCell(idx,row,c.key,opts);
+              const v=x==null?null:x.v;
+              if(!any){ first=v; any=true; }
+              else if(v!==first) mixed=true;
+            }
+            line.push(mixed?{v:opts.mixedLabel||"≠",num:false}:(first==null?null:{v:first,num:false}));
+          }
+        }
+        if(opts.skip&&line.some(x=>x==null)){ hidden++; continue; }
+        table.push(line);
+      }
+      table.sort((a,b)=>String(a[0].v).localeCompare(String(b[0].v)));
+      out.push({name, cols:gcols, rows:table, hidden});
+    }
+  }
+  for(const sh of out){
+    sh.empties=sh.cols.map(()=>0);
+    for(const line of sh.rows)
+      line.forEach((x,i)=>{ if(x==null) sh.empties[i]++; });
+  }
+  return out.filter(sh=>sh.rows.length||sh.hidden);
+}
+
+/* ---- CSV: un file unico, colonna Classe in testa se i fogli sono più di uno */
+function extCsv(sheets,opts){
+  opts=opts||{};
+  const sep=opts.sep||";", dec=opts.dec||".", classHeader=opts.classHeader||"Classe";
+  const multi=sheets.length>1;
+  const esc=v=>{
+    let s=String(v);
+    if(dec!=="."&&typeof v==="number") s=s.replace(".",dec);
+    return (s.includes(sep)||s.includes('"')||s.includes("\n")) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  };
+  const lines=[];
+  const c0=sheets[0]?sheets[0].cols:[];
+  lines.push((multi?[classHeader]:[]).concat(c0.map(c=>c.header+(c.unit?" ["+c.unit+"]":""))).map(esc).join(sep));
+  for(const sh of sheets)
+    for(const line of sh.rows)
+      lines.push((multi?[sh.name]:[]).concat(line.map(x=>x==null?"":(x.num?x.v:x.v))).map(x=>x===""?"":esc(x)).join(sep));
+  return lines.join("\r\n")+"\r\n";
+}
+
+/* ---- XLSX: zip store scritto a mano (come lo .zip dello Split) ----------
+   Inline strings (niente sharedStrings), un foglio per classe, stile ambra
+   sulle celle vuote quando opts.mark, 0.00 sulle colonne quantità.          */
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c;}return t;})();
+function crc32(parts){ let c=0xFFFFFFFF;
+  for(const p of parts) for(let i=0;i<p.length;i++) c=CRC_T[(c^p[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0; }
+function makeZip(entries){
+  const enc=new TextEncoder(), chunks=[], central=[];
+  let off=0;
+  const u16=v=>new Uint8Array([v&255,(v>>8)&255]);
+  const u32=v=>new Uint8Array([v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255]);
+  for(const e of entries){
+    const nm=enc.encode(e.name);
+    const loc=[u32(0x04034b50),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(e.crc),u32(e.size),u32(e.size),u16(nm.length),u16(0),nm];
+    const hdrLen=loc.reduce((s,x)=>s+x.length,0);
+    chunks.push(...loc,...e.parts);
+    central.push({nm,crc:e.crc,size:e.size,off});
+    off+=hdrLen+e.size;
+  }
+  const cd=[]; let cdLen=0;
+  for(const c of central){
+    const rec=[u32(0x02014b50),u16(20),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(c.crc),u32(c.size),u32(c.size),u16(c.nm.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(c.off),c.nm];
+    cd.push(...rec); cdLen+=rec.reduce((s,x)=>s+x.length,0);
+  }
+  const end=[u32(0x06054b50),u16(0),u16(0),u16(central.length),u16(central.length),u32(cdLen),u32(off),u16(0)];
+  return [...chunks,...cd,...end];
+}
+function xmlEsc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function colLetter(i){ let s=""; i++; while(i>0){ const r=(i-1)%26; s=String.fromCharCode(65+r)+s; i=(i-1-r)/26; } return s; }
+function sheetSafe(name,taken){
+  let s=String(name).replace(/[\[\]:*?\/\\]/g,"_").slice(0,31)||"Foglio";
+  let base=s, n=2;
+  while(taken.has(s)){ const suf=" ("+n+")"; s=base.slice(0,31-suf.length)+suf; n++; }
+  taken.add(s);
+  return s;
+}
+function extXlsx(sheets,opts){
+  opts=opts||{};
+  const mark=opts.mark!==false;
+  const taken=new Set();
+  const names=sheets.map(sh=>sheetSafe(sh.name,taken));
+  const files=[];
+  const push=(name,text)=>files.push({name,text});
+  push("[Content_Types].xml",
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+    '<Default Extension="xml" ContentType="application/xml"/>'+
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+
+    sheets.map((_,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("")+
+    '</Types>');
+  push("_rels/.rels",
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'+
+    '</Relationships>');
+  push("xl/workbook.xml",
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+
+    sheets.map((_,i)=>'<sheet name="'+xmlEsc(names[i])+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join("")+
+    '</sheets></workbook>');
+  push("xl/_rels/workbook.xml.rels",
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+    sheets.map((_,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join("")+
+    '<Relationship Id="rId'+(sheets.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'+
+    '</Relationships>');
+  /* stili: 0 base · 1 intestazione (bold) · 2 quantità (0.00) · 3 cella vuota segnata (ambra) */
+  push("xl/styles.xml",
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+    '<numFmts count="1"><numFmt numFmtId="164" formatCode="0.00"/></numFmts>'+
+    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'+
+    '<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'+
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFF7E3BC"/><bgColor rgb="FFF7E3BC"/></patternFill></fill></fills>'+
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'+
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+    '<cellXfs count="4">'+
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+
+    '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+
+    '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'+
+    '<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/>'+
+    '</cellXfs></styleSheet>');
+  sheets.forEach((sh,si)=>{
+    const buf=['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>'];
+    sh.cols.forEach((c,ci)=>{
+      let w=Math.max(String(c.header).length+2,8);
+      for(let ri=0;ri<Math.min(sh.rows.length,60);ri++){
+        const x=sh.rows[ri][ci];
+        if(x!=null) w=Math.max(w,Math.min(String(x.v).length+2,44));
+      }
+      buf.push('<col min="'+(ci+1)+'" max="'+(ci+1)+'" width="'+w+'" customWidth="1"/>');
+    });
+    buf.push('</cols><sheetData><row r="1">');
+    sh.cols.forEach((c,ci)=>{
+      const h=c.header+(c.unit?" ["+c.unit+"]":"");
+      buf.push('<c r="'+colLetter(ci)+'1" s="1" t="inlineStr"><is><t xml:space="preserve">'+xmlEsc(h)+'</t></is></c>');
+    });
+    buf.push('</row>');
+    sh.rows.forEach((line,ri)=>{
+      buf.push('<row r="'+(ri+2)+'">');
+      line.forEach((x,ci)=>{
+        const ref=colLetter(ci)+(ri+2);
+        if(x==null){ if(mark) buf.push('<c r="'+ref+'" s="3"/>'); return; }
+        if(x.num) buf.push('<c r="'+ref+'"'+(sh.cols[ci].unit?' s="2"':'')+'><v>'+x.v+'</v></c>');
+        else buf.push('<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+xmlEsc(x.v)+'</t></is></c>');
+      });
+      buf.push('</row>');
+    });
+    buf.push('</sheetData></worksheet>');
+    push("xl/worksheets/sheet"+(si+1)+".xml",buf.join(""));
+  });
+  const enc=new TextEncoder();
+  const entries=files.map(f=>{
+    const b=enc.encode(f.text);
+    return { name:f.name, parts:[b], size:b.length, crc:crc32([b]) };
+  });
+  return makeZip(entries);
+}
+
+/* stima grossolana della dimensione in uscita (solo per l'etichetta) */
+function extEstimate(sheets,fmt){
+  let cells=0, chars=0;
+  for(const sh of sheets){
+    for(const line of sh.rows){ cells+=line.length; for(const x of line) if(x!=null) chars+=String(x.v).length; }
+  }
+  return fmt==="csv" ? chars+cells*2+64 : chars+cells*34+2048*(sheets.length+4);
+}
+</script>
+<script>
+/* =========================================================================
+   i18n — parità stretta IT/EN (convenzione di progetto: tr(), mai t())
+   ========================================================================= */
+const I18N = {
+  it:{
+    "nav.home":"Vai a viewifc.com","nav.tools":"Strumenti","nav.here":"Estrazione dati","cta.open":"Apri il viewer",
+    "head.kicker":"Strumento 07","head.tag":"Client-side","head.beta":"Prima versione",
+    "head.lead":"Porta le proprietà dell'IFC in un foglio di calcolo. Ogni colonna dichiara su quante righe è compilata: quello che manca nel modello si vede prima di esportarlo, non dopo.",
+    "spec.in":"Ingresso","spec.inV":"1 file .ifc","spec.out":"Uscita",
+    "spec.ret":"Ritorno","spec.retV":"no · solo lettura",
+    "tab.schema":"Schema delle colonne","tab.prev":"Anteprima del foglio",
+    "drop.chip":"Trascina il file .ifc o sfoglia",
+    "drop.big":"Trascina qui il file .ifc, o clicca per sfogliare",
+    "drop.hint":"nessun upload: la lettura avviene nel browser · le proprietà trovate compaiono qui",
+    "f.remove":"Rimuovi il file",
+    "f.meta":"{el} elem. · {cl} classi · {ps} Pset",
+    "diag.resumed":"Schema ripreso dall'ultima sessione · {n} colonne",
+    "schema.fresh":"riparti dalle colonne di base",
+    "sch.t":"Colonne del foglio","sch.n":"{n} · trascina per riordinare",
+    "sch.hint":"clic sull'intestazione per rinominarla",
+    "sch.h1":"Intestazione","sch.h2":"Da","sch.h3":"Compilata",
+    "sch.add":"Aggiungi una colonna — cerca nel catalogo qui sotto",
+    "src.missing":"assente nel file","n.vuote":"{n} vuote","u.dec":"2 dec.",
+    "cat.k":"Proprietà nel file — {n}, copertura accanto",
+    "cat.search":"cerca una proprietà…","cat.base":"Attributi e struttura","cat.inTable":"{n} in tabella",
+    "cat.moreG":"mostra altri {n} gruppi","cat.lessG":"mostra meno",
+    "cat.none":"Nessuna proprietà corrisponde alla ricerca.",
+    "rows.k":"Righe","mode.el":"Un elemento per riga",
+    "rows.groupBtn":"Raggruppa per…","rows.groupOn":"Raggruppa per: {c}",
+    "pick.col":"Scegli la colonna per il raggruppamento",
+    "prev.expand":"Allarga il foglio","prev.shrink":"Chiudi la vista allargata",
+    "grp.type":"Tipo","grp.storey":"Piano","col.count":"Elementi","cell.mixed":"(varie)","cell.empty":"vuota",
+    "def.id":"ID","def.name":"Denominazione","def.class":"Classe IFC",
+    "prev.hint":"l'anteprima è il foglio: quello che vedi qui è quello che si apre in Excel",
+    "prev.more":"… altre {n} righe in {cls}","prev.all":"tutte le {n} righe di {cls} sono qui",
+    "prev.onlyEmpty":"mostra solo le righe con celle vuote","prev.onlyEmptyOff":"mostra tutte le righe",
+    "prev.addcol":"Aggiungi una colonna","prev.none":"Nessuna riga da mostrare con questo filtro.",
+    "prev.moreTabs":"+ {n}",
+    "out.t":"Cosa esce","out.rows":"Righe","out.cols":"Colonne","out.sheets":"Fogli","out.suffix":"_dati",
+    "out.sheetsV":"1 per classe · {n}","out.sheetsCsv":"1 file · colonna Classe","out.sheets1":"1 foglio",
+    "gap.k":"Dove il modello è incompleto",
+    "gap.one":"Tutte o quasi in {s}.","gap.two":"Soprattutto in {a} e {b}.","gap.spread":"Sparse su {n} collocazioni.",
+    "gap.noType":"Nessun tipo la porta come proprietà di tipo, quindi non si eredita.",
+    "gap.hasType":"Il tipo la porta: con «Eredita dal tipo» una parte delle vuote si compila.",
+    "gap.exclude":"Escludi la colonna",
+    "gap.ok":"Nessuna colonna sotto il 90%: il foglio esce pieno.",
+    "tg.mark":"Segna le celle vuote","tg.inherit":"Eredita dal tipo se manca","tg.skip":"Salta le righe incomplete",
+    "exec.hint":"Carica un IFC per leggere le sue proprietà.",
+    "exec.ready":"~{sz} stimati","exec.skip":"~{sz} · {n} righe incomplete saltate",
+    "exec.done":"Scaricato {f}.","exec.noCols":"Aggiungi almeno una colonna.",
+    "btn.run":"Esporta",
+    "veil.read":"lettura del file…","veil.index":"indice delle proprietà…","veil.write":"scrittura del foglio…",
+    "err.parse":"Questo file non sembra un IFC: manca la sezione DATA.",
+    "err.empty":"Nessun elemento raggiungibile dalla struttura spaziale del file.",
+    "foot.note":"Lo schema delle colonne si salva e si riusa: sul lotto successivo l'estrazione è un clic, e le coperture si confrontano fra revisioni. Nessun file lascia il computer.",
+    "foot.src":"Codice sorgente","foot.more":"Altri strumenti",
+  },
+  en:{
+    "nav.home":"Go to viewifc.com","nav.tools":"Tools","nav.here":"Data extraction","cta.open":"Open the viewer",
+    "head.kicker":"Tool 07","head.tag":"Client-side","head.beta":"First release",
+    "head.lead":"Brings the IFC properties into a spreadsheet. Every column declares how many rows actually carry it: what the model is missing shows up before you export, not after.",
+    "spec.in":"Input","spec.inV":"1 .ifc file","spec.out":"Output",
+    "spec.ret":"Round-trip","spec.retV":"no · read-only",
+    "tab.schema":"Column schema","tab.prev":"Sheet preview",
+    "drop.chip":"Drop the .ifc file or browse",
+    "drop.big":"Drop the .ifc file here, or click to browse",
+    "drop.hint":"no upload: reading happens in the browser · the properties found appear here",
+    "f.remove":"Remove the file",
+    "f.meta":"{el} elem. · {cl} classes · {ps} Psets",
+    "diag.resumed":"Schema resumed from your last session · {n} columns",
+    "schema.fresh":"start from the base columns",
+    "sch.t":"Sheet columns","sch.n":"{n} · drag to reorder",
+    "sch.hint":"click a header to rename it",
+    "sch.h1":"Header","sch.h2":"From","sch.h3":"Filled",
+    "sch.add":"Add a column — search the catalogue below",
+    "src.missing":"not in this file","n.vuote":"{n} empty","u.dec":"2 dec.",
+    "cat.k":"Properties in the file — {n}, coverage alongside",
+    "cat.search":"search a property…","cat.base":"Attributes and structure","cat.inTable":"{n} in the table",
+    "cat.moreG":"show {n} more groups","cat.lessG":"show fewer",
+    "cat.none":"No property matches the search.",
+    "rows.k":"Rows","mode.el":"One element per row",
+    "rows.groupBtn":"Group by…","rows.groupOn":"Group by: {c}",
+    "pick.col":"Pick the column to group by",
+    "prev.expand":"Expand the sheet","prev.shrink":"Close the expanded view",
+    "grp.type":"Type","grp.storey":"Storey","col.count":"Elements","cell.mixed":"(mixed)","cell.empty":"empty",
+    "def.id":"ID","def.name":"Name","def.class":"IFC class",
+    "prev.hint":"the preview is the sheet: what you see here is what opens in Excel",
+    "prev.more":"… {n} more rows in {cls}","prev.all":"all {n} rows of {cls} are here",
+    "prev.onlyEmpty":"show only rows with empty cells","prev.onlyEmptyOff":"show all rows",
+    "prev.addcol":"Add a column","prev.none":"No rows to show with this filter.",
+    "prev.moreTabs":"+ {n}",
+    "out.t":"What comes out","out.rows":"Rows","out.cols":"Columns","out.sheets":"Sheets","out.suffix":"_data",
+    "out.sheetsV":"1 per class · {n}","out.sheetsCsv":"1 file · Class column","out.sheets1":"1 sheet",
+    "gap.k":"Where the model is incomplete",
+    "gap.one":"All or almost all in {s}.","gap.two":"Mostly in {a} and {b}.","gap.spread":"Spread across {n} locations.",
+    "gap.noType":"No type carries it as a type property, so it does not inherit.",
+    "gap.hasType":"The type carries it: with “Inherit from type” part of the blanks fill in.",
+    "gap.exclude":"Drop the column",
+    "gap.ok":"No column below 90%: the sheet comes out full.",
+    "tg.mark":"Flag empty cells","tg.inherit":"Inherit from type if missing","tg.skip":"Skip incomplete rows",
+    "exec.hint":"Load an IFC to read its properties.",
+    "exec.ready":"~{sz} estimated","exec.skip":"~{sz} · {n} incomplete rows skipped",
+    "exec.done":"Downloaded {f}.","exec.noCols":"Add at least one column.",
+    "btn.run":"Export",
+    "veil.read":"reading the file…","veil.index":"indexing the properties…","veil.write":"writing the sheet…",
+    "err.parse":"This file does not look like an IFC: the DATA section is missing.",
+    "err.empty":"No element reachable from the file's spatial structure.",
+    "foot.note":"The column schema saves itself and gets reused: on the next batch the extraction is one click, and coverage compares across revisions. No file leaves your computer.",
+    "foot.src":"Source code","foot.more":"More tools",
+  }
+};
+let LANG = "it";
+try{ const s=localStorage.getItem("viewifc_tool_lang"); if(s&&I18N[s]) LANG=s; }catch(e){}
+function tr(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : (I18N.it[k] ?? k); }
+function fmt(k,vars){ let s=tr(k); for(const v in vars) s=s.replace("{"+v+"}",vars[v]); return s; }
+function nf(n,dec){ return Number(n).toLocaleString(LANG==="it"?"it-IT":"en-US",{maximumFractionDigits:dec==null?2:dec,minimumFractionDigits:0}); }
+function mb(bytes){ return (bytes/1048576).toLocaleString(LANG==="it"?"it-IT":"en-US",{maximumFractionDigits:1}); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+function applyLang(lang){
+  LANG = I18N[lang] ? lang : "it";
+  document.documentElement.lang = LANG;
+  const dict = I18N[LANG];
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    const k = el.getAttribute("data-i18n");
+    if(dict[k] != null) el.textContent = dict[k];
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach(el=>{
+    const k = el.getAttribute("data-i18n-title");
+    if(dict[k] != null){ el.title = dict[k]; if(el.hasAttribute("aria-label")) el.setAttribute("aria-label", dict[k]); }
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach(el=>{
+    const k = el.getAttribute("data-i18n-placeholder");
+    if(dict[k] != null) el.placeholder = dict[k];
+  });
+  document.querySelectorAll(".langsw button").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
+  try{ localStorage.setItem("viewifc_tool_lang", LANG); }catch(e){}
+  if(STATE.idx) renderAll();
+}
+
+/* =========================================================================
+   Carica il motore: il blocco text/engine diventa un vero <script>, così le
+   funzioni finiscono nel global scope anche con "use strict" in testa.
+   ========================================================================= */
+(function loadEngine(){
+  const s=document.createElement("script");
+  s.textContent=document.getElementById("extractEngine").textContent;
+  document.head.appendChild(s);
+})();
+
+/* =========================================================================
+   Stato e riferimenti UI
+   ========================================================================= */
+const $ = id => document.getElementById(id);
+const ui = {
+  fileCard:$("fileCard"), fileName:$("fileName"), fileMeta:$("fileMeta"), fileClear:$("fileClear"),
+  fileInput:$("fileInput"), drop0:$("drop0"),
+  diag:$("diag"), diagT:$("diagT"), diagReset:$("diagReset"),
+  viewSeg:$("viewSeg"),
+  schemaView:$("schemaView"), schN:$("schN"), colList:$("colList"), addBtn:$("addBtn"),
+  catK:$("catK"), catSearch:$("catSearch"), catChips:$("catChips"),
+  modeChips1:$("modeChips1"), modeChips2:$("modeChips2"),
+  prevView:$("prevView"), sheetTabs:$("sheetTabs"), prevTbl:$("prevTbl"),
+  prevMore:$("prevMore"), prevMoreN:$("prevMoreN"), onlyEmptyBtn:$("onlyEmptyBtn"),
+  prevExpand:$("prevExpand"), prevOv:$("prevOv"), prevBk:$("prevBk"),
+  fmtSeg:$("fmtSeg"), outName:$("outName"), outExt:$("outExt"),
+  stRows:$("stRows"), stCols:$("stCols"), stSheets:$("stSheets"),
+  gaps:$("gaps"), gapCards:$("gapCards"),
+  tgMark:$("tgMark"), tgInherit:$("tgInherit"), tgSkip:$("tgSkip"),
+  execSt:$("execSt"), runBtn:$("runBtn"), veil:$("veil"), veilLb:$("veilLb"),
+};
+const STATE = {
+  file:null, idx:null,
+  cols:[],                 // [{key, header}] in ordine
+  mode:"el",               // 'el' | 'group'
+  groupKey:null,           // colonna della tabella che fa da chiave di gruppo
+  fmt:"xlsx",              // 'xlsx' | 'csv'
+  mark:true, inherit:true, skip:false,
+  view:"schema", prevCls:null, onlyEmpty:false,
+  expanded:false,          // anteprima nella vista flottante
+  catOpenG:new Set(["@base"]),  // gruppi del catalogo aperti (base sempre in partenza)
+  catAll:false,            // lista dei gruppi oltre il tetto ("mostra altri")
+  resumed:false, busy:false,
+  coverage:new Map(),      // key → n compilate (sulle righe-elemento)
+};
+const prevCap = () => STATE.expanded ? 100 : 8;
+const COV_WARN = .90;      // sotto il 90% la colonna è "bucata" (ambra)
+const yieldUI = () => new Promise(r=>setTimeout(r,0));
+const paint = () => new Promise(r=>{
+  let done=false; const f=()=>{ if(!done){ done=true; r(); } };
+  requestAnimationFrame(()=>requestAnimationFrame(f));
+  setTimeout(f,120);
+});
+async function veil(msg){
+  ui.veil.hidden = msg==null;
+  if(msg!=null){ ui.veilLb.textContent=msg; await paint(); }
+}
+function setStatus(msg,err){ ui.execSt.textContent=msg; ui.execSt.classList.toggle("err",!!err); }
+
+/* colonne di base (nessuno schema salvato) */
+function defaultCols(){
+  return [
+    {key:"a:GlobalId", header:tr("def.id")},
+    {key:"a:Name",     header:tr("def.name")},
+    {key:"m:class",    header:tr("def.class")},
+    {key:"m:storey",   header:tr("grp.storey")},
+    {key:"m:type",     header:tr("grp.type")},
+  ];
+}
+
+/* schema persistito: si salva da solo, si ripropone al file successivo */
+const SCHEMA_KEY="viewifc_extract_schema";
+function saveSchema(){
+  try{
+    localStorage.setItem(SCHEMA_KEY, JSON.stringify({
+      cols:STATE.cols, mode:STATE.mode, groupKey:STATE.groupKey, fmt:STATE.fmt,
+      mark:STATE.mark, inherit:STATE.inherit, skip:STATE.skip,
+    }));
+  }catch(e){}
+}
+function loadSchema(){
+  try{
+    const s=JSON.parse(localStorage.getItem(SCHEMA_KEY));
+    if(s&&Array.isArray(s.cols)&&s.cols.length&&s.cols.every(c=>c&&typeof c.key==="string"&&typeof c.header==="string")) return s;
+  }catch(e){}
+  return null;
+}
+</script>
+<script>
+/* =========================================================================
+   Caricamento file e indice
+   ========================================================================= */
+async function loadFile(file){
+  if(!file || STATE.busy) return;
+  STATE.busy=true;
+  try{
+    await veil(tr("veil.read"));
+    const bytes=new Uint8Array(await file.arrayBuffer());
+    await veil(tr("veil.index"));
+    await yieldUI();
+    const model=extScan(bytes);
+    const idx=extIndex(model);
+    if(!idx.rows.length){ setStatus(tr("err.empty"),true); await veil(null); STATE.busy=false; return; }
+    STATE.file=file; STATE.idx=idx;
+    /* schema: salvato se c'è, altrimenti colonne di base */
+    const saved=loadSchema();
+    if(saved){
+      STATE.cols=saved.cols.slice();
+      /* migrazione dai vecchi mode fissi: type/storey → group sulla colonna */
+      if(saved.mode==="type"){ STATE.mode="group"; STATE.groupKey="m:type"; }
+      else if(saved.mode==="storey"){ STATE.mode="group"; STATE.groupKey="m:storey"; }
+      else if(saved.mode==="group"&&typeof saved.groupKey==="string"){ STATE.mode="group"; STATE.groupKey=saved.groupKey; }
+      else { STATE.mode="el"; STATE.groupKey=null; }
+      STATE.fmt=saved.fmt==="csv"?"csv":"xlsx";
+      STATE.mark=saved.mark!==false; STATE.inherit=saved.inherit!==false; STATE.skip=!!saved.skip;
+      STATE.resumed=true;
+    }else{
+      STATE.cols=defaultCols();
+      STATE.resumed=false;
+    }
+    STATE.prevCls=idx.classes[0]?idx.classes[0].cls:null;
+    STATE.onlyEmpty=false;
+    STATE.catOpenG=new Set(["@base"]);
+    STATE.catAll=false;
+    delete ui.sheetTabs.dataset.open;
+    ui.catSearch.value="";
+    ui.outName.value=file.name.replace(/\.ifc$/i,"")+tr("out.suffix");
+    ui.outName.disabled=false;
+    ui.fileCard.classList.add("set");
+    ui.fileName.textContent=file.name;
+    ui.fileMeta.textContent=fmt("f.meta",{el:nf(idx.total,0), cl:nf(idx.classes.length,0), ps:nf(idx.psetCount,0)});
+    ui.drop0.hidden=true;
+    renderAll();
+  }catch(err){
+    console.error(err);
+    setStatus(/DATA/.test(String(err&&err.message))?tr("err.parse"):String(err&&err.message||err),true);
+  }
+  await veil(null);
+  STATE.busy=false;
+}
+function clearFile(){
+  expandPreview(false);
+  STATE.file=null; STATE.idx=null; STATE.resumed=false; sheetsDirty();
+  ui.fileCard.classList.remove("set");
+  ui.fileName.textContent=tr("drop.chip");
+  ui.fileMeta.textContent="";
+  ui.outName.value=""; ui.outName.disabled=true;
+  ui.drop0.hidden=false;
+  ui.schemaView.hidden=true; ui.prevView.hidden=true;
+  ui.diag.hidden=true; ui.gaps.hidden=true;
+  ui.stRows.textContent="—"; ui.stCols.textContent="—"; ui.stSheets.textContent="—";
+  ui.runBtn.disabled=true;
+  setStatus(tr("exec.hint"));
+}
+
+/* =========================================================================
+   Fogli correnti (memo) + copertura
+   ========================================================================= */
+let _sheets=null;
+function sheetsDirty(){ _sheets=null; }
+function currentSheets(){
+  if(_sheets) return _sheets;
+  if(!STATE.idx||!STATE.cols.length) return (_sheets=[]);
+  _sheets=extSheets(STATE.idx, STATE.cols, {
+    mode:STATE.mode, groupKey:STATE.groupKey,
+    inherit:STATE.inherit, skip:STATE.skip,
+    mixedLabel:tr("cell.mixed"),
+    groupHeader:groupHeader(),
+    countHeader:tr("col.count"),
+  });
+  return _sheets;
+}
+function groupHeader(){
+  const c=STATE.cols.find(x=>x.key===STATE.groupKey);
+  return c?c.header:null;
+}
+function recoverage(){
+  if(!STATE.idx){ STATE.coverage=new Map(); return; }
+  STATE.coverage=extCoverage(STATE.idx, STATE.cols.map(c=>c.key), {inherit:STATE.inherit});
+}
+function covPct(key){
+  if(!STATE.idx) return 0;
+  const n=STATE.coverage.get(key);
+  return STATE.idx.total ? (n||0)/STATE.idx.total : 0;
+}
+function srcLabel(key){
+  const s=STATE.idx&&STATE.idx.sources.get(key);
+  if(s) return s.label;
+  /* chiave non presente in questo file: etichetta parlante comunque */
+  const FIX={"m:class":"is_a()","m:storey":"IfcBuildingStorey.Name","m:type":"Type.Name"};
+  return FIX[key]||key.replace(/^(a:|m:|p:|q:|tp:|tq:)/,"");
+}
+function sizeLabel(bytes){
+  if(bytes<1048576*0.95) return nf(Math.max(1,Math.round(bytes/1024)),0)+" KB";
+  return mb(bytes)+" MB";
+}
+
+/* =========================================================================
+   Render
+   ========================================================================= */
+function renderAll(){
+  if(!STATE.idx) return;
+  /* la colonna di raggruppamento deve stare in tabella: se è uscita, si torna a un elemento per riga */
+  if(STATE.mode==="group"&&!STATE.cols.some(c=>c.key===STATE.groupKey)){ STATE.mode="el"; STATE.groupKey=null; }
+  recoverage(); sheetsDirty();
+  ui.diag.hidden=!STATE.resumed;
+  if(STATE.resumed) ui.diagT.textContent=fmt("diag.resumed",{n:STATE.cols.length});
+  syncView();
+  renderSchema();
+  renderCatalog();
+  renderModes();
+  renderPreview();
+  renderOut();
+  saveSchema();
+}
+function syncView(){
+  const onSchema=STATE.view==="schema";
+  ui.schemaView.hidden=!STATE.idx||!onSchema;
+  ui.prevView.hidden=!STATE.idx||onSchema;
+  ui.viewSeg.querySelectorAll("button").forEach(b=>{
+    const on=b.dataset.view===(onSchema?"schema":"prev");
+    b.classList.toggle("on",on); b.setAttribute("aria-selected",on?"true":"false");
+  });
+}
+
+/* --- scheda Schema --- */
+function renderSchema(){
+  ui.schN.textContent=fmt("sch.n",{n:STATE.cols.length});
+  ui.colList.innerHTML="";
+  STATE.cols.forEach((c,i)=>{
+    const s=STATE.idx.sources.get(c.key);
+    const pct=covPct(c.key), warn=pct<COV_WARN;
+    const missing=!s && !["a:GlobalId","a:Name","a:Description","a:ObjectType","m:class","m:storey","m:type"].includes(c.key);
+    const empt=STATE.idx.total-Math.round(pct*STATE.idx.total);
+    const row=document.createElement("div");
+    row.className="crow2"+(warn?" gap-b":"");
+    row.draggable=true; row.dataset.i=i;
+    row.innerHTML=
+      '<span class="grip" title=""><svg viewBox="0 0 24 24"><path d="M8 7h.01M16 7h.01M8 12h.01M16 12h.01M8 17h.01M16 17h.01"/></svg></span>'+
+      '<span class="hd3"><input value="'+esc(c.header).replace(/"/g,"&quot;")+'" spellcheck="false" autocomplete="off">'+
+        (warn&&!missing?'<span class="pill-gap">'+fmt("n.vuote",{n:nf(empt,0)})+'</span>':'')+
+        (missing?'<span class="pill-gap">'+tr("src.missing")+'</span>':'')+
+        (s&&s.unit?'<span class="pill-info">'+esc(s.unit)+' · '+tr("u.dec")+'</span>':'')+
+      '</span>'+
+      '<span class="src"><span class="s">'+esc(srcLabel(c.key))+'</span>'+((s&&s.typ)?'<span class="pill-typ">tipo</span>':'')+'</span>'+
+      '<span class="covc'+(warn?" gap":"")+'"><span class="bar"><i style="width:'+(pct*100).toFixed(1)+'%"></i></span>'+
+        '<span class="pc">'+Math.round(pct*100)+'%</span></span>'+
+      '<button class="rm" type="button" title=""><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
+    const inp=row.querySelector("input");
+    inp.addEventListener("change",()=>{ c.header=inp.value.trim()||srcLabel(c.key); inp.value=c.header; sheetsDirty(); renderPreview(); renderOut(); saveSchema(); });
+    inp.addEventListener("keydown",e=>{ if(e.key==="Enter") inp.blur(); });
+    inp.addEventListener("dragstart",e=>e.preventDefault());
+    row.querySelector(".rm").addEventListener("click",()=>{ STATE.cols.splice(i,1); renderAll(); });
+    /* drag per riordinare */
+    row.addEventListener("dragstart",e=>{ row.classList.add("dragging"); e.dataTransfer.setData("text/plain",String(i)); e.dataTransfer.effectAllowed="move"; });
+    row.addEventListener("dragend",()=>row.classList.remove("dragging"));
+    row.addEventListener("dragover",e=>{ e.preventDefault(); row.classList.add("dragover"); });
+    row.addEventListener("dragleave",()=>row.classList.remove("dragover"));
+    row.addEventListener("drop",e=>{
+      e.preventDefault(); row.classList.remove("dragover");
+      const from=parseInt(e.dataTransfer.getData("text/plain"),10);
+      if(!isFinite(from)||from===i) return;
+      const [mv]=STATE.cols.splice(from,1);
+      STATE.cols.splice(i,0,mv);
+      renderAll();
+    });
+    ui.colList.appendChild(row);
+  });
+}
+
+/* --- catalogo, raggruppato per Pset/Qto (sciolto era un macello) --- */
+function catEntries(query){
+  const q=(query||"").trim().toLowerCase();
+  const list=[...STATE.idx.sources.entries()].map(([key,s])=>({key,s,pct:s.count/STATE.idx.total}));
+  const ord={a:0,m:1,p:2,q:3,tp:2,tq:3};
+  list.sort((x,y)=>(ord[x.s.kind]-ord[y.s.kind])||y.s.count-x.s.count||(x.s.label<y.s.label?-1:1));
+  return q ? list.filter(e=>(e.s.label+" "+e.key).toLowerCase().includes(q)) : list;
+}
+function catChip(e,sel){
+  const b=document.createElement("button");
+  b.type="button";
+  const isBase=e.s.kind==="a"||e.s.kind==="m";
+  const nm=isBase?e.s.label:e.s.label.replace(/^[^.]*\./,"");
+  b.className="pchip2"+(sel.has(e.key)?" on":"");
+  b.innerHTML='<span class="nm">'+esc(nm)+(e.s.typ?' <span class="pill-typ">tipo</span>':'')+'</span>'+
+    '<span class="pc'+(e.pct<COV_WARN?(e.pct<.5?" dim":" lo"):"")+'">'+Math.round(e.pct*100)+'%</span>';
+  b.title=e.s.label;
+  b.addEventListener("click",()=>{
+    const at=STATE.cols.findIndex(c=>c.key===e.key);
+    if(at>=0) STATE.cols.splice(at,1);
+    else STATE.cols.push({key:e.key, header:e.s.label.replace(/^.*\./,"")});
+    renderAll();
+  });
+  return b;
+}
+function renderCatalog(){
+  ui.catK.textContent=fmt("cat.k",{n:nf(STATE.idx.sources.size,0)});
+  const all=catEntries(ui.catSearch.value);
+  ui.catChips.innerHTML="";
+  if(!all.length){
+    const d=document.createElement("span");
+    d.className="pchip2 more"; d.textContent=tr("cat.none");
+    ui.catChips.appendChild(d);
+    return;
+  }
+  /* sezioni: attributi+struttura prima, poi un gruppo per Pset/Qto
+     (ordinati per presenza complessiva nel file) */
+  const groups=new Map();
+  for(const e of all){
+    const isBase=e.s.kind==="a"||e.s.kind==="m";
+    const gid=isBase?"@base":e.s.label.split(".")[0];
+    let g=groups.get(gid); if(!g){ g={gid,items:[],tot:0}; groups.set(gid,g); }
+    g.items.push(e); g.tot+=e.s.count;
+  }
+  const ordered=[...groups.values()].sort((a,b)=>{
+    if(a.gid==="@base") return -1;
+    if(b.gid==="@base") return 1;
+    return b.tot-a.tot||(a.gid<b.gid?-1:1);
+  });
+  const sel=new Set(STATE.cols.map(c=>c.key));
+  const searching=(ui.catSearch.value||"").trim()!=="";
+  ui.catChips.style.flexDirection="column";
+  ui.catChips.style.alignItems="stretch";
+  /* dimensione fissa: anche solo le intestazioni, con 100 Pset, sono una
+     lista lunghissima — si mostrano i primi gruppi (più quelli che hanno
+     colonne in tabella, sempre visibili) e il resto sta dietro "mostra
+     altri", così Esporta resta a portata. La ricerca ignora il tetto. */
+  const GLIMIT=6;
+  let visible=ordered, hiddenN=0;
+  if(!searching&&!STATE.catAll&&ordered.length>GLIMIT+1){
+    visible=ordered.filter((g,i)=>i<GLIMIT||g.items.some(e=>sel.has(e.key)));
+    hiddenN=ordered.length-visible.length;
+    if(!hiddenN) visible=ordered;
+  }
+  for(const g of visible){
+    /* i gruppi si collassano; la ricerca li apre tutti; il riquadro resta
+       contenuto perché in partenza sono aperti solo gli attributi di base */
+    const open=searching||STATE.catOpenG.has(g.gid);
+    const nSel=g.items.filter(e=>sel.has(e.key)).length;
+    const box=document.createElement("div");
+    box.className="cat-group";
+    const hd=document.createElement("button");
+    hd.type="button";
+    hd.className="cat-gh"+(open?"":" closed");
+    hd.innerHTML='<svg class="cv" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>'+
+      '<span class="gn">'+esc(g.gid==="@base"?tr("cat.base"):g.gid)+'</span>'+
+      '<span class="gc">· '+g.items.length+'</span>'+
+      (nSel?'<span class="gsel">'+fmt("cat.inTable",{n:nSel})+'</span>':'')+
+      '<span class="gl"></span>';
+    hd.addEventListener("click",()=>{
+      if(STATE.catOpenG.has(g.gid)) STATE.catOpenG.delete(g.gid);
+      else STATE.catOpenG.add(g.gid);
+      renderCatalog();
+    });
+    box.appendChild(hd);
+    if(open){
+      const wrap=document.createElement("div");
+      wrap.className="chips";
+      for(const e of g.items) wrap.appendChild(catChip(e,sel));
+      box.appendChild(wrap);
+    }
+    ui.catChips.appendChild(box);
+  }
+  if(hiddenN){
+    const b=document.createElement("button");
+    b.type="button"; b.className="pchip2 more";
+    b.style.alignSelf="flex-start";
+    b.textContent=fmt("cat.moreG",{n:nf(hiddenN,0)});
+    b.addEventListener("click",()=>{ STATE.catAll=true; renderCatalog(); });
+    ui.catChips.appendChild(b);
+  }else if(!searching&&STATE.catAll&&ordered.length>GLIMIT+1){
+    const b=document.createElement("button");
+    b.type="button"; b.className="pchip2 more";
+    b.style.alignSelf="flex-start";
+    b.textContent=tr("cat.lessG");
+    b.addEventListener("click",()=>{ STATE.catAll=false; renderCatalog(); });
+    ui.catChips.appendChild(b);
+  }
+}
+
+/* --- modalità righe (le due barre restano gemelle) ---
+   "Un elemento per riga" oppure "Raggruppa per: <una colonna della tabella>":
+   la chiave di gruppo si sceglie fra le colonne inserite, qualunque esse siano */
+function renderModes(){
+  for(const host of [ui.modeChips1, ui.modeChips2]){
+    host.innerHTML="";
+    const b1=document.createElement("button");
+    b1.type="button";
+    b1.className="mchip"+(STATE.mode==="el"?" on":"");
+    b1.textContent=tr("mode.el");
+    b1.addEventListener("click",()=>{ STATE.mode="el"; STATE.groupKey=null; sheetsDirty(); renderModes(); renderPreview(); renderOut(); saveSchema(); });
+    host.appendChild(b1);
+    const b2=document.createElement("button");
+    b2.type="button";
+    b2.className="mchip"+(STATE.mode==="group"?" on":"");
+    b2.textContent=STATE.mode==="group"?fmt("rows.groupOn",{c:groupHeader()||"?"}):tr("rows.groupBtn");
+    b2.addEventListener("click",()=>openGroupPicker(b2));
+    host.appendChild(b2);
+  }
+}
+
+/* pannello di scelta della colonna di raggruppamento (grammatica pp) */
+let grpPanel=null;
+function closeGroupPicker(){ if(grpPanel){ grpPanel.remove(); grpPanel=null; } }
+function openGroupPicker(anchor){
+  closeGroupPicker(); closeAddPanel();
+  grpPanel=document.createElement("div");
+  grpPanel.className="pp-panel";
+  grpPanel.style.position="fixed";
+  grpPanel.style.zIndex="95";   // sopra l'overlay dell'anteprima (z 80), o il picker "non funziona" lì
+  grpPanel.innerHTML='<div class="pp-empty" style="padding:4px 10px 0">'+tr("pick.col")+'</div><div class="pp-list"></div>';
+  document.body.appendChild(grpPanel);
+  const r=anchor.getBoundingClientRect();
+  const w=330;
+  grpPanel.style.left=Math.max(8,Math.min(r.left,window.innerWidth-w-8))+"px";
+  const belowTop=r.bottom+6;
+  grpPanel.style.top=belowTop+"px";
+  const list=grpPanel.querySelector(".pp-list");
+  for(const c of STATE.cols){
+    const b=document.createElement("button");
+    b.type="button";
+    b.className="pp-item"+(STATE.mode==="group"&&STATE.groupKey===c.key?" sel":"");
+    b.innerHTML='<span>'+esc(c.header)+'</span><i>'+esc(srcLabel(c.key))+'</i>';
+    b.addEventListener("click",()=>{
+      STATE.mode="group"; STATE.groupKey=c.key;
+      closeGroupPicker();
+      sheetsDirty(); renderModes(); renderPreview(); renderOut(); saveSchema();
+    });
+    list.appendChild(b);
+  }
+  /* se il pannello esce sotto il bordo, aprilo sopra l'ancora */
+  requestAnimationFrame(()=>{
+    if(!grpPanel) return;
+    const h=grpPanel.getBoundingClientRect().height;
+    if(belowTop+h>window.innerHeight-8) grpPanel.style.top=Math.max(8,r.top-h-6)+"px";
+  });
+  setTimeout(()=>{
+    document.addEventListener("pointerdown",function h(e){
+      if(grpPanel&&!grpPanel.contains(e.target)&&e.target!==anchor){ closeGroupPicker(); document.removeEventListener("pointerdown",h); }
+    });
+  },0);
+}
+
+/* --- scheda Anteprima --- */
+function renderPreview(){
+  if(!STATE.idx) return;
+  const sheets=currentSheets();
+  if(!sheets.length){ ui.sheetTabs.innerHTML=""; ui.prevTbl.innerHTML=""; ui.prevMoreN.textContent=""; return; }
+  if(!sheets.some(sh=>sh.name===STATE.prevCls)) STATE.prevCls=sheets[0].name;
+  /* tab dei fogli: primi 3 + resto dietro "+n" */
+  ui.sheetTabs.innerHTML="";
+  const LIM=3;
+  const idxSel=sheets.findIndex(sh=>sh.name===STATE.prevCls);
+  const expand=ui.sheetTabs.dataset.open==="1"||sheets.length<=LIM+1||idxSel>=LIM;
+  const shown=expand?sheets:sheets.slice(0,LIM);
+  for(const sh of shown){
+    const b=document.createElement("button");
+    b.type="button";
+    b.className="stab"+(sh.name===STATE.prevCls?" on":"");
+    b.innerHTML='<span>'+esc(sh.name)+'</span><span class="n2">'+nf(sh.rows.length,0)+'</span>';
+    b.addEventListener("click",()=>{ STATE.prevCls=sh.name; renderPreview(); });
+    ui.sheetTabs.appendChild(b);
+  }
+  if(!expand){
+    const b=document.createElement("button");
+    b.type="button"; b.className="stab more";
+    b.textContent=fmt("prev.moreTabs",{n:nf(sheets.length-LIM,0)});
+    b.addEventListener("click",()=>{ ui.sheetTabs.dataset.open="1"; renderPreview(); });
+    ui.sheetTabs.appendChild(b);
+  }
+  const sh=sheets[Math.max(0,sheets.findIndex(x=>x.name===STATE.prevCls))];
+  /* tabella */
+  const rows=STATE.onlyEmpty ? sh.rows.filter(l=>l.some(x=>x==null)) : sh.rows;
+  const head=[];
+  head.push('<thead><tr><th class="rn">#</th>');
+  sh.cols.forEach(c=>{
+    const real=c.key!=="_g"&&c.key!=="_n";
+    const pct=real?covPct(c.key):1;
+    const warn=real&&pct<COV_WARN;
+    head.push('<th'+(warn?' class="gap-b"':'')+'><span class="htx"><span>'+esc(c.header)+'</span>'+
+      (c.unit?'<span class="u">'+esc(c.unit)+'</span>':'')+
+      (warn?'<span class="pc">'+Math.round(pct*100)+'%</span>':'')+'</span>'+
+      (real?'<span class="cb"><i'+(warn?' class="gap"':'')+' style="width:'+(pct*100).toFixed(1)+'%"></i></span>':'')+
+      '</th>');
+  });
+  head.push('<th class="addc" id="addcTh" title="'+tr("prev.addcol")+'"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></th></tr></thead>');
+  const body=['<tbody>'];
+  rows.slice(0,prevCap()).forEach((line,ri)=>{
+    const hasGap=line.some(x=>x==null);
+    body.push('<tr'+(hasGap?' class="gap-b"':'')+'><td class="rn">'+(ri+1)+'</td>');
+    line.forEach((x,ci)=>{
+      if(x==null){ body.push('<td class="emp"><span class="ph"><i></i><span>'+tr("cell.empty")+'</span></span></td>'); return; }
+      const c=sh.cols[ci];
+      if(x.num) body.push('<td class="num">'+esc(nf(x.v,2))+'</td>');
+      else if(c.key==="a:GlobalId") body.push('<td class="mono">'+esc(x.v)+'</td>');
+      else if(c.key==="m:storey"||c.key==="m:type"||c.key==="_g") body.push('<td class="dim">'+esc(x.v)+'</td>');
+      else body.push('<td>'+esc(x.v)+'</td>');
+    });
+    body.push('<td></td></tr>');
+  });
+  if(!rows.length) body.push('<tr><td class="rn"></td><td colspan="'+(sh.cols.length+1)+'" class="dim">'+tr("prev.none")+'</td></tr>');
+  body.push('</tbody>');
+  ui.prevTbl.innerHTML=head.join("")+body.join("");
+  const addc=document.getElementById("addcTh");
+  if(addc) addc.addEventListener("click",openAddPanel);
+  const left=Math.max(0,rows.length-prevCap());
+  ui.prevMoreN.textContent=left?fmt("prev.more",{n:nf(left,0),cls:sh.name}):fmt("prev.all",{n:nf(rows.length,0),cls:sh.name});
+  ui.onlyEmptyBtn.textContent=STATE.onlyEmpty?tr("prev.onlyEmptyOff"):tr("prev.onlyEmpty");
+  ui.onlyEmptyBtn.classList.toggle("on",STATE.onlyEmpty);
+}
+
+/* vista flottante: la scheda .prev si SPOSTA nell'overlay e torna al banco
+   alla chiusura — un solo DOM, nessuna copia da tenere allineata */
+function expandPreview(on){
+  if(on===STATE.expanded) return;
+  STATE.expanded=on;
+  if(on) STATE.view="prev";
+  closeAddPanel(); closeGroupPicker();
+  if(on){
+    ui.prevOv.appendChild(ui.prevView);
+    ui.prevBk.hidden=false; ui.prevOv.hidden=false;
+    document.body.style.overflow="hidden";
+  }else{
+    document.querySelector(".bench-l").appendChild(ui.prevView);
+    ui.prevBk.hidden=true; ui.prevOv.hidden=true;
+    document.body.style.overflow="";
+  }
+  ui.prevExpand.title=tr(on?"prev.shrink":"prev.expand");
+  syncView(); renderPreview();
+}
+
+/* pannello aggiungi-colonna dell'anteprima (grammatica pp del georef) */
+let addPanel=null;
+function closeAddPanel(){ if(addPanel){ addPanel.remove(); addPanel=null; } }
+function openAddPanel(ev){
+  closeAddPanel();
+  const host=ui.prevView;
+  host.style.position="relative";
+  addPanel=document.createElement("div");
+  addPanel.className="pp-panel";
+  addPanel.innerHTML='<input type="search" autocomplete="off" placeholder="'+tr("cat.search")+'"><div class="pp-list"></div>';
+  host.appendChild(addPanel);
+  const r=ev.currentTarget.getBoundingClientRect(), hr=host.getBoundingClientRect();
+  addPanel.style.top=(r.bottom-hr.top+6)+"px";
+  addPanel.style.right=Math.max(8,hr.right-r.right)+"px";
+  const inp=addPanel.querySelector("input"), list=addPanel.querySelector(".pp-list");
+  const sel=new Set(STATE.cols.map(c=>c.key));
+  const fill=()=>{
+    const q=(inp.value||"").trim().toLowerCase();
+    const all=catEntries().filter(e=>!sel.has(e.key)&&(!q||(e.s.label+" "+e.key).toLowerCase().includes(q))).slice(0,40);
+    list.innerHTML="";
+    if(!all.length){ list.innerHTML='<div class="pp-empty">'+tr("cat.none")+'</div>'; return; }
+    for(const e of all){
+      const b=document.createElement("button");
+      b.type="button"; b.className="pp-item";
+      b.innerHTML='<span>'+esc(e.s.label)+'</span><i>'+Math.round(e.pct*100)+'%</i>';
+      b.addEventListener("click",()=>{ STATE.cols.push({key:e.key,header:e.s.label.replace(/^.*\./,"")}); closeAddPanel(); renderAll(); });
+      list.appendChild(b);
+    }
+  };
+  inp.addEventListener("input",fill);
+  fill(); inp.focus();
+  setTimeout(()=>{
+    document.addEventListener("pointerdown",function h(e){
+      if(addPanel&&!addPanel.contains(e.target)){ closeAddPanel(); document.removeEventListener("pointerdown",h); }
+    });
+  },0);
+}
+
+/* --- destra: cosa esce --- */
+function renderOut(){
+  if(!STATE.idx) return;
+  const sheets=currentSheets();
+  const totRows=sheets.reduce((s,x)=>s+x.rows.length,0);
+  const totHidden=sheets.reduce((s,x)=>s+(x.hidden||0),0);
+  const nCols=sheets.length?sheets[0].cols.length:STATE.cols.length;
+  ui.stRows.textContent=nf(totRows,0);
+  ui.stCols.textContent=nf(nCols,0);
+  ui.stSheets.textContent=STATE.fmt==="csv"
+    ? (sheets.length>1?tr("out.sheetsCsv"):tr("out.sheets1"))
+    : (sheets.length>1?fmt("out.sheetsV",{n:nf(sheets.length,0)}):tr("out.sheets1"));
+  ui.outExt.textContent="."+STATE.fmt;
+  ui.fmtSeg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.fmt===STATE.fmt));
+  /* dove il modello è incompleto: le colonne scelte sotto soglia */
+  ui.gaps.hidden=false;
+  ui.gapCards.innerHTML="";
+  const bad=STATE.cols
+    .map(c=>({c, pct:covPct(c.key)}))
+    .filter(x=>x.pct<COV_WARN)
+    .sort((a,b)=>a.pct-b.pct)
+    .slice(0,2);
+  if(!bad.length){
+    const d=document.createElement("div");
+    d.className="gok";
+    d.innerHTML='<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg><span>'+tr("gap.ok")+'</span>';
+    ui.gapCards.appendChild(d);
+  }
+  for(const {c,pct} of bad){
+    const nEmpty=STATE.idx.total-Math.round(pct*STATE.idx.total);
+    const where=extGapWhere(STATE.idx,c.key,{inherit:STATE.inherit});
+    let note;
+    if(!where.length) note="";
+    else if(where[0].n>=nEmpty*.9) note=fmt("gap.one",{s:where[0].storey});
+    else if(where.length>=2&&where[0].n+where[1].n>=nEmpty*.8) note=fmt("gap.two",{a:where[0].storey,b:where[1].storey});
+    else note=fmt("gap.spread",{n:nf(where.length,0)});
+    if(c.key.startsWith("p:")){
+      let anyType=false;
+      for(const tv of STATE.idx.typeVals.values()) if(tv.has(c.key)){ anyType=true; break; }
+      note+=" "+tr(anyType?"gap.hasType":"gap.noType");
+    }
+    const d=document.createElement("div");
+    d.className="gcard";
+    d.innerHTML='<div class="hd"><span class="nm">'+esc(c.header)+'</span><span class="n">'+nf(nEmpty,0)+'</span></div>'+
+      (note?'<p class="why">'+esc(note)+'</p>':'')+
+      '<div class="act"><button type="button" class="pri">'+tr("gap.exclude")+'</button></div>';
+    d.querySelector("button").addEventListener("click",()=>{
+      const at=STATE.cols.indexOf(c);
+      if(at>=0){ STATE.cols.splice(at,1); renderAll(); }
+    });
+    ui.gapCards.appendChild(d);
+  }
+  /* interruttori */
+  ui.tgMark.classList.toggle("off",!STATE.mark);
+  ui.tgMark.classList.toggle("dis",STATE.fmt==="csv");
+  ui.tgMark.setAttribute("aria-checked",STATE.mark?"true":"false");
+  ui.tgInherit.classList.toggle("off",!STATE.inherit);
+  ui.tgInherit.setAttribute("aria-checked",STATE.inherit?"true":"false");
+  ui.tgSkip.classList.toggle("off",!STATE.skip);
+  ui.tgSkip.setAttribute("aria-checked",STATE.skip?"true":"false");
+  /* stima + bottone */
+  ui.runBtn.disabled=!STATE.cols.length||!totRows;
+  if(!STATE.cols.length) setStatus(tr("exec.noCols"),false);
+  else{
+    const est=extEstimate(sheets,STATE.fmt);
+    setStatus(STATE.skip&&totHidden
+      ? fmt("exec.skip",{sz:sizeLabel(est),n:nf(totHidden,0)})
+      : fmt("exec.ready",{sz:sizeLabel(est)}));
+  }
+}
+
+/* =========================================================================
+   Esportazione
+   ========================================================================= */
+async function runExport(){
+  if(STATE.busy||!STATE.idx||!STATE.cols.length) return;
+  STATE.busy=true;
+  try{
+    await veil(tr("veil.write"));
+    await yieldUI();
+    const sheets=currentSheets();
+    const base=(ui.outName.value.trim()||"estrazione").replace(/[\\/:*?"<>|]/g,"_");
+    let blob;
+    if(STATE.fmt==="csv"){
+      const txt=extCsv(sheets,{sep:";",dec:LANG==="it"?",":".",classHeader:tr("def.class")});
+      blob=new Blob(["﻿",txt],{type:"text/csv"});
+    }else{
+      blob=new Blob(extXlsx(sheets,{mark:STATE.mark}),{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    }
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=base+"."+STATE.fmt;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    setStatus(fmt("exec.done",{f:a.download}));
+  }catch(err){
+    console.error(err);
+    setStatus(String(err&&err.message||err),true);
+  }
+  await veil(null);
+  STATE.busy=false;
+}
+
+/* =========================================================================
+   Eventi
+   ========================================================================= */
+ui.viewSeg.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  STATE.view=b.dataset.view==="prev"?"prev":"schema";
+  closeAddPanel(); syncView();
+});
+for(const el of [ui.fileCard, ui.drop0]){
+  el.addEventListener("click",e=>{ if(e.target.closest("#fileClear")) return; ui.fileInput.click(); });
+  el.addEventListener("dragover",e=>{ e.preventDefault(); el.classList.add("drag"); });
+  el.addEventListener("dragleave",()=>el.classList.remove("drag"));
+  el.addEventListener("drop",e=>{
+    e.preventDefault(); el.classList.remove("drag");
+    const f=e.dataTransfer.files&&e.dataTransfer.files[0];
+    if(f) loadFile(f);
+  });
+}
+ui.fileCard.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); ui.fileInput.click(); } });
+ui.fileInput.addEventListener("change",()=>{ const f=ui.fileInput.files&&ui.fileInput.files[0]; ui.fileInput.value=""; if(f) loadFile(f); });
+ui.fileClear.addEventListener("click",e=>{ e.stopPropagation(); clearFile(); });
+ui.diagReset.addEventListener("click",()=>{
+  STATE.cols=defaultCols(); STATE.mode="el"; STATE.resumed=false;
+  renderAll();
+});
+ui.addBtn.addEventListener("click",()=>{ ui.catSearch.focus(); });
+ui.catSearch.addEventListener("input",renderCatalog);
+ui.onlyEmptyBtn.addEventListener("click",()=>{ STATE.onlyEmpty=!STATE.onlyEmpty; renderPreview(); });
+ui.prevExpand.addEventListener("click",()=>expandPreview(!STATE.expanded));
+ui.prevBk.addEventListener("click",()=>expandPreview(false));
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+    if(addPanel){ closeAddPanel(); return; }
+    if(grpPanel){ closeGroupPicker(); return; }
+    if(STATE.expanded) expandPreview(false);
+  }
+});
+ui.fmtSeg.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  STATE.fmt=b.dataset.fmt==="csv"?"csv":"xlsx";
+  renderOut(); saveSchema();
+});
+function bindToggle(el,prop,after){
+  const flip=()=>{
+    if(el.classList.contains("dis")) return;
+    STATE[prop]=!STATE[prop];
+    sheetsDirty();
+    if(after) after();
+    renderAll();
+  };
+  el.addEventListener("click",flip);
+  el.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); flip(); } });
+}
+bindToggle(ui.tgMark,"mark");
+bindToggle(ui.tgInherit,"inherit");
+bindToggle(ui.tgSkip,"skip");
+ui.runBtn.addEventListener("click",runExport);
+
+/* nav: lingua e tema (chiavi condivise del sito) */
+document.querySelectorAll(".langsw button").forEach(b=>b.addEventListener("click",()=>applyLang(b.dataset.lang)));
+$("thmBtn").addEventListener("click",()=>{
+  const light=document.documentElement.getAttribute("data-theme")==="light";
+  if(light){ document.documentElement.removeAttribute("data-theme"); try{ localStorage.setItem("viewer_landing_theme","dark"); }catch(e){} }
+  else{ document.documentElement.setAttribute("data-theme","light"); try{ localStorage.setItem("viewer_landing_theme","light"); }catch(e){} }
+});
+
+applyLang(LANG);
+</script>
+</body>
+</html>
