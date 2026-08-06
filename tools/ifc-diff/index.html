@@ -1,0 +1,2930 @@
+<!DOCTYPE html>
+<!--
+  IFC Diff — strumento accessorio di viewifc.com
+  Autore: Alessandro Perugini — BIM Coordinator. Licenza AGPL-3.0.
+  100% client-side: nessun file viene caricato su un server.
+
+  UI v3 — design 11a del canvas "Viewer UI Redesign" (il bilancio), con la
+  navigazione J/K della coda di revisione presa dall'11b (la parte che non
+  richiede il 3D). A sinistra i quattro conti, la barra delle proporzioni e
+  l'elenco delle modifiche raggruppato; a destra il campo-per-campo della
+  riga scelta, le REGOLE DI RUMORE dichiarate accanto al risultato, e
+  l'esportazione (.xlsx o .bcfzip).
+
+  Confrontare per GlobalId è la parte facile. Il difficile è dire QUALI
+  differenze contano: ogni riesportazione riscrive OwnerHistory, rinumera
+  gli #id e sposta i punti di un micron, così un diff crudo dichiara
+  migliaia di "modificati" che nessuno ha toccato. E se l'authoring ricrea
+  un muro il GlobalId cambia: la stessa parete uscirebbe come una rimozione
+  più un'aggiunta. Perciò lo strumento fa due cose oltre al confronto:
+  dichiara le regole di rumore che sta applicando, e ri-associa gli orfani
+  per geometria e posizione dicendo con quanta confidenza.
+
+  Scelte v1 (punti lasciati aperti dal canvas, o divergenze volute):
+  - "Ignora la rinumerazione degli #id" non è un interruttore: è il metodo
+    (confronto per GlobalId + impronta STRUTTURALE della geometria, dove i
+    riferimenti sono sostituiti dall'impronta di ciò che puntano). La riga
+    resta nel pannello, dichiarata e sempre attiva.
+  - impronta di geometria: numeri normalizzati a 6 cifre significative
+    (il micron di jitter della riesportazione non conta), contesti di
+    rappresentazione e OwnerHistory esclusi dal sottografo.
+  - "geometria ±n%": senza tassellazione il volume non si calcola — quando
+    entrambe le revisioni portano una quantità *Volume, la variazione
+    percentuale viene da lì; altrimenti il badge dice solo "geometria".
+  - soglia di ri-associazione 0,90 (la domanda aperta del canvas): sotto,
+    la coppia resta "da confermare" e si accetta a mano dal dettaglio.
+  - il .bcfzip fa UN TOPIC PER GRUPPO (classe × tipo di modifica), come la
+    clash del viewer: mille topic in un coordinamento non li apre nessuno.
+    Viewpoint senza camera (qui il 3D non c'è): selezione + coloring.
+  - niente streaming: file in memoria come Split/Extractor (lo scanner è a
+    byte, il limite è la RAM, non i 512 MiB per stringa JS).
+  - le regole di rumore si salvano in localStorage e si ripropongono:
+    il confronto della prossima emissione parte dalle stesse.
+-->
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IFC Diff — viewifc.com</title>
+
+<meta name="description" content="Confronta due revisioni di un file IFC nel browser: aggiunti, rimossi, modificati con il campo-per-campo, al netto del rumore di riesportazione. Gli orfani si ri-associano per geometria. Export Excel o BCF. Nessun upload.">
+<meta name="author" content="Alessandro Perugini">
+<meta name="theme-color" content="#f1f3ee">
+<link rel="canonical" href="https://viewifc.com/tools/ifc-diff/">
+<link rel="icon" type="image/png" href="../../favicon-32.png">
+<script>/* Tema chiaro di default (chiave viewer_landing_theme, condivisa da tutto il sito) */
+document.documentElement.setAttribute("data-theme","light");
+try{
+  if(localStorage.getItem("viewifc_theme_migr_light")!=="1"){
+    localStorage.setItem("viewifc_theme_migr_light","1");
+    localStorage.setItem("viewer_landing_theme","light");
+  }
+  if(localStorage.getItem("viewer_landing_theme")==="dark") document.documentElement.removeAttribute("data-theme");
+}catch(e){}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Vista "Sul modello" (design 11b): three e web-ifc dalle copie VENDORIZZATE del
+     viewer (../../viewer/vendor/, versioni pinnate 0.160.0 / 0.0.77) — niente CDN.
+     I moduli si caricano solo al primo passaggio alla vista 3D (import dinamico). -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "../../viewer/vendor/three.module.js",
+    "three/addons/": "../../viewer/vendor/three-addons/"
+  }
+}
+</script>
+
+<style>
+/* =========================================================================
+   Sistema di vetro condiviso con landing, viewer e pagine strumento (v3).
+   Chiave tema: viewer_landing_theme — comune a tutto il sito.
+   ========================================================================= */
+:root{
+  --lime:#bfd730; --lime-deep:#a8c320; --lime-ink:#23310a;
+  --lime-soft:rgba(191,215,48,.13); --lime-line:rgba(191,215,48,.34);
+  --acc:var(--lime-deep);
+  --bg:#141a12; --bg2:#262b24;
+  --pnl:rgba(15,20,13,.82); --pnl2:rgba(237,242,226,.05);
+  --hair:rgba(237,242,226,.09); --hair2:rgba(237,242,226,.06);
+  --inset:rgba(13,18,11,.5);
+  --grid:rgba(237,242,226,.05); --hover:rgba(237,242,226,.022);
+  --text:#edf2e2; --muted:#a9b59b; --faint:#79856c;
+  --red:#d6604d; --amber:#e0a63a; --green:#8dc63f;
+  --amber-bg:rgba(224,166,58,.10); --red-bg:rgba(214,96,77,.10);
+  --sh:0 2px 8px rgba(0,0,0,.28),0 18px 44px rgba(0,0,0,.42);
+  --sh-sm:0 1px 3px rgba(0,0,0,.30),0 6px 18px rgba(0,0,0,.26);
+  --glow:0 4px 24px rgba(191,215,48,.20);
+  --r:24px; --r-md:14px; --r-sm:11px; --r-xs:8px;
+  --blur:blur(20px) saturate(1.25);
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --disp:'Barlow Semi Condensed',var(--sans);
+  --maxw:1180px; --pad:clamp(20px,6vw,90px);
+}
+html[data-theme="light"]{
+  --lime-deep:#67790d;
+  --bg:#f1f3ee; --bg2:#e9ece3;
+  --pnl:rgba(255,255,255,.80); --pnl2:rgba(33,42,35,.035);
+  --hair:rgba(33,42,35,.13); --hair2:rgba(33,42,35,.08);
+  --inset:rgba(33,42,35,.04);
+  --grid:rgba(33,42,35,.05); --hover:rgba(33,42,35,.025);
+  --text:#212a23; --muted:#5f6c61; --faint:#8b978d;
+  --lime-soft:rgba(191,215,48,.22); --lime-line:rgba(154,179,19,.45);
+  --amber:#8f6008; --amber-bg:rgba(224,166,58,.14);
+  --red:#b03a2a; --red-bg:rgba(176,58,42,.10);
+  --sh:0 2px 8px rgba(30,40,28,.07),0 18px 44px rgba(30,40,28,.10);
+  --sh-sm:0 1px 3px rgba(30,40,28,.06),0 6px 18px rgba(30,40,28,.07);
+  --glow:0 4px 24px rgba(154,179,19,.28);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{margin:0}
+::selection{background:var(--lime);color:var(--lime-ink)}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px;border-radius:6px}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input{font:inherit}
+
+.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:44px 44px,44px 44px}
+.glow{position:absolute;left:0;right:0;top:0;height:560px;z-index:0;pointer-events:none;
+  background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.085) 0%,transparent 64%)}
+html[data-theme="light"] .glow{background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.20) 0%,transparent 64%)}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--pad);position:relative;z-index:1}
+
+/* ---------- nav a pillola, con briciole (come le altre pagine tool) ---------- */
+.topbar{position:sticky;top:0;z-index:50;display:flex;justify-content:center;
+  padding:18px var(--pad) 0;pointer-events:none}
+.navpill{pointer-events:auto;max-width:100%;display:flex;align-items:center;gap:26px;
+  padding:8px 8px 8px 14px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh)}
+.brand{display:flex;align-items:center;gap:9px;flex:none}
+.hdr-logo{width:26px;height:26px;border-radius:8px;display:block;flex:none}
+.appname{font-family:var(--disp);font-weight:600;font-size:13.5px;letter-spacing:.03em;
+  line-height:1.2;color:var(--text);white-space:nowrap}
+.crumbs{display:flex;align-items:center;gap:9px;font:400 12px/1 var(--sans);color:var(--muted);min-width:0}
+.crumbs .up{display:flex;align-items:center;gap:6px;transition:color .15s;white-space:nowrap}
+.crumbs .up:hover{color:var(--text)}
+.crumbs .up svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+.crumbs .sep{color:var(--faint)}
+.crumbs .here{font-weight:500;color:var(--text);white-space:nowrap}
+.nav-act{display:flex;align-items:center;gap:10px;flex:none;margin-left:auto}
+.langsw{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
+.langsw button{padding:5px 8px;border-radius:999px;color:var(--faint);transition:color .12s,background .12s}
+.langsw button:hover{color:var(--text)}
+.langsw button.on{background:var(--lime-soft);color:var(--text)}
+.thm{width:28px;height:28px;flex:none;border-radius:999px;border:1px solid var(--hair);
+  background:var(--pnl2);display:inline-flex;align-items:center;justify-content:center;
+  color:var(--muted);transition:color .15s,border-color .15s}
+.thm:hover{color:var(--text);border-color:var(--lime-line)}
+.thm svg{width:14px;height:14px}
+html[data-theme="light"] .thm .moon{display:none}
+html:not([data-theme="light"]) .thm .sun{display:none}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;white-space:nowrap;
+  border:1px solid transparent;border-radius:999px;cursor:pointer;
+  font-family:var(--disp);font-weight:600;letter-spacing:.02em;
+  transition:background .18s,border-color .18s,box-shadow .22s,transform .18s,color .18s}
+.btn svg{flex:none}
+.btn.primary{background:var(--lime);color:var(--lime-ink);box-shadow:var(--glow)}
+.btn.primary:hover:not(:disabled){background:#cae23f;box-shadow:0 6px 30px rgba(191,215,48,.32);transform:translateY(-1px)}
+.btn.hollow{background:transparent;border-color:var(--hair);color:var(--text)}
+.btn.hollow:hover:not(:disabled){border-color:var(--lime-line)}
+.btn.sm{padding:9px 16px;font-size:12.5px}
+.btn.sm svg{width:13px;height:13px}
+.btn:disabled{cursor:not-allowed;opacity:.42;box-shadow:none;transform:none}
+
+/* ---------- testata ---------- */
+.head{display:flex;align-items:flex-end;gap:60px;padding:62px 0 0}
+.head-l{flex:1;min-width:0;display:flex;flex-direction:column;gap:13px}
+.head-tags{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kicker{font:500 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.tag{padding:4px 8px;border-radius:999px;background:var(--lime-soft);
+  font:500 9px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--acc)}
+.tag.line{background:none;border:1px solid var(--hair);color:var(--faint)}
+.h1{max-width:620px;font-family:var(--disp);font-weight:600;font-size:clamp(34px,3.9vw,46px);
+  line-height:1.02;letter-spacing:-.006em;color:var(--text)}
+.lead{max-width:580px;margin:0;font:400 14px/1.7 var(--sans);color:var(--muted)}
+.spec{flex:0 0 300px;display:flex;flex-direction:column;gap:9px;padding-bottom:6px}
+.spec-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.spec-row:not(:last-child){padding-bottom:9px;border-bottom:1px solid var(--hair)}
+.spec-k{font:400 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.spec-v{font:500 11.5px/1 var(--mono);color:var(--text)}
+
+/* ---------- riga file A → B + interruttore di vista ---------- */
+.filebar{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:34px 0 0}
+.seg{display:flex;align-items:center;gap:4px;padding:4px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh-sm)}
+.seg button{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;
+  color:var(--muted);font:600 12.5px/1 var(--disp);letter-spacing:.02em;
+  transition:color .15s,background .15s}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--lime);color:var(--lime-ink)}
+.seg button svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round}
+.fpair{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-left:auto}
+.fpair>svg{flex:none;width:14px;height:14px;fill:none;stroke:var(--faint);stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round}
+.fcard{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 12px;border-radius:999px;
+  background:var(--pnl2);border:1px dashed var(--hair);cursor:pointer;max-width:100%;
+  transition:border-color .15s,background .15s}
+.fcard:hover{border-color:var(--lime-line)}
+.fcard.drag{border-color:var(--lime);background:var(--lime-soft)}
+.fcard.set{border-style:solid;border-color:var(--lime-line)}
+.fcard.b.set{background:var(--lime-soft)}
+.fcard .ab{flex:none;padding:3px 6px;border-radius:5px;background:rgba(237,242,226,.10);
+  font:600 9.5px/1 var(--mono);color:var(--muted)}
+html[data-theme="light"] .fcard .ab{background:rgba(33,42,35,.08)}
+.fcard.b.set .ab{background:var(--lime);color:var(--lime-ink)}
+.fcard-n{font:500 12px/1 var(--sans);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcard:not(.set) .fcard-n{color:var(--muted);font-weight:400}
+.fcard-m{font:400 10.5px/1 var(--mono);color:var(--faint);white-space:nowrap}
+.fcard-x{flex:none;display:none;width:20px;height:20px;align-items:center;justify-content:center;color:var(--faint);transition:color .15s}
+.fcard.set .fcard-x{display:flex}
+.fcard-x:hover{color:var(--text)}
+.fcard-x svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+
+/* velo di attesa */
+.veil{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+  background:rgba(13,18,11,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+html[data-theme="light"] .veil{background:rgba(241,243,238,.6)}
+.veil .sp{width:34px;height:34px;border-radius:50%;
+  border:3px solid var(--lime-soft);border-top-color:var(--lime);
+  animation:vspin .8s linear infinite}
+@keyframes vspin{to{transform:rotate(360deg)}}
+.veil .lb{font:500 12px/1 var(--mono);color:var(--text)}
+
+/* ---------- il banco ---------- */
+.bench{display:flex;align-items:stretch;margin-top:16px;border-radius:var(--r);
+  background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh);overflow:hidden;min-height:420px}
+.bench-l{flex:1;min-width:0;display:flex;flex-direction:column}
+
+/* stato vuoto */
+.drop0{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;margin:24px;border-radius:var(--r-md);border:1px dashed var(--hair);
+  color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s;text-align:center}
+.drop0:hover{border-color:var(--lime-line)}
+.drop0.drag{border-color:var(--lime);background:var(--lime-soft)}
+.drop0 svg{width:26px;height:26px;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linejoin:round}
+.drop0 .t1{font:500 13.5px/1.4 var(--sans);color:var(--text)}
+.drop0 .t2{font:400 11px/1.6 var(--mono);color:var(--faint);max-width:420px}
+
+/* --- i quattro conti + barra --- */
+#diffView{display:flex;flex-direction:column;flex:1;min-width:0}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;padding:18px 24px 12px}
+.scard3{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:13px;
+  background:var(--pnl2);border:1px solid var(--hair)}
+.scard3 .v{font:600 22px/1 var(--disp);color:var(--muted)}
+.scard3 .k{font:400 9.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.scard3.add{background:rgba(191,215,48,.07);border-color:var(--lime-line)}
+.scard3.add .v{color:var(--acc)}
+.scard3.rem{background:var(--red-bg);border-color:rgba(214,96,77,.28)}
+.scard3.rem .v{color:var(--red)}
+.scard3.mod{background:rgba(224,166,58,.055);border-color:rgba(224,166,58,.26)}
+.scard3.mod .v{color:var(--amber)}
+.ratio{display:flex;align-items:center;gap:10px;padding:0 24px 14px}
+.ratio .bar{flex:1;display:flex;height:5px;border-radius:3px;overflow:hidden;background:rgba(237,242,226,.08)}
+html[data-theme="light"] .ratio .bar{background:rgba(33,42,35,.08)}
+.ratio .bar i{display:block;height:100%}
+.ratio .lb{flex:none;font:400 10.5px/1 var(--mono);color:var(--faint)}
+
+/* --- filtri --- */
+.fchips{display:flex;align-items:center;gap:6px;padding:11px 24px;flex-wrap:wrap;
+  border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);background:var(--hover)}
+.fch{display:flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;
+  border:1px solid var(--hair);font:400 11px/1 var(--sans);color:var(--muted);
+  transition:border-color .12s,color .12s,background .12s}
+.fch:hover{border-color:var(--lime-line);color:var(--text)}
+.fch.on{background:var(--lime-soft);border-color:var(--lime-line);color:var(--text);font-weight:500}
+.fch .n{font:400 10px/1 var(--mono);color:var(--faint)}
+.fch.re{border-color:rgba(224,166,58,.3);color:var(--amber)}
+.fch.re:hover{background:rgba(224,166,58,.08)}
+.fch.re.on{background:rgba(224,166,58,.12);border-color:rgba(224,166,58,.45);color:var(--amber)}
+.fchips .sp{flex:1}
+.fchips .noise{font:400 10.5px/1 var(--mono);color:var(--faint);white-space:nowrap}
+
+/* --- intestazione + righe --- */
+.chead3{display:flex;align-items:center;gap:12px;padding:8px 24px;border-bottom:1px solid var(--hair)}
+.chead3 span{font:400 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.chead3 .c1{flex:1;min-width:0}
+.chead3 .c2{flex:0 0 196px}
+.chead3 .c3{flex:0 0 78px;text-align:right}
+.rowsc{display:flex;flex-direction:column}
+.dgrp{display:flex;align-items:center;gap:9px;padding:8px 24px;background:rgba(237,242,226,.03);
+  width:100%;text-align:left;cursor:pointer}
+html[data-theme="light"] .dgrp{background:rgba(33,42,35,.03)}
+.dgrp .cv{flex:none;width:11px;height:11px;fill:none;stroke:var(--faint);stroke-width:2.2;
+  stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
+.dgrp.closed .cv{transform:rotate(-90deg)}
+.dgrp .gn{font:500 10.5px/1 var(--mono);color:var(--muted)}
+.dgrp:hover .gn{color:var(--text)}
+.dgrp .gl{flex:1;height:1px;background:var(--hair2)}
+.dgrp .gc{font:400 10px/1 var(--mono);color:var(--faint);white-space:nowrap}
+.drow{display:flex;align-items:center;gap:12px;padding:11px 24px;border-bottom:1px solid var(--hair2);
+  width:100%;text-align:left;cursor:pointer;transition:background .1s}
+.drow:hover{background:var(--pnl2)}
+.drow.on{background:var(--lime-soft);box-shadow:inset 2px 0 0 var(--lime)}
+.drow .el{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.drow .nm{font:500 12.5px/1.25 var(--sans);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drow.rem2 .nm{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(214,96,77,.6)}
+.drow .sub{font:400 10.5px/1 var(--mono);color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drow .bdgs{flex:0 0 196px;display:flex;flex-wrap:wrap;gap:5px}
+.bdg{padding:4px 8px;border-radius:6px;background:rgba(224,166,58,.14);
+  font:500 9.5px/1 var(--mono);color:var(--amber);white-space:nowrap}
+.bdg.add{background:rgba(191,215,48,.16);color:var(--acc)}
+.bdg.rem{background:rgba(214,96,77,.16);color:var(--red)}
+.bdg.re{background:none;border:1px solid rgba(224,166,58,.32)}
+.drow .gid{flex:0 0 78px;text-align:right;font:400 10.5px/1 var(--mono);color:var(--muted);white-space:nowrap}
+.dmore{display:flex;align-items:center;gap:12px;padding:8px 24px 10px;border-bottom:1px solid var(--hair2);
+  font:400 11px/1 var(--sans);color:var(--acc);width:100%;text-align:left}
+.dmore:hover{color:var(--lime)}
+.dnone{padding:22px 24px;font:400 11.5px/1.6 var(--sans);color:var(--faint)}
+
+/* --- vista sul modello (11b, semplificata) --- */
+#modelView{display:flex;flex-direction:column;flex:1;min-width:0}
+.mv-wrap{position:relative;flex:1;min-height:560px;background:var(--bg2);overflow:hidden}
+.mv-wrap canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.mv-legend{position:absolute;left:14px;top:14px;z-index:4;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.mv-legend .lg{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;
+  background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);font:500 11px/1 var(--sans);color:var(--text)}
+.mv-legend .lg i{width:7px;height:7px;border-radius:2px}
+.mv-ovl{position:absolute;right:14px;top:14px;z-index:4;display:flex;flex-direction:column;gap:7px;
+  padding:11px 13px;border-radius:14px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh-sm)}
+.mv-ovl .mk{font:500 9.5px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.mv-ovl .mseg{align-self:stretch;justify-content:stretch}
+.mv-ovl .mseg button{flex:1}
+.mv-row{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer}
+.mv-row .lb3{font:400 11px/1 var(--sans);color:var(--muted)}
+.mv-row.off .lb3{color:var(--faint)}
+.sw2{position:relative;flex:none;width:30px;height:17px;border-radius:999px;background:var(--hair);transition:background .15s}
+.mv-row:not(.off) .sw2{background:var(--lime)}
+.sw2 i{position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;
+  background:var(--faint);transition:left .15s,background .15s}
+.mv-row:not(.off) .sw2 i{left:15px;background:var(--lime-ink)}
+/* riga in basso: hint (si tronca) + bottone allarga (dimensione fissa) — MAI
+   sovrapposti, qualunque sia la larghezza del riquadro o la lingua */
+.mv-bottom{position:absolute;left:14px;right:14px;bottom:12px;z-index:4;
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mv-hint{min-width:0;flex:1 1 auto;padding:6px 11px;border-radius:999px;
+  background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);font:400 10.5px/1 var(--mono);color:var(--faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* allarga → il viewer completo in una finestra flottante (pattern Extractor) */
+.mv-expand{flex:none;display:inline-flex;align-items:center;gap:8px;
+  padding:9px 14px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh-sm);
+  font:600 11.5px/1 var(--disp);letter-spacing:.02em;color:var(--text);
+  white-space:nowrap;transition:border-color .15s}
+.mv-expand:hover{border-color:var(--lime-line)}
+.mv-expand svg{width:13px;height:13px;fill:none;stroke:var(--acc);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:640px){.mv-hint{display:none}}
+.dv-backdrop{position:fixed;inset:0;z-index:78;background:rgba(13,18,11,.45);
+  backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px)}
+html[data-theme="light"] .dv-backdrop{background:rgba(33,42,35,.28)}
+.dv-overlay{position:fixed;inset:20px;z-index:80;display:flex;flex-direction:column;
+  border-radius:var(--r);background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh);overflow:hidden}
+.dv-head{display:flex;align-items:center;gap:14px;padding:10px 12px 10px 18px;border-bottom:1px solid var(--hair)}
+.dv-head .t{font:600 13.5px/1 var(--disp);letter-spacing:.02em;color:var(--text);white-space:nowrap}
+.dv-head .lgs{display:flex;align-items:center;gap:12px;font:500 11px/1 var(--sans);color:var(--muted);flex-wrap:wrap;margin-left:auto}
+.dv-head .lgs i{display:inline-block;width:7px;height:7px;border-radius:2px;margin-right:5px;vertical-align:0}
+.dv-head .x{flex:none;width:28px;height:28px;border-radius:999px;border:1px solid var(--hair);
+  display:inline-flex;align-items:center;justify-content:center;color:var(--muted);
+  transition:color .15s,border-color .15s}
+.dv-head .x:hover{color:var(--text);border-color:var(--lime-line)}
+.dv-head .x svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.dv-host{flex:1;min-height:0;background:var(--bg2)}
+.dv-frame{display:block;width:100%;height:100%;border:0}
+
+/* --- barra raggruppa --- */
+.rowsbar{display:flex;align-items:center;gap:16px;padding:15px 24px 18px;margin-top:auto;flex-wrap:wrap}
+.rowsbar .k{font:500 10.5px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.rowsbar .set2{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.mchip{padding:7px 12px;border-radius:999px;border:1px solid var(--hair);
+  font:400 11.5px/1 var(--sans);color:var(--muted);transition:border-color .12s,color .12s,background .12s}
+.mchip:hover{border-color:var(--lime-line);color:var(--text)}
+.mchip.on{background:var(--lime-soft);border-color:var(--lime-line);color:var(--text);font-weight:500}
+.rowsbar .rhint{margin-left:auto;font:400 11px/1 var(--mono);color:var(--faint)}
+
+/* --- colonna destra --- */
+.bench-r{flex:0 0 400px;display:flex;flex-direction:column;border-left:1px solid var(--hair);background:var(--inset)}
+.det{display:flex;flex-direction:column;gap:11px;padding:17px 22px 15px}
+.det .hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.det .hd .t{font:600 15px/1 var(--disp);letter-spacing:.02em;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.det .hd .g{flex:none;font:400 10.5px/1 var(--mono);color:var(--faint)}
+.det .empty{font:400 11.5px/1.6 var(--sans);color:var(--faint)}
+.fhead{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;
+  background:var(--pnl2);border:1px solid var(--hair)}
+.fhead span{font:400 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.fhead .f1{flex:1;min-width:0}
+.fhead .f2,.fhead .f3{flex:0 0 88px}
+.fhead .f3{color:var(--acc)}
+.frows{display:flex;flex-direction:column;max-height:280px;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--hair) transparent}
+.frow{display:flex;align-items:center;gap:12px;padding:9px 12px;border-bottom:1px solid var(--hair2)}
+.frow:last-child{border-bottom:0}
+.frow .fk{flex:1;min-width:0;font:400 11.5px/1.3 var(--sans);color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frow .fk .ps{color:var(--faint)}
+.frow .va,.frow .vb{flex:0 0 88px;font:400 11px/1.3 var(--mono);color:var(--faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.frow .vb{font-weight:500;color:var(--amber)}
+.frow .vb.new{color:var(--acc)}
+.frow .vb.same{font-weight:400;color:var(--muted)}
+.frow.dim .fk,.frow.dim .va,.frow.dim .vb{color:var(--faint);opacity:.65;font-weight:400}
+.det .act{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.det .act button{font:400 11px/1 var(--sans);color:var(--acc)}
+.det .act button:hover{color:var(--lime)}
+
+/* --- regole di rumore --- */
+.rules{display:flex;flex-direction:column;gap:9px;padding:0 22px 16px}
+.rules .rk{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.rules .rk .k{font:500 10.5px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.rules .rk .n{font:400 10.5px/1 var(--mono);color:var(--amber)}
+.togl{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 13px;border-radius:var(--r-sm);background:var(--pnl2);border:1px solid var(--hair);
+  cursor:pointer;transition:border-color .12s}
+.togl:hover{border-color:var(--lime-line)}
+.togl.off{background:none;border-color:var(--hair2)}
+.togl.dis{opacity:.6;cursor:default}
+.togl.dis:hover{border-color:var(--hair)}
+.togl .lb2{font:400 12px/1.35 var(--sans);color:var(--muted)}
+.togl.off .lb2{color:var(--faint)}
+.sw{position:relative;flex:none;width:32px;height:18px;border-radius:999px;background:var(--hair);transition:background .15s}
+.togl:not(.off) .sw{background:var(--lime)}
+.sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+  background:var(--faint);transition:left .15s,background .15s}
+.togl:not(.off) .sw i{left:16px;background:var(--lime-ink)}
+.tolrow{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 13px;border-radius:var(--r-sm);background:var(--pnl2);border:1px solid var(--hair)}
+.tolrow .lb2{font:400 12px/1.35 var(--sans);color:var(--muted)}
+.mseg{display:flex;align-items:center;gap:1px;padding:3px;border-radius:8px;background:var(--inset);
+  box-shadow:inset 0 0 0 1px var(--hair);font:500 10.5px var(--mono)}
+.mseg button{padding:4px 7px;border-radius:6px;color:var(--faint);transition:color .12s,background .12s}
+.mseg button:hover{color:var(--text)}
+.mseg button.on{background:var(--lime);color:var(--lime-ink)}
+.gcard{display:flex;flex-direction:column;gap:8px;padding:13px 14px;border-radius:var(--r-md);
+  background:rgba(224,166,58,.05);border:1px solid rgba(224,166,58,.22)}
+.gcard .hd{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.gcard .nm{font:500 11.5px/1.35 var(--sans);color:var(--text)}
+.gcard .n{font:500 11.5px/1 var(--mono);color:var(--amber)}
+.gcard .why{margin:0;font:400 10.5px/1.5 var(--sans);color:var(--faint);text-wrap:pretty}
+.gcard .act{display:flex;align-items:center;gap:14px;padding-top:3px;flex-wrap:wrap}
+.gcard .act button{font:400 11px/1 var(--sans);color:var(--muted);transition:color .12s}
+.gcard .act button:hover{color:var(--text)}
+.gcard .act button.pri{color:var(--acc)}
+.gcard .act button.pri:hover{color:var(--lime)}
+.gcard .act button.on{color:var(--amber)}
+
+/* --- cosa esce + esecuzione --- */
+.expo{display:flex;flex-direction:column;gap:10px;padding:0 22px 14px}
+.expo .xh{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.expo .xh .t{font:500 10.5px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.expo .fmt{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
+.expo .fmt button{padding:5px 8px;border-radius:999px;color:var(--faint);transition:color .12s,background .12s}
+.expo .fmt button:hover{color:var(--text)}
+.expo .fmt button.on{background:var(--lime-soft);color:var(--text)}
+.fname{display:flex;align-items:center;gap:2px;padding:10px 12px;border-radius:var(--r-sm);
+  background:var(--inset);border:1px solid var(--lime-line)}
+.fname input{flex:1;min-width:0;border:0;outline:none;background:none;
+  font:400 12px/1 var(--mono);color:var(--text)}
+.fname .ext{font:400 12px/1 var(--mono);color:var(--faint);white-space:nowrap}
+.exec{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:auto;
+  padding:16px 22px;border-top:1px solid var(--hair);background:var(--pnl2)}
+.exec .st{flex:1;min-width:0;font:400 11px/1.4 var(--sans);color:var(--faint);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.exec .st.err{color:var(--red)}
+.btn.run{padding:12px 20px;font-size:13.5px}
+.btn.run svg{width:14px;height:14px}
+
+/* ---------- chiusura di pagina ---------- */
+.pagefoot{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
+  margin:34px 0;padding-top:20px;border-top:1px solid var(--hair)}
+.pagefoot p{margin:0;font:400 11.5px/1.6 var(--sans);color:var(--faint);max-width:560px;text-wrap:pretty}
+.pagefoot nav{display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  font:400 11.5px/1 var(--sans);color:var(--muted)}
+.pagefoot nav a{transition:color .15s}
+.pagefoot nav a:hover{color:var(--text)}
+.pagefoot nav a.go{display:flex;align-items:center;gap:7px;color:var(--acc);transition:gap .15s}
+.pagefoot nav a.go:hover{gap:11px;color:var(--lime)}
+.pagefoot nav svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round}
+
+@media (max-width:980px){
+  .bench{flex-direction:column}
+  .bench-r{flex:none;border-left:0;border-top:1px solid var(--hair)}
+  .head{flex-direction:column;align-items:stretch;gap:24px}
+  .spec{flex:none}
+  .filebar{justify-content:flex-start}
+  .drow .bdgs{flex-basis:130px}
+  .chead3 .c2{flex-basis:130px}
+}
+</style>
+
+<!-- Statistiche di visita anonime e senza cookie (GoatCounter) — vedi /analytics.js -->
+<script src="/analytics.js" defer></script>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true"></div>
+
+<!-- ================= NAV ================= -->
+<header class="topbar">
+  <div class="navpill">
+    <a class="brand" href="../../" data-i18n-title="nav.home" title="Vai a viewifc.com" aria-label="viewifc.com">
+      <img class="hdr-logo" src="../../favicon-32.png" alt="APE" width="26" height="26">
+      <span class="appname">Viewer IFC · BCF</span>
+    </a>
+    <nav class="crumbs" aria-label="breadcrumb">
+      <a class="up" href="../">
+        <svg viewBox="0 0 24 24"><path d="M19 12H6M11 18l-6-6 6-6"/></svg>
+        <span data-i18n="nav.tools">Strumenti</span>
+      </a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span class="here" aria-current="page" data-i18n="nav.here">Confronto revisioni</span>
+    </nav>
+    <div class="nav-act">
+      <div class="langsw" role="group" aria-label="Language">
+        <button data-lang="it" class="on">IT</button>
+        <button data-lang="en">EN</button>
+      </div>
+      <button class="thm" id="thmBtn" aria-label="Light / dark" title="Light / dark">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <a class="btn hollow sm" href="../../viewer/">
+        <span data-i18n="cta.open">Apri il viewer</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="glow" aria-hidden="true"></div>
+
+<main class="wrap">
+
+  <!-- ================= TESTATA ================= -->
+  <section class="head">
+    <div class="head-l">
+      <div class="head-tags">
+        <span class="kicker" data-i18n="head.kicker">Strumento 08</span>
+        <span class="tag" data-i18n="head.tag">Client-side</span>
+        <span class="tag line" data-i18n="head.beta">Prima versione</span>
+      </div>
+      <h1 class="h1">IFC Diff</h1>
+      <p class="lead" data-i18n="head.lead">Che cosa è cambiato fra due emissioni, al netto del rumore di riesportazione. Le regole applicate sono dichiarate accanto al conto, e ogni gruppo di modifiche può diventare un topic BCF.</p>
+    </div>
+    <div class="spec">
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.in">Ingresso</span>
+        <span class="spec-v" data-i18n="spec.inV">2 file .ifc</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.out">Uscita</span>
+        <span class="spec-v">.xlsx · .bcfzip</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.key">Chiave</span>
+        <span class="spec-v" data-i18n="spec.keyV">GlobalId + geometria</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VISTA + FILE A → B ================= -->
+  <div class="filebar">
+    <div class="seg" id="viewSeg" role="tablist" hidden>
+      <button class="on" data-view="table" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24"><path d="M4 6h7M4 12h11M4 18h5"/><path d="M18 8v8M15 11l3-3 3 3"/></svg>
+        <span data-i18n="tab.table">Bilancio</span>
+      </button>
+      <button data-view="model" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>
+        <span data-i18n="tab.model">Sul modello</span>
+      </button>
+    </div>
+    <div class="fpair">
+      <div class="fcard a" id="cardA" role="button" tabindex="0">
+        <span class="ab">A</span>
+        <span class="fcard-n" id="nameA" data-i18n="drop.a">Revisione vecchia — .ifc</span>
+        <span class="fcard-m" id="metaA"></span>
+        <button class="fcard-x" id="clearA" type="button" data-i18n-title="f.remove" title="Rimuovi il file" aria-label="Rimuovi il file">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      <div class="fcard b" id="cardB" role="button" tabindex="0">
+        <span class="ab">B</span>
+        <span class="fcard-n" id="nameB" data-i18n="drop.b">Revisione nuova — .ifc</span>
+        <span class="fcard-m" id="metaB"></span>
+        <button class="fcard-x" id="clearB" type="button" data-i18n-title="f.remove" title="Rimuovi il file" aria-label="Rimuovi il file">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="fileInput" accept=".ifc" multiple hidden>
+
+  <!-- ================= BANCO ================= -->
+  <section class="bench">
+
+    <!-- --- sinistra: bilancio + elenco --- -->
+    <div class="bench-l">
+
+      <!-- stato vuoto -->
+      <div class="drop0" id="drop0">
+        <svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3M16 3h3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-3M12 7v10M9 10l3-3 3 3"/></svg>
+        <span class="t1" data-i18n="drop.big">Trascina qui le due revisioni .ifc — anche insieme — o clicca per sfogliare</span>
+        <span class="t2" data-i18n="drop.hint">nessun upload: il confronto avviene nel browser · A è la revisione vecchia, B la nuova</span>
+      </div>
+
+      <!-- il bilancio -->
+      <div id="diffView" hidden>
+        <div class="stats">
+          <div class="scard3 add"><span class="v" id="stAdd">—</span><span class="k" data-i18n="st.add">Aggiunti</span></div>
+          <div class="scard3 rem"><span class="v" id="stRem">—</span><span class="k" data-i18n="st.rem">Rimossi</span></div>
+          <div class="scard3 mod"><span class="v" id="stMod">—</span><span class="k" data-i18n="st.mod">Modificati</span></div>
+          <div class="scard3"><span class="v" id="stSame">—</span><span class="k" data-i18n="st.same">Identici</span></div>
+        </div>
+        <div class="ratio">
+          <span class="bar" id="ratioBar"></span>
+          <span class="lb" id="ratioLb"></span>
+        </div>
+        <div class="fchips" id="fchips"></div>
+        <div class="chead3">
+          <span class="c1" data-i18n="ch.el">Elemento</span>
+          <span class="c2" data-i18n="ch.what">Cosa è cambiato</span>
+          <span class="c3">GlobalId</span>
+        </div>
+        <div class="rowsc" id="rowList"></div>
+        <div class="rowsbar">
+          <span class="k" data-i18n="grp.k">Raggruppa</span>
+          <div class="set2" id="grpChips"></div>
+          <span class="rhint" data-i18n="grp.hint">J · K per scorrere le righe</span>
+        </div>
+      </div>
+
+      <!-- vista sul modello: le due revisioni sovrapposte (11b, senza coda laterale —
+           la coda è l'elenco del bilancio, il dettaglio resta nella colonna destra) -->
+      <div id="modelView" hidden>
+        <div class="mv-wrap">
+          <canvas id="mvCanvas"></canvas>
+          <div class="mv-legend" id="mvLegend"></div>
+          <div class="mv-ovl">
+            <span class="mk" data-i18n="mv.k">Sovrapposizione</span>
+            <div class="mseg" id="ovlSeg">
+              <button data-ovl="ab" class="on">A + B</button>
+              <button data-ovl="b" data-i18n="mv.onlyB">solo B</button>
+              <button data-ovl="a" data-i18n="mv.onlyA">solo A</button>
+            </div>
+            <div class="mv-row" id="tgDim" role="switch" aria-checked="true" tabindex="0">
+              <span class="lb3" data-i18n="mv.dim">Attenua gli identici</span>
+              <span class="sw2"><i></i></span>
+            </div>
+            <div class="mv-row" id="tgVec" role="switch" aria-checked="true" tabindex="0">
+              <span class="lb3" data-i18n="mv.vec">Vettori di spostamento</span>
+              <span class="sw2"><i></i></span>
+            </div>
+          </div>
+          <div class="mv-bottom">
+            <span class="mv-hint" id="mvHint" data-i18n="mv.hint">clic su un elemento per il campo-per-campo · doppio clic per inquadrarlo</span>
+            <button class="mv-expand" id="mvExpand" type="button">
+              <svg viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              <span data-i18n="mv.expand">Apri nel viewer completo</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- --- destra: dettaglio + regole + uscita --- -->
+    <div class="bench-r">
+      <div class="det" id="det">
+        <span class="empty" data-i18n="det.hint">Carica le due revisioni: qui compare il campo-per-campo della riga scelta.</span>
+      </div>
+
+      <div class="rules" id="rules" hidden>
+        <div class="rk">
+          <span class="k" data-i18n="rules.k">Regole di rumore</span>
+          <span class="n" id="rulesN" hidden></span>
+        </div>
+        <div class="togl" id="tgOwner" role="switch" aria-checked="true" tabindex="0">
+          <span class="lb2" data-i18n="rules.owner">Ignora OwnerHistory</span>
+          <span class="sw"><i></i></span>
+        </div>
+        <div class="togl dis" id="tgIds" role="switch" aria-checked="true" aria-disabled="true"
+             data-i18n-title="rules.idsWhy" title="È il metodo del confronto, non si spegne: GlobalId + impronta strutturale della geometria.">
+          <span class="lb2" data-i18n="rules.ids">Ignora la rinumerazione degli #id</span>
+          <span class="sw"><i></i></span>
+        </div>
+        <div class="tolrow">
+          <span class="lb2" data-i18n="rules.tol">Tolleranza di posizione</span>
+          <span class="mseg" id="tolSeg">
+            <button data-tol="0">0</button>
+            <button data-tol="1" class="on">1 mm</button>
+            <button data-tol="5">5 mm</button>
+          </span>
+        </div>
+        <div class="gcard" id="reCard"></div>
+      </div>
+
+      <div class="expo" id="expo" hidden>
+        <div class="xh">
+          <span class="t" data-i18n="out.t">Cosa esce</span>
+          <div class="fmt" id="fmtSeg">
+            <button class="on" data-fmt="xlsx">.xlsx</button>
+            <button data-fmt="bcfzip">.bcfzip</button>
+          </div>
+        </div>
+        <div class="fname">
+          <input id="outName" autocomplete="off" spellcheck="false">
+          <span class="ext" id="outExt">.xlsx</span>
+        </div>
+      </div>
+
+      <div class="exec">
+        <span class="st" id="execSt" data-i18n="exec.hint">Carica le revisioni A e B per confrontarle.</span>
+        <button class="btn primary run" id="runBtn" disabled>
+          <span data-i18n="btn.run">Esporta il confronto</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CHIUSURA ================= -->
+  <div class="pagefoot">
+    <p><span data-i18n="foot.note">Le regole di rumore si salvano con il progetto: il confronto della prossima emissione parte dalle stesse, e i conti fra revisioni diventano comparabili. Nessun file lascia il computer.</span></p>
+    <nav>
+      <a href="https://github.com/arsray146/ifc-bcf-viewer" target="_blank" rel="noopener" data-i18n="foot.src">Codice sorgente</a>
+      <a class="go" href="../"><span data-i18n="foot.more">Altri strumenti</span>
+        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
+    </nav>
+  </div>
+
+</main>
+
+<!-- finestra flottante col viewer COMPLETO in modalità diff (?embed=diff):
+     l'iframe si crea al primo "allarga" e resta vivo alla chiusura, così la
+     riapertura è immediata; si distrugge solo al cambio dei file -->
+<div class="dv-backdrop" id="dvBk" hidden></div>
+<div class="dv-overlay" id="dvOv" hidden>
+  <div class="dv-head">
+    <span class="t" data-i18n="dv.t">Il confronto nel viewer</span>
+    <span class="lgs" id="dvLegend"></span>
+    <button class="x" id="dvClose" type="button" data-i18n-title="dv.close" title="Chiudi (Esc)" aria-label="Chiudi">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="dv-host" id="dvHost"></div>
+</div>
+
+<!-- velo di attesa (caricamento / confronto / scrittura) -->
+<div class="veil" id="veil" hidden>
+  <div class="sp" aria-hidden="true"></div>
+  <span class="lb" id="veilLb"></span>
+</div>
+<!-- =========================================================================
+     MOTORE — estratto e testato da test/test_diff.js per id: NON rinominare
+     il blocco. Caricato come vero script, non con eval (che in strict mode
+     terrebbe le funzioni nel suo scope).
+     ========================================================================= -->
+<script type="text/engine" id="diffEngine">
+"use strict";
+/* ---- scanner STEP a byte, quote-aware (stesso di Split/Extractor) --------
+   Un solo passaggio sulla Uint8Array: per ogni istruzione registra id, tipo e
+   intervallo di byte. Si decodificano solo le porzioni che servono.          */
+function dfScan(bytes){
+  const n = bytes.length;
+  const HASH=35, SEMI=59, QUOTE=39, EQ=61, LPAR=40;
+  const dec = new TextDecoder();
+  const ids=[], starts=[], ends=[], typeIdx=[];
+  const typeNames=[], typeMap=new Map();
+  let dataStart = -1;
+  for(let i=0;i<n-4;i++){
+    if(bytes[i]===68&&bytes[i+1]===65&&bytes[i+2]===84&&bytes[i+3]===65&&bytes[i+4]===SEMI){ dataStart=i+5; break; }
+  }
+  if(dataStart<0) throw new Error("no DATA section");
+  let i = dataStart;
+  while(i<n){
+    while(i<n && bytes[i]!==HASH){
+      if(bytes[i]===69&&bytes[i+1]===78&&bytes[i+2]===68&&bytes[i+3]===83&&bytes[i+4]===69&&bytes[i+5]===67){ i=n; }
+      else i++;
+    }
+    if(i>=n) break;
+    const st=i; i++;
+    let id=0;
+    while(i<n && bytes[i]>=48 && bytes[i]<=57){ id=id*10+(bytes[i]-48); i++; }
+    while(i<n && bytes[i]!==EQ && bytes[i]!==SEMI) i++;
+    if(bytes[i]!==EQ){ i++; continue; }
+    i++;
+    while(i<n && (bytes[i]===32||bytes[i]===10||bytes[i]===13||bytes[i]===9)) i++;
+    const t0=i;
+    while(i<n && bytes[i]!==LPAR && bytes[i]!==SEMI) i++;
+    let tEnd=i; while(tEnd>t0 && bytes[tEnd-1]<=32) tEnd--;
+    const tName = dec.decode(bytes.subarray(t0,tEnd));
+    let inQ=false;
+    while(i<n){
+      const b=bytes[i];
+      if(inQ){ if(b===QUOTE){ if(bytes[i+1]===QUOTE) i++; else inQ=false; } }
+      else if(b===QUOTE) inQ=true;
+      else if(b===SEMI) break;
+      i++;
+    }
+    i++;
+    let ti = typeMap.get(tName);
+    if(ti===undefined){ ti=typeNames.length; typeNames.push(tName); typeMap.set(tName,ti); }
+    ids.push(id); starts.push(st); ends.push(i); typeIdx.push(ti);
+  }
+  const m = ids.length;
+  const idMap = new Map();
+  for(let k=0;k<m;k++) idMap.set(ids[k],k);
+  return { bytes, dataStart, count:m, ids, starts, ends, typeIdx, typeNames, typeMap, idMap, dec };
+}
+
+/* argomenti top-level di un'istruzione (stringhe grezze), quote/parentesi-aware */
+function dfArgs(text){
+  const p0=text.indexOf("("), p1=text.lastIndexOf(")");
+  if(p0<0||p1<p0) return [];
+  const s=text.slice(p0+1,p1), out=[]; let d=0,q=false,cur="";
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(q){ cur+=c; if(c==="'"){ if(s[i+1]==="'"){cur+="'";i++;} else q=false; } continue; }
+    if(c==="'"){ q=true; cur+=c; }
+    else if(c==="("){ d++; cur+=c; }
+    else if(c===")"){ d--; cur+=c; }
+    else if(c===","&&d===0){ out.push(cur.trim()); cur=""; }
+    else cur+=c;
+  }
+  if(cur.trim()!=="") out.push(cur.trim());
+  return out;
+}
+function dfStmt(model,k){ return model.dec.decode(model.bytes.subarray(model.starts[k],model.ends[k])); }
+function dfName(a){ return (a&&a[0]==="'") ? a.slice(1,-1).replace(/''/g,"'") : null; }
+function dfRef(a,model){ if(!a||a[0]!=="#") return -1; const id=parseInt(a.slice(1),10); const k=model.idMap.get(id); return k===undefined?-1:k; }
+function dfList(a){ if(!a||a[0]!=="(") return []; return dfArgs("x"+a); }
+function dfPretty(t){
+  const MAP={IFCWALL:"IfcWall",IFCWALLSTANDARDCASE:"IfcWallStandardCase",IFCSLAB:"IfcSlab",IFCDOOR:"IfcDoor",IFCWINDOW:"IfcWindow",IFCCOVERING:"IfcCovering",IFCBEAM:"IfcBeam",IFCCOLUMN:"IfcColumn",IFCSTAIR:"IfcStair",IFCSTAIRFLIGHT:"IfcStairFlight",IFCRAILING:"IfcRailing",IFCROOF:"IfcRoof",IFCFURNISHINGELEMENT:"IfcFurnishingElement",IFCFLOWTERMINAL:"IfcFlowTerminal",IFCFLOWSEGMENT:"IfcFlowSegment",IFCFLOWFITTING:"IfcFlowFitting",IFCBUILDINGELEMENTPROXY:"IfcBuildingElementProxy",IFCPLATE:"IfcPlate",IFCMEMBER:"IfcMember",IFCFOOTING:"IfcFooting",IFCPILE:"IfcPile",IFCCURTAINWALL:"IfcCurtainWall",IFCSPACE:"IfcSpace",IFCOPENINGELEMENT:"IfcOpeningElement",IFCALIGNMENT:"IfcAlignment",IFCANNOTATION:"IfcAnnotation",IFCELEMENTASSEMBLY:"IfcElementAssembly"};
+  return MAP[t] || ("Ifc"+t.slice(3).charAt(0)+t.slice(4).toLowerCase());
+}
+
+/* ---- valore di una IfcValue / argomento grezzo (come nell'Extractor) ---- */
+function dfVal(raw){
+  let s=(raw==null?"":String(raw)).trim();
+  if(!s||s==="$"||s==="*") return null;
+  const mm=s.match(/^[A-Z0-9_]+\((.*)\)$/s);
+  if(mm) s=mm[1].trim();
+  if(!s||s==="$") return null;
+  if(s[0]==="'") return { v:s.slice(1,-1).replace(/''/g,"'"), num:false };
+  if(s===".T.") return { v:"TRUE", num:false };
+  if(s===".F.") return { v:"FALSE", num:false };
+  if(s===".U.") return null;
+  const en=s.match(/^\.([A-Z0-9_]+)\.$/);
+  if(en) return { v:en[1], num:false };
+  const f=parseFloat(s.replace(/[eE]([+-]?\d+)$/,"e$1"));
+  if(isFinite(f) && /^[+-]?[\d.]/.test(s)) return { v:f, num:true };
+  return { v:s, num:false };
+}
+
+/* ---- fattore unità di lunghezza → mm (gated sull'IfcUnitAssignment) ----- */
+function dfLenMm(model){
+  const T=model.typeNames, TI=model.typeIdx, m=model.count;
+  const PF={EXA:1e18,PETA:1e15,TERA:1e12,GIGA:1e9,MEGA:1e6,KILO:1e3,HECTO:100,DECA:10,DECI:.1,CENTI:.01,MILLI:.001,MICRO:1e-6,NANO:1e-9};
+  let ua=-1;
+  for(let k=0;k<m;k++) if(T[TI[k]]==="IFCUNITASSIGNMENT"){ ua=k; break; }
+  if(ua<0) return 1000;                                  // nessuna dichiarazione: si assume il metro
+  for(const r of dfList(dfArgs(dfStmt(model,ua))[0])){
+    const k=dfRef(r,model); if(k<0) continue;
+    const t=T[TI[k]], a=dfArgs(dfStmt(model,k));
+    if(t==="IFCSIUNIT"&&(a[1]||"").indexOf("LENGTHUNIT")>=0){
+      const pfx=(a[2]||"").replace(/\./g,"");
+      return (PF[pfx]||1)*1000;
+    }
+    if(t==="IFCCONVERSIONBASEDUNIT"&&(a[1]||"").indexOf("LENGTHUNIT")>=0){
+      const mw=dfRef(a[3],model);
+      if(mw>=0){
+        const ma=dfArgs(dfStmt(model,mw));
+        const f=dfVal(ma[0]);
+        const su=dfRef(ma[1],model);
+        let base=1000;
+        if(su>=0){ const sa=dfArgs(dfStmt(model,su)); const pfx=(sa[2]||"").replace(/\./g,""); base=(PF[pfx]||1)*1000; }
+        if(f&&f.num) return f.v*base;
+      }
+    }
+  }
+  return 1000;
+}
+
+/* ---- catena dei piazzamenti: matrice 3×3 (colonne X,Y,Z) + traslazione --- */
+function dfAxisMat(model,k){
+  const I={r:[1,0,0,0,1,0,0,0,1],t:[0,0,0]};
+  if(k<0) return I;
+  const T=model.typeNames[model.typeIdx[k]], a=dfArgs(dfStmt(model,k));
+  const num=s=>{ const f=parseFloat(s); return isFinite(f)?f:0; };
+  const ptOf=r=>{ const p=dfRef(r,model); if(p<0) return [0,0,0];
+    const l=dfList(dfArgs(dfStmt(model,p))[0]).map(num); return [l[0]||0,l[1]||0,l[2]||0]; };
+  const dirOf=(r,d)=>{ const p=dfRef(r,model); if(p<0) return d;
+    const l=dfList(dfArgs(dfStmt(model,p))[0]).map(num);
+    const v=[l[0]||0,l[1]||0,l[2]||0], n=Math.hypot(v[0],v[1],v[2]);
+    return n>1e-12?[v[0]/n,v[1]/n,v[2]/n]:d; };
+  if(T==="IFCAXIS2PLACEMENT3D"){
+    const t=ptOf(a[0]);
+    const Z=dirOf(a[1],[0,0,1]);
+    let X=dirOf(a[2],[1,0,0]);
+    let d=X[0]*Z[0]+X[1]*Z[1]+X[2]*Z[2];
+    X=[X[0]-d*Z[0],X[1]-d*Z[1],X[2]-d*Z[2]];
+    let n=Math.hypot(X[0],X[1],X[2]);
+    if(n<1e-9){
+      X=Math.abs(Z[0])<.9?[1,0,0]:[0,1,0];
+      d=X[0]*Z[0]+X[1]*Z[1]+X[2]*Z[2];
+      X=[X[0]-d*Z[0],X[1]-d*Z[1],X[2]-d*Z[2]];
+      n=Math.hypot(X[0],X[1],X[2]);
+    }
+    X=[X[0]/n,X[1]/n,X[2]/n];
+    const Y=[Z[1]*X[2]-Z[2]*X[1],Z[2]*X[0]-Z[0]*X[2],Z[0]*X[1]-Z[1]*X[0]];
+    return { r:[X[0],Y[0],Z[0],X[1],Y[1],Z[1],X[2],Y[2],Z[2]], t };
+  }
+  if(T==="IFCAXIS2PLACEMENT2D"){
+    const t=ptOf(a[0]);
+    const X=dirOf(a[1],[1,0,0]);
+    return { r:[X[0],-X[1],0,X[1],X[0],0,0,0,1], t:[t[0],t[1],0] };
+  }
+  return I;
+}
+function dfMul(P,L){
+  const r=new Array(9), pr=P.r, lr=L.r;
+  for(let i=0;i<3;i++) for(let j=0;j<3;j++)
+    r[i*3+j]=pr[i*3]*lr[j]+pr[i*3+1]*lr[3+j]+pr[i*3+2]*lr[6+j];
+  const t=[
+    pr[0]*L.t[0]+pr[1]*L.t[1]+pr[2]*L.t[2]+P.t[0],
+    pr[3]*L.t[0]+pr[4]*L.t[1]+pr[5]*L.t[2]+P.t[1],
+    pr[6]*L.t[0]+pr[7]*L.t[1]+pr[8]*L.t[2]+P.t[2]];
+  return { r, t };
+}
+function dfPlaceMat(model,k,memo){
+  const I={r:[1,0,0,0,1,0,0,0,1],t:[0,0,0]};
+  if(k<0) return I;
+  let M=memo.get(k); if(M) return M;
+  const T=model.typeNames[model.typeIdx[k]];
+  if(T!=="IFCLOCALPLACEMENT"){ M={r:I.r,t:I.t,grid:true}; memo.set(k,M); return M; }
+  const a=dfArgs(dfStmt(model,k));
+  const P=dfPlaceMat(model,dfRef(a[0],model),memo);
+  const L=dfAxisMat(model,dfRef(a[1],model));
+  M=dfMul(P,L);
+  if(P.grid) M.grid=true;
+  memo.set(k,M); return M;
+}
+
+/* ---- impronta strutturale ------------------------------------------------
+   Canonicalizza un sottografo sostituendo ogni #ref con l'impronta di ciò
+   che punta: la rinumerazione degli #id non conta. I numeri sono normalizzati
+   a 6 cifre significative (il micron di jitter non conta). I contesti di
+   rappresentazione — e, per la geometria, l'OwnerHistory — sono esclusi.    */
+function dfHash(s){
+  let h1=0x811c9dc5, h2=0x1b873593;
+  for(let i=0;i<s.length;i++){
+    const c=s.charCodeAt(i);
+    h1=Math.imul(h1^c,0x01000193)>>>0;
+    h2=Math.imul(h2^(c+0x9e3779b9),0x01000193)>>>0;
+  }
+  return h1.toString(16).padStart(8,"0")+h2.toString(16).padStart(8,"0");
+}
+const DF_SKIP_GEO=new Set(["IFCOWNERHISTORY","IFCGEOMETRICREPRESENTATIONCONTEXT","IFCGEOMETRICREPRESENTATIONSUBCONTEXT"]);
+const DF_SKIP_CTX=new Set(["IFCGEOMETRICREPRESENTATIONCONTEXT","IFCGEOMETRICREPRESENTATIONSUBCONTEXT"]);
+function dfNorm(s){
+  const f=parseFloat(s);
+  if(!isFinite(f)) return s;
+  const r=Number(f.toPrecision(6));
+  return String(r===0?0:r);
+}
+function dfCanonTok(model,tok,st){
+  if(!tok) return "";
+  const c=tok[0];
+  if(c==="#"){ const r=dfRef(tok,model); return r<0?"?":"{"+dfFpOf(model,r,st)+"}"; }
+  if(c==="("){ return "("+dfList(tok).map(x=>dfCanonTok(model,x,st)).join(",")+")"; }
+  if(c==="'"||c==="."||tok==="$"||tok==="*") return tok;
+  const w=tok.match(/^([A-Z0-9_]+)\(/);
+  if(w) return w[1]+"("+dfArgs(tok).map(x=>dfCanonTok(model,x,st)).join(",")+")";
+  return dfNorm(tok);
+}
+function dfFpOf(model,k,st){
+  let h=st.memo.get(k);
+  if(h!==undefined) return h;
+  const t=model.typeNames[model.typeIdx[k]];
+  if(st.skip.has(t)){ st.memo.set(k,"$"); return "$"; }
+  if(st.stack.has(k)) return "@";
+  st.stack.add(k);
+  const canon=t+"("+dfArgs(dfStmt(model,k)).map(x=>dfCanonTok(model,x,st)).join(",")+")";
+  st.stack.delete(k);
+  h=dfHash(canon);
+  st.memo.set(k,h);
+  return h;
+}
+
+/* ---- indice: universo delle righe come nell'Extractor + posizione,
+   impronta di geometria, impronta OwnerHistory, valori efficaci ----------- */
+const DF_SPATIAL = new Set(["IFCPROJECT","IFCSITE","IFCBUILDING","IFCBUILDINGSTOREY","IFCSPACE","IFCFACILITY","IFCROAD","IFCRAILWAY","IFCBRIDGE","IFCMARINEFACILITY","IFCFACILITYPART","IFCROADPART","IFCRAILWAYPART","IFCBRIDGEPART","IFCMARINEPART","IFCFACILITYPARTCOMMON"]);
+const DF_QTY={IFCQUANTITYLENGTH:1,IFCQUANTITYAREA:1,IFCQUANTITYVOLUME:1,IFCQUANTITYCOUNT:1,IFCQUANTITYWEIGHT:1,IFCQUANTITYTIME:1};
+function dfIndex(model){
+  const T=model.typeNames, TI=model.typeIdx, m=model.count;
+  const contain=[], refd=[], aggr=new Map();
+  const defProps=[], elemType=new Map(), typeSet=new Set();
+  const psets=new Map(), qtos=new Map(), psv=new Map(), qty=new Map();
+  for(let k=0;k<m;k++){
+    const t=T[TI[k]];
+    if(t==="IFCRELCONTAINEDINSPATIALSTRUCTURE"||t==="IFCRELREFERENCEDINSPATIALSTRUCTURE"){
+      const a=dfArgs(dfStmt(model,k));
+      const kids=dfList(a[4]).map(x=>dfRef(x,model)).filter(x=>x>=0), st=dfRef(a[5],model);
+      if(st<0) continue;
+      (t==="IFCRELCONTAINEDINSPATIALSTRUCTURE"?contain:refd).push({st,kids});
+    }else if(t==="IFCRELAGGREGATES"||t==="IFCRELNESTS"){
+      const a=dfArgs(dfStmt(model,k));
+      const rel=dfRef(a[4],model), kids=dfList(a[5]).map(x=>dfRef(x,model)).filter(x=>x>=0);
+      if(rel<0) continue;
+      aggr.set(rel,(aggr.get(rel)||[]).concat(kids));
+    }else if(t==="IFCRELDEFINESBYPROPERTIES"){
+      const a=dfArgs(dfStmt(model,k));
+      const els=dfList(a[4]).map(x=>dfRef(x,model)).filter(x=>x>=0), pd=dfRef(a[5],model);
+      if(pd>=0&&els.length) defProps.push({els,pd});
+    }else if(t==="IFCRELDEFINESBYTYPE"){
+      const a=dfArgs(dfStmt(model,k));
+      const els=dfList(a[4]).map(x=>dfRef(x,model)).filter(x=>x>=0), ty=dfRef(a[5],model);
+      if(ty<0) continue;
+      typeSet.add(ty);
+      for(const e of els) if(!elemType.has(e)) elemType.set(e,ty);
+    }else if(t==="IFCPROPERTYSET"){
+      const a=dfArgs(dfStmt(model,k));
+      psets.set(k,{name:dfName(a[2])||"Pset",list:dfList(a[4]).map(x=>dfRef(x,model)).filter(x=>x>=0)});
+    }else if(t==="IFCELEMENTQUANTITY"){
+      const a=dfArgs(dfStmt(model,k));
+      qtos.set(k,{name:dfName(a[2])||"Qto",list:dfList(a[5]).map(x=>dfRef(x,model)).filter(x=>x>=0)});
+    }else if(t==="IFCPROPERTYSINGLEVALUE"){
+      const a=dfArgs(dfStmt(model,k));
+      const nm=dfName(a[0]); if(!nm) continue;
+      const v=dfVal(a[2]); if(v!=null) psv.set(k,{name:nm,val:v.v,num:v.num});
+    }else if(t==="IFCPROPERTYENUMERATEDVALUE"){
+      const a=dfArgs(dfStmt(model,k));
+      const nm=dfName(a[0]); if(!nm) continue;
+      const vals=dfList(a[2]).map(dfVal).filter(Boolean).map(x=>x.v);
+      if(vals.length) psv.set(k,{name:nm,val:vals.join(", "),num:false});
+    }else if(DF_QTY[t]){
+      const a=dfArgs(dfStmt(model,k));
+      const nm=dfName(a[0]); if(!nm) continue;
+      const f=parseFloat(a[3]);
+      if(isFinite(f)) qty.set(k,{name:nm,val:f});
+    }
+  }
+  const structSet=new Set();
+  for(const r of contain) structSet.add(r.st);
+  for(const r of refd) structSet.add(r.st);
+  const isSp = k => DF_SPATIAL.has(T[TI[k]]) || structSet.has(k);
+  const spParent=new Map();
+  for(const [rel,kids] of aggr) if(isSp(rel)) for(const c of kids) if(isSp(c)&&!spParent.has(c)) spParent.set(c,rel);
+  const nameCache=new Map();
+  const nameOf = k => {
+    let nm=nameCache.get(k);
+    if(nm===undefined){ nm=dfName(dfArgs(dfStmt(model,k))[2])||""; nameCache.set(k,nm); }
+    return nm;
+  };
+  function storeyOf(st){
+    let cur=st, hops=0;
+    while(cur!=null&&hops<64){
+      if(T[TI[cur]]==="IFCBUILDINGSTOREY") return nameOf(cur)||"?";
+      cur=spParent.get(cur); hops++;
+    }
+    return nameOf(st)||dfPretty(T[TI[st]]);
+  }
+  const rowIdx=new Map();
+  const rows=[];
+  function addRow(k,st){
+    if(rowIdx.has(k)||isSp(k)) return;
+    rowIdx.set(k,rows.length);
+    rows.push({k, clsRaw:T[TI[k]], storey:storeyOf(st)});
+    for(const c of (aggr.get(k)||[])) addRow(c,st);
+  }
+  for(const r of contain) for(const c of r.kids) addRow(c,r.st);
+  for(const [rel,kids] of aggr) if(isSp(rel)) for(const c of kids) if(!isSp(c)) addRow(c,rel);
+  for(const r of refd) for(const c of r.kids) addRow(c,r.st);
+  /* valori: istanza + tipo (il tipo vale quando l'istanza non ha la chiave —
+     "eredita dal tipo" qui è sempre attivo, dichiarato nelle scelte v1) */
+  const values=new Map(), typeVals=new Map();
+  function bagOf(map,k){ let b=map.get(k); if(!b){ b=new Map(); map.set(k,b); } return b; }
+  function addDef(target,pd){
+    const ps=psets.get(pd);
+    if(ps){ for(const p of ps.list){ const pv=psv.get(p); if(pv&&!target.has("p:"+ps.name+"."+pv.name)) target.set("p:"+ps.name+"."+pv.name,{v:pv.val,num:pv.num}); } return; }
+    const q=qtos.get(pd);
+    if(q){ for(const p of q.list){ const qv=qty.get(p); if(qv&&!target.has("q:"+q.name+"."+qv.name)) target.set("q:"+q.name+"."+qv.name,{v:qv.val,num:true}); } }
+  }
+  for(const {els,pd} of defProps){
+    for(const e of els){
+      if(rowIdx.has(e)) addDef(bagOf(values,e),pd);
+      else if(typeSet.has(e)) addDef(bagOf(typeVals,e),pd);
+    }
+  }
+  for(const ty of typeSet){
+    const a=dfArgs(dfStmt(model,ty));
+    for(const r of dfList(a[5])){
+      const pd=dfRef(r,model); if(pd>=0) addDef(bagOf(typeVals,ty),pd);
+    }
+  }
+  /* attributi, posizione, impronte */
+  const mm=dfLenMm(model);
+  const pmemo=new Map();
+  const geoSt={memo:new Map(),stack:new Set(),skip:DF_SKIP_GEO};
+  const ownSt={memo:new Map(),stack:new Set(),skip:DF_SKIP_CTX};
+  const byGid=new Map();
+  let dupGid=0;
+  for(const row of rows){
+    const a=dfArgs(dfStmt(model,row.k));
+    row.gid=dfName(a[0])||"";
+    row.name=dfName(a[2])||"";
+    row.desc=dfName(a[3])||"";
+    row.otype=dfName(a[4])||"";
+    const ty=elemType.get(row.k);
+    row.typeName=(ty===undefined)?"":(nameOf(ty)||"");
+    const pk=dfRef(a[5],model);
+    if(pk>=0){
+      const M=dfPlaceMat(model,pk,pmemo);
+      row.pos=M.grid?null:[M.t[0]*mm,M.t[1]*mm,M.t[2]*mm];
+    }else row.pos=null;
+    const rk=dfRef(a[6],model);
+    row.geo=rk>=0?dfFpOf(model,rk,geoSt):null;
+    const ok=dfRef(a[1],model);
+    row.own=ok>=0?dfFpOf(model,ok,ownSt):null;
+    /* valori efficaci: istanza prima, tipo per le chiavi mancanti */
+    const eff=new Map(values.get(row.k)||[]);
+    if(ty!==undefined){
+      const tv=typeVals.get(ty);
+      if(tv) for(const [key,val] of tv) if(!eff.has(key)) eff.set(key,val);
+    }
+    row.eff=eff;
+    row.cls=dfPretty(row.clsRaw);
+    if(row.gid){
+      if(byGid.has(row.gid)) dupGid++;
+      else byGid.set(row.gid,row);
+    }
+  }
+  return { model, rows, byGid, total:rows.length, mm, dupGid };
+}
+
+/* ---- confronto di una coppia -------------------------------------------- */
+function dfChanges(ra,rb,opts){
+  const ch=[]; let ownDiff=false, posNoise=false;
+  const A=(kind,key,va,vb,extra)=>ch.push(Object.assign({kind,key,va,vb},extra||{}));
+  if(ra.name!==rb.name) A("attr","Name",ra.name||null,rb.name||null);
+  if(ra.desc!==rb.desc) A("attr","Description",ra.desc||null,rb.desc||null);
+  if(ra.otype!==rb.otype) A("attr","ObjectType",ra.otype||null,rb.otype||null);
+  if(ra.typeName!==rb.typeName) A("attr","Type",ra.typeName||null,rb.typeName||null);
+  if(ra.clsRaw!==rb.clsRaw) A("class","Classe",ra.cls,rb.cls);
+  if(ra.storey!==rb.storey) A("storey","Piano",ra.storey||null,rb.storey||null);
+  const keys=new Set([...ra.eff.keys(),...rb.eff.keys()]);
+  for(const key of keys){
+    const va=ra.eff.get(key)||null, vb=rb.eff.get(key)||null;
+    if(va==null&&vb==null) continue;
+    if(va!=null&&vb!=null){
+      if(va.num&&vb.num){
+        if(Math.abs(va.v-vb.v)<=Math.max(Math.abs(va.v),Math.abs(vb.v))*1e-9+1e-12) continue;
+      }else if(String(va.v)===String(vb.v)) continue;
+    }
+    A(key[0]==="q"?"qty":"prop",key.slice(2),va?va.v:null,vb?vb.v:null,{num:!!((va&&va.num)||(vb&&vb.num))});
+  }
+  if(ra.pos&&rb.pos){
+    const dx=rb.pos[0]-ra.pos[0], dy=rb.pos[1]-ra.pos[1], dz=rb.pos[2]-ra.pos[2];
+    const d=Math.hypot(dx,dy,dz);
+    if(d>opts.tol) A("pos","Posizione",null,null,{dmm:d,dx,dy,dz});
+    else if(d>1e-6) posNoise=true;
+  }else if(!!ra.pos!==!!rb.pos) A("pos","Posizione",null,null,{dmm:NaN});
+  if(ra.geo!==rb.geo){
+    let dpct=null;
+    for(const key of ra.eff.keys()){
+      if(key[0]!=="q"||!/volume/i.test(key)) continue;
+      const va=ra.eff.get(key), vb=rb.eff.get(key);
+      if(va&&vb&&va.num&&vb.num&&Math.abs(va.v)>1e-9){ dpct=(vb.v-va.v)/va.v*100; break; }
+    }
+    A("geom","Geometria",null,null,{dpct});
+  }
+  if(ra.own!==rb.own){
+    if(opts.owner) ownDiff=true;
+    else A("attr","OwnerHistory",null,null,{oh:true});
+  }
+  return { ch, ownDiff, posNoise };
+}
+
+/* ---- punteggio di ri-associazione ---------------------------------------
+   Stessa classe obbligatoria. Geometria identica 0,55 + posizione 0,30
+   (decade linearmente fino a 1 m) + nome uguale 0,10 + tipo uguale 0,05.
+   Geometria + posizione + nome + tipo coincidenti = 1,00.                   */
+function dfScore(a,b){
+  if(a.clsRaw!==b.clsRaw) return 0;
+  let s=0;
+  if(a.geo&&a.geo===b.geo) s+=.55;
+  if(a.pos&&b.pos){
+    const d=Math.hypot(b.pos[0]-a.pos[0],b.pos[1]-a.pos[1],b.pos[2]-a.pos[2]);
+    s+=.30*Math.max(0,1-d/1000);
+  }
+  if(a.name&&a.name===b.name) s+=.10;
+  if(a.typeName&&a.typeName===b.typeName) s+=.05;
+  return s;
+}
+
+/* ---- il confronto --------------------------------------------------------
+   opts: tol (mm), owner (ignora OwnerHistory), rematch, thr (auto ≥),
+   candMin (proposte ≥), forced ([[gidA,gidB],…] accettate a mano).          */
+function dfDiff(ia,ib,opts){
+  opts=Object.assign({tol:1,owner:true,rematch:true,thr:.90,candMin:.5,forced:[]},opts||{});
+  const modified=[], remap=[], cand=[];
+  let removed=[], added=[];
+  let identical=0, nOwner=0, nPos=0, noise=0;
+  const matchedB=new Set();
+  for(const ra of ia.rows){
+    const rb=ra.gid?ib.byGid.get(ra.gid):undefined;
+    if(!rb){ removed.push(ra); continue; }
+    matchedB.add(rb);
+    const r=dfChanges(ra,rb,opts);
+    if(r.ch.length) modified.push({a:ra,b:rb,ch:r.ch,ownDiff:r.ownDiff,posNoise:r.posNoise});
+    else{
+      identical++;
+      if(r.ownDiff||r.posNoise){ noise++; if(r.ownDiff)nOwner++; if(r.posNoise)nPos++; }
+    }
+  }
+  for(const rb of ib.rows) if(!matchedB.has(rb)) added.push(rb);
+  const pairUp=(ra,rb,score,manual)=>{
+    const r=dfChanges(ra,rb,opts);
+    remap.push({a:ra,b:rb,score,manual:!!manual,ch:r.ch,ownDiff:r.ownDiff,posNoise:r.posNoise});
+  };
+  /* coppie forzate dall'utente */
+  for(const f of opts.forced){
+    const iA=removed.findIndex(r=>r.gid===f[0]), iB=added.findIndex(r=>r.gid===f[1]);
+    if(iA<0||iB<0) continue;
+    pairUp(removed[iA],added[iB],dfScore(removed[iA],added[iB]),true);
+    removed.splice(iA,1); added.splice(iB,1);
+  }
+  /* ri-associazione automatica per classe */
+  if(opts.rematch&&removed.length&&added.length){
+    const byClsA=new Map(), byClsB=new Map();
+    removed.forEach((r,i)=>{ let l=byClsA.get(r.clsRaw); if(!l){l=[];byClsA.set(r.clsRaw,l);} l.push({r,i}); });
+    added.forEach((r,i)=>{ let l=byClsB.get(r.clsRaw); if(!l){l=[];byClsB.set(r.clsRaw,l);} l.push({r,i}); });
+    const scored=[];
+    for(const [cls,as] of byClsA){
+      const bs=byClsB.get(cls); if(!bs) continue;
+      if(as.length*bs.length>200000){
+        /* troppi incroci: si confrontano solo i gemelli di geometria */
+        const byGeo=new Map();
+        for(const x of bs) if(x.r.geo){ let l=byGeo.get(x.r.geo); if(!l){l=[];byGeo.set(x.r.geo,l);} l.push(x); }
+        for(const xa of as){
+          const l=xa.r.geo&&byGeo.get(xa.r.geo); if(!l) continue;
+          for(const xb of l){ const s=dfScore(xa.r,xb.r); if(s>=opts.candMin) scored.push({xa,xb,s}); }
+        }
+      }else{
+        for(const xa of as) for(const xb of bs){
+          const s=dfScore(xa.r,xb.r); if(s>=opts.candMin) scored.push({xa,xb,s});
+        }
+      }
+    }
+    scored.sort((p,q)=>q.s-p.s);
+    const takeA=new Set(), takeB=new Set(), autos=[];
+    for(const p of scored){
+      if(takeA.has(p.xa.i)||takeB.has(p.xb.i)) continue;
+      takeA.add(p.xa.i); takeB.add(p.xb.i);
+      if(p.s>=opts.thr) autos.push(p);
+      else cand.push({a:p.xa.r,b:p.xb.r,score:p.s});
+    }
+    const remA=new Set(autos.map(p=>p.xa.i)), remB=new Set(autos.map(p=>p.xb.i));
+    for(const p of autos) pairUp(p.xa.r,p.xb.r,p.s,false);
+    removed=removed.filter((_,i)=>!remA.has(i));
+    added=added.filter((_,i)=>!remB.has(i));
+  }
+  const universe=identical+modified.length+remap.length+removed.length+added.length;
+  const changes=modified.length+remap.length+removed.length+added.length;
+  return {
+    added, removed, modified, remap, cand, identical,
+    noise:{owner:nOwner,pos:nPos,total:noise},
+    universe, changes,
+    pct: universe ? changes/universe*100 : 0,
+  };
+}
+
+/* ---- fogli per l'xlsx ----------------------------------------------------
+   L = etichette già tradotte (il motore non conosce la lingua).             */
+function dfPosText(c,L){
+  if(!isFinite(c.dmm)) return L.chgPlain;
+  const ax=[["X",c.dx],["Y",c.dy],["Z",c.dz]].sort((a,b)=>Math.abs(b[1])-Math.abs(a[1]))[0];
+  const tot=Math.round(c.dmm*10)/10;
+  const dom=Math.round(ax[1]*10)/10;
+  if(Math.abs(Math.abs(dom)-tot)<=tot*.05+.05) return (dom>0?"+":"")+dom+" mm ("+ax[0]+")";
+  return "Δ "+tot+" mm";
+}
+function dfGeoText(c,L){
+  if(c.dpct==null) return L.chgPlain;
+  const p=Math.round(c.dpct*10)/10;
+  return (p>0?"+":"")+p+"% "+L.volume;
+}
+function dfChangeCells(c,L){
+  if(c.kind==="pos") return { key:L.pos, va:"", vb:dfPosText(c,L) };
+  if(c.kind==="geom") return { key:L.geom, va:"", vb:dfGeoText(c,L) };
+  if(c.key==="OwnerHistory") return { key:"OwnerHistory", va:"", vb:L.chgPlain };
+  return { key:c.key, va:c.va==null?"":c.va, vb:c.vb==null?"":c.vb };
+}
+function dfSheets(d,L,meta){
+  const S=v=>({v,num:false}), N=v=>({v,num:true});
+  const sheets=[];
+  const sum={ name:L.shSummary, cols:[{header:L.item},{header:L.value}], rows:[
+    [S(L.fileA),S(meta.fileA)],
+    [S(L.fileB),S(meta.fileB)],
+    [S(L.stAdd),N(d.added.length)],
+    [S(L.stRem),N(d.removed.length)],
+    [S(L.stMod),N(d.modified.length)],
+    [S(L.stRe),N(d.remap.length)],
+    [S(L.stCand),N(d.cand.length)],
+    [S(L.stSame),N(d.identical)],
+    [S(L.stNoise),N(d.noise.total)],
+    [S(L.rTol),S(meta.tol+" mm")],
+    [S(L.rOwner),S(meta.owner?L.yes:L.no)],
+    [S(L.rThr),S(meta.rematch?("≥ "+meta.thr):L.no)],
+    [S(L.pct),S((Math.round(d.pct*10)/10)+"%")],
+  ]};
+  sheets.push(sum);
+  const side=(rows,which)=>rows.map(r=>[S(r.gid),S(r.name),S(r.cls),S(r.storey),S(r.typeName)]);
+  if(d.added.length) sheets.push({ name:L.shAdd,
+    cols:[{header:"GlobalId"},{header:L.name},{header:L.cls},{header:L.storey},{header:L.type}],
+    rows:side(d.added,"b") });
+  if(d.removed.length) sheets.push({ name:L.shRem,
+    cols:[{header:"GlobalId"},{header:L.name},{header:L.cls},{header:L.storey},{header:L.type}],
+    rows:side(d.removed,"a") });
+  const modRows=[];
+  const pushMod=(e,gidLabel)=>{
+    for(const c of e.ch){
+      const cc=dfChangeCells(c,L);
+      modRows.push([S(gidLabel),S(e.b.name||e.a.name),S(e.b.cls),S(e.b.storey),S(cc.key),
+        (typeof cc.va==="number")?N(cc.va):S(cc.va),
+        (typeof cc.vb==="number")?N(cc.vb):S(cc.vb)]);
+    }
+  };
+  for(const e of d.modified) pushMod(e,e.a.gid);
+  for(const e of d.remap) pushMod(e,e.a.gid+" → "+e.b.gid);
+  if(modRows.length) sheets.push({ name:L.shMod,
+    cols:[{header:"GlobalId"},{header:L.name},{header:L.cls},{header:L.storey},{header:L.field},{header:L.inA},{header:L.inB}],
+    rows:modRows });
+  if(d.remap.length||d.cand.length) sheets.push({ name:L.shRe,
+    cols:[{header:"GlobalId A"},{header:"GlobalId B"},{header:L.score,num:true},{header:L.state},{header:L.name},{header:L.cls},{header:L.nCh,num:true}],
+    rows:d.remap.map(e=>[S(e.a.gid),S(e.b.gid),N(Math.round(e.score*100)/100),S(e.manual?L.stManual:L.stAuto),S(e.b.name||e.a.name),S(e.b.cls),N(e.ch.length)])
+      .concat(d.cand.map(e=>[S(e.a.gid),S(e.b.gid),N(Math.round(e.score*100)/100),S(L.stCand2),S(e.b.name||e.a.name),S(e.b.cls),S("")])) });
+  return sheets;
+}
+
+/* ---- XLSX: zip store scritto a mano (stesso dell'Extractor) ------------- */
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c;}return t;})();
+function crc32(parts){ let c=0xFFFFFFFF;
+  for(const p of parts) for(let i=0;i<p.length;i++) c=CRC_T[(c^p[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0; }
+function makeZip(entries){
+  const enc=new TextEncoder(), chunks=[], central=[];
+  let off=0;
+  const u16=v=>new Uint8Array([v&255,(v>>8)&255]);
+  const u32=v=>new Uint8Array([v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255]);
+  for(const e of entries){
+    const nm=enc.encode(e.name);
+    const loc=[u32(0x04034b50),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(e.crc),u32(e.size),u32(e.size),u16(nm.length),u16(0),nm];
+    const hdrLen=loc.reduce((s,x)=>s+x.length,0);
+    chunks.push(...loc,...e.parts);
+    central.push({nm,crc:e.crc,size:e.size,off});
+    off+=hdrLen+e.size;
+  }
+  const cd=[]; let cdLen=0;
+  for(const c of central){
+    const rec=[u32(0x02014b50),u16(20),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(c.crc),u32(c.size),u32(c.size),u16(c.nm.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(c.off),c.nm];
+    cd.push(...rec); cdLen+=rec.reduce((s,x)=>s+x.length,0);
+  }
+  const end=[u32(0x06054b50),u16(0),u16(0),u16(central.length),u16(central.length),u32(cdLen),u32(off),u16(0)];
+  return [...chunks,...cd,...end];
+}
+function xmlEsc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function colLetter(i){ let s=""; i++; while(i>0){ const r=(i-1)%26; s=String.fromCharCode(65+r)+s; i=(i-1-r)/26; } return s; }
+function sheetSafe(name,taken){
+  let s=String(name).replace(/[\[\]:*?\/\\]/g,"_").slice(0,31)||"Foglio";
+  let base=s, n=2;
+  while(taken.has(s)){ const suf=" ("+n+")"; s=base.slice(0,31-suf.length)+suf; n++; }
+  taken.add(s);
+  return s;
+}
+function dfXlsx(sheets){
+  const taken=new Set();
+  const names=sheets.map(sh=>sheetSafe(sh.name,taken));
+  const files=[];
+  const push=(name,text)=>files.push({name,text});
+  push("[Content_Types].xml",
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+    '<Default Extension="xml" ContentType="application/xml"/>'+
+    '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+
+    '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+
+    sheets.map((_,i)=>'<Override PartName="/xl/worksheets/sheet'+(i+1)+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>').join("")+
+    '</Types>');
+  push("_rels/.rels",
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'+
+    '</Relationships>');
+  push("xl/workbook.xml",
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+
+    sheets.map((_,i)=>'<sheet name="'+xmlEsc(names[i])+'" sheetId="'+(i+1)+'" r:id="rId'+(i+1)+'"/>').join("")+
+    '</sheets></workbook>');
+  push("xl/_rels/workbook.xml.rels",
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+    sheets.map((_,i)=>'<Relationship Id="rId'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet'+(i+1)+'.xml"/>').join("")+
+    '<Relationship Id="rId'+(sheets.length+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'+
+    '</Relationships>');
+  push("xl/styles.xml",
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'+
+    '<numFmts count="1"><numFmt numFmtId="164" formatCode="0.00"/></numFmts>'+
+    '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>'+
+    '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'+
+    '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'+
+    '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'+
+    '<cellXfs count="2">'+
+    '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'+
+    '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>'+
+    '</cellXfs></styleSheet>');
+  sheets.forEach((sh,si)=>{
+    const buf=['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>'];
+    sh.cols.forEach((c,ci)=>{
+      let w=Math.max(String(c.header).length+2,8);
+      for(let ri=0;ri<Math.min(sh.rows.length,60);ri++){
+        const x=sh.rows[ri][ci];
+        if(x!=null) w=Math.max(w,Math.min(String(x.v).length+2,44));
+      }
+      buf.push('<col min="'+(ci+1)+'" max="'+(ci+1)+'" width="'+w+'" customWidth="1"/>');
+    });
+    buf.push('</cols><sheetData><row r="1">');
+    sh.cols.forEach((c,ci)=>{
+      buf.push('<c r="'+colLetter(ci)+'1" s="1" t="inlineStr"><is><t xml:space="preserve">'+xmlEsc(c.header)+'</t></is></c>');
+    });
+    buf.push('</row>');
+    sh.rows.forEach((line,ri)=>{
+      buf.push('<row r="'+(ri+2)+'">');
+      line.forEach((x,ci)=>{
+        const ref=colLetter(ci)+(ri+2);
+        if(x==null||x.v===""){ return; }
+        if(x.num) buf.push('<c r="'+ref+'"><v>'+x.v+'</v></c>');
+        else buf.push('<c r="'+ref+'" t="inlineStr"><is><t xml:space="preserve">'+xmlEsc(x.v)+'</t></is></c>');
+      });
+      buf.push('</row>');
+    });
+    buf.push('</sheetData></worksheet>');
+    push("xl/worksheets/sheet"+(si+1)+".xml",buf.join(""));
+  });
+  const enc=new TextEncoder();
+  const entries=files.map(f=>{
+    const b=enc.encode(f.text);
+    return { name:f.name, parts:[b], size:b.length, crc:crc32([b]) };
+  });
+  return makeZip(entries);
+}
+
+/* ---- BCF 2.1: un topic per GRUPPO (classe × tipo di modifica) -----------
+   Come la clash del viewer: mille topic non li apre nessuno. Viewpoint
+   senza camera (qui il 3D non c'è): Selection + Coloring bastano a Solibri
+   per evidenziare gli elementi. Niente project.bcfp (schema-invalid senza
+   ExtensionSchema — lezione dell'export IDS del viewer).                    */
+function dfBadgeText(e,L){
+  const parts=[];
+  const nProp=e.ch.filter(c=>c.kind==="prop"||c.kind==="qty"||c.kind==="attr").length;
+  for(const c of e.ch){
+    if(c.kind==="pos") parts.push(L.pos+" "+dfPosText(c,L));
+    else if(c.kind==="geom") parts.push(L.geom+(c.dpct!=null?" "+dfGeoText(c,L):""));
+    else if(c.kind==="class") parts.push(L.cls+" "+c.va+" → "+c.vb);
+    else if(c.kind==="storey") parts.push(L.storey+" "+(c.va||"—")+" → "+(c.vb||"—"));
+  }
+  if(nProp) parts.push(nProp+" "+(nProp===1?L.prop1:L.propN));
+  return parts.join(" · ");
+}
+function dfTopics(d,L,meta){
+  const MAX_ELEMS=200;
+  const groups=new Map();
+  const put=(kindKey,color,cls,item)=>{
+    const gk=kindKey+"|"+cls;
+    let g=groups.get(gk);
+    if(!g){ g={kind:kindKey,color,cls,items:[]}; groups.set(gk,g); }
+    g.items.push(item);
+  };
+  for(const r of d.added) put("add","FF80C020",r.cls,{gid:r.gid,name:r.name,line:(r.name||r.gid)+" ["+r.gid+"] — "+L.onlyB});
+  for(const r of d.removed) put("rem","FFD6604D",r.cls,{gid:r.gid,name:r.name,line:(r.name||r.gid)+" ["+r.gid+"] — "+L.onlyA});
+  for(const e of d.modified) put("mod","FFE0A63A",e.b.cls,{gid:e.b.gid,name:e.b.name,line:(e.b.name||e.b.gid)+" ["+e.b.gid+"] — "+dfBadgeText(e,L)});
+  for(const e of d.remap) put("re","FFE0A63A",e.b.cls,{gid:e.b.gid,name:e.b.name,line:(e.b.name||e.b.gid)+" ["+e.a.gid+" → "+e.b.gid+" · "+(Math.round(e.score*100)/100)+"] — "+(dfBadgeText(e,L)||L.reNote)});
+  const topics=[];
+  let idx=0;
+  for(const g of groups.values()){
+    const shown=g.items.slice(0,MAX_ELEMS);
+    const lines=[L.kind[g.kind].replace("{n}",String(g.items.length)),""].concat(shown.map((it,i)=>(i+1)+". "+it.line));
+    if(g.items.length>MAX_ELEMS) lines.push(L.more.replace("{n}",String(g.items.length-MAX_ELEMS)));
+    topics.push({
+      guid:meta.uuid(), index:idx++,
+      title:"IFC Diff — "+g.cls+" · "+L.kindT[g.kind]+" ("+g.items.length+")",
+      description:lines.join("\n"),
+      status:"Open", type:"Issue", author:meta.author, created:meta.created,
+      labels:["IFC Diff",g.cls],
+      components:[...new Set(shown.map(it=>it.gid).filter(Boolean))],
+      color:g.color,
+    });
+  }
+  return topics;
+}
+function dfBcfFiles(topics,meta){
+  const esc=xmlEsc;
+  const files=[{name:"bcf.version",text:'<?xml version="1.0" encoding="UTF-8"?>\n<Version VersionId="2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n  <DetailedVersion>2.1</DetailedVersion>\n</Version>'}];
+  for(const t of topics){
+    const vpGuid=meta.uuid();
+    const labels=t.labels.map(l=>"\n    <Labels>"+esc(l)+"</Labels>").join("");
+    const header="\n  <Header>"+[meta.fileA,meta.fileB].map(f=>"\n    <File isExternal=\"true\">\n      <Filename>"+esc(f)+"</Filename>\n      <Date>"+t.created+"</Date>\n    </File>").join("")+"\n  </Header>";
+    files.push({name:t.guid+"/markup.bcf",text:
+'<?xml version="1.0" encoding="UTF-8"?>\n<Markup xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'+header+
+'\n  <Topic Guid="'+t.guid+'" TopicType="'+esc(t.type)+'" TopicStatus="'+esc(t.status)+'">'+
+'\n    <Title>'+esc(t.title)+'</Title>'+
+'\n    <Index>'+t.index+'</Index>'+labels+
+'\n    <CreationDate>'+t.created+'</CreationDate>'+
+'\n    <CreationAuthor>'+esc(t.author)+'</CreationAuthor>'+
+'\n    <Description>'+esc(t.description)+'</Description>'+
+'\n  </Topic>'+
+'\n  <Viewpoints Guid="'+vpGuid+'">'+
+'\n    <Viewpoint>viewpoint.bcfv</Viewpoint>'+
+'\n  </Viewpoints>'+
+'\n</Markup>'});
+    const sel=t.components.map(g=>"\n      <Component IfcGuid=\""+esc(g)+"\"/>").join("");
+    /* XSD: Coloring richiede almeno un Color con almeno un Component */
+    const coloring=t.components.length
+      ? "\n    <Coloring>\n      <Color Color=\""+t.color+"\">"+t.components.map(g=>"\n        <Component IfcGuid=\""+esc(g)+"\"/>").join("")+"\n      </Color>\n    </Coloring>"
+      : "";
+    files.push({name:t.guid+"/viewpoint.bcfv",text:
+'<?xml version="1.0" encoding="UTF-8"?>\n<VisualizationInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Guid="'+vpGuid+'">'+
+'\n  <Components>'+
+'\n    <Selection>'+sel+'\n    </Selection>'+
+'\n    <Visibility DefaultVisibility="true"/>'+coloring+
+'\n  </Components>'+
+'\n</VisualizationInfo>'});
+  }
+  return files;
+}
+function dfBcfZip(topics,meta){
+  const files=dfBcfFiles(topics,meta);
+  const enc=new TextEncoder();
+  return makeZip(files.map(f=>{
+    const b=enc.encode(f.text);
+    return { name:f.name, parts:[b], size:b.length, crc:crc32([b]) };
+  }));
+}
+</script>
+<script>
+/* =========================================================================
+   i18n — parità stretta IT/EN (convenzione di progetto: tr(), mai t())
+   ========================================================================= */
+const I18N = {
+  it:{
+    "nav.home":"Vai a viewifc.com","nav.tools":"Strumenti","nav.here":"Confronto revisioni","cta.open":"Apri il viewer",
+    "head.kicker":"Strumento 08","head.tag":"Client-side","head.beta":"Prima versione",
+    "head.lead":"Che cosa è cambiato fra due emissioni, al netto del rumore di riesportazione. Le regole applicate sono dichiarate accanto al conto, e ogni gruppo di modifiche può diventare un topic BCF.",
+    "spec.in":"Ingresso","spec.inV":"2 file .ifc","spec.out":"Uscita",
+    "spec.key":"Chiave","spec.keyV":"GlobalId + geometria",
+    "drop.a":"Revisione vecchia — .ifc","drop.b":"Revisione nuova — .ifc","f.remove":"Rimuovi il file",
+    "drop.big":"Trascina qui le due revisioni .ifc — anche insieme — o clicca per sfogliare",
+    "drop.hint":"nessun upload: il confronto avviene nel browser · A è la revisione vecchia, B la nuova",
+    "st.add":"Aggiunti","st.rem":"Rimossi","st.mod":"Modificati","st.same":"Identici",
+    "ratio.lb":"{p}% del file cambia","ratio.zero":"le due revisioni coincidono",
+    "fl.all":"Tutte","fl.add":"Aggiunti","fl.rem":"Rimossi","fl.mod":"Modificati","fl.re":"Ri-associati",
+    "fl.noise":"{n} escluse dal rumore",
+    "ch.el":"Elemento","ch.what":"Cosa è cambiato",
+    "grp.k":"Raggruppa","grp.cls":"Per classe","grp.storey":"Per piano","grp.kind":"Per tipo di modifica",
+    "grp.hint":"J · K per scorrere le righe",
+    "k.add":"Aggiunti","k.rem":"Rimossi","k.mod":"Modificati","k.re":"Ri-associati",
+    "g.counts":"{a} agg · {r} rim · {m} mod",
+    "g.re":"{n} ri-assoc",
+    "row.onlyA":"SOLO IN A","row.onlyB":"SOLO IN B",
+    "row.pos":"POSIZIONE","row.geom":"GEOMETRIA","row.cls":"CLASSE","row.storey":"PIANO",
+    "row.prop1":"1 PROPRIETÀ","row.propN":"{n} PROPRIETÀ",
+    "row.re":"RI-ASSOCIATO {s}","row.cand":"DA CONFERMARE {s}","row.manual":"RI-ASSOCIATO A MANO",
+    "row.more":"… mostra altre {n} righe di {g}",
+    "row.none":"Nessuna riga con questo filtro.",
+    "row.clean":"Nessuna differenza fuori dal rumore: le due revisioni coincidono.",
+    "grp.more":"mostra altri {n} gruppi","grp.less":"mostra meno gruppi",
+    "tab.table":"Bilancio","tab.model":"Sul modello",
+    "mv.k":"Sovrapposizione","mv.onlyB":"solo B","mv.onlyA":"solo A",
+    "mv.dim":"Attenua gli identici","mv.vec":"Vettori di spostamento",
+    "mv.hint":"clic su un elemento per il campo-per-campo · doppio clic per inquadrarlo",
+    "mv.expand":"Apri nel viewer completo",
+    "dv.t":"Il confronto nel viewer",
+    "dv.close":"Chiudi (Esc)",
+    "dv.add":"aggiunti","dv.rem":"rimossi","dv.mod":"modificati",
+    "det.same":"Identico nelle due revisioni.",
+    "veil.gpu":"preparazione del modello 3D…",
+    "err.gpu":"Modello 3D non disponibile: {e}",
+    "det.hint":"Carica le due revisioni: qui compare il campo-per-campo della riga scelta.",
+    "det.pick":"Scegli una riga dall'elenco: qui compare il suo campo-per-campo.",
+    "det.field":"Campo","det.inA":"In A","det.inB":"In B",
+    "det.onlyB":"Presente solo nella revisione B.","det.onlyA":"Presente solo nella revisione A.",
+    "det.pos":"Posizione","det.geom":"Geometria","det.geomChg":"impronta diversa",
+    "det.ownIgn":"OwnerHistory · ignorato","det.posIgn":"Posizione · entro tolleranza",
+    "det.reAuto":"Coppia ri-associata · confidenza {s}","det.reMan":"Coppia ri-associata a mano",
+    "det.cand":"Coppia proposta · confidenza {s}","det.accept":"Ri-associa questa coppia",
+    "det.inMm":"in {ax}","det.moreF":"… altre {n} proprietà identiche",
+    "rules.k":"Regole di rumore",
+    "rules.owner":"Ignora OwnerHistory",
+    "rules.ids":"Ignora la rinumerazione degli #id",
+    "rules.idsWhy":"È il metodo del confronto, non si spegne: GlobalId + impronta strutturale della geometria.",
+    "rules.tol":"Tolleranza di posizione",
+    "re.t":"{n} coppie ri-associate","re.t0":"Nessuna coppia ri-associata","re.thr":"≥ 0,90",
+    "re.why":"GlobalId diverso, geometria e posizione coincidenti: senza questa passata uscivano come {n} rimozioni più {n} aggiunte. Sotto 0,90 la coppia resta da confermare a mano.",
+    "re.why0":"Quando l'authoring ricrea un elemento il GlobalId cambia: la passata cerca coppie con geometria e posizione coincidenti fra rimossi e aggiunti. In questo confronto nessuna coppia supera la soglia.",
+    "re.cand":"{n} da confermare","re.off":"Non ri-associare","re.on":"Ri-associa gli orfani",
+    "out.t":"Cosa esce","out.suffix":"_diff",
+    "exec.hint":"Carica le revisioni A e B per confrontarle.",
+    "exec.ready":"{n} modifiche · {t} topic BCF","exec.rows":"{n} righe",
+    "exec.done":"Scaricato {f}.","exec.noTopics":"Nessuna modifica da esportare in BCF.",
+    "btn.run":"Esporta il confronto",
+    "veil.read":"lettura di {f}…","veil.index":"indice di {f}…","veil.cmp":"confronto delle revisioni…","veil.write":"scrittura del file…",
+    "err.parse":"{f} non sembra un IFC: manca la sezione DATA.",
+    "err.empty":"{f}: nessun elemento raggiungibile dalla struttura spaziale.",
+    "x.item":"Voce","x.value":"Valore","x.fileA":"File A","x.fileB":"File B",
+    "x.name":"Denominazione","x.cls":"Classe","x.storey":"Piano","x.type":"Tipo",
+    "x.field":"Campo","x.inA":"In A","x.inB":"In B","x.score":"Confidenza","x.state":"Stato","x.nCh":"Modifiche",
+    "x.auto":"automatica","x.manual":"a mano","x.cand":"da confermare",
+    "x.same":"Identici","x.noise":"Escluse dal rumore","x.pct":"Quota del file che cambia",
+    "x.tol":"Tolleranza di posizione","x.owner":"OwnerHistory ignorata","x.thr":"Ri-associazione",
+    "x.yes":"sì","x.no":"no","x.volume":"volume","x.chg":"cambiata",
+    "x.shSum":"Riepilogo","x.shAdd":"Aggiunti","x.shRem":"Rimossi","x.shMod":"Modificati","x.shRe":"Ri-associati",
+    "b.onlyA":"solo in A","b.onlyB":"solo in B","b.reNote":"geometria identica, GlobalId nuovo",
+    "b.pos":"posizione","b.geom":"geometria","b.cls":"classe","b.storey":"piano",
+    "b.prop1":"proprietà","b.propN":"proprietà",
+    "b.kAdd":"{n} elementi presenti solo nella revisione B:","b.kRem":"{n} elementi presenti solo nella revisione A:",
+    "b.kMod":"{n} elementi modificati fra A e B:","b.kRe":"{n} coppie ri-associate per geometria e posizione:",
+    "b.more":"… e altri {n} elementi (elenco completo nell'export Excel).",
+    "foot.note":"Le regole di rumore si salvano con il progetto: il confronto della prossima emissione parte dalle stesse, e i conti fra revisioni diventano comparabili. Nessun file lascia il computer.",
+    "foot.src":"Codice sorgente","foot.more":"Altri strumenti",
+  },
+  en:{
+    "nav.home":"Go to viewifc.com","nav.tools":"Tools","nav.here":"Revision diff","cta.open":"Open the viewer",
+    "head.kicker":"Tool 08","head.tag":"Client-side","head.beta":"First release",
+    "head.lead":"What changed between two issues, net of re-export noise. The rules applied are declared next to the count, and every group of changes can become a BCF topic.",
+    "spec.in":"Input","spec.inV":"2 .ifc files","spec.out":"Output",
+    "spec.key":"Key","spec.keyV":"GlobalId + geometry",
+    "drop.a":"Old revision — .ifc","drop.b":"New revision — .ifc","f.remove":"Remove the file",
+    "drop.big":"Drop the two .ifc revisions here — even together — or click to browse",
+    "drop.hint":"no upload: the diff runs in the browser · A is the old revision, B the new one",
+    "st.add":"Added","st.rem":"Removed","st.mod":"Modified","st.same":"Identical",
+    "ratio.lb":"{p}% of the file changes","ratio.zero":"the two revisions coincide",
+    "fl.all":"All","fl.add":"Added","fl.rem":"Removed","fl.mod":"Modified","fl.re":"Re-matched",
+    "fl.noise":"{n} excluded as noise",
+    "ch.el":"Element","ch.what":"What changed",
+    "grp.k":"Group","grp.cls":"By class","grp.storey":"By storey","grp.kind":"By change type",
+    "grp.hint":"J · K to walk the rows",
+    "k.add":"Added","k.rem":"Removed","k.mod":"Modified","k.re":"Re-matched",
+    "g.counts":"{a} add · {r} rem · {m} mod",
+    "g.re":"{n} re-matched",
+    "row.onlyA":"ONLY IN A","row.onlyB":"ONLY IN B",
+    "row.pos":"POSITION","row.geom":"GEOMETRY","row.cls":"CLASS","row.storey":"STOREY",
+    "row.prop1":"1 PROPERTY","row.propN":"{n} PROPERTIES",
+    "row.re":"RE-MATCHED {s}","row.cand":"TO CONFIRM {s}","row.manual":"RE-MATCHED BY HAND",
+    "row.more":"… show {n} more rows of {g}",
+    "row.none":"No rows with this filter.",
+    "row.clean":"No difference beyond the noise: the two revisions coincide.",
+    "grp.more":"show {n} more groups","grp.less":"show fewer groups",
+    "tab.table":"Balance","tab.model":"On the model",
+    "mv.k":"Overlay","mv.onlyB":"B only","mv.onlyA":"A only",
+    "mv.dim":"Dim the identical","mv.vec":"Displacement vectors",
+    "mv.hint":"click an element for its field-by-field · double click to frame it",
+    "mv.expand":"Open in the full viewer",
+    "dv.t":"The diff in the viewer",
+    "dv.close":"Close (Esc)",
+    "dv.add":"added","dv.rem":"removed","dv.mod":"modified",
+    "det.same":"Identical in the two revisions.",
+    "veil.gpu":"preparing the 3D model…",
+    "err.gpu":"3D model not available: {e}",
+    "det.hint":"Load the two revisions: the field-by-field of the picked row appears here.",
+    "det.pick":"Pick a row from the list: its field-by-field appears here.",
+    "det.field":"Field","det.inA":"In A","det.inB":"In B",
+    "det.onlyB":"Present only in revision B.","det.onlyA":"Present only in revision A.",
+    "det.pos":"Position","det.geom":"Geometry","det.geomChg":"different fingerprint",
+    "det.ownIgn":"OwnerHistory · ignored","det.posIgn":"Position · within tolerance",
+    "det.reAuto":"Re-matched pair · confidence {s}","det.reMan":"Pair re-matched by hand",
+    "det.cand":"Proposed pair · confidence {s}","det.accept":"Re-match this pair",
+    "det.inMm":"along {ax}","det.moreF":"… {n} more identical properties",
+    "rules.k":"Noise rules",
+    "rules.owner":"Ignore OwnerHistory",
+    "rules.ids":"Ignore #id renumbering",
+    "rules.idsWhy":"It is the method of the diff, it cannot be turned off: GlobalId + structural geometry fingerprint.",
+    "rules.tol":"Position tolerance",
+    "re.t":"{n} re-matched pairs","re.t0":"No re-matched pair","re.thr":"≥ 0.90",
+    "re.why":"Different GlobalId, coincident geometry and position: without this pass they came out as {n} removals plus {n} additions. Below 0.90 the pair stays to be confirmed by hand.",
+    "re.why0":"When authoring recreates an element its GlobalId changes: this pass looks for pairs with coincident geometry and position among removed and added. No pair clears the threshold in this diff.",
+    "re.cand":"{n} to confirm","re.off":"Do not re-match","re.on":"Re-match the orphans",
+    "out.t":"What comes out","out.suffix":"_diff",
+    "exec.hint":"Load revisions A and B to compare them.",
+    "exec.ready":"{n} changes · {t} BCF topics","exec.rows":"{n} rows",
+    "exec.done":"Downloaded {f}.","exec.noTopics":"No change to export as BCF.",
+    "btn.run":"Export the diff",
+    "veil.read":"reading {f}…","veil.index":"indexing {f}…","veil.cmp":"comparing the revisions…","veil.write":"writing the file…",
+    "err.parse":"{f} does not look like an IFC: the DATA section is missing.",
+    "err.empty":"{f}: no element reachable from the spatial structure.",
+    "x.item":"Item","x.value":"Value","x.fileA":"File A","x.fileB":"File B",
+    "x.name":"Name","x.cls":"Class","x.storey":"Storey","x.type":"Type",
+    "x.field":"Field","x.inA":"In A","x.inB":"In B","x.score":"Confidence","x.state":"State","x.nCh":"Changes",
+    "x.auto":"automatic","x.manual":"by hand","x.cand":"to confirm",
+    "x.same":"Identical","x.noise":"Excluded as noise","x.pct":"Share of the file that changes",
+    "x.tol":"Position tolerance","x.owner":"OwnerHistory ignored","x.thr":"Re-matching",
+    "x.yes":"yes","x.no":"no","x.volume":"volume","x.chg":"changed",
+    "x.shSum":"Summary","x.shAdd":"Added","x.shRem":"Removed","x.shMod":"Modified","x.shRe":"Re-matched",
+    "b.onlyA":"only in A","b.onlyB":"only in B","b.reNote":"identical geometry, new GlobalId",
+    "b.pos":"position","b.geom":"geometry","b.cls":"class","b.storey":"storey",
+    "b.prop1":"property","b.propN":"properties",
+    "b.kAdd":"{n} elements present only in revision B:","b.kRem":"{n} elements present only in revision A:",
+    "b.kMod":"{n} elements modified between A and B:","b.kRe":"{n} pairs re-matched by geometry and position:",
+    "b.more":"… and {n} more elements (full list in the Excel export).",
+    "foot.note":"The noise rules save with the project: the next issue's diff starts from the same ones, and the counts become comparable across revisions. No file leaves your computer.",
+    "foot.src":"Source code","foot.more":"More tools",
+  }
+};
+let LANG = "it";
+try{ const s=localStorage.getItem("viewifc_tool_lang"); if(s&&I18N[s]) LANG=s; }catch(e){}
+function tr(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : (I18N.it[k] ?? k); }
+function fmt(k,vars){ let s=tr(k); for(const v in vars) s=s.split("{"+v+"}").join(vars[v]); return s; }
+function nf(n,dec){ return Number(n).toLocaleString(LANG==="it"?"it-IT":"en-US",{maximumFractionDigits:dec==null?2:dec,minimumFractionDigits:0}); }
+function nscore(s){ return Number(s).toLocaleString(LANG==="it"?"it-IT":"en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+
+function applyLang(lang){
+  LANG = I18N[lang] ? lang : "it";
+  document.documentElement.lang = LANG;
+  const dict = I18N[LANG];
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    const k = el.getAttribute("data-i18n");
+    if(dict[k] != null) el.textContent = dict[k];
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach(el=>{
+    const k = el.getAttribute("data-i18n-title");
+    if(dict[k] != null){ el.title = dict[k]; if(el.hasAttribute("aria-label")) el.setAttribute("aria-label", dict[k]); }
+  });
+  document.querySelectorAll(".langsw button").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
+  try{ localStorage.setItem("viewifc_tool_lang", LANG); }catch(e){}
+  if(STATE.diff) renderAll();
+}
+
+/* =========================================================================
+   Carica il motore: il blocco text/engine diventa un vero <script>, così le
+   funzioni finiscono nel global scope anche con "use strict" in testa.
+   ========================================================================= */
+(function loadEngine(){
+  const s=document.createElement("script");
+  s.textContent=document.getElementById("diffEngine").textContent;
+  document.head.appendChild(s);
+})();
+
+/* =========================================================================
+   Stato e riferimenti UI
+   ========================================================================= */
+const $ = id => document.getElementById(id);
+const ui = {
+  cardA:$("cardA"), nameA:$("nameA"), metaA:$("metaA"), clearA:$("clearA"),
+  cardB:$("cardB"), nameB:$("nameB"), metaB:$("metaB"), clearB:$("clearB"),
+  fileInput:$("fileInput"), drop0:$("drop0"), diffView:$("diffView"),
+  viewSeg:$("viewSeg"), modelView:$("modelView"), mvCanvas:$("mvCanvas"),
+  mvLegend:$("mvLegend"), ovlSeg:$("ovlSeg"), tgDim:$("tgDim"), tgVec:$("tgVec"),
+  mvExpand:$("mvExpand"), dvBk:$("dvBk"), dvOv:$("dvOv"), dvHost:$("dvHost"),
+  dvClose:$("dvClose"), dvLegend:$("dvLegend"),
+  stAdd:$("stAdd"), stRem:$("stRem"), stMod:$("stMod"), stSame:$("stSame"),
+  ratioBar:$("ratioBar"), ratioLb:$("ratioLb"),
+  fchips:$("fchips"), rowList:$("rowList"), grpChips:$("grpChips"),
+  det:$("det"), rules:$("rules"), rulesN:$("rulesN"),
+  tgOwner:$("tgOwner"), tolSeg:$("tolSeg"), reCard:$("reCard"),
+  expo:$("expo"), fmtSeg:$("fmtSeg"), outName:$("outName"), outExt:$("outExt"),
+  execSt:$("execSt"), runBtn:$("runBtn"), veil:$("veil"), veilLb:$("veilLb"),
+};
+const STATE = {
+  fileA:null, fileB:null, ia:null, ib:null, diff:null,
+  bytesA:null, bytesB:null,   // i byte restano per la vista "Sul modello"
+  owner:true, tol:1, rematch:true, fmt:"xlsx",
+  forced:[],               // coppie [gidA,gidB] accettate a mano
+  filter:"all",            // all | add | rem | mod | re
+  group:"cls",             // cls | storey | kind
+  view:"table",            // table | model
+  openG:new Set(),         // gruppi APERTI (default: tutto collassato)
+  fullG:new Set(),         // gruppi senza tetto righe
+  grpAll:false,            // gruppi oltre il tetto ("mostra altri")
+  ovl:"ab", dim:true, vec:true,   // vista 3D: sovrapposizione, attenua, vettori
+  statusA:new Map(), statusB:new Map(),   // expressID → {st,key}
+  keyEids:new Map(),       // key riga → {a:[eids], b:[eids]}
+  rowByEidA:new Map(), rowByEidB:new Map(),
+  vecKeys:[],              // chiavi delle righe con spostamento (vettori 3D)
+  extraEntry:null,         // dettaglio effimero (pick di un identico nel 3D)
+  selKey:null, busy:false,
+};
+const ROW_CAP = 30;        // righe mostrate per gruppo, poi "mostra altre"
+const GRP_CAP = 8;         // gruppi mostrati, poi "mostra altri" (pattern Extractor)
+const yieldUI = () => new Promise(r=>setTimeout(r,0));
+const paint = () => new Promise(r=>{
+  let done=false; const f=()=>{ if(!done){ done=true; r(); } };
+  requestAnimationFrame(()=>requestAnimationFrame(f));
+  setTimeout(f,120);
+});
+async function veil(msg){
+  ui.veil.hidden = msg==null;
+  if(msg!=null){ ui.veilLb.textContent=msg; await paint(); }
+}
+function setStatus(msg,err){ ui.execSt.textContent=msg; ui.execSt.classList.toggle("err",!!err); }
+
+/* regole persistite: si salvano da sole, si ripropongono al confronto dopo */
+const RULES_KEY="viewifc_diff_rules";
+function saveRules(){
+  try{ localStorage.setItem(RULES_KEY, JSON.stringify({owner:STATE.owner,tol:STATE.tol,rematch:STATE.rematch,fmt:STATE.fmt})); }catch(e){}
+}
+(function loadRules(){
+  try{
+    const s=JSON.parse(localStorage.getItem(RULES_KEY));
+    if(s){
+      STATE.owner=s.owner!==false;
+      STATE.tol=[0,1,5].includes(s.tol)?s.tol:1;
+      STATE.rematch=s.rematch!==false;
+      STATE.fmt=s.fmt==="bcfzip"?"bcfzip":"xlsx";
+    }
+  }catch(e){}
+})();
+
+/* =========================================================================
+   Caricamento file + confronto
+   ========================================================================= */
+async function loadFiles(files){
+  if(STATE.busy) return;
+  const list=[...files].filter(f=>/\.ifc$/i.test(f.name)||f.type==="");
+  if(!list.length) return;
+  STATE.busy=true;
+  try{
+    /* due file insieme → A e B nell'ordine; uno solo → il primo slot libero (o B) */
+    const two=list.length>=2;
+    const slots=two?["a","b"]:[!STATE.fileA?"a":"b"];
+    for(let fi=0;fi<Math.min(list.length,2);fi++){
+      const f=list[fi], slot=slots[fi];
+      await veil(fmt("veil.read",{f:f.name}));
+      const bytes=new Uint8Array(await f.arrayBuffer());
+      await veil(fmt("veil.index",{f:f.name}));
+      await yieldUI();
+      const idx=dfIndex(dfScan(bytes));
+      if(!idx.rows.length){ setStatus(fmt("err.empty",{f:f.name}),true); continue; }
+      if(slot==="a"){ STATE.fileA=f; STATE.ia=idx; STATE.bytesA=bytes; }
+      else{ STATE.fileB=f; STATE.ib=idx; STATE.bytesB=bytes; }
+      STATE.forced=[];
+      mvDispose();
+    }
+    renderFiles();
+    if(STATE.ia&&STATE.ib) await recompare(true);
+  }catch(err){
+    console.error(err);
+    setStatus(/DATA/.test(String(err&&err.message))?fmt("err.parse",{f:"file"}):String(err&&err.message||err),true);
+  }
+  await veil(null);
+  STATE.busy=false;
+}
+async function loadInto(slot,file){
+  if(STATE.busy||!file) return;
+  STATE.busy=true;
+  try{
+    await veil(fmt("veil.read",{f:file.name}));
+    const bytes=new Uint8Array(await file.arrayBuffer());
+    await veil(fmt("veil.index",{f:file.name}));
+    await yieldUI();
+    const idx=dfIndex(dfScan(bytes));
+    if(!idx.rows.length){ setStatus(fmt("err.empty",{f:file.name}),true); }
+    else{
+      if(slot==="a"){ STATE.fileA=file; STATE.ia=idx; STATE.bytesA=bytes; }
+      else{ STATE.fileB=file; STATE.ib=idx; STATE.bytesB=bytes; }
+      STATE.forced=[];
+      mvDispose();
+      renderFiles();
+      if(STATE.ia&&STATE.ib) await recompare(true);
+    }
+  }catch(err){
+    console.error(err);
+    setStatus(/DATA/.test(String(err&&err.message))?fmt("err.parse",{f:file.name}):String(err&&err.message||err),true);
+  }
+  await veil(null);
+  STATE.busy=false;
+}
+async function recompare(withVeil){
+  if(!STATE.ia||!STATE.ib){ renderAll(); return; }
+  if(withVeil){ await veil(tr("veil.cmp")); await yieldUI(); }
+  STATE.diff=dfDiff(STATE.ia,STATE.ib,{
+    tol:STATE.tol, owner:STATE.owner, rematch:STATE.rematch, forced:STATE.forced,
+  });
+  buildStatusMaps();
+  if(withVeil) await veil(null);
+  if(STATE.selKey&&!allEntries().some(e=>e.key===STATE.selKey)) STATE.selKey=null;
+  STATE.extraEntry=null;
+  mvRefresh();          // se il 3D è già costruito: ritinteggia e rifà i vettori
+  renderAll();
+}
+/* stato per expressID (per la vista 3D): removed/added prima, poi mod/re,
+   e le coppie proposte SOPRA i loro add/rem così il pick apre la proposta */
+function buildStatusMaps(){
+  const d=STATE.diff;
+  STATE.statusA=new Map(); STATE.statusB=new Map();
+  STATE.keyEids=new Map(); STATE.vecKeys=[];
+  STATE.rowByEidA=new Map(); STATE.rowByEidB=new Map();
+  if(!d) return;
+  const eidOf=(idx,row)=>idx.model.ids[row.k];
+  for(const r of STATE.ia.rows) STATE.rowByEidA.set(eidOf(STATE.ia,r),r);
+  for(const r of STATE.ib.rows) STATE.rowByEidB.set(eidOf(STATE.ib,r),r);
+  const put=(side,row,st,key)=>{
+    const idx=side==="a"?STATE.ia:STATE.ib;
+    const map=side==="a"?STATE.statusA:STATE.statusB;
+    const e=eidOf(idx,row);
+    map.set(e,{st,key});
+    let b=STATE.keyEids.get(key);
+    if(!b){ b={a:[],b:[]}; STATE.keyEids.set(key,b); }
+    b[side].push(e);
+  };
+  /* i vettori di spostamento si disegnano fra i CENTRI delle mesh dei due
+     lati (unit-proof: la geometria di web-ifc esce nelle unità del file) */
+  const vecOf=(en,key)=>{
+    const c=en.ch&&en.ch.find(x=>x.kind==="pos"&&isFinite(x.dmm));
+    if(c) STATE.vecKeys.push(key);
+  };
+  for(const r of d.removed) put("a",r,"rem","a:"+(r.gid||("k"+r.k)));
+  for(const r of d.added) put("b",r,"add","b:"+(r.gid||("k"+r.k)));
+  for(const e of d.modified){
+    const key="m:"+e.a.gid;
+    put("a",e.a,"mod",key); put("b",e.b,"mod",key); vecOf(e,key);
+  }
+  for(const e of d.remap){
+    const key="r:"+e.a.gid+">"+e.b.gid;
+    put("a",e.a,"re",key); put("b",e.b,"re",key); vecOf(e,key);
+  }
+  for(const e of d.cand){
+    const key="c:"+e.a.gid+">"+e.b.gid;
+    put("a",e.a,"cand",key); put("b",e.b,"cand",key);
+  }
+}
+function clearSlot(slot){
+  if(slot==="a"){ STATE.fileA=null; STATE.ia=null; STATE.bytesA=null; }
+  else{ STATE.fileB=null; STATE.ib=null; STATE.bytesB=null; }
+  STATE.diff=null; STATE.selKey=null; STATE.forced=[]; STATE.extraEntry=null;
+  STATE.openG=new Set(); STATE.fullG=new Set(); STATE.filter="all";
+  STATE.grpAll=false; STATE.view="table";
+  buildStatusMaps();
+  mvDispose();
+  ui.outName.value="";
+  renderFiles(); renderAll();
+}
+function renderFiles(){
+  const dfmt=t=>new Date(t).toLocaleDateString(LANG==="it"?"it-IT":"en-US",{day:"numeric",month:"short"});
+  ui.cardA.classList.toggle("set",!!STATE.fileA);
+  ui.nameA.textContent=STATE.fileA?STATE.fileA.name:tr("drop.a");
+  ui.metaA.textContent=STATE.ia?dfmt(STATE.fileA.lastModified)+" · "+nf(STATE.ia.total,0):"";
+  ui.cardB.classList.toggle("set",!!STATE.fileB);
+  ui.nameB.textContent=STATE.fileB?STATE.fileB.name:tr("drop.b");
+  ui.metaB.textContent=STATE.ib?dfmt(STATE.fileB.lastModified)+" · "+nf(STATE.ib.total,0):"";
+}
+
+/* =========================================================================
+   Righe visibili: filtro → gruppi → entries
+   ========================================================================= */
+function allEntries(){
+  const d=STATE.diff; if(!d) return [];
+  const out=[];
+  for(const e of d.modified) out.push({key:"m:"+e.a.gid, type:"mod", a:e.a, b:e.b, e});
+  for(const e of d.remap) out.push({key:"r:"+e.a.gid+">"+e.b.gid, type:"re", a:e.a, b:e.b, e});
+  for(const e of d.cand) out.push({key:"c:"+e.a.gid+">"+e.b.gid, type:"cand", a:e.a, b:e.b, e});
+  for(const r of d.added) out.push({key:"b:"+(r.gid||("k"+r.k)), type:"add", b:r});
+  for(const r of d.removed) out.push({key:"a:"+(r.gid||("k"+r.k)), type:"rem", a:r});
+  return out;
+}
+function passFilter(en){
+  switch(STATE.filter){
+    case "add": return en.type==="add";
+    case "rem": return en.type==="rem";
+    case "mod": return en.type==="mod";
+    case "re":  return en.type==="re"||en.type==="cand";
+    default: return true;
+  }
+}
+function rowOf(en){ return en.b||en.a; }
+function groupLabel(en){
+  if(STATE.group==="storey") return rowOf(en).storey||"?";
+  if(STATE.group==="kind") return tr(en.type==="add"?"k.add":en.type==="rem"?"k.rem":en.type==="mod"?"k.mod":"k.re");
+  return rowOf(en).cls;
+}
+function groupedEntries(){
+  const groups=new Map();
+  for(const en of allEntries()){
+    if(!passFilter(en)) continue;
+    const g=groupLabel(en);
+    let box=groups.get(g);
+    if(!box){ box={label:g,items:[],na:0,nr:0,nm:0,nre:0}; groups.set(g,box); }
+    box.items.push(en);
+    if(en.type==="add")box.na++; else if(en.type==="rem")box.nr++;
+    else if(en.type==="mod")box.nm++; else box.nre++;
+  }
+  const list=[...groups.values()];
+  if(STATE.group==="kind"){
+    const ord={};
+    [["k.add",0],["k.rem",1],["k.mod",2],["k.re",3]].forEach(([k,i])=>ord[tr(k)]=i);
+    list.sort((x,y)=>(ord[x.label]??9)-(ord[y.label]??9));
+  }else{
+    list.sort((x,y)=>y.items.length-x.items.length||(x.label<y.label?-1:1));
+  }
+  return list;
+}
+/* gruppi visibili: primi GRP_CAP + quelli aperti o con la selezione dentro,
+   il resto dietro "mostra altri" (pattern del catalogo dell'Extractor) */
+function visibleGroups(){
+  const groups=groupedEntries();
+  if(STATE.grpAll||groups.length<=GRP_CAP+1) return {groups,hidden:0};
+  const vis=groups.filter((g,i)=>i<GRP_CAP||STATE.openG.has(g.label)||
+    (STATE.selKey&&g.items.some(en=>en.key===STATE.selKey)));
+  const hidden=groups.length-vis.length;
+  return hidden?{groups:vis,hidden}:{groups,hidden:0};
+}
+function flatRows(){
+  const out=[];
+  for(const g of visibleGroups().groups){
+    if(!STATE.openG.has(g.label)) continue;   // di default tutto collassato
+    const cap=STATE.fullG.has(g.label)?g.items.length:ROW_CAP;
+    for(const en of g.items.slice(0,cap)) out.push(en);
+  }
+  return out;
+}
+/* nella vista 3D J·K scorre TUTTE le righe filtrate (non c'è l'elenco) */
+function navRows(){
+  return STATE.view==="model" ? allEntries().filter(passFilter) : flatRows();
+}
+
+/* =========================================================================
+   Render
+   ========================================================================= */
+function renderAll(){
+  const has=!!STATE.diff;
+  ui.drop0.hidden=has;
+  ui.viewSeg.hidden=!has;
+  ui.diffView.hidden=!has||STATE.view!=="table";
+  ui.modelView.hidden=!has||STATE.view!=="model";
+  ui.rules.hidden=!has;
+  ui.expo.hidden=!has;
+  if(!has){
+    ui.det.innerHTML='<span class="empty">'+esc(tr("det.hint"))+"</span>";
+    ui.runBtn.disabled=true;
+    setStatus(tr("exec.hint"));
+    return;
+  }
+  ui.viewSeg.querySelectorAll("button").forEach(b=>{
+    const on=b.dataset.view===STATE.view;
+    b.classList.toggle("on",on); b.setAttribute("aria-selected",on?"true":"false");
+  });
+  renderStats();
+  renderChips();
+  renderRows();
+  renderDetail();
+  renderRules();
+  renderOut();
+  if(STATE.view==="model") mvEnsure();
+}
+function renderStats(){
+  const d=STATE.diff;
+  ui.stAdd.textContent=nf(d.added.length,0);
+  ui.stRem.textContent=nf(d.removed.length,0);
+  ui.stMod.textContent=nf(d.modified.length+d.remap.length,0);
+  ui.stSame.textContent=nf(d.identical,0);
+  const u=Math.max(1,d.universe);
+  const w=n=>Math.max(n?0.4:0,n/u*100).toFixed(2)+"%";
+  ui.ratioBar.innerHTML=
+    '<i style="width:'+w(d.added.length)+';background:var(--lime)"></i>'+
+    '<i style="width:'+w(d.removed.length)+';background:var(--red)"></i>'+
+    '<i style="width:'+w(d.modified.length+d.remap.length)+';background:var(--amber)"></i>'+
+    '<i style="flex:1;background:rgba(160,170,150,.25)"></i>';
+  ui.ratioLb.textContent=d.changes
+    ? fmt("ratio.lb",{p:nf(Math.round(d.pct*10)/10,1)})
+    : tr("ratio.zero");
+}
+function renderChips(){
+  const d=STATE.diff;
+  const mk=(id,label,n,cls)=>{
+    const b=document.createElement("button");
+    b.type="button";
+    b.className="fch"+(cls?" "+cls:"")+(STATE.filter===id?" on":"");
+    b.innerHTML="<span>"+esc(label)+"</span>"+(n!=null?'<span class="n">'+nf(n,0)+"</span>":"");
+    b.addEventListener("click",()=>{ STATE.filter=id; STATE.fullG=new Set(); renderChips(); renderRows(); });
+    return b;
+  };
+  ui.fchips.innerHTML="";
+  ui.fchips.appendChild(mk("all",tr("fl.all"),d.changes+d.cand.length));
+  ui.fchips.appendChild(mk("add",tr("fl.add"),d.added.length));
+  ui.fchips.appendChild(mk("rem",tr("fl.rem"),d.removed.length));
+  ui.fchips.appendChild(mk("mod",tr("fl.mod"),d.modified.length));
+  ui.fchips.appendChild(mk("re",tr("fl.re"),d.remap.length+d.cand.length,"re"));
+  const sp=document.createElement("span"); sp.className="sp"; ui.fchips.appendChild(sp);
+  if(d.noise.total){
+    const n=document.createElement("span");
+    n.className="noise"; n.textContent=fmt("fl.noise",{n:nf(d.noise.total,0)});
+    ui.fchips.appendChild(n);
+  }
+}
+function badgesOf(en){
+  const out=[];
+  if(en.type==="add"){ out.push(['add',tr("row.onlyB")]); return out; }
+  if(en.type==="rem"){ out.push(['rem',tr("row.onlyA")]); return out; }
+  if(en.type==="re") out.push(['re',en.e.manual?tr("row.manual"):fmt("row.re",{s:nscore(en.e.score)})]);
+  if(en.type==="cand"){ out.push(['re',fmt("row.cand",{s:nscore(en.e.score)})]); return out; }
+  const ch=en.e.ch;
+  let nProp=0;
+  for(const c of ch){
+    if(c.kind==="pos") out.push(['',tr("row.pos")+" "+dfPosText(c,{chgPlain:tr("x.chg"),volume:tr("x.volume")})]);
+    else if(c.kind==="geom") out.push(['',tr("row.geom")+(c.dpct!=null?" "+((c.dpct>0?"+":"")+nf(Math.round(c.dpct*10)/10,1)+"%"):"")]);
+    else if(c.kind==="class") out.push(['',tr("row.cls")]);
+    else if(c.kind==="storey") out.push(['',tr("row.storey")]);
+    else nProp++;
+  }
+  if(nProp) out.push(['',nProp===1?tr("row.prop1"):fmt("row.propN",{n:nProp})]);
+  return out;
+}
+function gid6(g){ return g?g.slice(0,6):"—"; }
+function renderRows(){
+  const {groups,hidden}=visibleGroups();
+  ui.rowList.innerHTML="";
+  if(!groups.length){
+    const d=document.createElement("div");
+    d.className="dnone";
+    d.textContent=STATE.diff.changes||STATE.diff.cand.length?tr("row.none"):tr("row.clean");
+    ui.rowList.appendChild(d);
+    renderGrpChips();
+    return;
+  }
+  for(const g of groups){
+    const open=STATE.openG.has(g.label);
+    const hd=document.createElement("button");
+    hd.type="button";
+    hd.className="dgrp"+(open?"":" closed");
+    const parts=[];
+    if(g.na||g.nr||g.nm) parts.push(fmt("g.counts",{a:g.na,r:g.nr,m:g.nm}));
+    if(g.nre) parts.push(fmt("g.re",{n:g.nre}));
+    hd.innerHTML='<svg class="cv" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>'+
+      '<span class="gn">'+esc(g.label)+'</span><span class="gl"></span>'+
+      '<span class="gc">'+esc(parts.join(" · "))+'</span>';
+    hd.addEventListener("click",()=>{
+      if(STATE.openG.has(g.label)) STATE.openG.delete(g.label);
+      else STATE.openG.add(g.label);
+      renderRows();
+    });
+    ui.rowList.appendChild(hd);
+    if(!open) continue;
+    const cap=STATE.fullG.has(g.label)?g.items.length:ROW_CAP;
+    for(const en of g.items.slice(0,cap)) ui.rowList.appendChild(rowEl(en));
+    if(g.items.length>cap){
+      const b=document.createElement("button");
+      b.type="button"; b.className="dmore";
+      b.textContent=fmt("row.more",{n:nf(g.items.length-cap,0),g:g.label});
+      b.addEventListener("click",()=>{ STATE.fullG.add(g.label); renderRows(); });
+      ui.rowList.appendChild(b);
+    }
+  }
+  if(hidden){
+    const b=document.createElement("button");
+    b.type="button"; b.className="dmore";
+    b.textContent=fmt("grp.more",{n:nf(hidden,0)});
+    b.addEventListener("click",()=>{ STATE.grpAll=true; renderRows(); });
+    ui.rowList.appendChild(b);
+  }else if(STATE.grpAll&&groupedEntries().length>GRP_CAP+1){
+    const b=document.createElement("button");
+    b.type="button"; b.className="dmore";
+    b.textContent=tr("grp.less");
+    b.addEventListener("click",()=>{ STATE.grpAll=false; renderRows(); });
+    ui.rowList.appendChild(b);
+  }
+  renderGrpChips();
+}
+function rowEl(en){
+  const r=rowOf(en);
+  const el=document.createElement("button");
+  el.type="button";
+  el.className="drow"+(en.type==="rem"?" rem2":"")+(STATE.selKey===en.key?" on":"");
+  el.dataset.key=en.key;
+  const sub=(r.storey?r.storey+" · ":"")+r.cls;
+  const bdg=badgesOf(en).map(([cls,txt])=>'<span class="bdg'+(cls?" "+cls:"")+'">'+esc(txt)+"</span>").join("");
+  const gid=en.type==="re"||en.type==="cand" ? "→ "+gid6(en.b.gid) : gid6(r.gid);
+  el.innerHTML='<span class="el"><span class="nm">'+esc(r.name||r.gid||("#"+r.k))+'</span>'+
+    '<span class="sub">'+esc(sub)+'</span></span>'+
+    '<span class="bdgs">'+bdg+'</span>'+
+    '<span class="gid" title="'+esc(r.gid||"")+'">'+esc(gid)+'</span>';
+  el.addEventListener("click",()=>{ STATE.selKey=en.key; STATE.extraEntry=null; renderRows(); renderDetail(); });
+  return el;
+}
+function renderGrpChips(){
+  ui.grpChips.innerHTML="";
+  for(const [id,k] of [["cls","grp.cls"],["storey","grp.storey"],["kind","grp.kind"]]){
+    const b=document.createElement("button");
+    b.type="button";
+    b.className="mchip"+(STATE.group===id?" on":"");
+    b.textContent=tr(k);
+    b.addEventListener("click",()=>{ STATE.group=id; STATE.openG=new Set(); STATE.fullG=new Set(); renderRows(); });
+    ui.grpChips.appendChild(b);
+  }
+}
+
+/* --- dettaglio --- */
+function chLabel(c){
+  if(c.kind==="pos") return tr("det.pos");
+  if(c.kind==="geom") return tr("det.geom");
+  if(c.kind==="class") return tr("x.cls");
+  if(c.kind==="storey") return tr("x.storey");
+  const i=c.key.indexOf(".");
+  if((c.kind==="prop"||c.kind==="qty")&&i>0)
+    return esc(c.key.slice(0,i))+'<span class="ps">.</span>'+esc(c.key.slice(i+1));
+  return esc(c.key);
+}
+function cellTxt(v,num){
+  if(v==null||v==="") return "—";
+  return esc(num&&typeof v==="number"?nf(v,2):v);
+}
+function renderDetail(){
+  const en=(STATE.extraEntry&&STATE.extraEntry.key===STATE.selKey?STATE.extraEntry:null)
+    ||allEntries().find(x=>x.key===STATE.selKey);
+  mvHighlight();
+  if(!en){
+    ui.det.innerHTML='<span class="empty">'+esc(tr(STATE.diff?"det.pick":"det.hint"))+"</span>";
+    return;
+  }
+  const r=rowOf(en);
+  const h=[];
+  h.push('<div class="hd"><span class="t" title="'+esc(r.name||"")+'">'+esc(r.name||r.gid||("#"+r.k))+'</span>'+
+    '<span class="g">'+esc(en.type==="re"||en.type==="cand"?gid6(en.a.gid)+" → "+gid6(en.b.gid):(r.gid||""))+'</span></div>');
+  if(en.type==="same"){
+    h.push('<span class="empty">'+esc(tr("det.same"))+"</span>");
+    h.push('<div class="fhead"><span class="f1">'+esc(tr("det.field"))+'</span><span class="f2">'+esc(tr("det.inA"))+'</span><span class="f3">'+esc(tr("det.inB"))+"</span></div>");
+    const rows=[["Name",r.name],[tr("x.cls"),r.cls],[tr("x.storey"),r.storey],[tr("x.type"),r.typeName]]
+      .filter(x=>x[1]);
+    let n=0;
+    for(const [key,val] of r.eff){ if(n>=8) break; rows.push([key.slice(2),val.num?nf(val.v,2):val.v]); n++; }
+    h.push('<div class="frows">'+rows.map(([k,v])=>
+      '<div class="frow"><span class="fk">'+esc(k)+'</span>'+
+      '<span class="va">'+cellTxt(v)+'</span>'+
+      '<span class="vb same">'+cellTxt(v)+"</span></div>").join("")+"</div>");
+    ui.det.innerHTML=h.join("");
+    return;
+  }
+  if(en.type==="add"||en.type==="rem"){
+    const inB=en.type==="add";
+    h.push('<span class="empty">'+esc(tr(inB?"det.onlyB":"det.onlyA"))+"</span>");
+    h.push('<div class="fhead"><span class="f1">'+esc(tr("det.field"))+'</span><span class="f2">'+esc(tr("det.inA"))+'</span><span class="f3">'+esc(tr("det.inB"))+"</span></div>");
+    const rows=[["Name",r.name],[tr("x.cls"),r.cls],[tr("x.storey"),r.storey],[tr("x.type"),r.typeName]]
+      .filter(x=>x[1]);
+    let n=0;
+    for(const [key,val] of r.eff){ if(n>=8) break; rows.push([key.slice(2),val.num?nf(val.v,2):val.v]); n++; }
+    h.push('<div class="frows">'+rows.map(([k,v])=>
+      '<div class="frow"><span class="fk">'+esc(k)+'</span>'+
+      '<span class="va">'+(inB?"—":cellTxt(v))+'</span>'+
+      '<span class="vb'+(inB?" new":"")+'">'+(inB?cellTxt(v):"—")+"</span></div>").join("")+"</div>");
+  }else{
+    if(en.type==="re") h.push('<span class="empty">'+esc(en.e.manual?tr("det.reMan"):fmt("det.reAuto",{s:nscore(en.e.score)}))+"</span>");
+    if(en.type==="cand") h.push('<span class="empty">'+esc(fmt("det.cand",{s:nscore(en.e.score)}))+"</span>");
+    h.push('<div class="fhead"><span class="f1">'+esc(tr("det.field"))+'</span><span class="f2">'+esc(tr("det.inA"))+'</span><span class="f3">'+esc(tr("det.inB"))+"</span></div>");
+    const rr=[];
+    const ch=en.type==="cand"?dfChanges(en.a,en.b,{tol:STATE.tol,owner:STATE.owner}).ch:en.e.ch;
+    for(const c of ch){
+      if(c.kind==="pos"){
+        const txt=dfPosText(c,{chgPlain:tr("x.chg"),volume:tr("x.volume")});
+        rr.push('<div class="frow"><span class="fk">'+tr("det.pos")+'</span><span class="va"></span><span class="vb">'+esc(txt)+"</span></div>");
+      }else if(c.kind==="geom"){
+        const txt=c.dpct!=null?dfGeoText(c,{chgPlain:tr("x.chg"),volume:tr("x.volume")}):tr("det.geomChg");
+        rr.push('<div class="frow"><span class="fk">'+tr("det.geom")+'</span><span class="va"></span><span class="vb">'+esc(txt)+"</span></div>");
+      }else{
+        const isNew=c.va==null&&c.vb!=null;
+        rr.push('<div class="frow"><span class="fk" title="'+esc(c.key)+'">'+chLabel(c)+'</span>'+
+          '<span class="va">'+cellTxt(c.va,c.num)+'</span>'+
+          '<span class="vb'+(isNew?" new":"")+'">'+cellTxt(c.vb,c.num)+"</span></div>");
+      }
+    }
+    /* rumore dichiarato accanto al risultato */
+    const flags=en.type==="cand"?dfChanges(en.a,en.b,{tol:STATE.tol,owner:STATE.owner}):en.e;
+    if(flags.ownDiff) rr.push('<div class="frow dim"><span class="fk">'+esc(tr("det.ownIgn"))+'</span><span class="va"></span><span class="vb same"></span></div>');
+    if(flags.posNoise) rr.push('<div class="frow dim"><span class="fk">'+esc(tr("det.posIgn"))+'</span><span class="va"></span><span class="vb same"></span></div>');
+    h.push('<div class="frows">'+rr.join("")+"</div>");
+    if(en.type==="cand")
+      h.push('<div class="act"><button type="button" id="acceptPair">'+esc(tr("det.accept"))+" ("+nscore(en.e.score)+")</button></div>");
+  }
+  ui.det.innerHTML=h.join("");
+  const acc=$("acceptPair");
+  if(acc) acc.addEventListener("click",()=>{
+    STATE.forced.push([en.a.gid,en.b.gid]);
+    STATE.selKey="r:"+en.a.gid+">"+en.b.gid;
+    recompare(false);
+  });
+}
+
+/* --- regole --- */
+function renderRules(){
+  const d=STATE.diff;
+  ui.rulesN.hidden=!d.noise.total;
+  ui.rulesN.textContent="−"+nf(d.noise.total,0);
+  ui.tgOwner.classList.toggle("off",!STATE.owner);
+  ui.tgOwner.setAttribute("aria-checked",STATE.owner?"true":"false");
+  ui.tolSeg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",Number(b.dataset.tol)===STATE.tol));
+  /* scheda di ri-associazione */
+  const n=d.remap.length, c=d.cand.length;
+  const parts=[];
+  parts.push('<div class="hd"><span class="nm">'+esc(n?fmt("re.t",{n:nf(n,0)}):tr("re.t0"))+'</span>'+
+    '<span class="n">'+esc(tr("re.thr"))+"</span></div>");
+  parts.push('<p class="why">'+esc(n?fmt("re.why",{n:nf(n,0)}):tr("re.why0"))+"</p>");
+  const acts=[];
+  if(c) acts.push('<button type="button" class="pri" id="reSeeCand">'+esc(fmt("re.cand",{n:nf(c,0)}))+"</button>");
+  acts.push('<button type="button" id="reToggle" class="'+(STATE.rematch?"":"on")+'">'+esc(STATE.rematch?tr("re.off"):tr("re.on"))+"</button>");
+  parts.push('<div class="act">'+acts.join("")+"</div>");
+  ui.reCard.innerHTML=parts.join("");
+  const see=$("reSeeCand");
+  if(see) see.addEventListener("click",()=>{ STATE.filter="re"; renderChips(); renderRows(); });
+  $("reToggle").addEventListener("click",()=>{
+    STATE.rematch=!STATE.rematch;
+    saveRules(); recompare(true);
+  });
+}
+
+/* --- uscita --- */
+function renderOut(){
+  const d=STATE.diff;
+  ui.fmtSeg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.fmt===STATE.fmt));
+  ui.outExt.textContent="."+STATE.fmt;
+  if(!ui.outName.value){
+    const base=n=>n.replace(/\.ifc$/i,"");
+    ui.outName.value=(base(STATE.fileA.name)+"_vs_"+base(STATE.fileB.name)).slice(0,80)+tr("out.suffix");
+  }
+  const nTopics=topicCount();
+  ui.runBtn.disabled=STATE.fmt==="bcfzip"&&!nTopics;
+  setStatus(fmt("exec.ready",{n:nf(d.changes,0),t:nf(nTopics,0)}));
+}
+function topicCount(){
+  const d=STATE.diff; if(!d) return 0;
+  const set=new Set();
+  for(const r of d.added) set.add("add|"+r.cls);
+  for(const r of d.removed) set.add("rem|"+r.cls);
+  for(const e of d.modified) set.add("mod|"+e.b.cls);
+  for(const e of d.remap) set.add("re|"+e.b.cls);
+  return set.size;
+}
+function xlsxLabels(){
+  return {
+    shSummary:tr("x.shSum"), shAdd:tr("x.shAdd"), shRem:tr("x.shRem"), shMod:tr("x.shMod"), shRe:tr("x.shRe"),
+    item:tr("x.item"), value:tr("x.value"), fileA:tr("x.fileA"), fileB:tr("x.fileB"),
+    stAdd:tr("st.add"), stRem:tr("st.rem"), stMod:tr("st.mod"), stRe:tr("fl.re"),
+    stCand:tr("x.cand"), stSame:tr("x.same"), stNoise:tr("x.noise"), pct:tr("x.pct"),
+    rTol:tr("x.tol"), rOwner:tr("x.owner"), rThr:tr("x.thr"), yes:tr("x.yes"), no:tr("x.no"),
+    name:tr("x.name"), cls:tr("x.cls"), storey:tr("x.storey"), type:tr("x.type"),
+    field:tr("x.field"), inA:tr("x.inA"), inB:tr("x.inB"),
+    score:tr("x.score"), state:tr("x.state"), nCh:tr("x.nCh"),
+    stAuto:tr("x.auto"), stManual:tr("x.manual"), stCand2:tr("x.cand"),
+    pos:tr("det.pos"), geom:tr("det.geom"), chgPlain:tr("x.chg"), volume:tr("x.volume"),
+  };
+}
+function bcfLabels(){
+  return {
+    onlyA:tr("b.onlyA"), onlyB:tr("b.onlyB"), reNote:tr("b.reNote"),
+    pos:tr("b.pos"), geom:tr("b.geom"), cls:tr("b.cls"), storey:tr("b.storey"),
+    prop1:tr("b.prop1"), propN:tr("b.propN"),
+    chgPlain:tr("x.chg"), volume:tr("x.volume"),
+    kind:{add:tr("b.kAdd"),rem:tr("b.kRem"),mod:tr("b.kMod"),re:tr("b.kRe")},
+    kindT:{add:tr("k.add"),rem:tr("k.rem"),mod:tr("k.mod"),re:tr("k.re")},
+    more:tr("b.more"),
+  };
+}
+function uuid(){
+  if(crypto.randomUUID) return crypto.randomUUID();
+  const b=crypto.getRandomValues(new Uint8Array(16));
+  b[6]=(b[6]&15)|64; b[8]=(b[8]&63)|128;
+  const h=[...b].map(x=>x.toString(16).padStart(2,"0")).join("");
+  return h.slice(0,8)+"-"+h.slice(8,12)+"-"+h.slice(12,16)+"-"+h.slice(16,20)+"-"+h.slice(20);
+}
+async function runExport(){
+  if(STATE.busy||!STATE.diff) return;
+  STATE.busy=true;
+  try{
+    await veil(tr("veil.write"));
+    await yieldUI();
+    const base=(ui.outName.value.trim()||"diff").replace(/[\\/:*?"<>|]/g,"_");
+    let blob;
+    if(STATE.fmt==="bcfzip"){
+      const meta={fileA:STATE.fileA.name,fileB:STATE.fileB.name,author:"IFC Diff — viewifc.com",created:new Date().toISOString().replace(/\.\d{3}Z$/,"Z"),uuid};
+      const topics=dfTopics(STATE.diff,bcfLabels(),meta);
+      if(!topics.length){ setStatus(tr("exec.noTopics"),true); await veil(null); STATE.busy=false; return; }
+      blob=new Blob(dfBcfZip(topics,meta),{type:"application/octet-stream"});
+    }else{
+      const meta={fileA:STATE.fileA.name,fileB:STATE.fileB.name,tol:STATE.tol,owner:STATE.owner,rematch:STATE.rematch,thr:LANG==="it"?"0,90":"0.90"};
+      const sheets=dfSheets(STATE.diff,xlsxLabels(),meta);
+      blob=new Blob(dfXlsx(sheets),{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    }
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=base+"."+STATE.fmt;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    setStatus(fmt("exec.done",{f:a.download}));
+  }catch(err){
+    console.error(err);
+    setStatus(String(err&&err.message||err),true);
+  }
+  await veil(null);
+  STATE.busy=false;
+}
+
+/* =========================================================================
+   Eventi
+   ========================================================================= */
+let pickSlot=null;
+function bindCard(card,slot){
+  card.addEventListener("click",e=>{
+    if(e.target.closest(".fcard-x")) return;
+    pickSlot=slot; ui.fileInput.multiple=false; ui.fileInput.click();
+  });
+  card.addEventListener("keydown",e=>{
+    if(e.key==="Enter"||e.key===" "){ e.preventDefault(); pickSlot=slot; ui.fileInput.multiple=false; ui.fileInput.click(); }
+  });
+  card.addEventListener("dragover",e=>{ e.preventDefault(); card.classList.add("drag"); });
+  card.addEventListener("dragleave",()=>card.classList.remove("drag"));
+  card.addEventListener("drop",e=>{
+    e.preventDefault(); card.classList.remove("drag");
+    const f=e.dataTransfer.files&&e.dataTransfer.files[0];
+    if(f) loadInto(slot,f);
+  });
+}
+bindCard(ui.cardA,"a");
+bindCard(ui.cardB,"b");
+ui.drop0.addEventListener("click",()=>{ pickSlot=null; ui.fileInput.multiple=true; ui.fileInput.click(); });
+ui.drop0.addEventListener("dragover",e=>{ e.preventDefault(); ui.drop0.classList.add("drag"); });
+ui.drop0.addEventListener("dragleave",()=>ui.drop0.classList.remove("drag"));
+ui.drop0.addEventListener("drop",e=>{
+  e.preventDefault(); ui.drop0.classList.remove("drag");
+  if(e.dataTransfer.files&&e.dataTransfer.files.length) loadFiles(e.dataTransfer.files);
+});
+ui.fileInput.addEventListener("change",()=>{
+  const fs=ui.fileInput.files; if(!fs||!fs.length){ ui.fileInput.value=""; return; }
+  if(pickSlot) loadInto(pickSlot,fs[0]);
+  else loadFiles(fs);
+  ui.fileInput.value="";
+});
+ui.clearA.addEventListener("click",e=>{ e.stopPropagation(); clearSlot("a"); });
+ui.clearB.addEventListener("click",e=>{ e.stopPropagation(); clearSlot("b"); });
+function bindToggle(el,prop){
+  const flip=()=>{
+    if(el.classList.contains("dis")) return;
+    STATE[prop]=!STATE[prop];
+    saveRules(); recompare(true);
+  };
+  el.addEventListener("click",flip);
+  el.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); flip(); } });
+}
+bindToggle(ui.tgOwner,"owner");
+ui.tolSeg.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  const v=Number(b.dataset.tol);
+  if(v===STATE.tol) return;
+  STATE.tol=v; saveRules(); recompare(true);
+});
+ui.fmtSeg.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  STATE.fmt=b.dataset.fmt==="bcfzip"?"bcfzip":"xlsx";
+  saveRules(); renderOut();
+});
+ui.runBtn.addEventListener("click",runExport);
+/* J · K: la coda di revisione dell'11b, senza il 3D */
+document.addEventListener("keydown",e=>{
+  if(!STATE.diff||(e.target&&e.target.matches&&e.target.matches("input,textarea"))) return;
+  const k=e.key.toLowerCase();
+  if(k!=="j"&&k!=="k") return;
+  const flat=navRows();
+  if(!flat.length) return;
+  let i=flat.findIndex(x=>x.key===STATE.selKey);
+  i = i<0 ? 0 : Math.min(flat.length-1, Math.max(0, i+(k==="j"?1:-1)));
+  STATE.selKey=flat[i].key;
+  STATE.extraEntry=null;
+  if(STATE.view==="table"){
+    renderRows(); renderDetail();
+    const el=ui.rowList.querySelector('[data-key="'+CSS.escape(STATE.selKey)+'"]');
+    if(el) el.scrollIntoView({block:"nearest"});
+  }else{
+    renderDetail();
+  }
+});
+
+/* =========================================================================
+   Vista "Sul modello" — visualizzatore semplificato dedicato al diff (11b).
+   three + web-ifc dalle copie VENDORIZZATE del viewer, import dinamico al
+   primo passaggio. Convenzioni del viewer: web-ifc normalizza la geometria
+   in METRI qualunque sia l'unità del file, vertici cotti in doppia
+   precisione, ribasamento sull'origine del primo vertice (float32!),
+   swizzle Z-up → Y-up: (x, y, z) → (x, z, −y).
+   ========================================================================= */
+const MV={ built:false, busy:false, T:null, api:null, origin:null,
+  scene:null, renderer:null, camera:null, controls:null,
+  groupA:null, groupB:null, vecLines:null, mats:null, selMeshes:[], raf:0, ro:null };
+function mvDispose(){
+  if(MV.raf){ cancelAnimationFrame(MV.raf); MV.raf=0; }
+  if(MV.ro){ MV.ro.disconnect(); MV.ro=null; }
+  if(MV.scene) MV.scene.traverse(o=>{ if((o.isMesh||o.isLineSegments)&&o.geometry) o.geometry.dispose(); });
+  if(MV.renderer) MV.renderer.dispose();
+  MV.built=false; MV.scene=null; MV.renderer=null; MV.camera=null; MV.controls=null;
+  MV.groupA=MV.groupB=MV.vecLines=null; MV.selMeshes=[]; MV.origin=null;
+  if(STATE.view==="model") STATE.view="table";
+  dvDestroy();          // file cambiati: anche il viewer nell'overlay riparte
+}
+function mvRefresh(){
+  if(MV.built){ mvRetint(); mvVectors(); mvLegendRender(); }
+  dvState(); dvLegendRender();   // regole cambiate: il viewer nell'overlay si allinea
+}
+async function mvEnsure(){
+  if(MV.built){ mvSize(); return; }
+  if(MV.busy||!STATE.bytesA||!STATE.bytesB) return;
+  MV.busy=true;
+  try{
+    await veil(tr("veil.gpu"));
+    const T=await import("three");
+    const {OrbitControls}=await import("three/addons/controls/OrbitControls.js");
+    const WebIFC=await import("../../viewer/vendor/web-ifc-api.js");
+    MV.T=T;
+    if(!MV.api){
+      MV.api=new WebIFC.IfcAPI();
+      MV.api.SetWasmPath("../../viewer/vendor/",true);
+      await MV.api.Init();
+    }
+    MV.renderer=new T.WebGLRenderer({canvas:ui.mvCanvas,antialias:true,alpha:true});
+    MV.renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));
+    MV.scene=new T.Scene();
+    MV.camera=new T.PerspectiveCamera(55,1,0.1,20000);
+    MV.controls=new OrbitControls(MV.camera,ui.mvCanvas);
+    MV.controls.enableDamping=true;
+    /* stessa convenzione del viewer completo: pan con la rotella premuta (e col
+       tasto destro come alternativa), orbita col sinistro, zoom verso il cursore */
+    MV.controls.mouseButtons={LEFT:T.MOUSE.ROTATE,MIDDLE:T.MOUSE.PAN,RIGHT:T.MOUSE.PAN};
+    MV.controls.zoomToCursor=true;
+    const hemi=new T.HemisphereLight(0xffffff,0x667755,1.05);
+    const dir=new T.DirectionalLight(0xffffff,1.35); dir.position.set(1,2,.6);
+    MV.scene.add(hemi,dir);
+    /* materiali per stato, condivisi: gli identici attenuati non scrivono lo z-buffer */
+    const lam=(hex,op)=>{ const m=new T.MeshLambertMaterial({color:hex,side:T.DoubleSide});
+      if(op!=null){ m.transparent=true; m.opacity=op; } return m; };
+    MV.mats={
+      add:lam(0xa8c320), rem:lam(0xd6604d,.6), mod:lam(0xe0a63a), re:lam(0xe0a63a), cand:lam(0xe0a63a,.75),
+      same:lam(0x9aa695), sameDim:lam(0x9aa695,.10),
+      sel:new T.MeshLambertMaterial({color:0xbfd730,emissive:0x55650f,side:T.DoubleSide}),
+    };
+    MV.mats.sameDim.depthWrite=false;
+    const origin={v:null};
+    await veil(fmt("veil.index",{f:STATE.fileA.name}));
+    MV.groupA=mvBuildSide("a",STATE.bytesA,origin,T);
+    await veil(fmt("veil.index",{f:STATE.fileB.name}));
+    MV.groupB=mvBuildSide("b",STATE.bytesB,origin,T);
+    MV.origin=origin.v;
+    MV.scene.add(MV.groupA,MV.groupB);
+    mvRetint(); mvVectors(); mvLegendRender();
+    mvSize(); mvFitAll();
+    mvBindPick();
+    const loop=()=>{ MV.raf=requestAnimationFrame(loop); MV.controls.update(); MV.renderer.render(MV.scene,MV.camera); };
+    loop();
+    MV.ro=new ResizeObserver(mvSize); MV.ro.observe(ui.mvCanvas.parentElement);
+    MV.built=true;
+    mvHighlight();
+  }catch(err){
+    console.error(err);
+    setStatus(fmt("err.gpu",{e:String(err&&err.message||err)}),true);
+    STATE.view="table"; renderAll();
+  }
+  await veil(null);
+  MV.busy=false;
+}
+function mvBuildSide(side,bytes,origin,T){
+  const api=MV.api;
+  const mid=api.OpenModel(bytes,{});
+  const group=new T.Group();
+  const acc=new Map();                       // eid → vertici/indici cotti
+  /* pg.flatTransformation esce da web-ifc GIÀ in convenzione Y-up per three.js
+     (il flip Z-up→Y-up è cotto dentro la matrice stessa — lo stesso presupposto
+     su cui si basa il viewer completo, che poi applica F_INV per tornare a
+     Z-up "puro" prima della georeferenziazione e RI-applica il flip alla fine:
+     le due operazioni si annullano a vicenda quando non c'è georeferenziazione.
+     Qui, riquadro volutamente senza georef, il passaggio si salta: si prende
+     v.x/v.y/v.z DIRETTAMENTE da flatTransformation, senza swizzle aggiuntivo —
+     altrimenti il flip viene applicato due volte e il modello esce ruotato. */
+  const m4=new T.Matrix4(), nm=new T.Matrix3(), v=new T.Vector3();
+  try{
+    api.StreamAllMeshes(mid,mesh=>{
+      const eid=mesh.expressID;
+      let b=acc.get(eid);
+      if(!b){ b={pos:[],nor:[],ind:[],vc:0}; acc.set(eid,b); }
+      const n=mesh.geometries.size();
+      for(let i=0;i<n;i++){
+        const pg=mesh.geometries.get(i);
+        const geom=api.GetGeometry(mid,pg.geometryExpressID);
+        const verts=api.GetVertexArray(geom.GetVertexData(),geom.GetVertexDataSize());
+        const idx=api.GetIndexArray(geom.GetIndexData(),geom.GetIndexDataSize());
+        m4.fromArray(pg.flatTransformation);
+        nm.getNormalMatrix(m4);
+        const base=b.vc;
+        for(let k=0;k<verts.length;k+=6){
+          v.set(verts[k],verts[k+1],verts[k+2]).applyMatrix4(m4);
+          if(!origin.v) origin.v=[Math.round(v.x),Math.round(v.y),Math.round(v.z)];
+          b.pos.push(v.x-origin.v[0], v.y-origin.v[1], v.z-origin.v[2]);
+          v.set(verts[k+3],verts[k+4],verts[k+5]).applyMatrix3(nm).normalize();
+          b.nor.push(v.x,v.y,v.z);
+        }
+        for(let k=0;k<idx.length;k++) b.ind.push(idx[k]+base);
+        b.vc+=verts.length/6;
+        if(geom.delete) geom.delete();
+      }
+    });
+  }catch(eAbort){
+    /* niente recupero per-elemento qui (è del viewer): geometria parziale, dichiarata */
+    console.warn("[IFC Diff] geometria parziale ("+side+"):",(eAbort&&eAbort.message)||eAbort);
+  }
+  for(const [eid,b] of acc){
+    if(!b.ind.length) continue;
+    const g=new T.BufferGeometry();
+    g.setAttribute("position",new T.Float32BufferAttribute(b.pos,3));
+    g.setAttribute("normal",new T.Float32BufferAttribute(b.nor,3));
+    g.setIndex(new T.BufferAttribute(b.vc>65535?new Uint32Array(b.ind):new Uint16Array(b.ind),1));
+    const mesh=new T.Mesh(g,MV.mats.same);
+    mesh.userData={side,eid};
+    group.add(mesh);
+  }
+  api.CloseModel(mid);
+  return group;
+}
+function mvStatusOf(side,eid){ return (side==="a"?STATE.statusA:STATE.statusB).get(eid)||null; }
+function mvBaseMat(side,eid){
+  const st=mvStatusOf(side,eid);
+  const s=st?st.st:"same";
+  return s==="same" ? (STATE.dim?MV.mats.sameDim:MV.mats.same) : (MV.mats[s]||MV.mats.same);
+}
+/* sovrapposizione: A+B = B completo + i rimossi (e le proposte) da A;
+   solo B / solo A = un lato alla volta, ciascuno coi propri stati */
+function mvRetint(){
+  for(const [group,side] of [[MV.groupA,"a"],[MV.groupB,"b"]]){
+    if(!group) continue;
+    for(const mesh of group.children){
+      mesh.material=mvBaseMat(side,mesh.userData.eid);
+      const st=mvStatusOf(side,mesh.userData.eid);
+      const s=st?st.st:"same";
+      if(STATE.ovl==="a") mesh.visible=(side==="a");
+      else if(STATE.ovl==="b") mesh.visible=(side==="b");
+      else mesh.visible = side==="b" || s==="rem" || s==="cand";
+    }
+  }
+  mvHighlight();
+}
+function mvVectors(){
+  if(!MV.scene) return;
+  if(MV.vecLines){ MV.scene.remove(MV.vecLines); MV.vecLines.geometry.dispose(); MV.vecLines=null; }
+  const T=MV.T;
+  if(!T||!STATE.vecKeys.length) return;
+  const meshByEid=side=>{
+    const m=new Map(), g=side==="a"?MV.groupA:MV.groupB;
+    if(g) for(const mesh of g.children) m.set(mesh.userData.eid,mesh);
+    return m;
+  };
+  const mA=meshByEid("a"), mB=meshByEid("b");
+  const box=new T.Box3(), c=new T.Vector3();
+  const centerOf=(mesh)=>{ box.setFromObject(mesh); box.getCenter(c); return [c.x,c.y,c.z]; };
+  const pts=[];
+  for(const key of STATE.vecKeys){
+    const b=STATE.keyEids.get(key);
+    if(!b||!b.a.length||!b.b.length) continue;
+    const ma=mA.get(b.a[0]), mb=mB.get(b.b[0]);
+    if(!ma||!mb) continue;                    // elemento senza geometria
+    pts.push(...centerOf(ma),...centerOf(mb));
+  }
+  if(!pts.length) return;
+  const g=new T.BufferGeometry();
+  g.setAttribute("position",new T.Float32BufferAttribute(pts,3));
+  MV.vecLines=new T.LineSegments(g,new T.LineBasicMaterial({color:0xe0a63a}));
+  MV.vecLines.visible=STATE.vec;
+  MV.scene.add(MV.vecLines);
+}
+function mvHighlight(){
+  if(!MV.built) return;
+  for(const m of MV.selMeshes) m.material=mvBaseMat(m.userData.side,m.userData.eid);
+  MV.selMeshes=[];
+  if(!STATE.selKey) return;
+  const b=STATE.keyEids.get(STATE.selKey);
+  const ex=(!b&&STATE.extraEntry&&STATE.extraEntry.key===STATE.selKey)?STATE.extraEntry:null;
+  const setA=b?new Set(b.a):null, setB=b?new Set(b.b):null;
+  for(const [group,side] of [[MV.groupA,"a"],[MV.groupB,"b"]]){
+    if(!group) continue;
+    for(const mesh of group.children){
+      const eid=mesh.userData.eid;
+      const hit = side==="a" ? ((setA&&setA.has(eid))||(ex&&ex.eidA===eid))
+                             : ((setB&&setB.has(eid))||(ex&&ex.eidB===eid));
+      if(hit){ mesh.material=MV.mats.sel; MV.selMeshes.push(mesh); }
+    }
+  }
+}
+function mvSize(){
+  if(!MV.renderer) return;
+  const el=ui.mvCanvas.parentElement;
+  const w=el.clientWidth||1, h=el.clientHeight||1;
+  MV.renderer.setSize(w,h,false);
+  MV.camera.aspect=w/h;
+  MV.camera.updateProjectionMatrix();
+}
+function mvFitBox(box){
+  if(!box||box.isEmpty()) return;
+  const T=MV.T, c=new T.Vector3(), sz=new T.Vector3();
+  box.getCenter(c); box.getSize(sz);
+  const d=Math.max(sz.length()*.7,.5);        // stesso angolo del viewer completo
+  MV.controls.target.copy(c);
+  MV.camera.position.set(c.x+d, c.y+d*.65, c.z+d);
+  MV.camera.near=Math.max(d/1000,.01); MV.camera.far=Math.max(d*50,200);
+  MV.camera.updateProjectionMatrix();
+  MV.controls.update();
+}
+function mvFitAll(){
+  const T=MV.T, box=new T.Box3();
+  for(const g of [MV.groupA,MV.groupB]) if(g) box.expandByObject(g);
+  mvFitBox(box);
+}
+function mvLegendRender(){
+  const d=STATE.diff; if(!d) return;
+  ui.mvLegend.innerHTML=
+    '<span class="lg"><i style="background:var(--lime)"></i>'+nf(d.added.length,0)+'</span>'+
+    '<span class="lg"><i style="border:1px dashed var(--red)"></i>'+nf(d.removed.length,0)+'</span>'+
+    '<span class="lg"><i style="background:var(--amber)"></i>'+nf(d.modified.length+d.remap.length,0)+'</span>';
+}
+function mvBindPick(){
+  const T=MV.T;
+  const ray=new T.Raycaster(), ptr=new T.Vector2();
+  let downX=0,downY=0;
+  const pick=e=>{
+    const r=ui.mvCanvas.getBoundingClientRect();
+    ptr.x=((e.clientX-r.left)/r.width)*2-1;
+    ptr.y=-((e.clientY-r.top)/r.height)*2+1;
+    ray.setFromCamera(ptr,MV.camera);
+    const objs=[];
+    for(const g of [MV.groupA,MV.groupB]) if(g) for(const m of g.children) if(m.visible) objs.push(m);
+    const hits=ray.intersectObjects(objs,false);
+    /* un identico attenuato non deve catturare il clic davanti a una modifica */
+    return hits.find(h=>h.object.material!==MV.mats.sameDim)||hits[0]||null;
+  };
+  ui.mvCanvas.addEventListener("pointerdown",e=>{ downX=e.clientX; downY=e.clientY; });
+  ui.mvCanvas.addEventListener("click",e=>{
+    if(Math.hypot(e.clientX-downX,e.clientY-downY)>5) return;   // era un'orbita
+    const hit=pick(e);
+    if(!hit) return;
+    const {side,eid}=hit.object.userData;
+    const st=mvStatusOf(side,eid);
+    if(st){ STATE.selKey=st.key; STATE.extraEntry=null; }
+    else{
+      /* identico: dettaglio effimero coi valori uguali nei due lati */
+      const row=(side==="a"?STATE.rowByEidA:STATE.rowByEidB).get(eid);
+      if(!row) return;
+      const other=(side==="a"?STATE.ib:STATE.ia).byGid.get(row.gid)||row;
+      const a=side==="a"?row:other, bb=side==="a"?other:row;
+      STATE.extraEntry={key:"s:"+side+eid, type:"same", a, b:bb,
+        eidA:STATE.ia.model.ids[a.k], eidB:STATE.ib.model.ids[bb.k]};
+      STATE.selKey=STATE.extraEntry.key;
+    }
+    renderDetail();
+  });
+  ui.mvCanvas.addEventListener("dblclick",e=>{
+    const hit=pick(e);
+    if(hit) mvFitBox(new MV.T.Box3().setFromObject(hit.object));
+    else mvFitAll();
+  });
+}
+
+/* eventi della vista 3D */
+ui.viewSeg.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  const v=b.dataset.view==="model"?"model":"table";
+  if(v===STATE.view) return;
+  STATE.view=v;
+  renderAll();
+});
+ui.ovlSeg.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  STATE.ovl=b.dataset.ovl||"ab";
+  ui.ovlSeg.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+  if(MV.built) mvRetint();
+});
+function bindMvToggle(el,prop,after){
+  const flip=()=>{
+    STATE[prop]=!STATE[prop];
+    el.classList.toggle("off",!STATE[prop]);
+    el.setAttribute("aria-checked",STATE[prop]?"true":"false");
+    after();
+  };
+  el.addEventListener("click",flip);
+  el.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); flip(); } });
+}
+bindMvToggle(ui.tgDim,"dim",()=>{ if(MV.built) mvRetint(); dvState(); });
+bindMvToggle(ui.tgVec,"vec",()=>{ if(MV.vecLines) MV.vecLines.visible=STATE.vec; });
+
+/* =========================================================================
+   "Apri nel viewer completo" — finestra flottante (pattern Extractor) con
+   il viewer VERO in un iframe (?embed=diff). L'iframe annuncia "ready",
+   riceve i due file (i byte vengono CLONATI dal postMessage: quelli del
+   tool restano vivi per il riquadro piccolo), risponde "loaded" e da lì
+   riceve lo stato: gruppi colorati per GlobalId, elenco dei sopravvissuti
+   del modello A, velatura. Alla chiusura l'iframe resta vivo (riapertura
+   immediata); si distrugge solo quando cambiano i file.
+   ========================================================================= */
+const DV={ iframe:null, ready:false, loaded:false, open:false };
+/* cand = stesso ambra dei modificati (sono modifiche in attesa di conferma):
+   nel pod del viewer si distinguono per la pastiglia tratteggiata */
+const DV_COLORS={ add:"#8ab520", rem:"#d93025", mod:"#e0a63a", cand:"#e0a63a" };
+function dvOpen(){
+  if(!STATE.diff||!STATE.bytesA||!STATE.bytesB) return;
+  DV.open=true;
+  ui.dvBk.hidden=false; ui.dvOv.hidden=false;
+  document.body.style.overflow="hidden";
+  dvLegendRender();
+  if(!DV.iframe){
+    DV.iframe=document.createElement("iframe");
+    DV.iframe.className="dv-frame";
+    DV.iframe.src="../../viewer/?embed=diff";
+    ui.dvHost.appendChild(DV.iframe);
+  }else if(DV.loaded) dvState();
+}
+function dvClose(){
+  DV.open=false;
+  ui.dvBk.hidden=true; ui.dvOv.hidden=true;
+  document.body.style.overflow="";
+}
+function dvDestroy(){
+  if(DV.iframe) DV.iframe.remove();
+  DV.iframe=null; DV.ready=false; DV.loaded=false;
+  if(DV.open) dvClose();
+}
+/* Stato per il viewer esteso: i GlobalId raggruppati per CATEGORIA (non per
+   colore) — è il viewer a decidere colore, visibilità e isolamento, quindi
+   deve sapere di che cosa si tratta. Le coppie "da confermare" restano
+   contate dentro removed/added (è il senso della soglia), ma sul modello sono
+   una categoria a sé: qui si tolgono da lì, così un pezzo non finisce dipinto
+   due volte con due colori sovrapposti. */
+function dvState(){
+  if(!DV.iframe||!DV.loaded||!STATE.diff) return;
+  const d=STATE.diff;
+  const candA=d.cand.map(e=>e.a.gid).filter(Boolean);
+  const candB=d.cand.map(e=>e.b.gid).filter(Boolean);
+  const inCand=new Set(candA.concat(candB));
+  const groups=[
+    {model:1,kind:"add",guids:d.added.map(r=>r.gid).filter(g=>g&&!inCand.has(g))},
+    {model:0,kind:"rem",guids:d.removed.map(r=>r.gid).filter(g=>g&&!inCand.has(g))},
+    {model:1,kind:"mod",guids:d.modified.concat(d.remap).map(e=>e.b.gid).filter(Boolean)},
+    {model:0,kind:"cand",guids:candA},
+    {model:1,kind:"cand",guids:candB},
+  ].filter(g=>g.guids.length);
+  const counts={
+    add:Math.max(0,d.added.length-d.cand.length),
+    rem:Math.max(0,d.removed.length-d.cand.length),
+    mod:d.modified.length+d.remap.length,
+    cand:d.cand.length,
+    same:d.identical,
+  };
+  DV.iframe.contentWindow.postMessage({ape:"diff",cmd:"state",groups,counts,
+    colors:DV_COLORS,ghost:STATE.dim?0.30:1},"*");
+}
+function dvLegendRender(){
+  const d=STATE.diff; if(!d) return;
+  ui.dvLegend.innerHTML=
+    '<span><i style="background:'+DV_COLORS.add+'"></i>'+nf(d.added.length,0)+" "+esc(tr("dv.add"))+'</span>'+
+    '<span><i style="background:'+DV_COLORS.rem+'"></i>'+nf(d.removed.length,0)+" "+esc(tr("dv.rem"))+'</span>'+
+    '<span><i style="background:'+DV_COLORS.mod+'"></i>'+nf(d.modified.length+d.remap.length,0)+" "+esc(tr("dv.mod"))+'</span>';
+}
+window.addEventListener("message",ev=>{
+  const d=ev.data;
+  if(!d||d.ape!=="diff"||!DV.iframe||ev.source!==DV.iframe.contentWindow) return;
+  if(d.cmd==="ready"){
+    DV.ready=true;
+    if(!STATE.bytesA||!STATE.bytesB) return;
+    DV.iframe.contentWindow.postMessage({ape:"diff",cmd:"load",lang:LANG,files:[
+      {name:STATE.fileA.name,buf:STATE.bytesA.buffer},
+      {name:STATE.fileB.name,buf:STATE.bytesB.buffer},
+    ]},"*");
+  }else if(d.cmd==="loaded"){
+    DV.loaded=true;
+    dvState();
+  }else if(d.cmd==="error"){
+    setStatus(fmt("err.gpu",{e:d.e}),true);
+  }
+});
+ui.mvExpand.addEventListener("click",dvOpen);
+ui.dvClose.addEventListener("click",dvClose);
+ui.dvBk.addEventListener("click",dvClose);
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"&&DV.open) dvClose();
+});
+
+/* nav: lingua e tema (chiavi condivise del sito) */
+document.querySelectorAll(".langsw button").forEach(b=>b.addEventListener("click",()=>applyLang(b.dataset.lang)));
+$("thmBtn").addEventListener("click",()=>{
+  const light=document.documentElement.getAttribute("data-theme")==="light";
+  if(light){ document.documentElement.removeAttribute("data-theme"); try{ localStorage.setItem("viewer_landing_theme","dark"); }catch(e){} }
+  else{ document.documentElement.setAttribute("data-theme","light"); try{ localStorage.setItem("viewer_landing_theme","light"); }catch(e){} }
+});
+
+applyLang(LANG);
+</script>
+</body>
+</html>

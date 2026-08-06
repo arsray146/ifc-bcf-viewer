@@ -352,12 +352,12 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <div class="hs-row">
         <span class="hs-dot" style="background:var(--lime)"></span>
         <span class="hs-k" data-i18n="stat.ready">Pronti all'uso</span>
-        <span class="hs-v">7</span>
+        <span class="hs-v">8</span>
       </div>
       <div class="hs-row">
         <span class="hs-dot" style="background:var(--muted)"></span>
         <span class="hs-k" data-i18n="stat.wip">In lavorazione</span>
-        <span class="hs-v">5</span>
+        <span class="hs-v">4</span>
       </div>
       <span class="hs-note"><a href="https://github.com/arsray146/ifc-bcf-viewer/issues" target="_blank" rel="noopener" data-i18n="stat.note">L'ordine lo decidono le issue aperte.</a></span>
     </aside>
@@ -397,7 +397,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <div class="band-h">
         <span class="dot" style="background:var(--lime)"></span>
         <span class="t" data-i18n="band.ready">Pronti all'uso</span>
-        <span class="n" data-i18n="band.readyN">7 · online adesso</span>
+        <span class="n" data-i18n="band.readyN">8 · online adesso</span>
         <span class="ln"></span>
       </div>
       <div class="cards">
@@ -472,6 +472,16 @@ html:not([data-theme="light"]) .thm .sun{display:none}
           </div>
         </a>
 
+        <a class="card live" data-cat="data" data-tool="08" href="ifc-diff/">
+          <div class="card-top"><span class="badge">.ifc ×2 → .xlsx</span><span class="card-num">08</span></div>
+          <h3 class="card-t">IFC Diff</h3>
+          <p class="card-d" data-i18n="t08.d">Due revisioni a confronto per GlobalId, al netto del rumore di riesportazione: aggiunti, rimossi, modificati campo per campo, orfani ri-associati per geometria. Export Excel o BCF.</p>
+          <div class="card-f">
+            <span class="card-cat" data-i18n="catS.data">Dati</span>
+            <span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </a>
+
       </div>
     </div>
 
@@ -480,20 +490,10 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <div class="band-h">
         <span class="dot" style="background:var(--muted)"></span>
         <span class="t" data-i18n="band.wip">In lavorazione</span>
-        <span class="n" data-i18n="band.wipN">5 · nell'ordine in cui li chiedete</span>
+        <span class="n" data-i18n="band.wipN">4 · nell'ordine in cui li chiedete</span>
         <span class="ln"></span>
       </div>
       <div class="cards">
-
-        <div class="card wip" data-cat="data" data-tool="08">
-          <div class="card-top"><span class="badge">.ifc ×2 → .csv</span><span class="card-num">08</span></div>
-          <h3 class="card-t">IFC Diff</h3>
-          <p class="card-d" data-i18n="t08.d">Due versioni a confronto per GlobalId: aggiunti, rimossi, modificati, con l'elenco delle proprietà che sono cambiate. Report in CSV.</p>
-          <div class="card-f">
-            <span class="card-cat" data-i18n="catS.data">Dati</span>
-            <span class="ver">v3.0</span>
-          </div>
-        </div>
 
         <div class="card wip" data-cat="diag" data-tool="09">
           <div class="card-top"><span class="badge">.ifc → report</span><span class="card-num">09</span></div>
@@ -610,18 +610,19 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <span class="c-s"><span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></span>
     </a>
 
+    <a class="lrow" data-cat="data" data-tool="08" href="ifc-diff/">
+      <span class="c-n">08</span>
+      <span class="c-t">IFC Diff</span>
+      <span class="c-d" data-i18n="t08.s">Due revisioni per GlobalId al netto del rumore, con gli orfani ri-associati per geometria</span>
+      <span class="c-io">.ifc ×2 → .xlsx</span>
+      <span class="c-c" data-i18n="catS.data">Dati</span>
+      <span class="c-s"><span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></span>
+    </a>
+
     <div class="ldiv" id="listDiv">
       <span class="dot"></span>
       <span class="t" data-i18n="band.wip">In lavorazione</span>
       <span class="ln"></span>
-    </div>
-    <div class="lrow" data-cat="data" data-tool="08">
-      <span class="c-n">08</span>
-      <span class="c-t">IFC Diff</span>
-      <span class="c-d" data-i18n="t08.s">Due versioni per GlobalId: aggiunti, rimossi, modificati e le proprietà cambiate</span>
-      <span class="c-io">.ifc ×2 → .csv</span>
-      <span class="c-c" data-i18n="catS.data">Dati</span>
-      <span class="c-s"><span class="ver">v3.0</span></span>
     </div>
     <div class="lrow" data-cat="diag" data-tool="09">
       <span class="c-n">09</span>
@@ -712,8 +713,8 @@ const I18N = {
     "catS.georef":"Georef","catS.diag":"Diagnostica","catS.coord":"Coordinamento",
     "search.ph":"Filtra per nome o formato",
     "view.grid":"Griglia","view.list":"Elenco",
-    "band.ready":"Pronti all'uso","band.readyN":"7 · online adesso",
-    "band.wip":"In lavorazione","band.wipN":"5 · nell'ordine in cui li chiedete",
+    "band.ready":"Pronti all'uso","band.readyN":"8 · online adesso",
+    "band.wip":"In lavorazione","band.wipN":"4 · nell'ordine in cui li chiedete",
     "act.open":"Apri",
     "list.tool":"Strumento","list.what":"Cosa fa","list.io":"In → out","list.cat":"Materia","list.state":"Stato",
     "t01.d":"Riclassifica entità e PredefinedType in massa da una mappatura Excel, con anteprima delle regole non risolte.",
@@ -730,8 +731,8 @@ const I18N = {
     "t06.s":"Diagnostica e ripara MapConversion, CRS e rotazione al nord — anche i casi degeneri",
     "t07.d":"Proprietà e quantità in un foglio Excel o CSV: scegli le colonne, e ognuna dichiara su quante righe è compilata. Un foglio per classe, raggruppa per tipo o somma per piano.",
     "t07.s":"Proprietà e quantità in Excel o CSV, con la copertura di ogni colonna in chiaro",
-    "t08.d":"Due versioni a confronto per GlobalId: aggiunti, rimossi, modificati, con l'elenco delle proprietà che sono cambiate. Report in CSV.",
-    "t08.s":"Due versioni per GlobalId: aggiunti, rimossi, modificati e le proprietà cambiate",
+    "t08.d":"Due revisioni a confronto per GlobalId, al netto del rumore di riesportazione: aggiunti, rimossi, modificati campo per campo, orfani ri-associati per geometria. Export Excel o BCF.",
+    "t08.s":"Due revisioni per GlobalId al netto del rumore, con gli orfani ri-associati per geometria",
     "t09.d":"Schema, unità, GUID duplicati, orfani, georeferenziazione e conteggio delle bombe booleane. Sapere prima se il file esploderà.",
     "t09.s":"Schema, unità, GUID duplicati, orfani, georeferenziazione, bombe booleane",
     "t10.d":"Il fratello del Class Patcher: invece della classe cambia le proprietà. Aggiunge, rinomina e riscrive in massa da una mappatura.",
@@ -763,8 +764,8 @@ const I18N = {
     "catS.georef":"Georef","catS.diag":"Diagnostics","catS.coord":"Coordination",
     "search.ph":"Filter by name or format",
     "view.grid":"Grid","view.list":"List",
-    "band.ready":"Ready to use","band.readyN":"7 · online now",
-    "band.wip":"In the works","band.wipN":"5 · in the order you ask for them",
+    "band.ready":"Ready to use","band.readyN":"8 · online now",
+    "band.wip":"In the works","band.wipN":"4 · in the order you ask for them",
     "act.open":"Open",
     "list.tool":"Tool","list.what":"What it does","list.io":"In → out","list.cat":"Topic","list.state":"State",
     "t01.d":"Bulk-reclassifies entities and PredefinedTypes from an Excel mapping, previewing the unresolved rules.",
@@ -781,8 +782,8 @@ const I18N = {
     "t06.s":"Diagnoses and repairs MapConversion, CRS and true-north rotation — degenerate cases too",
     "t07.d":"Properties and quantities into an Excel or CSV sheet: you pick the columns, and each one declares how many rows carry it. One sheet per class, group by type or sum by storey.",
     "t07.s":"Properties and quantities to Excel or CSV, with each column's coverage in the open",
-    "t08.d":"Two versions compared by GlobalId: added, removed, modified, with the list of the properties that changed. CSV report.",
-    "t08.s":"Two versions by GlobalId: added, removed, modified and the changed properties",
+    "t08.d":"Two revisions compared by GlobalId, net of re-export noise: added, removed, modified field by field, orphans re-matched by geometry. Excel or BCF export.",
+    "t08.s":"Two revisions by GlobalId net of the noise, with the orphans re-matched by geometry",
     "t09.d":"Schema, units, duplicate GUIDs, orphans, georeferencing and the boolean-bomb count. Know in advance whether the file will blow up.",
     "t09.s":"Schema, units, duplicate GUIDs, orphans, georeferencing, boolean bombs",
     "t10.d":"The Class Patcher's sibling: it changes properties instead of classes. Adds, renames and rewrites in bulk from a mapping.",
