@@ -1038,6 +1038,12 @@ html[data-theme="light"] .mk-badgetxt{fill:#67790d}
         <p data-i18n="tools.t8d">Due revisioni a confronto per GlobalId, al netto del rumore di riesportazione: aggiunti, rimossi, modificati campo per campo, e gli orfani ri-associati per geometria con la loro confidenza. Export Excel o BCF.</p>
         <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
       </a>
+      <a class="tool rv" style="--d:.48s" href="tools/ifc-health-check/">
+        <div class="tool-top"><span class="tool-num">09</span><span class="tool-tag" data-i18n="tools.tag">Client-side</span></div>
+        <h3 data-i18n="tools.t9t">IFC Health Check</h3>
+        <p data-i18n="tools.t9d">Ventotto controlli sul file prima di consegnarlo, senza punteggi: ogni riga dice quanto è grave, su quanti elementi ricade e chi la risolve — authoring, export o mappatura. Referto PDF o BCF, e il capitolato si carica come IDS.</p>
+        <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
+      </a>
     </div>
     <!-- rimando alla pagina indice /tools/: qui restano le card dei tool pronti,
          l'elenco completo (con la roadmap di quelli in lavorazione) vive lì -->
@@ -1232,6 +1238,7 @@ const I18N = {
     "tools.t6t":"IFC Georeference Editor","tools.t6d":"Dove si trova il modello: legge IfcMapConversion, latitudine/longitudine del sito e TrueNorth, mostra dove si contraddicono e li riscrive d'accordo. La geometria non si muove.",
     "tools.t7t":"IFC Data Extractor","tools.t7d":"Proprietà e quantità in Excel o CSV: ogni colonna dichiara su quante righe è compilata, così i buchi del modello si vedono prima di esportare. Un foglio per classe, raggruppa per tipo o somma per piano.",
     "tools.t8t":"IFC Diff","tools.t8d":"Due revisioni a confronto per GlobalId, al netto del rumore di riesportazione: aggiunti, rimossi, modificati campo per campo, e gli orfani ri-associati per geometria con la loro confidenza. Export Excel o BCF.",
+    "tools.t9t":"IFC Health Check","tools.t9d":"Ventotto controlli sul file prima di consegnarlo, senza punteggi: ogni riga dice quanto è grave, su quanti elementi ricade e chi la risolve — authoring, export o mappatura. Referto PDF o BCF, e il capitolato si carica come IDS.",
     "priv.eyebrow":"Privacy",
     "priv.h2a":"I tuoi file non lasciano","priv.h2b":"il tuo computer.",
     "priv.p":"Il viewer gira interamente nel browser con web-ifc compilato in WebAssembly. Non c'è un server che riceve i modelli, perché non c'è un upload: apri la pagina, trascini il file e lavori — anche offline.",
@@ -1322,6 +1329,7 @@ const I18N = {
     "tools.t6t":"IFC Georeference Editor","tools.t6d":"Where the model sits: reads IfcMapConversion, the site latitude/longitude and TrueNorth, shows where they contradict each other and rewrites them in agreement. The geometry does not move.",
     "tools.t7t":"IFC Data Extractor","tools.t7d":"Properties and quantities to Excel or CSV: every column declares how many rows carry it, so the model's gaps show up before you export. One sheet per class, group by type or sum by storey.",
     "tools.t8t":"IFC Diff","tools.t8d":"Two revisions compared by GlobalId, net of re-export noise: added, removed, modified field by field, and the orphans re-matched by geometry with their confidence. Excel or BCF export.",
+    "tools.t9t":"IFC Health Check","tools.t9d":"Twenty-eight checks on the file before handing it over, with no score: every row says how serious it is, how many elements it lands on and who fixes it — authoring, export or mapping. PDF or BCF report, and the brief loads as IDS.",
     "priv.eyebrow":"Privacy",
     "priv.h2a":"Your files never leave","priv.h2b":"your computer.",
     "priv.p":"The viewer runs entirely in the browser on web-ifc compiled to WebAssembly. There is no server receiving the models, because there is no upload: you open the page, drop the file and work — offline too.",
