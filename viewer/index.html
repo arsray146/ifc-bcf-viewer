@@ -1132,6 +1132,60 @@ select option{background:var(--panel-solid);color:var(--text)}
 /* finestre strette: la pillola statistiche è la prima a cedere spazio */
 @media(max-width:1100px){.stats{display:none}}
 @media(max-width:820px){#btnIfc,#btnBcf{padding:9px 12px}}
+/* modalità diff incorporata (?embed=diff, iframe del tool IFC Diff):
+   restano albero, proprietà, sezioni, misure, QTO; via i tool estranei al
+   confronto — clash, issues/BCF, nuvole di punti, tracciato — e i punti di
+   ingresso file (i modelli arrivano dal tool via postMessage). */
+body.diff-embed #railIssues,body.diff-embed #railClouds,
+body.diff-embed #btnAlign,body.diff-embed #alignMenu,body.diff-embed #profilePanel,
+body.diff-embed #btnIfc,body.diff-embed #btnBcf,body.diff-embed #hdrGuide,
+body.diff-embed #dtabClash,body.diff-embed #landing,body.diff-embed #dropHint{display:none!important}
+body.diff-embed .brand-link{pointer-events:none}
+/* sezione "Confronto": è una PAGINA del pod come Modelli/QTO (non una lastra
+   flottante sopra il pod — quella si sovrapponeva all'albero). Rail e tab
+   vivono sempre nel DOM ma sono visibili solo in modalità confronto. */
+#railDiff{display:none}
+body.diff-embed #railDiff{display:flex}
+.dv-wrap{flex:1 1 auto;min-height:0;overflow-y:auto;padding:4px 11px 12px;display:flex;flex-direction:column;gap:13px}
+.dv-sec{display:flex;flex-direction:column;gap:5px}
+.dv-k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:0 4px}
+.dv-seg{display:flex;align-items:center;gap:2px;padding:3px;border-radius:9px;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line)}
+.dv-seg button{flex:1;padding:6px 8px;border:0;border-radius:7px;background:none;cursor:pointer;
+  font:600 10.5px/1 inherit;letter-spacing:.02em;color:var(--muted);transition:background .12s,color .12s}
+.dv-seg button:hover{color:var(--text);border:none}
+.dv-seg button.on{background:var(--lime);color:var(--lime-ink)}
+/* riga interruttore (colorazione, velatura) */
+.dv-tgl{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 4px;border-radius:6px;cursor:pointer;user-select:none}
+.dv-tgl:hover{background:var(--panel-2)}
+.dv-tgl>span:first-child{font-size:12.5px;color:var(--text)}
+.dv-sw{position:relative;flex:none;width:30px;height:17px;border-radius:999px;background:var(--line-2);transition:background .15s}
+.dv-tgl.on .dv-sw{background:var(--lime)}
+.dv-sw i{position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--faint);transition:left .15s,background .15s}
+.dv-tgl.on .dv-sw i{left:15px;background:var(--lime-ink)}
+/* riga categoria: occhio + pastiglia colore + nome + conteggio + "solo" */
+.dv-row{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px}
+.dv-row:hover{background:var(--panel-2)}
+.dv-row .eye{flex:0 0 auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:5px;background:var(--panel);cursor:pointer;padding:0}
+.dv-row .eye svg{width:15px;height:15px;stroke:var(--muted);fill:none;stroke-width:1.8}
+.dv-row .eye.off{background:var(--panel-2)}
+.dv-row .eye.off svg{stroke:var(--faint)}
+.dv-dot{flex:0 0 auto;width:12px;height:12px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.22)}
+.dv-dot.dash{background:none!important;border:1.5px dashed var(--dv-c,var(--line-2));box-shadow:none}
+.dv-dot.none{background:var(--line-2)}
+.dv-row .dv-nm{flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dv-row.off .dv-nm{color:var(--faint)}
+.dv-row .dv-cnt{flex:0 0 auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.dv-only{flex:0 0 auto;border:1px solid transparent;background:none;color:var(--faint);cursor:pointer;
+  font-family:var(--mono);font-size:10px;letter-spacing:.04em;text-transform:uppercase;padding:3px 6px;border-radius:5px;opacity:0;transition:opacity .12s}
+.dv-row:hover .dv-only,.dv-only.on{opacity:1}
+.dv-only:hover{border-color:var(--lime-deep);color:var(--text)}
+.dv-only.on{background:var(--lime-soft);border-color:var(--lime-line);color:var(--text)}
+.dv-note{font-size:11px;line-height:1.45;color:var(--faint);padding:2px 4px 0}
+.dv-empty{padding:16px 12px;font-size:12px;line-height:1.5;color:var(--faint)}
+.dv-khead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#dvAll{opacity:1}
+#dvBody{display:flex;flex-direction:column;gap:13px}
+#dvBody[hidden]{display:none}
 </style>
 <!-- v2.1.1 — vendoring locale: three e web-ifc serviti da ./vendor/ (stesse versioni pinnate
      0.160.0 / 0.0.77 di prima, scaricate da unpkg). Niente più dipendenza dalla latenza CDN
@@ -1188,6 +1242,11 @@ select option{background:var(--panel-solid);color:var(--text)}
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 7.5 12 12l9-4.5L12 3z"/><path d="M3 12.5 12 17l9-4.5"/></svg>
       <span class="rail-dot" hidden></span>
     </button>
+    <!-- sezione Confronto: visibile solo in modalità ?embed=diff (CSS #railDiff) -->
+    <button class="rail-btn" id="railDiff" data-railtab="diff" data-i18n-title="tab.diff" title="Confronto">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="12" height="12" rx="2.5"/><rect x="9" y="9" width="12" height="12" rx="2.5"/></svg>
+      <span class="rail-dot" hidden></span>
+    </button>
     <button class="rail-btn" id="railIssues" data-railtab="issues" data-i18n-title="tab.issues" title="Issues">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5M12 16h.01"/></svg>
       <span class="rail-dot" hidden></span>
@@ -1215,6 +1274,7 @@ select option{background:var(--panel-solid);color:var(--text)}
          (setLeftTab, badge conteggi, i18n) resta agganciata a questi bottoni -->
     <div id="leftTabs" hidden>
       <button class="ltab on" data-tab="models"><span data-i18n="tab.models">Modelli</span> <span class="tbadge" id="tabModelsCount">0</span></button>
+      <button class="ltab" data-tab="diff"><span data-i18n="tab.diff">Confronto</span> <span class="tbadge" id="tabDiffCount">0</span></button>
       <button class="ltab" data-tab="issues"><span data-i18n="tab.issues">Issues</span> <span class="tbadge" id="tabIssuesCount">0</span></button>
       <button class="ltab" data-tab="qto" data-i18n-title="title.qtoTab" title="Computo delle quantità (Quantity Take-Off) dai modelli caricati"><span data-i18n="tab.qto">QTO</span> <span class="tbadge" id="tabQtoCount">0</span></button>
       <button class="ltab" data-tab="clouds"><span data-i18n="pc.title">Nuvole di punti</span> <span class="tbadge" id="tabCloudsCount">0</span></button>
@@ -1227,6 +1287,35 @@ select option{background:var(--panel-solid);color:var(--text)}
       </div>
       <div id="modelList">
         <div class="empty-note" data-i18n-html="empty.noModels">Nessun modello.<br>Carica uno o più file <b>.ifc</b>: le coordinate vengono allineate al primo modello.</div>
+      </div>
+    </div>
+    <!-- pagina "Confronto" (solo ?embed=diff): legenda viva delle categorie del
+         diff, con occhio e "solo" per isolarle, interruttore della colorazione
+         e scelta delle revisioni. Tutto dentro il pod: nessuna lastra flottante
+         che copra l'albero. -->
+    <div id="diffBlock" class="ltab-page" style="display:none">
+      <div class="dv-wrap">
+        <div class="dv-empty" id="dvEmpty" data-i18n="dv.wait">In attesa del confronto…</div>
+        <div id="dvBody" hidden>
+          <div class="dv-sec">
+            <div class="dv-k" data-i18n="dv.kColor">Colorazione</div>
+            <div class="dv-tgl on" id="dvTgPaint" role="switch" aria-checked="true" tabindex="0"><span data-i18n="dv.paint">Colora le differenze</span><span class="dv-sw"><i></i></span></div>
+            <div class="dv-tgl on" id="dvTgDim" role="switch" aria-checked="true" tabindex="0"><span data-i18n="dv.dim">Attenua il contesto</span><span class="dv-sw"><i></i></span></div>
+          </div>
+          <div class="dv-sec">
+            <div class="dv-k dv-khead"><span data-i18n="dv.kShow">Mostra nel 3D</span><button class="dv-only" id="dvAll" data-i18n="dv.all" data-i18n-title="dv.allT" title="Mostra tutte le categorie">tutto</button></div>
+            <div id="dvKinds"></div>
+          </div>
+          <div class="dv-sec">
+            <div class="dv-k" data-i18n="dv.kRev">Revisioni</div>
+            <div class="dv-seg" id="dvSideSeg" role="group">
+              <button data-side="ab" class="on" data-i18n="dv.ab">A + B</button>
+              <button data-side="b" data-i18n="dv.onlyB">solo B</button>
+              <button data-side="a" data-i18n="dv.onlyA">solo A</button>
+            </div>
+            <div class="dv-note" data-i18n="dv.noteAb">In «A + B» il contesto invariato viene dalla revisione B: della A restano solo rimossi e proposte, per non disegnare due volte le stesse superfici.</div>
+          </div>
+        </div>
       </div>
     </div>
     <!-- sezione Nuvole di punti: pagina propria del rail (prima viveva in coda alla tab Modelli) -->
@@ -1861,6 +1950,25 @@ const STRINGS = {
     "clash.bcfGroupDesc": "{n} clash nel gruppo «{name}»",
     "toast.clashBcfExported": "BCF creato: {n} issue.",
     "toast.clashBcfGrouped": "Molti clash ({n}): esportato un topic per regola.",
+    /* sezione Confronto (modalità ?embed=diff, aperta dal tool IFC Diff) */
+    "tab.diff": "Confronto",
+    "dv.wait": "In attesa del confronto…",
+    "dv.kColor": "Colorazione",
+    "dv.paint": "Colora le differenze",
+    "dv.dim": "Attenua il contesto",
+    "dv.kShow": "Mostra nel 3D",
+    "dv.all": "tutto", "dv.allT": "Mostra tutte le categorie",
+    "dv.only": "solo", "dv.onlyT": "Mostra solo questa categoria",
+    "dv.kRev": "Revisioni",
+    "dv.ab": "A + B", "dv.onlyB": "solo B", "dv.onlyA": "solo A",
+    "dv.noteAb": "In «A + B» il contesto invariato viene dalla revisione B: della A restano solo rimossi e proposte, per non disegnare due volte le stesse superfici.",
+    "dv.kAdd": "Aggiunti", "dv.kRem": "Rimossi", "dv.kMod": "Modificati",
+    "dv.kCand": "Da confermare", "dv.kSame": "Invariati",
+    "dv.tAdd": "Elementi presenti solo nella revisione B",
+    "dv.tRem": "Elementi presenti solo nella revisione A",
+    "dv.tMod": "Elementi cambiati fra le due revisioni",
+    "dv.tCand": "Coppie proposte sotto la soglia di ri-associazione",
+    "dv.tSame": "Elementi identici nelle due revisioni (contesto)",
     "tab.qto": "QTO", "title.qtoTab": "Computo delle quantità (Quantity Take-Off) dai modelli caricati",
     "qto.groupBy": "Raggruppa per",
     "qto.groupClass": "Classe IFC",
@@ -2351,6 +2459,25 @@ const STRINGS = {
     "clash.bcfGroupDesc": "{n} clashes in group “{name}”",
     "toast.clashBcfExported": "BCF created: {n} topics.",
     "toast.clashBcfGrouped": "Many clashes ({n}): exported one topic per rule.",
+    /* comparison section (?embed=diff mode, opened by the IFC Diff tool) */
+    "tab.diff": "Comparison",
+    "dv.wait": "Waiting for the comparison…",
+    "dv.kColor": "Coloring",
+    "dv.paint": "Color the differences",
+    "dv.dim": "Dim the context",
+    "dv.kShow": "Show in 3D",
+    "dv.all": "all", "dv.allT": "Show every category",
+    "dv.only": "only", "dv.onlyT": "Show this category only",
+    "dv.kRev": "Revisions",
+    "dv.ab": "A + B", "dv.onlyB": "B only", "dv.onlyA": "A only",
+    "dv.noteAb": "In “A + B” the unchanged context comes from revision B: only removals and proposals are kept from A, so the same surfaces aren't drawn twice.",
+    "dv.kAdd": "Added", "dv.kRem": "Removed", "dv.kMod": "Modified",
+    "dv.kCand": "To confirm", "dv.kSame": "Unchanged",
+    "dv.tAdd": "Elements only in revision B",
+    "dv.tRem": "Elements only in revision A",
+    "dv.tMod": "Elements changed between the two revisions",
+    "dv.tCand": "Proposed pairs below the re-match threshold",
+    "dv.tSame": "Elements identical in both revisions (context)",
     "tab.qto": "QTO", "title.qtoTab": "Quantity Take-Off from the loaded models",
     "qto.groupBy": "Group by",
     "qto.groupClass": "IFC class",
@@ -2711,6 +2838,7 @@ function refreshDynamicI18n() {
   try { renderC2mBlock(); } catch (e) {}   /* righe codici + tabella classi (verifica nuvola) */
   try { if (models.length) renderModelList(); } catch (e) {}   /* tooltip e conteggi delle righe modello */
   try { updateNavHelp(); } catch (e) {}
+  try { if (_diffOnLang) _diffOnLang(); } catch (e) {}   /* righe categoria del confronto */
   if (typeof statsOpen !== "undefined" && statsOpen) { try { openReportStats(); } catch (e) {} }
   else if (typeof activeTopic !== "undefined" && activeTopic) { try { renderTopicDetail(activeTopic); } catch (e) {} }
   else if (typeof activeReport !== "undefined" && activeReport) { try { openReportTopic(activeReport); } catch (e) {} }
@@ -2742,6 +2870,11 @@ let bcfGeoMatrix = null;      // georeferenziazione del primo modello: riferimen
 let statusFilter = new Set();
 let isolateOn = false;
 let currentSelectionBox = null;
+/* agganci della modalità confronto (?embed=diff): li registra il modulo
+   diffEmbed in coda al file. Restano null nel viewer normale. */
+let _diffOnIsolate = null;    // (dim) → la pittura del diff si toglie di mezzo quando isoli
+let _diffOnLang = null;       // ridisegna le righe categoria al cambio lingua
+let _diffOnVisibility = null; // qualcosa è stato nascosto/mostrato → ridipingi il confronto
 
 const EYE_ON = '<svg viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>';
 const EYE_OFF = '<svg viewBox="0 0 24 24"><path d="M4 5l16 14M9.5 6.1A11 11 0 0 1 12 5.5c6.5 0 10 6.5 10 6.5a17 17 0 0 1-3.2 3.9M6 8.3A16 16 0 0 0 2 12s3.5 6.5 10 6.5c1.2 0 2.3-.2 3.3-.6"/></svg>';
@@ -3569,6 +3702,7 @@ function toggleModelVisibility(m) {
   m.visible = !m.visible;
   for (const mesh of m.meshes) mesh.visible = m.visible;
   for (const ed of m.edges) ed.visible = m.visible && edgesOn;
+  if (_diffOnVisibility) _diffOnVisibility();   // confronto: niente colore su un modello spento
   /* sincronizza tutti gli occhi di questo modello, in entrambe le viste */
   document.querySelectorAll(`button.eye[data-muid="${m.uid}"]`).forEach(btn => {
     btn.innerHTML = m.visible ? EYE_ON : EYE_OFF;
@@ -3600,6 +3734,7 @@ function setElementsHidden(model, eids, hidden) {
   }
   /* se un elemento appena nascosto era selezionato, il fantasma rosso resterebbe in scena */
   if (hidden && hlItems && hlItems.some(it => it.model === model && touch.has(it.eid))) clearHighlight();
+  if (_diffOnVisibility) _diffOnVisibility();   // confronto: la pittura segue la geometria visibile
 }
 
 function _rebuildMeshVisibility(model, mesh) {
@@ -4487,6 +4622,7 @@ function applyIsolate() {
     mesh.material.needsUpdate = true;
   }
   edgeMaterial.opacity = dim ? 0.05 : 0.45 * (0.35 + 0.65 * gf);
+  if (_diffOnIsolate) _diffOnIsolate(dim);   // confronto: isolando, la colorazione per stato si spegne
 }
 $("tglIsolate").addEventListener("change", (e) => { isolateOn = e.target.checked; applyIsolate(); });
 /* v1.9.8 — spigoli sempre attivi: il toggle "Spigoli" è stato rimosso dalla toolbar
@@ -8776,6 +8912,7 @@ function setLeftTab(which) {
   $("issuesBlock").style.display = which === "issues" ? "" : "none";
   $("qtoBlock").style.display = which === "qto" ? "" : "none";
   $("cloudsBlock").style.display = which === "clouds" ? "" : "none";
+  $("diffBlock").style.display = which === "diff" ? "" : "none";   /* pagina viva solo in ?embed=diff */
   if (which === "qto") renderQtoSelects();   /* indice Pset→Proprietà lazy: costruito alla prima apertura */
 }
 document.querySelectorAll(".ltab").forEach(b => b.addEventListener("click", () => setLeftTab(b.dataset.tab)));
@@ -8856,7 +8993,7 @@ $("railCollapse").addEventListener("click", () => {
 new MutationObserver(railSync).observe($("leftTabs"), { subtree: true, attributes: true, attributeFilter: ["class"], childList: true, characterData: true });
 new MutationObserver(railSync).observe($("main"), { attributes: true, attributeFilter: ["class"] });
 /* pallino lime sul rail quando la sezione ha contenuti (conteggio tab > 0) */
-[["tabModelsCount", "railModels"], ["tabIssuesCount", "railIssues"], ["tabQtoCount", "railQto"], ["tabCloudsCount", "railClouds"]].forEach(([src, btn]) => {
+[["tabModelsCount", "railModels"], ["tabIssuesCount", "railIssues"], ["tabQtoCount", "railQto"], ["tabCloudsCount", "railClouds"], ["tabDiffCount", "railDiff"]].forEach(([src, btn]) => {
   const el = $(src), dot = document.querySelector("#" + btn + " .rail-dot");
   if (!el || !dot) return;
   const upd = () => { dot.hidden = !(parseInt(el.textContent, 10) || 0); };
@@ -12010,6 +12147,298 @@ document.querySelectorAll("#langSwitch .lang-opt").forEach(b => b.addEventListen
 document.documentElement.lang = LANG;
 document.querySelectorAll("#langSwitch .lang-opt").forEach(b => b.classList.toggle("on", b.dataset.lang === LANG));
 applyStaticI18n();
+
+/* =========================================================================
+   Modalità diff incorporata (?embed=diff) — il tool IFC Diff apre questo
+   viewer in un iframe e gli parla via postMessage. Qui: chrome ridotta
+   (classe body.diff-embed), caricamento dei due file ricevuti dal parent,
+   pittura PERSISTENTE per stato su un gruppo overlay dedicato (diffGroup:
+   clearHighlight() non lo tocca, quindi clic/selezione/proprietà restano
+   quelli di sempre), modello A ridotto ai soli rimossi/da confermare (il
+   resto lo racconta B: niente z-fighting fra revisioni sovrapposte),
+   contesto velato via modelGhost. Protocollo: il viewer annuncia
+   {ape:"diff",cmd:"ready"}; il parent manda {cmd:"load",lang,files:[{name,
+   buf}]} e poi {cmd:"state",groups:[{model,kind,guids}],colors,counts,ghost}
+   con kind ∈ add|rem|mod|cand; il viewer risponde {cmd:"loaded"}/{cmd:"error"}.
+   I comandi (colorazione on/off, categorie da mostrare, revisioni) vivono
+   nella pagina "Confronto" del pod (#diffBlock), non in una lastra flottante.
+   ========================================================================= */
+(function diffEmbed() {
+  let flag = false;
+  try { flag = new URLSearchParams(location.search).get("embed") === "diff"; } catch (e) {}
+  if (!flag) return;
+  document.body.classList.add("diff-embed");
+  /* niente drag&drop nel confronto: i modelli arrivano dal tool (capture:
+     scavalca i listener bubble già registrati su window) */
+  for (const t of ["dragenter", "dragover", "drop"])
+    window.addEventListener(t, (e) => { e.preventDefault(); e.stopImmediatePropagation(); }, true);
+  /* overlay dedicato: fratello di hlGroup ma FUORI dal ciclo di vita della
+     selezione — clearHighlight() svuota solo hlGroup */
+  const diffGroup = new THREE.Group();
+  rootGroup.add(diffGroup);
+  const diffMats = new Map();
+  /* Bias di profondità PIÙ DEBOLE di quello dell'evidenza (0.998): la pittura
+     del confronto sta davanti alla mesh base ma DIETRO alla selezione. Prima
+     condivideva bias e renderOrder con hlGroup e vinceva chi disegnava per
+     ultimo — sempre il diff, essendo aggiunto dopo: selezionare un elemento
+     non cambiava colore e non si capiva più cosa fosse selezionato. */
+  const diffBias = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace(
+      "#include <project_vertex>",
+      "#include <project_vertex>\n\tmvPosition.xyz *= 0.999;\n\tgl_Position = projectionMatrix * mvPosition;"
+    );
+  };
+  function diffMat(hex) {
+    let m = diffMats.get(hex);
+    if (!m) {
+      m = new THREE.MeshLambertMaterial({ color: new THREE.Color(hex), side: THREE.DoubleSide });
+      m.emissive = m.color.clone().multiplyScalar(0.35);
+      m.onBeforeCompile = diffBias;
+      diffMats.set(hex, m);
+    }
+    m.clippingPlanes = hlMaterial.clippingPlanes;       // coerenza con section box / sezione
+    return m;
+  }
+  function diffClear() {
+    for (const c of [...diffGroup.children]) { diffGroup.remove(c); c.geometry.dispose(); }
+  }
+  /* ---- stato del confronto ricevuto dal tool ------------------------------
+     dvKind[i] = Map expressID → categoria per il modello i (una sola categoria
+     per elemento: l'ultimo gruppo vince, e il tool manda cand DOPO add/rem);
+     dvAll[i] = tutti gli expressID con geometria (il resto è "same"). */
+  const KINDS = ["add", "rem", "mod", "cand", "same"];
+  const KLBL = { add: "dv.kAdd", rem: "dv.kRem", mod: "dv.kMod", cand: "dv.kCand", same: "dv.kSame" };
+  const KTIP = { add: "dv.tAdd", rem: "dv.tRem", mod: "dv.tMod", cand: "dv.tCand", same: "dv.tSame" };
+  let dvColors = { add: "#8ab520", rem: "#d93025", mod: "#e0a63a", cand: "#e0a63a" };
+  let dvCounts = {};
+  let dvKind = [], dvAll = [];
+  const dvShow = { add: true, rem: true, mod: true, cand: true, same: true };
+  let dvSide = "ab", dvPaint = true, dvDim = true;
+
+  function dvGeoEids(model) {
+    const s = new Set();
+    for (const mesh of model.meshes) for (const r of mesh.userData.fullRanges) s.add(r.expressID);
+    return [...s];
+  }
+  function dvIngest(groups) {
+    dvKind = models.map(() => new Map());
+    dvAll = models.map(m => dvGeoEids(m));
+    for (const g of groups || []) {
+      const model = models[g.model | 0], map = dvKind[g.model | 0];
+      if (!model || !map || !g.guids) continue;
+      const k = KINDS.includes(g.kind) ? g.kind : "mod";
+      for (const guid of g.guids) {
+        const eid = model.expressByGuid.get(guid);
+        if (eid === undefined) continue;
+        for (const gg of geoIdsOf(model, eid)) map.set(gg, k);
+      }
+    }
+  }
+  /* pittura per stato: un mesh per (bucket × categoria), costruito sui range
+     VISIBILI (mesh.userData.ranges, coerenti con geometry.index) — un elemento
+     nascosto dall'albero o spento da un filtro non deve lasciare il colore a
+     mezz'aria. Ogni elemento è dipinto una sola volta: niente due mesh
+     coincidenti dello stesso pezzo (prima rimosso e "da confermare" si
+     sovrapponevano e si contendevano il pixel). */
+  function diffPaintNow() {
+    diffClear();
+    for (let mi = 0; mi < models.length; mi++) {
+      const model = models[mi], map = dvKind[mi];
+      if (!model || !map || !map.size || !model.visible) continue;
+      for (const mesh of model.meshes) {
+        if (!mesh.geometry.index) continue;
+        const src = mesh.geometry.index.array;
+        const byKind = new Map();
+        for (const r of mesh.userData.ranges) {
+          const k = map.get(r.expressID);
+          if (!k) continue;
+          let arr = byKind.get(k);
+          if (!arr) { arr = []; byKind.set(k, arr); }
+          const s = r.start * 3, e = (r.start + r.count) * 3;
+          for (let i = s; i < e; i++) arr.push(src[i]);
+        }
+        for (const [k, picked] of byKind) {
+          if (!picked.length) continue;
+          const geo = new THREE.BufferGeometry();
+          geo.setAttribute("position", mesh.geometry.getAttribute("position"));
+          geo.setAttribute("normal", mesh.geometry.getAttribute("normal"));
+          geo.setIndex(picked);
+          const hm = new THREE.Mesh(geo, diffMat(dvColors[k] || dvColors.mod));
+          hm.renderOrder = 1;   // sotto l'evidenza della selezione (renderOrder 2)
+          diffGroup.add(hm);
+        }
+      }
+    }
+    diffVis();
+  }
+  /* la pittura si ricostruisce a ogni cambio di visibilità (filtri, occhi
+     dell'albero, occhio del modello): una sola volta per frame */
+  let repaintPend = false;
+  function diffRepaint() {
+    if (repaintPend) return;
+    repaintPend = true;
+    requestAnimationFrame(() => { repaintPend = false; diffPaintNow(); });
+  }
+  /* interruttore della colorazione + cortesia verso "Isola selezione": mentre
+     isoli, il confronto si toglie di mezzo e resta solo l'arancione della
+     selezione */
+  function diffVis() { diffGroup.visible = dvPaint && !(isolateOn && hlGroup.children.length > 0); }
+
+  /* ---- visibilità per categoria ------------------------------------------
+     Una sola funzione decide cosa resta a schermo: categoria accesa/spenta ×
+     revisione scelta. In "A + B" gli invariati del modello A restano fuori —
+     li racconta B, e sovrapposti darebbero z-fighting fra revisioni. */
+  function dvApplyVis() {
+    if (!dvKind.length) return;
+    for (let mi = 0; mi < models.length; mi++) {
+      const model = models[mi], map = dvKind[mi] || new Map();
+      if (!model) continue;
+      const sideOk = dvSide === "ab" || (dvSide === "a" ? mi === 0 : mi === 1);
+      const show = [], hide = [];
+      for (const eid of dvAll[mi] || []) {
+        const k = map.get(eid) || "same";
+        const vis = sideOk && dvShow[k] && !(dvSide === "ab" && mi === 0 && k === "same");
+        (vis ? show : hide).push(eid);
+      }
+      setElementsHidden(model, hide, true);
+      setElementsHidden(model, show, false);
+    }
+  }
+  function dvApplyGhost() { modelGhost = dvDim ? 0.30 : 1; applyIsolate(); }
+  /* lo script è un module: niente sul window globale se non questo handle —
+     usato dalla QA del tool IFC Diff (mai da logica applicativa). Proprietà a
+     getter: si legge sempre lo stato vero, anche dopo un'azione che non passa
+     da qui (una selezione, un occhio dell'albero). */
+  Object.defineProperties(window.__diffEmbed = {}, Object.fromEntries(Object.entries({
+    painted: () => diffGroup.children.length,
+    paintOn: () => dvPaint,
+    visible: () => diffGroup.visible,
+    hl: () => hlGroup.children.length,
+    /* la selezione deve stare DAVANTI alla pittura: renderOrder più alto */
+    orderDiff: () => (diffGroup.children[0] ? diffGroup.children[0].renderOrder : null),
+    orderHl: () => (hlGroup.children[0] ? hlGroup.children[0].renderOrder : null),
+    hiddenA: () => (models[0] ? models[0].hiddenEids.size : 0),
+    hiddenB: () => (models[1] ? models[1].hiddenEids.size : 0),
+    totalA: () => (models[0] ? models[0].guidByExpress.size : 0),
+    totalB: () => (models[1] ? models[1].guidByExpress.size : 0),
+    ghost: () => modelGhost,
+    side: () => dvSide,
+    dimOn: () => dvDim,
+    models: () => models.length,
+    show: () => Object.assign({}, dvShow),
+    counts: () => dvCounts,
+  }).map(([k, get]) => [k, { get, enumerable: true }])));
+
+  /* ---- pagina "Confronto" del pod ---------------------------------------- */
+  const dvNum = (n) => (n || 0).toLocaleString(LANG === "en" ? "en-GB" : "it-IT");
+  function dvIsOnly(k) { return KINDS.every(x => dvShow[x] === (x === k)); }
+  function dvRenderKinds() {
+    const host = $("dvKinds");
+    if (!host) return;
+    host.innerHTML = "";
+    for (const k of KINDS) {
+      if (k !== "same" && !dvCounts[k]) continue;          // categoria assente in questo confronto
+      const row = document.createElement("div");
+      row.className = "dv-row" + (dvShow[k] ? "" : " off");
+      row.dataset.kind = k;
+      row.title = tr(KTIP[k]);
+      const dot = k === "same"
+        ? '<span class="dv-dot none"></span>'
+        : '<span class="dv-dot' + (k === "cand" ? " dash" : "") + '" style="' +
+          (k === "cand" ? "--dv-c:" : "background:") + (dvColors[k] || dvColors.mod) + '"></span>';
+      row.innerHTML =
+        '<button class="eye" type="button"></button>' + dot +
+        '<span class="dv-nm"></span><span class="dv-cnt"></span>' +
+        '<button class="dv-only" type="button"></button>';
+      const eye = row.querySelector(".eye");
+      eye.innerHTML = dvShow[k] ? EYE_ON : EYE_OFF;
+      eye.classList.toggle("off", !dvShow[k]);
+      eye.title = tr(dvShow[k] ? "elhide.hide" : "elhide.show");
+      row.querySelector(".dv-nm").textContent = tr(KLBL[k]);
+      row.querySelector(".dv-cnt").textContent = dvCounts[k] != null ? dvNum(dvCounts[k]) : "";
+      const only = row.querySelector(".dv-only");
+      only.textContent = tr("dv.only");
+      only.title = tr("dv.onlyT");
+      only.classList.toggle("on", dvIsOnly(k));
+      host.appendChild(row);
+    }
+  }
+  function dvSetShow(k, v) { dvShow[k] = v; dvRenderKinds(); dvApplyVis(); }
+  $("dvKinds").addEventListener("click", (e) => {
+    const row = e.target.closest(".dv-row");
+    if (!row) return;
+    const k = row.dataset.kind;
+    if (e.target.closest(".dv-only")) {
+      const only = dvIsOnly(k);
+      for (const x of KINDS) dvShow[x] = only ? true : x === k;   // ri-clic su "solo" = torna tutto
+      dvRenderKinds(); dvApplyVis();
+      return;
+    }
+    dvSetShow(k, !dvShow[k]);
+  });
+  $("dvAll").addEventListener("click", () => {
+    for (const x of KINDS) dvShow[x] = true;
+    dvRenderKinds(); dvApplyVis();
+  });
+  function dvBindTgl(el, get, set) {
+    const flip = () => {
+      set(!get());
+      el.classList.toggle("on", get());
+      el.setAttribute("aria-checked", get() ? "true" : "false");
+    };
+    el.addEventListener("click", flip);
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+  }
+  dvBindTgl($("dvTgPaint"), () => dvPaint, (v) => { dvPaint = v; diffVis(); });
+  dvBindTgl($("dvTgDim"), () => dvDim, (v) => { dvDim = v; dvApplyGhost(); });
+  $("dvSideSeg").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    dvSide = b.dataset.side || "ab";
+    $("dvSideSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+    dvApplyVis();
+  });
+  /* agganci verso il resto del viewer (dichiarati in testa al file) */
+  _diffOnIsolate = () => diffVis();
+  _diffOnLang = () => dvRenderKinds();
+  _diffOnVisibility = () => diffRepaint();
+  /* il confronto è il motivo per cui questo viewer è aperto: parte da lì */
+  setLeftTab("diff"); railSync();
+
+  let loading = false;
+  window.addEventListener("message", async (ev) => {
+    const d = ev.data;
+    if (!d || d.ape !== "diff") return;
+    if (d.cmd === "load" && !loading && !models.length) {
+      loading = true;
+      try {
+        if (d.lang && d.lang !== LANG) setLang(d.lang);
+        await loadIfcFiles(d.files.map((f) => new File([f.buf], f.name)));
+        parent.postMessage({ ape: "diff", cmd: "loaded", n: models.length }, "*");
+      } catch (e) {
+        console.error(e);
+        parent.postMessage({ ape: "diff", cmd: "error", e: String((e && e.message) || e) }, "*");
+      }
+      loading = false;
+    } else if (d.cmd === "state") {
+      if (d.colors) dvColors = Object.assign({}, dvColors, d.colors);
+      dvCounts = d.counts || {};
+      dvIngest(d.groups);
+      if (typeof d.ghost === "number") dvDim = d.ghost < 1;   // allinea al riquadro del tool
+      $("dvTgDim").classList.toggle("on", dvDim);
+      $("dvTgDim").setAttribute("aria-checked", dvDim ? "true" : "false");
+      $("dvEmpty").hidden = true;
+      $("dvBody").hidden = false;
+      $("tabDiffCount").textContent = String((dvCounts.add || 0) + (dvCounts.rem || 0) + (dvCounts.mod || 0) + (dvCounts.cand || 0));
+      railSync();
+      dvRenderKinds();
+      dvApplyVis();
+      dvApplyGhost();
+      diffPaintNow();
+    }
+  });
+  parent.postMessage({ ape: "diff", cmd: "ready" }, "*");
+})();
 </script>
 </body>
 </html>
