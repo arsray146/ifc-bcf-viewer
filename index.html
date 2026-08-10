@@ -1050,6 +1050,12 @@ html[data-theme="light"] .mk-badgetxt{fill:#67790d}
         <p data-i18n="tools.t10d">Le proprietà mancanti si compilano per condizione, non per elemento: «gli IfcWall esterni e portanti → FireRating EI 90». Ogni regola dice quanti elementi tocca e cosa fa se il valore c'è già. Esce l'.ifc scritto e un quaderno di regole che alla revisione dopo si riapplica in un click.</p>
         <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
       </a>
+      <a class="tool rv" style="--d:.6s" href="tools/ifc-ids-editor/">
+        <div class="tool-top"><span class="tool-num">12</span><span class="tool-tag" data-i18n="tools.tag">Client-side</span></div>
+        <h3 data-i18n="tools.t12t">IFC IDS Editor</h3>
+        <p data-i18n="tools.t12d">Il capitolato informativo diventa un file IDS 1.0 che qualunque software sa controllare — scritto provandolo su un modello vero: la specifica che non prende nessuno è un falso verde, e qui si vede prima dell'export. Quattrocento specifiche della stessa forma si generano da una tabella, e si rivedono come matrice.</p>
+        <span class="tool-go"><span data-i18n="tools.open">Apri lo strumento</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
+      </a>
     </div>
     <!-- rimando alla pagina indice /tools/: qui restano le card dei tool pronti,
          l'elenco completo (con la roadmap di quelli in lavorazione) vive lì -->
@@ -1246,6 +1252,7 @@ const I18N = {
     "tools.t8t":"IFC Diff","tools.t8d":"Due revisioni a confronto per GlobalId, al netto del rumore di riesportazione: aggiunti, rimossi, modificati campo per campo, e gli orfani ri-associati per geometria con la loro confidenza. Export Excel o BCF.",
     "tools.t9t":"IFC Health Check","tools.t9d":"Ventotto controlli sul file prima di consegnarlo, senza punteggi: ogni riga dice quanto è grave, su quanti elementi ricade e chi la risolve — authoring, export o mappatura. Referto PDF o BCF, e il capitolato si carica come IDS.",
     "tools.t10t":"IFC Pset Editor","tools.t10d":"Le proprietà mancanti si compilano per condizione, non per elemento: «gli IfcWall esterni e portanti → FireRating EI 90». Ogni regola dice quanti elementi tocca e cosa fa se il valore c'è già. Esce l'.ifc scritto e un quaderno di regole che alla revisione dopo si riapplica in un click.",
+    "tools.t12t":"IFC IDS Editor","tools.t12d":"Il capitolato informativo diventa un file IDS 1.0 che qualunque software sa controllare — scritto provandolo su un modello vero: la specifica che non prende nessuno è un falso verde, e qui si vede prima dell'export. Quattrocento specifiche della stessa forma si generano da una tabella, e si rivedono come matrice.",
     "priv.eyebrow":"Privacy",
     "priv.h2a":"I tuoi file non lasciano","priv.h2b":"il tuo computer.",
     "priv.p":"Il viewer gira interamente nel browser con web-ifc compilato in WebAssembly. Non c'è un server che riceve i modelli, perché non c'è un upload: apri la pagina, trascini il file e lavori — anche offline.",
@@ -1338,6 +1345,7 @@ const I18N = {
     "tools.t8t":"IFC Diff","tools.t8d":"Two revisions compared by GlobalId, net of re-export noise: added, removed, modified field by field, and the orphans re-matched by geometry with their confidence. Excel or BCF export.",
     "tools.t9t":"IFC Health Check","tools.t9d":"Twenty-eight checks on the file before handing it over, with no score: every row says how serious it is, how many elements it lands on and who fixes it — authoring, export or mapping. PDF or BCF report, and the brief loads as IDS.",
     "tools.t10t":"IFC Pset Editor","tools.t10d":"Missing properties get filled in by condition, not element by element: “external load-bearing IfcWalls → FireRating EI 90”. Every rule states how many elements it touches and what it does if the value is already there. Out comes the written .ifc and a rulebook that reapplies in one click at the next revision.",
+    "tools.t12t":"IFC IDS Editor","tools.t12d":"The information brief becomes an IDS 1.0 file any checking software can run — written while testing it on a real model: a specification that catches nobody is a false green, and here it shows before export. Four hundred specifications of the same shape are generated from a table, and reviewed as a matrix.",
     "priv.eyebrow":"Privacy",
     "priv.h2a":"Your files never leave","priv.h2b":"your computer.",
     "priv.p":"The viewer runs entirely in the browser on web-ifc compiled to WebAssembly. There is no server receiving the models, because there is no upload: you open the page, drop the file and work — offline too.",
