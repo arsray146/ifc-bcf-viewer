@@ -1,0 +1,3201 @@
+<!DOCTYPE html>
+<!--
+  LandXML → IFC — strumento accessorio di viewifc.com
+  Autore: Alessandro Perugini — BIM Coordinator. Licenza AGPL-3.0.
+  100% client-side: nessun file viene caricato su un server.
+
+  UI v3 — design 14a del canvas "Viewer UI Redesign" (la tavola delle
+  corrispondenze) + 14b (la verifica sull'asse), fusi in un banco solo con
+  l'interruttore Corrispondenze / Verifica sull'asse.
+
+  Il verso opposto dello strumento 03 (Alignment → LandXML): il tracciato del
+  topografo torna dentro l'IFC come IfcAlignment. Sembra una conversione di
+  formato, ma il 4x3 chiede una cosa che il LandXML non ha: DUE VERITÀ che
+  devono coincidere — la logica di business (segmenti parametrici: rette,
+  archi, clotoidi) e la curva geometrica che ne discende (IfcCompositeCurve +
+  IfcGradientCurve). Il motore genera entrambe e le ricontrolla l'una
+  sull'altra: se divergessero oltre la tolleranza, l'esportazione si ferma
+  invece di produrre un file che ogni software legge in modo diverso.
+
+  Scelte v1 (punti lasciati aperti dal canvas, o divergenze dichiarate):
+  - segmenti nativi 1:1: LINE, CIRCULARARC, CLOTHOID. Le spirali di altro
+    tipo (bloss, coseno, sinusoide, biquadratica…) sono CASI APERTI: l'IFC
+    4x3 le enumera nella business logic, ma la v1 non sa scriverne la curva
+    geometrica gemella — e scrivere una verità sola sarebbe il difetto che
+    questo strumento esiste per evitare. Le scelte: clotoide equivalente
+    (stessa lunghezza e raggi, scostamento massimo CALCOLATO dalla legge di
+    curvatura vera, quando è nota) · polilinea di brevi rettifili (fedele,
+    ma il tratto smette di essere una curva: business e geometria restano
+    gemelle perché sono entrambe la polilinea) · fermati e chiedi il
+    tracciato corretto.
+  - le GIUNZIONI che non chiudono (coordinate arrotondate nell'export a
+    monte) si vedono sull'asse, con lo scarto di posizione e tangente contro
+    la tolleranza (1 mm · 0,001 gon): cuci sul segmento precedente (default:
+    l'attacco si prende dal calcolato, la catena diventa continua per
+    costruzione) · ricalcola i parametri della clotoide (tiene fermi i due
+    estremi, Newton su lunghezza e curvatura finale) · lascia com'è e
+    dichiara (la discontinuità resta scritta, e i topic escono in .bcfzip).
+  - il PUNTO BASE: l'asse si scrive relativo all'origine del modello ospite
+    (le assolute stanno nell'IfcMapConversion) oppure con le coordinate
+    assolute in geometria — dichiarando che i viewer in virgola singola ci
+    perdono precisione. Senza modello ospite nasce un IFC4X3_ADD2 nuovo con
+    la sua IfcMapConversion.
+  - un ospite IFC2X3 o IFC4 viene MIGRATO a IFC4X3_ADD2 nella stessa uscita
+    (richiesta reale: se l'asse va unito a un modello è perché quel modello
+    va anche convertito — l'edilizia gira ancora in 2x3, IfcAlignment vive
+    solo nel 4x3). Riscrittura mirata per riga: id invariati, tabella
+    dichiarata (pad di attributi opzionali, keyword rinominate, DoorStyle→
+    DoorType, IfcClassification con la data da IfcCalendarDate a stringa,
+    IfcPresentationStyleAssignment appiattite negli IfcStyledItem), tutto
+    il resto byte-identico; i tipi senza mappa restano com'erano, contati
+    e dichiarati. IFC4X1/X2 non gestiti (portano entità alignment vecchie).
+  - superficie del terreno (TIN) e punti di picchettamento NON si importano
+    (v1): contati e dichiarati in tavola, restano nel LandXML.
+  - le scelte fatte qui restano scritte nel file come Pset_Conversione
+    sull'allineamento (file d'origine, versione LandXML, approssimazioni
+    accettate e con che scostamento, giunzioni lasciate aperte) —
+    disattivabile, perché il modello è del progetto e non dello strumento.
+  - la geometria gemella segue le convenzioni dei sample bSI di IFC4X3_ADD2
+    (IfcCurveSegment ri-ancorato: il punto a SegmentStart cade sul Placement)
+    ma non è passata dal validatore ufficiale buildingSMART.
+  - niente 3D: la verifica è planimetria + profilo disegnati DAGLI STESSI
+    NUMERI dell'export (pattern dello strumento 03), non un viewer.
+-->
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LandXML → IFC — viewifc.com</title>
+
+<meta name="description" content="Converte il tracciato LandXML del topografo in IfcAlignment IFC4x3 nel browser: segmenti parametrici e curva geometrica generati insieme e verificati l'uno sull'altro, giunzioni controllate al millimetro, inserimento in un modello IFC esistente. Nessun upload.">
+<meta name="author" content="Alessandro Perugini">
+<meta name="theme-color" content="#f1f3ee">
+<link rel="canonical" href="https://viewifc.com/tools/ifc-landxml-to-ifc/">
+<link rel="icon" type="image/png" href="../../favicon-32.png">
+<script>/* Tema chiaro di default (chiave viewer_landing_theme, condivisa da tutto il sito) */
+document.documentElement.setAttribute("data-theme","light");
+try{
+  if(localStorage.getItem("viewifc_theme_migr_light")!=="1"){
+    localStorage.setItem("viewifc_theme_migr_light","1");
+    localStorage.setItem("viewer_landing_theme","light");
+  }
+  if(localStorage.getItem("viewer_landing_theme")==="dark") document.documentElement.removeAttribute("data-theme");
+}catch(e){}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* =========================================================================
+   Sistema di vetro condiviso con landing, viewer e pagine strumento (v3).
+   Chiave tema: viewer_landing_theme — comune a tutto il sito.
+   ========================================================================= */
+:root{
+  --lime:#bfd730; --lime-deep:#a8c320; --lime-ink:#23310a;
+  --lime-soft:rgba(191,215,48,.13); --lime-line:rgba(191,215,48,.34);
+  --acc:var(--lime-deep);
+  --bg:#141a12; --bg2:#262b24;
+  --pnl:rgba(15,20,13,.82); --pnl2:rgba(237,242,226,.05);
+  --hair:rgba(237,242,226,.09); --hair2:rgba(237,242,226,.06);
+  --inset:rgba(13,18,11,.5);
+  --grid:rgba(237,242,226,.05); --hover:rgba(237,242,226,.022);
+  --text:#edf2e2; --muted:#a9b59b; --faint:#79856c;
+  --red:#d6604d; --amber:#e0a63a; --green:#8dc63f;
+  --amber-bg:rgba(224,166,58,.10); --red-bg:rgba(214,96,77,.10);
+  --axis2:#8ea3b0;
+  --sh:0 2px 8px rgba(0,0,0,.28),0 18px 44px rgba(0,0,0,.42);
+  --sh-sm:0 1px 3px rgba(0,0,0,.30),0 6px 18px rgba(0,0,0,.26);
+  --glow:0 4px 24px rgba(191,215,48,.20);
+  --r:24px; --r-md:14px; --r-sm:11px; --r-xs:8px;
+  --blur:blur(20px) saturate(1.25);
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --disp:'Barlow Semi Condensed',var(--sans);
+  --maxw:1180px; --pad:clamp(20px,6vw,90px);
+}
+html[data-theme="light"]{
+  --lime-deep:#67790d;
+  --bg:#f1f3ee; --bg2:#e9ece3;
+  --pnl:rgba(255,255,255,.80); --pnl2:rgba(33,42,35,.035);
+  --hair:rgba(33,42,35,.13); --hair2:rgba(33,42,35,.08);
+  --inset:rgba(33,42,35,.04);
+  --grid:rgba(33,42,35,.05); --hover:rgba(33,42,35,.025);
+  --text:#212a23; --muted:#5f6c61; --faint:#8b978d;
+  --lime-soft:rgba(191,215,48,.22); --lime-line:rgba(154,179,19,.45);
+  --amber:#8f6008; --amber-bg:rgba(224,166,58,.14);
+  --red:#b03a2a; --red-bg:rgba(176,58,42,.10);
+  --axis2:#5c7382;
+  --sh:0 2px 8px rgba(30,40,28,.07),0 18px 44px rgba(30,40,28,.10);
+  --sh-sm:0 1px 3px rgba(30,40,28,.06),0 6px 18px rgba(30,40,28,.07);
+  --glow:0 4px 24px rgba(154,179,19,.28);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{margin:0}
+::selection{background:var(--lime);color:var(--lime-ink)}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px;border-radius:6px}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input,textarea{font:inherit}
+
+.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:44px 44px,44px 44px}
+.glow{position:absolute;left:0;right:0;top:0;height:560px;z-index:0;pointer-events:none;
+  background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.085) 0%,transparent 64%)}
+html[data-theme="light"] .glow{background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.20) 0%,transparent 64%)}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--pad);position:relative;z-index:1}
+
+/* ---------- nav a pillola, con briciole (come le altre pagine tool) ---------- */
+.topbar{position:sticky;top:0;z-index:50;display:flex;justify-content:center;
+  padding:18px var(--pad) 0;pointer-events:none}
+.navpill{pointer-events:auto;max-width:100%;display:flex;align-items:center;gap:26px;
+  padding:8px 8px 8px 14px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh)}
+.brand{display:flex;align-items:center;gap:9px;flex:none}
+.hdr-logo{width:26px;height:26px;border-radius:8px;display:block;flex:none}
+.appname{font-family:var(--disp);font-weight:600;font-size:13.5px;letter-spacing:.03em;
+  line-height:1.2;color:var(--text);white-space:nowrap}
+.crumbs{display:flex;align-items:center;gap:9px;font:400 12px/1 var(--sans);color:var(--muted);min-width:0}
+.crumbs .up{display:flex;align-items:center;gap:6px;transition:color .15s;white-space:nowrap}
+.crumbs .up:hover{color:var(--text)}
+.crumbs .up svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+.crumbs .sep{color:var(--faint)}
+.crumbs .here{font-weight:500;color:var(--text);white-space:nowrap}
+.nav-act{display:flex;align-items:center;gap:10px;flex:none;margin-left:auto}
+.langsw{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
+.langsw button{padding:5px 8px;border-radius:999px;color:var(--faint);transition:color .12s,background .12s}
+.langsw button:hover{color:var(--text)}
+.langsw button.on{background:var(--lime-soft);color:var(--text)}
+.thm{width:28px;height:28px;flex:none;border-radius:999px;border:1px solid var(--hair);
+  background:var(--pnl2);display:inline-flex;align-items:center;justify-content:center;
+  color:var(--muted);transition:color .15s,border-color .15s}
+.thm:hover{color:var(--text);border-color:var(--lime-line)}
+.thm svg{width:14px;height:14px}
+html[data-theme="light"] .thm .moon{display:none}
+html:not([data-theme="light"]) .thm .sun{display:none}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;white-space:nowrap;
+  border:1px solid transparent;border-radius:999px;cursor:pointer;
+  font-family:var(--disp);font-weight:600;letter-spacing:.02em;
+  transition:background .18s,border-color .18s,box-shadow .22s,transform .18s,color .18s}
+.btn svg{flex:none}
+.btn.primary{background:var(--lime);color:var(--lime-ink);box-shadow:var(--glow)}
+.btn.primary:hover:not(:disabled){background:#cae23f;box-shadow:0 6px 30px rgba(191,215,48,.32);transform:translateY(-1px)}
+.btn.hollow{background:transparent;border-color:var(--hair);color:var(--text)}
+.btn.hollow:hover:not(:disabled){border-color:var(--lime-line)}
+.btn.sm{padding:9px 16px;font-size:12.5px}
+.btn.sm svg{width:13px;height:13px}
+.btn:disabled{cursor:not-allowed;opacity:.42;box-shadow:none;transform:none}
+
+/* ---------- testata ---------- */
+.head{display:flex;align-items:flex-end;gap:60px;padding:62px 0 0}
+.head-l{flex:1;min-width:0;display:flex;flex-direction:column;gap:13px}
+.head-tags{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kicker{font:500 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.tag{padding:4px 8px;border-radius:999px;background:var(--lime-soft);
+  font:500 9px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--acc)}
+.tag.line{background:none;border:1px solid var(--hair);color:var(--faint)}
+.h1{max-width:620px;font-family:var(--disp);font-weight:600;font-size:clamp(34px,3.9vw,46px);
+  line-height:1.02;letter-spacing:-.006em;color:var(--text)}
+.lead{max-width:600px;margin:0;font:400 14px/1.7 var(--sans);color:var(--muted)}
+.lead code{font-family:var(--mono);font-size:13px}
+.spec{flex:0 0 300px;display:flex;flex-direction:column;gap:9px;padding-bottom:6px}
+.spec-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.spec-row:not(:last-child){padding-bottom:9px;border-bottom:1px solid var(--hair)}
+.spec-k{font:400 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.spec-v{font:500 11.5px/1 var(--mono);color:var(--text)}
+
+/* ---------- riga vista + file ---------- */
+.filebar{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:34px 0 0}
+.seg{display:flex;align-items:center;gap:4px;padding:4px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh-sm)}
+.seg button{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;
+  color:var(--muted);font:600 12.5px/1 var(--disp);letter-spacing:.02em;
+  transition:color .15s,background .15s}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--lime);color:var(--lime-ink)}
+.seg button svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round}
+.fbits{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto}
+.fjoin{font:400 11px/1 var(--mono);color:var(--faint)}
+.fcard{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border-radius:999px;
+  background:var(--pnl2);border:1px dashed var(--hair);cursor:pointer;max-width:100%;
+  transition:border-color .15s,background .15s}
+.fcard:hover{border-color:var(--lime-line)}
+.fcard.drag{border-color:var(--lime);background:var(--lime-soft)}
+.fcard.set{border-style:solid;border-color:var(--lime-line)}
+.fcard-n{font:500 12px/1 var(--sans);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcard:not(.set) .fcard-n{color:var(--muted);font-weight:400}
+.fcard-m{font:400 10.5px/1 var(--mono);color:var(--faint);white-space:nowrap}
+.fcard-x{flex:none;display:none;width:20px;height:20px;align-items:center;justify-content:center;color:var(--faint);transition:color .15s}
+.fcard.set .fcard-x{display:flex}
+.fcard-x:hover{color:var(--text)}
+.fcard-x svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+
+/* velo di attesa */
+.veil{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+  background:rgba(13,18,11,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+html[data-theme="light"] .veil{background:rgba(241,243,238,.6)}
+.veil .sp{width:34px;height:34px;border-radius:50%;
+  border:3px solid var(--lime-soft);border-top-color:var(--lime);
+  animation:vspin .8s linear infinite}
+@keyframes vspin{to{transform:rotate(360deg)}}
+.veil .lb{font:500 12px/1 var(--mono);color:var(--text)}
+
+/* ---------- il banco ---------- */
+.bench{display:flex;align-items:stretch;margin-top:16px;border-radius:var(--r);
+  background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh);overflow:hidden;min-height:440px}
+.bench-l{flex:1;min-width:0;display:flex;flex-direction:column}
+.bench-r{flex:0 0 400px;display:flex;flex-direction:column;border-left:1px solid var(--hair);background:var(--inset)}
+
+/* stato vuoto */
+.drop0{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;margin:24px;border-radius:var(--r-md);border:1px dashed var(--hair);
+  color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s;text-align:center}
+.drop0:hover{border-color:var(--lime-line)}
+.drop0.drag{border-color:var(--lime);background:var(--lime-soft)}
+.drop0 svg{width:26px;height:26px;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.drop0 .t1{font:500 13.5px/1.4 var(--sans);color:var(--text);max-width:480px}
+.drop0 .t2{font:400 11px/1.6 var(--mono);color:var(--faint);max-width:460px}
+
+/* --- tavola delle corrispondenze (14a) --- */
+.mhead{display:flex;align-items:center;gap:16px;padding:17px 24px 15px;border-bottom:1px solid var(--hair)}
+.mhead .ml{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.mhead .mt{font:600 16px/1 var(--disp);letter-spacing:.01em;color:var(--text)}
+.mhead .ms{font:400 11.5px/1.55 var(--sans);color:var(--muted)}
+.mcols{display:flex;align-items:center;gap:12px;padding:9px 24px;border-bottom:1px solid var(--hair);background:var(--hover)}
+.mcols .c1{flex:1;min-width:0}
+.mcols .c2{flex:0 0 220px}
+.mcols .c3{flex:0 0 92px;text-align:right}
+.mcols span{font:400 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.mrows{display:flex;flex-direction:column;max-height:min(52vh,540px);overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--hair) transparent}
+.mrow{display:flex;align-items:center;gap:12px;padding:11px 24px;border-bottom:1px solid var(--hair2);
+  width:100%;text-align:left;transition:background .1s}
+button.mrow{cursor:pointer}
+button.mrow:hover{background:var(--pnl2)}
+.mrow.open{background:var(--lime-soft);box-shadow:inset 2px 0 0 var(--lime)}
+.mrow.off{opacity:.55}
+.mrow.off:hover{opacity:.85}
+.mrow .st{flex:none;display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:4px}
+.mrow .st.ok{background:var(--lime)}
+.mrow .st.ok svg{width:10px;height:10px;fill:none;stroke:var(--lime-ink);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.mrow .st.warn{background:rgba(224,166,58,.16);box-shadow:inset 0 0 0 1px rgba(224,166,58,.5)}
+.mrow .st.warn i{display:block;width:5px;height:5px;border-radius:50%;background:var(--amber)}
+.mrow .st.no{border:1.5px solid var(--faint)}
+.mrow .el{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.mrow .nm{font:500 12px/1.2 var(--sans);color:var(--text)}
+.mrow.off .nm{color:var(--muted)}
+.mrow .nm .mm{font:400 10.5px/1 var(--mono);color:var(--faint)}
+.mrow .nm code{font-family:var(--mono);font-size:11px}
+.mrow .sub{font:400 9.5px/1.35 var(--mono);color:var(--faint)}
+.mrow .sub.warn{color:var(--amber)}
+.mrow .tgt{flex:0 0 220px;display:flex;flex-direction:column;gap:2px}
+.mrow .tn{font:500 11px/1.2 var(--mono);color:var(--text)}
+.mrow.off .tn,.mrow .tn.dim{color:var(--muted)}
+.mrow .ts{font:400 9.5px/1.35 var(--mono);color:var(--faint)}
+.mrow .es{flex:0 0 92px;text-align:right;font:400 11px/1 var(--mono);color:var(--acc)}
+.mrow .es.warn{font-weight:500;color:var(--amber)}
+.mrow .es.dim{color:var(--faint)}
+.mrow .selbox{flex:none;width:15px;height:15px;border-radius:4px;border:1.5px solid var(--faint);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .12s,background .12s}
+.mrow .selbox.on{background:var(--lime);border-color:var(--lime)}
+.mrow .selbox svg{width:10px;height:10px;fill:none;stroke:var(--lime-ink);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.mfoot{display:flex;flex-direction:column;gap:9px;padding:16px 24px 18px;margin-top:auto}
+.mfoot .fr{display:flex;align-items:center;gap:10px}
+.mfoot .fk{font:500 10.5px/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.mfoot .fl{flex:1;height:1px;background:var(--hair2)}
+.mfoot .fv{font:400 10.5px/1 var(--mono);color:var(--acc)}
+.mfoot .fv.warn{color:var(--amber)}
+.mfoot p{margin:0;font:400 11px/1.55 var(--sans);color:var(--faint);text-wrap:pretty}
+.mfoot p b{color:var(--muted)}
+.mfoot p code{font-family:var(--mono);font-size:10.5px}
+
+/* --- rail di destra (decisioni / uscita) --- */
+.rail-sc{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--hair) transparent}
+.rblk{display:flex;flex-direction:column;gap:12px;padding:17px 22px 15px}
+.rblk .rt{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.rblk .rt .n{font:600 15px/1 var(--disp);letter-spacing:.02em;color:var(--text)}
+.rblk .rt .c{font:400 10.5px/1 var(--mono);color:var(--faint)}
+.rbox{display:flex;flex-direction:column;gap:7px;padding:13px 14px;border-radius:var(--r-md);
+  background:var(--pnl2);border:1px solid var(--hair)}
+.rbox .bk{font:400 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.rbox .kv{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.rbox .kv .k{font:400 11px/1 var(--sans);color:var(--muted)}
+.rbox .kv .v{font:500 10.5px/1 var(--mono);color:var(--text)}
+.rbox .kv .v.warn{color:var(--amber)}
+.rbox .kv .v.okc{color:var(--acc)}
+.rbox p{margin:0;font:400 10.5px/1.5 var(--sans);color:var(--faint);text-wrap:pretty}
+.rbox p code{font-family:var(--mono);font-size:10.5px}
+.migdet summary{cursor:pointer;font:500 10.5px/1.4 var(--sans);color:var(--muted);list-style:none;
+  display:inline-flex;align-items:center;gap:5px;user-select:none}
+.migdet summary::-webkit-details-marker{display:none}
+.migdet summary::before{content:"";width:0;height:0;border-left:4px solid var(--muted);
+  border-top:3px solid transparent;border-bottom:3px solid transparent;transition:transform .15s}
+.migdet[open] summary::before{transform:rotate(90deg)}
+.migdet .mg-h{margin:7px 0 3px;font:600 9.5px/1 var(--mono);letter-spacing:.08em;
+  text-transform:uppercase;color:var(--faint)}
+.migdet .mg-r{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:1.5px 0}
+.migdet .mg-r .t{font:400 10px/1.4 var(--mono);color:var(--text);overflow-wrap:anywhere;min-width:0}
+.migdet .mg-r .n{font:500 10px/1.4 var(--mono);color:var(--muted);white-space:nowrap}
+.migdet .mg-why{margin:0 0 3px;font:400 10px/1.45 var(--sans);color:var(--faint);text-wrap:pretty}
+.rbox .bt{padding-top:2px;border-top:1px solid var(--hair2)}
+.ropts{display:flex;flex-direction:column;gap:8px}
+.ropts .ok9{font:400 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.ropt{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;border-radius:12px;
+  background:var(--pnl2);border:1px solid var(--hair);cursor:pointer;text-align:left;width:100%;
+  transition:border-color .12s,background .12s}
+.ropt:hover{border-color:var(--lime-line)}
+.ropt.on{background:rgba(191,215,48,.05);border-color:var(--lime-line)}
+html[data-theme="light"] .ropt.on{background:rgba(191,215,48,.10)}
+.ropt.dash{border-style:dashed}
+.ropt:disabled{opacity:.45;cursor:not-allowed}
+.ropt .rad{flex:none;margin-top:1px;width:13px;height:13px;border-radius:50%;border:1.5px solid var(--faint);background:transparent}
+.ropt.on .rad{border:4px solid var(--lime);background:var(--inset)}
+.ropt .el{flex:1;display:flex;flex-direction:column;gap:3px}
+.ropt .t{font:500 12px/1.2 var(--sans);color:var(--text)}
+.ropt .d{font:400 10.5px/1.45 var(--sans);color:var(--faint)}
+.ropt .d b{color:var(--muted)}
+.mini-seg{display:flex;align-items:center;gap:2px;padding:3px;border-radius:10px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--hair)}
+.mini-seg button{flex:1;text-align:center;padding:8px 6px;border-radius:8px;
+  font:600 11px/1 var(--disp);letter-spacing:.02em;color:var(--muted);transition:color .12s,background .12s}
+.mini-seg button:hover{color:var(--text)}
+.mini-seg button.on{background:var(--lime);color:var(--lime-ink)}
+.mini-seg button:disabled{opacity:.45;cursor:not-allowed}
+.rname{display:flex;align-items:center;gap:8px}
+.rname input{flex:1;min-width:0;padding:8px 10px;border-radius:9px;border:1px solid var(--hair);
+  background:var(--inset);color:var(--text);font:400 11.5px/1.3 var(--mono)}
+.rname input:focus{outline:none;border-color:var(--lime-line)}
+.rtog{display:flex;align-items:center;gap:9px;cursor:pointer}
+.rtog .tk{flex:none;width:30px;height:17px;border-radius:999px;background:var(--inset);
+  box-shadow:inset 0 0 0 1px var(--hair);position:relative;transition:background .15s}
+.rtog .tk::after{content:"";position:absolute;top:2.5px;left:3px;width:12px;height:12px;border-radius:50%;
+  background:var(--faint);transition:left .15s,background .15s}
+.rtog.on .tk{background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line)}
+.rtog.on .tk::after{left:15px;background:var(--lime)}
+.rtog .tl{flex:1;font:400 11px/1.45 var(--sans);color:var(--muted)}
+.rail-note{display:flex;align-items:center;gap:10px;margin-top:auto;padding:11px 22px;border-top:1px solid var(--hair2);background:var(--hover)}
+.rail-note .st{flex:none;display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:4px;background:var(--lime)}
+.rail-note .st svg{width:10px;height:10px;fill:none;stroke:var(--lime-ink);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.rail-note span{flex:1;font:400 11px/1.4 var(--sans);color:var(--muted)}
+.rail-foot{display:flex;align-items:center;gap:14px;padding:14px 22px;border-top:1px solid var(--hair);background:var(--pnl2)}
+.rail-foot .msg{flex:1;font:400 11px/1.4 var(--sans);color:var(--faint)}
+.rail-foot .msg.warn{color:var(--amber)}
+.rail-foot .btn{padding:11px 19px;font-size:13px}
+.rail-foot .btn svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+
+/* --- verifica sull'asse (14b) --- */
+.axbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 24px 12px;border-bottom:1px solid var(--hair)}
+.axchips{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.axchip{display:flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;
+  border:1px solid var(--hair);font:400 11px/1 var(--sans);color:var(--muted);
+  transition:border-color .12s,color .12s,background .12s}
+.axchip:hover{border-color:var(--lime-line);color:var(--text)}
+.axchip.on{background:var(--lime-soft);border-color:var(--lime-line);color:var(--text);font-weight:500}
+.axchip svg{flex:none;width:11px;height:11px;fill:none;stroke:var(--acc);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.axbar .sp{flex:1}
+.jbadge{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;
+  background:var(--amber-bg);border:1px solid rgba(224,166,58,.32)}
+.jbadge i{width:6px;height:6px;border-radius:50%;background:var(--amber)}
+.jbadge span{font:500 11.5px/1 var(--mono);color:var(--amber)}
+.jbadge.ok{background:rgba(191,215,48,.08);border-color:var(--lime-line)}
+.jbadge.ok i{background:var(--lime)}
+.jbadge.ok span{color:var(--acc)}
+.planbox{position:relative;margin:14px 24px 0;border-radius:var(--r-sm);background:var(--inset);
+  box-shadow:inset 0 0 0 1px var(--hair);overflow:hidden}
+.planbox svg{display:block;width:100%;height:300px}
+.planbox .cap{position:absolute;left:10px;top:8px;font:400 9.5px/1 var(--mono);color:var(--faint)}
+.profbox{margin:12px 24px 0;display:flex;flex-direction:column}
+.profbox .ph{display:flex;align-items:center;gap:10px;padding:0 2px 8px}
+.profbox .ph .t{font:600 11.5px/1 var(--disp);letter-spacing:.03em;color:var(--text)}
+.profbox .ph .m{font:400 10px/1 var(--mono);color:var(--faint)}
+.profbox .ph .sp{flex:1}
+.profwrap{position:relative;border-radius:9px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--hair);overflow:hidden}
+.profwrap svg{display:block;width:100%;height:96px}
+.profsta{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 2px 14px}
+.profsta span{font:400 9.5px/1 var(--mono);color:var(--faint)}
+.axleg{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:12px 24px 16px;margin-top:auto}
+.axleg .li{display:flex;align-items:center;gap:8px;font:400 10.5px/1 var(--sans);color:var(--muted)}
+.axleg .sw{width:14px;height:3px;border-radius:2px;background:var(--lime)}
+.axleg .dotj{width:11px;height:11px;border-radius:50%;background:rgba(224,166,58,.35);box-shadow:inset 0 0 0 1px var(--amber)}
+.axleg .n{font:400 10px/1 var(--mono);color:var(--faint)}
+
+/* navigatore giunzioni (rail della verifica) */
+.jnav-h{display:flex;align-items:center;gap:10px;padding:13px 16px 11px}
+.jnav-h .t{flex:1;font:600 13.5px/1 var(--disp);letter-spacing:.02em;color:var(--text)}
+.jnav-h .pg{display:flex;align-items:center;gap:5px}
+.jnav-h .pg span{font:400 10.5px/1 var(--mono);color:var(--faint)}
+.jnav-h .pg button{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:7px;
+  background:var(--pnl2);border:1px solid var(--hair);transition:border-color .12s}
+.jnav-h .pg button:hover:not(:disabled){border-color:var(--lime-line)}
+.jnav-h .pg button:disabled{opacity:.4;cursor:not-allowed}
+.jnav-h .pg svg{width:11px;height:11px;fill:none;stroke:var(--muted);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.jcase{display:flex;flex-direction:column;gap:5px;padding:13px 16px 11px}
+.jcase .row{display:flex;align-items:center;gap:8px}
+.jcase .seg18{padding:4px 8px;border-radius:6px;background:rgba(224,166,58,.14);
+  font:500 9.5px/1 var(--mono);letter-spacing:.06em;color:var(--amber)}
+.jcase .sta{font:400 10px/1 var(--mono);color:var(--faint)}
+.jcase .t{font:600 15px/1.2 var(--disp);letter-spacing:.02em;color:var(--text)}
+.jcase p{margin:0;font:400 10.5px/1.5 var(--sans);color:var(--muted);text-wrap:pretty}
+.jmeas{display:flex;flex-direction:column;margin:0 16px 12px;border-radius:12px;background:var(--inset);
+  border:1px solid var(--hair);overflow:hidden}
+.jmeas .r{display:flex;align-items:center;gap:10px;padding:9px 12px}
+.jmeas .r:not(:last-child){border-bottom:1px solid var(--hair2)}
+.jmeas .k{flex:1;font:400 11px/1 var(--sans);color:var(--muted)}
+.jmeas .v{font:500 11px/1 var(--mono);color:var(--amber)}
+.jmeas .v.okc{color:var(--acc)}
+.jmeas .mx{flex:none;width:64px;font:400 9.5px/1 var(--mono);color:var(--faint);text-align:right}
+.jopts{display:flex;flex-direction:column;gap:6px;padding:0 16px 12px}
+.jempty{padding:20px 16px;font:400 11.5px/1.6 var(--sans);color:var(--faint)}
+
+/* ---------- chiusura pagina ---------- */
+.foot{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap;
+  margin:34px 0 0;padding:20px 0 30px;border-top:1px solid var(--hair)}
+.foot p{margin:0;max-width:640px;font:400 11.5px/1.6 var(--sans);color:var(--faint);text-wrap:pretty}
+.foot p code{font-family:var(--mono);font-size:11px}
+.foot .links{display:flex;align-items:center;gap:20px;font:400 11.5px/1 var(--sans);color:var(--muted);flex-wrap:wrap}
+.foot .links a,.foot .links button{transition:color .12s;white-space:nowrap}
+.foot .links a:hover,.foot .links button:hover{color:var(--text)}
+.foot .go{display:flex;align-items:center;gap:7px;color:var(--acc);transition:gap .15s}
+.foot .go:hover{gap:11px;color:var(--acc)}
+.foot .go svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(8px);z-index:95;
+  padding:11px 18px;border-radius:999px;background:var(--pnl);backdrop-filter:var(--blur);
+  -webkit-backdrop-filter:var(--blur);border:1px solid var(--hair);box-shadow:var(--sh);
+  font:500 12px/1.4 var(--sans);color:var(--text);opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;max-width:min(560px,86vw);text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:1080px){
+  .bench{flex-direction:column}
+  .bench-r{flex:auto;border-left:0;border-top:1px solid var(--hair)}
+  .mrow .tgt{flex-basis:170px}
+}
+@media (max-width:840px){
+  .navpill{gap:14px}
+  .appname{display:none}
+  .head{flex-direction:column;align-items:stretch;gap:24px}
+  .spec{flex:none}
+  .filebar{justify-content:flex-start}
+  .mrow .tgt{display:none}
+}
+</style>
+
+<!-- Statistiche di visita anonime e senza cookie (GoatCounter) — vedi /analytics.js -->
+<script src="/analytics.js" defer></script>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true"></div>
+
+<!-- ================= NAV ================= -->
+<header class="topbar">
+  <div class="navpill">
+    <a class="brand" href="../../" data-i18n-title="nav.home" title="Vai a viewifc.com" aria-label="viewifc.com">
+      <img class="hdr-logo" src="../../favicon-32.png" alt="APE" width="26" height="26">
+      <span class="appname">Viewer IFC · BCF</span>
+    </a>
+    <nav class="crumbs" aria-label="breadcrumb">
+      <a class="up" href="../">
+        <svg viewBox="0 0 24 24"><path d="M19 12H6M11 18l-6-6 6-6"/></svg>
+        <span data-i18n="nav.tools">Strumenti</span>
+      </a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span class="here" aria-current="page">LandXML → IFC</span>
+    </nav>
+    <div class="nav-act">
+      <div class="langsw" role="group" aria-label="Language">
+        <button data-lang="it" class="on">IT</button>
+        <button data-lang="en">EN</button>
+      </div>
+      <button class="thm" id="thmBtn" aria-label="Light / dark" title="Light / dark">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <a class="btn hollow sm" href="../../viewer/">
+        <span data-i18n="cta.open">Apri il viewer</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="glow" aria-hidden="true"></div>
+
+<main class="wrap">
+
+  <!-- ================= TESTATA ================= -->
+  <section class="head">
+    <div class="head-l">
+      <div class="head-tags">
+        <span class="kicker" data-i18n="head.kicker">Strumento 11</span>
+        <span class="tag" data-i18n="head.tag">Client-side</span>
+        <span class="tag line" data-i18n="head.geo">Genera geometria</span>
+      </div>
+      <h1 class="h1">LandXML → IFC</h1>
+      <p class="lead" data-i18n-html="head.lead">Il tracciato del topografo entra nel modello come <code>IfcAlignment</code>, con la sua logica di business e la geometria che le corrisponde. Il verso opposto dello strumento 03.</p>
+    </div>
+    <div class="spec">
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.in">Ingresso</span>
+        <span class="spec-v">.xml + .ifc</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.out">Uscita</span>
+        <span class="spec-v">IFC4X3_ADD2</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.tol">Tolleranza</span>
+        <span class="spec-v">1 mm · 0,001 gon</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VISTA + FILE ================= -->
+  <div class="filebar">
+    <div class="seg" id="viewSeg" role="tablist">
+      <button class="on" data-view="map" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24"><path d="M4 6h6M4 12h6M4 18h6"/><path d="M14 6h6M14 12h6M14 18h6"/><path d="M10 9l4 3-4 3"/></svg>
+        <span data-i18n="tab.map">Corrispondenze</span>
+      </button>
+      <button data-view="axis" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24"><path d="M3 17c5 0 5-10 10-10s5 10 8 10"/><circle cx="8" cy="12" r="1.6"/></svg>
+        <span data-i18n="tab.axis">Verifica sull'asse</span>
+      </button>
+    </div>
+    <div class="fbits">
+      <div class="fcard" id="fxCard" role="button" tabindex="0">
+        <span class="fcard-n" id="fxName" data-i18n="f.xml">Nessun file — .xml</span>
+        <span class="fcard-m" id="fxMeta"></span>
+        <button class="fcard-x" id="fxClear" type="button" data-i18n-title="f.remove" title="Rimuovi il file" aria-label="Rimuovi il file">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <span class="fjoin" data-i18n="f.into">dentro</span>
+      <div class="fcard" id="fhCard" role="button" tabindex="0">
+        <span class="fcard-n" id="fhName" data-i18n="f.ifc">Nessun modello — .ifc (facoltativo)</span>
+        <span class="fcard-m" id="fhMeta"></span>
+        <button class="fcard-x" id="fhClear" type="button" data-i18n-title="f.remove" title="Rimuovi il file" aria-label="Rimuovi il file">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="fxInput" accept=".xml,.landxml" hidden>
+  <input type="file" id="fhInput" accept=".ifc" hidden>
+
+  <!-- ================= BANCO ================= -->
+  <section class="bench">
+
+    <!-- --- sinistra: tavola oppure asse --- -->
+    <div class="bench-l">
+
+      <!-- stato vuoto -->
+      <div class="drop0" id="drop0">
+        <svg viewBox="0 0 24 24"><path d="M3 17c5 0 5-10 10-10s5 10 8 10"/><path d="M14 3H7a2 2 0 0 0-2 2v3M19 12V8l-5-5"/></svg>
+        <span class="t1" data-i18n="drop.big">Trascina qui il tracciato .xml — e, se vuoi inserirlo in un modello, anche l'.ifc di destinazione</span>
+        <span class="t2" data-i18n="drop.hint">nessun upload: parsing, verifica delle giunzioni e scrittura IFC girano nel browser · senza modello nasce un IFC4X3_ADD2 nuovo · un ospite IFC2X3/IFC4 viene riscritto in 4x3</span>
+      </div>
+
+      <!-- ---------------- la tavola delle corrispondenze (14a) ---------------- -->
+      <div id="mapView" hidden>
+        <div class="mhead">
+          <div class="ml">
+            <span class="mt" data-i18n="map.t">Cosa c'è nel file, e dove finisce</span>
+            <span class="ms" id="mapSub"></span>
+          </div>
+        </div>
+        <div class="mcols">
+          <span class="c1" data-i18n="map.c1">Nel LandXML</span>
+          <span class="c2" data-i18n="map.c2">Diventa</span>
+          <span class="c3" data-i18n="map.c3">Esito</span>
+        </div>
+        <div class="mrows" id="mrows"></div>
+        <div class="mfoot">
+          <div class="fr">
+            <span class="fk" data-i18n="map.truths">Le due verità</span>
+            <span class="fl"></span>
+            <span class="fv" id="truthsV">—</span>
+          </div>
+          <p data-i18n-html="map.truthsD">Il 4x3 vuole i segmenti parametrici <b>e</b> la curva geometrica che ne discende (<code>IfcCompositeCurve</code> + <code>IfcGradientCurve</code>). Vengono generate entrambe e ricontrollate l'una sull'altra: se divergessero oltre la tolleranza, l'esportazione si ferma invece di produrre un file che ogni software legge in modo diverso.</p>
+        </div>
+      </div>
+
+      <!-- ---------------- la verifica sull'asse (14b) ---------------- -->
+      <div id="axisView" hidden>
+        <div class="axbar">
+          <div class="axchips" id="axChips"></div>
+          <span class="sp"></span>
+          <div class="jbadge" id="jBadge"><i></i><span id="jBadgeT">—</span></div>
+        </div>
+        <div class="planbox">
+          <span class="cap" data-i18n="ax.plan">planimetria — dagli stessi numeri dell'export</span>
+          <svg id="planSvg" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+        <div class="profbox">
+          <div class="ph">
+            <span class="t" data-i18n="ax.prof">Profilo longitudinale</span>
+            <span class="m" id="profMeta"></span>
+            <span class="sp"></span>
+            <span class="m" id="profEx"></span>
+          </div>
+          <div class="profwrap"><svg id="profSvg" preserveAspectRatio="none"></svg></div>
+          <div class="profsta" id="profSta"></div>
+        </div>
+        <div class="axleg">
+          <span class="li"><span class="sw"></span><span data-i18n="ax.leg1">Asse dal LandXML</span></span>
+          <span class="li"><span class="dotj"></span><span data-i18n="ax.leg2">Giunzioni fuori tolleranza</span><span class="n" id="legJn"></span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- --- destra: decisioni (14a) oppure giunzioni (14b) --- -->
+    <div class="bench-r">
+
+      <!-- rail delle corrispondenze -->
+      <div id="railMap" class="rail-sc" hidden>
+        <div id="caseWrap"></div>
+        <div class="rblk">
+          <div class="rbox">
+            <span class="bk" data-i18n="bp.t">Punto base</span>
+            <div class="mini-seg" id="bpSeg">
+              <button data-bp="origin" class="on" data-i18n="bp.origin">Origine del modello</button>
+              <button data-bp="abs" data-i18n="bp.abs">Coordinate assolute</button>
+            </div>
+            <p id="bpNote"></p>
+            <div class="kv bt" id="bpCheck" hidden>
+              <span class="k" data-i18n="bp.check">scarto di richiusura sul primo punto</span>
+              <span class="v okc" id="bpCheckV"></span>
+            </div>
+          </div>
+        </div>
+        <div class="rblk" style="padding-top:0">
+          <div class="rbox">
+            <span class="bk" data-i18n="out.t">Cosa esce</span>
+            <div class="rname"><input id="outName" autocomplete="off" spellcheck="false"></div>
+            <div class="kv"><span class="k" data-i18n="out.schema">Schema</span><span class="v" id="outSchema">IFC4X3_ADD2</span></div>
+            <div class="kv"><span class="k" data-i18n="out.ents">Entità nuove</span><span class="v" id="outEnts">—</span></div>
+            <div class="kv" id="outMigRow" hidden><span class="k" data-i18n="out.mig">Adattate allo schema</span><span class="v" id="outMig">—</span></div>
+            <p id="migNote" hidden></p>
+            <details class="migdet" id="migDetail" hidden>
+              <summary data-i18n="mig.detail">dettaglio per tipo</summary>
+              <div id="migDetailList"></div>
+            </details>
+            <button class="rtog on" id="psetTog" type="button">
+              <span class="tk"></span>
+              <span class="tl" data-i18n="out.pset">Annota le scelte nel file (Pset_Conversione): origine, approssimazioni, giunzioni</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- rail della verifica -->
+      <div id="railAxis" class="rail-sc" hidden>
+        <div class="jnav-h">
+          <span class="t" data-i18n="j.t">Giunzioni</span>
+          <div class="pg">
+            <button id="jPrev" type="button" aria-label="precedente"><svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6"/></svg></button>
+            <span id="jPage">—</span>
+            <button id="jNext" type="button" aria-label="successiva"><svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6"/></svg></button>
+          </div>
+        </div>
+        <div style="height:1px;background:var(--hair)"></div>
+        <div id="jBody"></div>
+      </div>
+
+      <!-- piede comune del rail -->
+      <div class="rail-note" id="railNote" hidden>
+        <span class="st"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span>
+        <span id="railNoteT"></span>
+      </div>
+      <div class="rail-foot">
+        <span class="msg" id="railMsg" data-i18n="rail.load">Carica un tracciato .xml per cominciare.</span>
+        <button class="btn primary" id="writeBtn" type="button" disabled>
+          <span data-i18n="rail.write">Scrivi l'IFC</span>
+          <svg viewBox="0 0 24 24"><path d="M12 4v12M7 11l5 5 5-5"/><path d="M4 20h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CHIUSURA ================= -->
+  <section class="foot">
+    <p data-i18n-html="foot.note">Ogni scelta fatta qui resta scritta nel file come <code>Pset_Conversione</code> sull'allineamento: file d'origine, versione LandXML, approssimazioni accettate e con che scostamento. Chi trova la clotoide sa che non era una clotoide. Nessun file lascia il computer.</p>
+    <div class="links">
+      <button id="bcfBtn" type="button" hidden data-i18n="foot.bcf">Topic BCF delle giunzioni aperte</button>
+      <a href="https://github.com/arsray146/ifc-bcf-viewer" target="_blank" rel="noopener" data-i18n="foot.src">Codice sorgente</a>
+      <a class="go" href="../"><span data-i18n="foot.more">Altri strumenti</span>
+        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<div class="veil" id="veil" hidden><div class="sp"></div><div class="lb" id="veilT">…</div></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="text/engine" id="lxmlEngine">
+"use strict";
+/* =========================================================================
+   MOTORE LandXML → IFC4X3_ADD2 — il blocco viene eseguito come vero <script>
+   dalla pagina e in un vm dai test (id="lxmlEngine": NON rinominarlo).
+   Tutto in metri e radianti all'interno; le unità del file (LandXML e IFC
+   ospite) si convertono ai bordi. Curvatura con segno: positiva = ccw.
+   ========================================================================= */
+
+/* ---- mini-parser XML (pattern viewer/ids.js: niente DOMParser, così gira
+        identico in browser e nei test Node) -------------------------------- */
+function lxDecEnt(s){
+  if(!s || s.indexOf("&")===-1) return s;
+  return s.replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|quot|apos);/g,(m,e)=>{
+    if(e[0]==="#"){
+      const cp=(e[1]==="x"||e[1]==="X")?parseInt(e.slice(2),16):parseInt(e.slice(1),10);
+      return isNaN(cp)?m:String.fromCodePoint(cp);
+    }
+    return {amp:"&",lt:"<",gt:">",quot:'"',apos:"'"}[e]||m;
+  });
+}
+function lxParseXML(str){
+  let i=0; const n=str.length;
+  const isWs=c=>c===32||c===9||c===10||c===13;
+  const skipWs=()=>{ while(i<n&&isWs(str.charCodeAt(i))) i++; };
+  function parseNode(){
+    while(i<n){
+      if(str.startsWith("<?",i)){ const e=str.indexOf("?>",i); i=e<0?n:e+2; skipWs(); continue; }
+      if(str.startsWith("<!--",i)){ const e=str.indexOf("-->",i); i=e<0?n:e+3; skipWs(); continue; }
+      if(str.startsWith("<!",i)){ const e=str.indexOf(">",i); i=e<0?n:e+1; skipWs(); continue; }
+      break;
+    }
+    if(str[i]!=="<") return null;
+    i++;
+    let start=i;
+    while(i<n){ const c=str.charCodeAt(i); if(isWs(c)||c===47||c===62) break; i++; }
+    const node={name:str.slice(start,i),attrs:null,children:[],text:""};
+    while(i<n){
+      skipWs();
+      const c=str[i];
+      if(c==="/"||c===">") break;
+      start=i;
+      while(i<n){ const cc=str.charCodeAt(i); if(isWs(cc)||cc===61||cc===47||cc===62) break; i++; }
+      const an=str.slice(start,i);
+      skipWs();
+      if(str[i]==="="){
+        i++; skipWs();
+        const q=str[i++]; start=i;
+        while(i<n&&str[i]!==q) i++;
+        const av=str.slice(start,i); i++;
+        (node.attrs||(node.attrs={}))[an]=lxDecEnt(av);
+      } else if(an){ (node.attrs||(node.attrs={}))[an]=""; }
+    }
+    if(str[i]==="/"){ i+=2; node.attrs=node.attrs||{}; return node; }
+    i++;
+    let text="";
+    while(i<n){
+      if(str.startsWith("<![CDATA[",i)){ const e=str.indexOf("]]>",i); text+=str.slice(i+9,e<0?n:e); i=e<0?n:e+3; continue; }
+      if(str.startsWith("<!--",i)){ const e=str.indexOf("-->",i); i=e<0?n:e+3; continue; }
+      if(str.startsWith("</",i)){ const e=str.indexOf(">",i); i=e<0?n:e+1; break; }
+      if(str[i]==="<"){ const ch=parseNode(); if(ch) node.children.push(ch); continue; }
+      start=i; while(i<n&&str[i]!=="<") i++; text+=str.slice(start,i);
+    }
+    node.attrs=node.attrs||{};
+    node.text=lxDecEnt(text).trim();
+    return node;
+  }
+  skipWs();
+  return parseNode();
+}
+const lxN=(node)=>{ const nm=node.name; const k=nm.indexOf(":"); return k<0?nm:nm.slice(k+1); };
+const lxC=(node,ln)=>node?(node.children.find(c=>lxN(c)===ln)||null):null;
+const lxCs=(node,ln)=>node?node.children.filter(c=>lxN(c)===ln):[];
+/* discesa ricorsiva: tutti i discendenti con quel localName */
+function lxAll(node,ln,out){
+  out=out||[];
+  for(const c of node.children){ if(lxN(c)===ln) out.push(c); lxAll(c,ln,out); }
+  return out;
+}
+
+/* ---- parse LandXML ------------------------------------------------------
+   Stessa lettura del viewer (v2.1.0, _lxmlParse) più le parti che al viewer
+   non servivano: spiType conservato (le spirali non-clotoidi qui sono CASI
+   APERTI, non approssimazioni silenziose), StaEquation, End dichiarato delle
+   spirali, CoordinateSystem, conteggi di superfici e CgPoints.             */
+const LX_UNITS={ meter:1, metre:1, millimeter:.001, millimetre:.001, centimeter:.01, centimetre:.01,
+  kilometer:1000, kilometre:1000, foot:.3048, ussurveyfoot:1200/3937, inch:.0254 };
+function lxNum(s,d){ const v=parseFloat(s); return isFinite(v)?v:(d||0); }
+function lxPair(el,tag){
+  const nd=lxC(el,tag); if(!nd) return null;
+  const t=(nd.text||"").trim().split(/[\s,]+/).map(Number);
+  return (t.length>=2&&isFinite(t[0])&&isFinite(t[1]))?[t[0],t[1]]:null;
+}
+function lxParse(text){
+  const root=lxParseXML(text);
+  if(!root||lxN(root)!=="LandXML") throw new Error("not LandXML");
+  let uf=1, unitName="meter";
+  const un=lxC(root,"Units");
+  if(un&&un.children[0]){
+    unitName=(un.children[0].attrs.linearUnit||"meter").toLowerCase();
+    uf=LX_UNITS[unitName]||1;
+  }
+  let epsg=null, crsName=null;
+  const cs=lxC(root,"CoordinateSystem");
+  if(cs){
+    const e=parseInt(cs.attrs.epsgCode||"",10);
+    if(isFinite(e)&&e>0) epsg=e;
+    crsName=cs.attrs.name||cs.attrs.horizontalCoordinateSystemName||null;
+  }
+  const aligns=[];
+  for(const al of lxAll(root,"Alignment")){
+    const name=al.attrs.name||("Alignment "+(aligns.length+1));
+    const sta0=lxNum(al.attrs.staStart,0);
+    const cg=lxC(al,"CoordGeom"); if(!cg) continue;
+    const els=[];
+    for(const el of cg.children){
+      const t=lxN(el);
+      if(t==="Line"){
+        const S=lxPair(el,"Start"), E=lxPair(el,"End"); if(!S||!E) continue;
+        els.push({t,S,E,len:lxNum(el.attrs.length,0)});
+      } else if(t==="Curve"){
+        const S=lxPair(el,"Start"), C=lxPair(el,"Center"), E=lxPair(el,"End"); if(!S||!C||!E) continue;
+        els.push({t,S,C,E,rot:el.attrs.rot||"ccw",R:lxNum(el.attrs.radius,0),len:lxNum(el.attrs.length,0)});
+      } else if(t==="Spiral"){
+        const S=lxPair(el,"Start"), PI=lxPair(el,"PI"), E=lxPair(el,"End");
+        if(!S||!PI) continue;
+        const st=(el.attrs.spiType||"clothoid").toLowerCase();
+        if(!(lxNum(el.attrs.length,0)>0)) continue;
+        els.push({t,S,PI,E,rot:el.attrs.rot||"ccw",spiType:st,
+          r0:el.attrs.radiusStart,r1:el.attrs.radiusEnd,len:lxNum(el.attrs.length,0),
+          staStart:el.attrs.staStart});
+      } else if(t==="IrregularLine"){
+        const pl=lxC(el,"PntList2D");
+        const nums=pl?(pl.text||"").trim().split(/[\s,]+/).map(Number):[];
+        const pts=[]; for(let i=0;i+1<nums.length;i+=2) if(isFinite(nums[i])&&isFinite(nums[i+1])) pts.push([nums[i],nums[i+1]]);
+        if(pts.length>=2) els.push({t,pts});
+        else { const S=lxPair(el,"Start"), E=lxPair(el,"End"); if(S&&E) els.push({t:"Line",S,E,len:0}); }
+      }
+    }
+    /* profilo: vertici PVI in ordine documento */
+    const pvis=[];
+    const pa=lxAll(al,"ProfAlign")[0];
+    if(pa) for(const el of pa.children){
+      const t=lxN(el);
+      const txt=(el.text||"").trim().split(/[\s,]+/).map(Number);
+      if(txt.length<2||!isFinite(txt[0])||!isFinite(txt[1])) continue;
+      if(t==="PVI") pvis.push({sta:txt[0],z:txt[1],L:0,R:0});
+      else if(t==="ParaCurve") pvis.push({sta:txt[0],z:txt[1],L:lxNum(el.attrs.length,0),R:0});
+      else if(t==="CircCurve") pvis.push({sta:txt[0],z:txt[1],L:lxNum(el.attrs.length,0),R:lxNum(el.attrs.radius,0)});
+      else if(t==="UnsymParaCurve") pvis.push({sta:txt[0],z:txt[1],L:lxNum(el.attrs.lengthIn,0)+lxNum(el.attrs.lengthOut,0),R:0});
+    }
+    /* equazioni di progressiva */
+    const staEqs=[];
+    for(const eq of lxAll(al,"StaEquation")){
+      const back=lxNum(eq.attrs.staBack,NaN), ahead=lxNum(eq.attrs.staAhead,NaN);
+      if(isFinite(back)&&isFinite(ahead)) staEqs.push({back,ahead});
+    }
+    staEqs.sort((a,b)=>a.back-b.back);
+    if(els.length) aligns.push({name,sta0,els,pvis,staEqs});
+  }
+  /* superfici e punti: conteggi per la tavola (v1 non li importa) */
+  const surfaces=[];
+  for(const sf of lxAll(root,"Surface")){
+    const pnts=lxAll(sf,"Pnts").reduce((s,p)=>s+p.children.length,0);
+    const faces=lxAll(sf,"Faces").reduce((s,f)=>s+f.children.length,0);
+    surfaces.push({name:sf.attrs.name||("Surface "+(surfaces.length+1)),pnts,faces});
+  }
+  let cgPoints=0;
+  for(const cp of lxAll(root,"CgPoints")) cgPoints+=cp.children.filter(c=>lxN(c)==="CgPoint").length;
+  return {version:root.attrs.version||"",date:root.attrs.date||"",unitFactor:uf,unitName,epsg,crsName,aligns,surfaces,cgPoints};
+}
+
+/* ---- coppie grezze → [Est, Nord] ----------------------------------------
+   La spec scrive "Nord Est" (prima=N); alcuni produttori invertono. swap
+   sceglie l'interpretazione; con un IFC ospite georeferenziato si decide da
+   sola (lxPickSwap, stessa idea dell'auto-rilevamento del viewer).         */
+function lxXY(p,swap){ return swap?[p[0],p[1]]:[p[1],p[0]]; }
+function lxRot(rot){ return /^\s*cw\s*$/i.test(rot||"")?-1:1; }
+function lxPickSwap(parsed,hostEN){
+  let p=null;
+  for(const a of parsed.aligns){ for(const el of a.els){ p=el.S||(el.pts&&el.pts[0]); if(p) break; } if(p) break; }
+  if(!p||!hostEN) return false;
+  const uf=parsed.unitFactor;
+  const dSpec=Math.hypot(p[1]*uf-hostEN[0],p[0]*uf-hostEN[1]);
+  const dSwap=Math.hypot(p[0]*uf-hostEN[0],p[1]*uf-hostEN[1]);
+  return dSwap<dSpec*0.999;
+}
+
+/* ---- elementi → items (metri, ancore dichiarate) ------------------------
+   kind: LINE | ARC | SPIRAL. Le clotoidi sono SPIRAL con spiType clothoid.
+   Ogni item porta l'ancora DICHIARATA dal file (start + direzione): il
+   controllo delle giunzioni confronta la fine CALCOLATA di un item con
+   l'ancora dichiarata del successivo.                                      */
+function lxItems(a,swap,uf){
+  const items=[];
+  const sc=p=>[p[0]*uf,p[1]*uf];
+  for(const el of a.els){
+    if(el.t==="Line"){
+      const S=sc(lxXY(el.S,swap)), E=sc(lxXY(el.E,swap));
+      const L=el.len>0?el.len*uf:Math.hypot(E[0]-S[0],E[1]-S[1]);
+      if(!(L>0)) continue;
+      items.push({kind:"LINE",start:S,theta:Math.atan2(E[1]-S[1],E[0]-S[0]),r0:0,r1:0,length:L,declEnd:E});
+    } else if(el.t==="Curve"){
+      const S=sc(lxXY(el.S,swap)), C=sc(lxXY(el.C,swap)), E=sc(lxXY(el.E,swap));
+      const sign=lxRot(el.rot);
+      const rx=S[0]-C[0], ry=S[1]-C[1];
+      const R=el.R>0?el.R*uf:Math.hypot(rx,ry);
+      if(!(R>0)) continue;
+      const theta=Math.atan2(sign*rx,-sign*ry);
+      let L=el.len>0?el.len*uf:0;
+      if(!(L>0)){
+        let d=sign*(Math.atan2(E[1]-C[1],E[0]-C[0])-Math.atan2(ry,rx));
+        d%=2*Math.PI; if(d<=1e-12) d+=2*Math.PI;
+        L=R*d;
+      }
+      items.push({kind:"ARC",start:S,theta,r0:sign*R,r1:sign*R,length:L,declEnd:E});
+    } else if(el.t==="Spiral"){
+      const S=sc(lxXY(el.S,swap)), PI=sc(lxXY(el.PI,swap));
+      const E=el.E?sc(lxXY(el.E,swap)):null;
+      const sign=lxRot(el.rot);
+      const rad=v=>{ const t=String(v==null?"":v).trim().toUpperCase();
+        if(t===""||t==="INF"||t==="INFINITY") return 0;
+        const n=parseFloat(t); return isFinite(n)&&n>0?sign*n*uf:0; };
+      items.push({kind:"SPIRAL",spiType:el.spiType,start:S,theta:Math.atan2(PI[1]-S[1],PI[0]-S[0]),
+        r0:rad(el.r0),r1:rad(el.r1),length:el.len*uf,declEnd:E});
+    } else if(el.t==="IrregularLine"){
+      const pts=el.pts.map(p=>sc(lxXY(p,swap)));
+      for(let i=0;i+1<pts.length;i++){
+        const L=Math.hypot(pts[i+1][0]-pts[i][0],pts[i+1][1]-pts[i][1]);
+        if(L>1e-9) items.push({kind:"LINE",start:pts[i],theta:Math.atan2(pts[i+1][1]-pts[i][1],pts[i+1][0]-pts[i][0]),r0:0,r1:0,length:L,declEnd:pts[i+1]});
+      }
+    }
+  }
+  /* progressive interne cumulative (0 = inizio asse) */
+  let s=0;
+  for(const it of items){ it.sta=s; s+=it.length; }
+  return items;
+}
+
+/* ---- leggi di curvatura delle spirali -----------------------------------
+   κ(s) = k0 + (k1−k0)·f(s/L). La clotoide è f(t)=t; per le altre la legge
+   serve a calcolare lo scostamento della clotoide equivalente e la
+   polilinea fedele. Tipi senza legge nota: scostamento non calcolabile.   */
+const LX_LAWS={
+  clothoid:t=>t,
+  bloss:t=>3*t*t-2*t*t*t,
+  cosine:t=>(1-Math.cos(Math.PI*t))/2,
+  sinusoid:t=>t-Math.sin(2*Math.PI*t)/(2*Math.PI),
+  biquadratic:t=>t<=.5?2*t*t:1-2*(1-t)*(1-t)
+};
+function lxLawOf(it){ return it.kind==="SPIRAL"?(LX_LAWS[it.spiType]||null):null; }
+
+/* ---- evaluatori ---------------------------------------------------------
+   lxEval(item, s) → {p,th,k} alla progressiva s (0..length) dall'ancora
+   dell'item. Archi in forma chiusa; spirali per integrazione (passo ~12 cm,
+   midpoint: errore ~(ds)² sulla direzione, ben sotto il decimo di mm).    */
+function lxWrapPi(a){ a=(a+Math.PI)%(2*Math.PI); if(a<0)a+=2*Math.PI; return a-Math.PI; }
+function lxK(r){ return r===0?0:1/r; }
+function lxEval(it,s,law){
+  const th0=it.theta, k0=lxK(it.r0), k1=lxK(it.r1);
+  if(it.kind==="LINE"||(k0===0&&k1===0))
+    return {p:[it.start[0]+s*Math.cos(th0),it.start[1]+s*Math.sin(th0)],th:th0,k:0};
+  if(it.kind==="ARC"||k0===k1){
+    const k=k0, th=th0+k*s;
+    return {p:[it.start[0]+(Math.sin(th)-Math.sin(th0))/k, it.start[1]-(Math.cos(th)-Math.cos(th0))/k],th,k};
+  }
+  const f=law||lxLawOf(it)||LX_LAWS.clothoid;
+  const steps=Math.max(64,Math.min(4096,Math.ceil(s*8)));
+  const ds=s/steps;
+  let x=it.start[0], y=it.start[1], th=th0, cur=0;
+  for(let i=0;i<steps;i++){
+    const km=k0+(k1-k0)*f((cur+ds/2)/it.length);
+    const thm=th+km*(ds/2);
+    x+=ds*Math.cos(thm); y+=ds*Math.sin(thm);
+    th+=km*ds; cur+=ds;
+  }
+  return {p:[x,y],th,k:k0+(k1-k0)*f(Math.min(1,s/it.length))};
+}
+function lxEnd(it,law){ return lxEval(it,it.length,law); }
+
+/* ---- giunzioni ----------------------------------------------------------
+   Fine calcolata dell'item i vs ancora dichiarata dell'item i+1. Tolleranze
+   del canvas: 1 mm di posizione, 0,001 gon di tangente. La continuità di
+   curvatura è informativa (un flesso R→R è legittimo).                    */
+const LX_GON=Math.PI/200;
+function lxJunctions(items,tolPos,tolAng){
+  const out=[];
+  for(let i=0;i+1<items.length;i++){
+    const e=lxEnd(items[i]);
+    const nx=items[i+1];
+    const dPos=Math.hypot(e.p[0]-nx.start[0],e.p[1]-nx.start[1]);
+    const dAng=Math.abs(lxWrapPi(e.th-nx.theta));
+    const dK=lxK(nx.r0)-e.k;
+    out.push({i,sta:nx.sta,dPos,dAng,dK,p:nx.start.slice(),
+      out:dPos>tolPos||dAng>tolAng,
+      posOut:dPos>tolPos,angOut:dAng>tolAng});
+  }
+  return out;
+}
+
+/* ---- clotoide equivalente -----------------------------------------------
+   Non basta copiare lunghezza e raggi: a pari L la clotoide finisce ALTROVE
+   (per una bloss da 136 m su R 420 lo scarto d'estremo è ~0,7 m) e tutto
+   l'asse a valle si deformerebbe. La sostituzione GIUSTA è quella del
+   progettista: la clotoide SCORRE fra i due elementi adiacenti — parte
+   dalla stessa retta (o arco) d'ingresso e atterra sullo STESSO cerchio
+   d'uscita, con le lunghezze dei vicini riaggiustate di conseguenza. Così
+   la curvatura resta continua ai due lati, l'asse a valle non si sposta di
+   un micron, e lo scostamento dalla spirale vera scende all'ordine dei
+   cm/mm (è la sola differenza di forma della transizione).
+   Quando lo scorrimento non è possibile (spirale in coda all'asse, vicini
+   a loro volta spirali, curvatura non continua nel file) si ripiega
+   sull'aggancio ai due estremi (lxRefit: stessa ancora, bersaglio = fine
+   dichiarata): l'asse resta intatto ma raggio finale e scostamento crescono
+   — e il pannello lo dichiara PRIMA della scelta.                         */
+function lxDistToPoly(p,poly){
+  let best=Infinity;
+  for(let i=0;i+1<poly.length;i++){
+    const ax=poly[i][0],ay=poly[i][1],bx=poly[i+1][0],by=poly[i+1][1];
+    const dx=bx-ax,dy=by-ay;
+    const L2=dx*dx+dy*dy;
+    let t=L2>0?((p[0]-ax)*dx+(p[1]-ay)*dy)/L2:0;
+    t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot(p[0]-(ax+t*dx),p[1]-(ay+t*dy));
+    if(d<best) best=d;
+  }
+  return best;
+}
+function lxSlideFit(it,prev,next){
+  const k0=lxK(it.r0), k1=lxK(it.r1);
+  if(!prev||!next) return null;
+  if(prev.kind==="SPIRAL"||next.kind==="SPIRAL") return null;
+  const kP=lxK(prev.r1||prev.r0), kN=lxK(next.r0);
+  if(Math.abs(kP-k0)>1e-9||Math.abs(kN-k1)>1e-9) return null;  /* curvatura non continua nel file */
+  let target;
+  if(kN!==0) target={type:"circle",c:[next.start[0]-Math.sin(next.theta)/kN,next.start[1]+Math.cos(next.theta)/kN]};
+  else target={type:"line",p:next.start.slice(),th:next.theta};
+  const F=(u,L)=>{
+    const a=lxEval(prev,prev.length+u);
+    const clo={kind:"SPIRAL",spiType:"clothoid",start:a.p,theta:a.th,r0:it.r0,r1:it.r1,length:L};
+    const e=lxEnd(clo,LX_LAWS.clothoid);
+    if(target.type==="circle"){
+      const c=[e.p[0]-Math.sin(e.th)/k1,e.p[1]+Math.cos(e.th)/k1];
+      return [c[0]-target.c[0],c[1]-target.c[1]];
+    }
+    const dth=lxWrapPi(e.th-target.th);
+    const off=-(e.p[0]-target.p[0])*Math.sin(target.th)+(e.p[1]-target.p[1])*Math.cos(target.th);
+    return [off,dth*100];
+  };
+  let u=0, L=it.length;
+  for(let iter=0;iter<40;iter++){
+    const f0=F(u,L);
+    if(Math.hypot(f0[0],f0[1])<1e-7) break;
+    const du=1e-4, dL=Math.max(1e-4,L*1e-6);
+    const fu=F(u+du,L), fL=F(u,L+dL);
+    const j11=(fu[0]-f0[0])/du, j12=(fL[0]-f0[0])/dL;
+    const j21=(fu[1]-f0[1])/du, j22=(fL[1]-f0[1])/dL;
+    const det=j11*j22-j12*j21;
+    if(Math.abs(det)<1e-14) return null;
+    u+=(-f0[0]*j22+f0[1]*j12)/det;
+    L+=(-f0[1]*j11+f0[0]*j21)/det;
+    if(!(L>1e-3)||!isFinite(L)||!isFinite(u)||Math.abs(u)>prev.length+it.length) return null;
+  }
+  const fEnd=F(u,L);
+  if(Math.hypot(fEnd[0],fEnd[1])>1e-4) return null;
+  const a=lxEval(prev,prev.length+u);
+  const clo={kind:"SPIRAL",spiType:"clothoid",start:a.p,theta:a.th,r0:it.r0,r1:it.r1,length:L};
+  const e=lxEnd(clo,LX_LAWS.clothoid);
+  let dNext;
+  if(kN!==0){
+    const c=target.c;
+    const a0=Math.atan2(next.start[1]-c[1],next.start[0]-c[0]);
+    const a1=Math.atan2(e.p[1]-c[1],e.p[0]-c[0]);
+    const sgn=kN>0?1:-1;
+    dNext=lxWrapPi(sgn*(a1-a0))/Math.abs(kN);
+  } else dNext=(e.p[0]-next.start[0])*Math.cos(next.theta)+(e.p[1]-next.start[1])*Math.sin(next.theta);
+  if(prev.length+u<=0.001||next.length-dNext<=0.001) return null;
+  /* scostamento: spirale vera contro il percorso nuovo (coda del precedente
+     slittato + clotoide + testa del successivo accorciato) */
+  const poly=[];
+  const uMin=Math.min(0,u)-2;
+  for(let j=0;j<=24;j++) poly.push(lxEval(prev,prev.length+uMin+(u-uMin)*j/24).p);
+  for(let j=0;j<=200;j++) poly.push(lxEval(clo,L*j/200,LX_LAWS.clothoid).p);
+  const nSpan=Math.max(2,Math.abs(dNext)+2);
+  for(let j=1;j<=24;j++) poly.push(lxEval(next,dNext+nSpan*j/24).p);
+  const law=lxLawOf(it);
+  let max=0;
+  for(let j=0;j<=120;j++){
+    const d=lxDistToPoly(lxEval(it,it.length*j/120,law).p,poly);
+    if(d>max) max=d;
+  }
+  return {dev:max,L,r1:it.r1,dR:0,dPrev:u,dNext,mode:"slide"};
+}
+function lxCloEquiv(it,prev,next){
+  const law=lxLawOf(it);
+  if(!law) return null;
+  if(it.spiType==="clothoid") return {dev:0,L:it.length,r1:it.r1,dR:0,dPrev:0,dNext:0,mode:"same"};
+  const slide=lxSlideFit(it,prev,next);
+  if(slide) return slide;
+  /* ripiego: aggancio ai due estremi (l'asse a valle resta, il raggio no) */
+  const k0=lxK(it.r0), k1=lxK(it.r1);
+  const target=it.declEnd||lxEnd(it,law).p;
+  const rf=lxRefit({p:it.start,th:it.theta},k0,it.length,k1,target);
+  let L2=it.length, r1=it.r1;
+  if(rf){ L2=rf.L; r1=rf.r1; }
+  const fit={kind:"SPIRAL",spiType:"clothoid",start:it.start,theta:it.theta,r0:it.r0,r1,length:L2};
+  let max=0;
+  for(let j=1;j<=100;j++){
+    const t=j/100;
+    const a=lxEval(it,it.length*t,law);
+    const b=lxEval(fit,L2*t,LX_LAWS.clothoid);
+    const d=Math.hypot(a.p[0]-b.p[0],a.p[1]-b.p[1]);
+    if(d>max) max=d;
+  }
+  return {dev:max,L:L2,r1,dR:Math.abs((r1||0)-(it.r1||0)),dPrev:0,dNext:0,mode:"end"};
+}
+function lxClothoidDev(it,prev,next){ const q=lxCloEquiv(it,prev,next); return q?q.dev:null; }
+
+/* ---- polilinea fedele: campiona la legge vera ---------------------------
+   Passo dalla freccia massima (default 1 mm sul raggio più stretto),
+   limitato a [0.5, 10] m. Ritorna i punti campionati.                     */
+function lxPolyPts(it,sag){
+  sag=sag||0.001;
+  const law=lxLawOf(it); if(!law) return null;
+  const kMax=Math.max(Math.abs(lxK(it.r0)),Math.abs(lxK(it.r1)))||1e-6;
+  const step=Math.min(10,Math.max(.5,Math.sqrt(8*sag/kMax)));
+  const n=Math.max(2,Math.ceil(it.length/step));
+  const pts=[];
+  for(let j=0;j<=n;j++) pts.push(lxEval(it,it.length*j/n,law).p);
+  return pts;
+}
+
+/* ---- ricalcolo della clotoide (giunzione: "tiene fermi i due estremi") --
+   Ancora nuova = fine calcolata del segmento precedente (posizione E
+   tangente); bersaglio = fine dichiarata della clotoide. Newton su
+   (lunghezza, curvatura finale) con jacobiano numerico. Ritorna i nuovi
+   parametri e di quanto cambia il raggio finale.                          */
+function lxRefit(anchor,k0,L0,k1_0,target){
+  let L=L0, k1=k1_0;
+  const F=(L,k1)=>{
+    const it={kind:"SPIRAL",spiType:"clothoid",start:anchor.p,theta:anchor.th,
+      r0:k0===0?0:1/k0,r1:k1===0?0:1/k1,length:L};
+    const e=lxEnd(it,LX_LAWS.clothoid);
+    return [e.p[0]-target[0],e.p[1]-target[1]];
+  };
+  for(let iter=0;iter<40;iter++){
+    const f0=F(L,k1);
+    const err=Math.hypot(f0[0],f0[1]);
+    if(err<1e-6) break;
+    const dL=Math.max(1e-4,L*1e-6), dk=Math.max(1e-12,Math.abs(k1)*1e-6+1e-12);
+    const fL=F(L+dL,k1), fk=F(L,k1+dk);
+    const j11=(fL[0]-f0[0])/dL, j12=(fk[0]-f0[0])/dk;
+    const j21=(fL[1]-f0[1])/dL, j22=(fk[1]-f0[1])/dk;
+    const det=j11*j22-j12*j21;
+    if(Math.abs(det)<1e-18) return null;
+    const sL=(-f0[0]*j22+f0[1]*j12)/det;
+    const sk=(-f0[1]*j11+f0[0]*j21)/det;
+    L+=sL; k1+=sk;
+    if(!(L>1e-3)||!isFinite(L)||!isFinite(k1)) return null;
+  }
+  const f=F(L,k1), resid=Math.hypot(f[0],f[1]);
+  if(resid>1e-4) return null;
+  return {L,k1,r1:k1===0?0:1/k1,resid};
+}
+
+/* ---- equazioni di progressiva: stazione → distanza interna --------------
+   Le stazioni del file (PVI, StaEquation) vivono nel sistema CON i salti;
+   la distanza interna è continua da inizio asse. Confermare l'equazione
+   significa ricalcolare le distanze (il canvas: "le distanze si
+   ricalcolano"); rifiutarla significa leggere le stazioni come continue.  */
+function lxStaMap(a,useEq){
+  const uf=1; /* stazioni già nelle unità del file: si scalano fuori */
+  if(!useEq||!a.staEqs.length){
+    const off=a.sta0;
+    return {toInternal:s=>s-off, regions:[]};
+  }
+  const regs=[]; let intAt=0, staAt=a.sta0;
+  for(const eq of a.staEqs){
+    regs.push({sta:staAt,int:intAt,len:eq.back-staAt});
+    intAt+=eq.back-staAt; staAt=eq.ahead;
+  }
+  regs.push({sta:staAt,int:intAt,len:Infinity});
+  return {
+    regions:regs,
+    toInternal:s=>{
+      for(let i=regs.length-1;i>=0;i--){
+        const r=regs[i];
+        if(s>=r.sta-1e-9&&(i===regs.length-1||s<=r.sta+r.len+1e-9)) return r.int+(s-r.sta);
+      }
+      return s-a.sta0;
+    }
+  };
+}
+/* distanza interna → stazione (per le etichette K+MMM) */
+function lxStaLabel(map,sta0,internal){
+  if(!map||!map.regions.length) return sta0+internal;
+  const regs=map.regions;
+  for(let i=regs.length-1;i>=0;i--){
+    if(internal>=regs[i].int-1e-9) return regs[i].sta+(internal-regs[i].int);
+  }
+  return sta0+internal;
+}
+function lxStaFmt(m,dec){
+  const neg=m<0; m=Math.abs(m);
+  const km=Math.floor(m/1000), rest=m-km*1000;
+  let r=rest.toFixed(dec==null?0:dec);
+  if(parseFloat(r)>=1000){ return lxStaFmt((neg?-1:1)*(km+1)*1000,dec); }
+  const pad=r.indexOf(".")<0?r.padStart(3,"0"):r.padStart(3+r.length-r.indexOf("."),"0");
+  return (neg?"-":"")+km+"+"+pad;
+}
+
+/* ---- profilo: PVI → vsegs (algoritmo del viewer, _lxmlVsegs) ------------
+   Stazioni già trasformate in distanza interna (unità: metri).            */
+function lxVsegs(pvis){
+  const pv=pvis;
+  if(!pv.length) return [];
+  if(pv.length===1) return [{sta:pv[0].sta,L:0,h:pv[0].z,g0:0,g1:0,t:"CONSTANTGRADIENT"}];
+  const out=[];
+  let cur=pv[0].sta, curH=pv[0].z;
+  for(let i=1;i<pv.length;i++){
+    const g=(pv[i].z-pv[i-1].z)/((pv[i].sta-pv[i-1].sta)||1);
+    const isLast=i===pv.length-1;
+    let gN=g, Lc=0;
+    if(!isLast){
+      gN=(pv[i+1].z-pv[i].z)/((pv[i+1].sta-pv[i].sta)||1);
+      Lc=pv[i].L>0?pv[i].L:(pv[i].R>0?pv[i].R*Math.abs(gN-g):0);
+    }
+    const tEnd=pv[i].sta-Lc/2;
+    if(tEnd-cur>1e-9) out.push({sta:cur,L:tEnd-cur,h:curH,g0:g,g1:g,t:"CONSTANTGRADIENT"});
+    curH+=g*(tEnd-cur); cur=tEnd;
+    if(Lc>0){
+      out.push({sta:cur,L:Lc,h:curH,g0:g,g1:gN,t:"PARABOLICARC"});
+      curH+=(g+gN)/2*Lc; cur+=Lc;
+    }
+  }
+  return out;
+}
+function lxProfileAt(vsegs,s){
+  if(!vsegs.length) return 0;
+  let seg=vsegs[0];
+  for(const v of vsegs){ if(s>=v.sta-1e-9) seg=v; else break; }
+  const x=Math.max(0,Math.min(seg.L,s-seg.sta));
+  if(seg.t==="PARABOLICARC"&&seg.L>0)
+    return seg.h+seg.g0*x+(seg.g1-seg.g0)*x*x/(2*seg.L);
+  return seg.h+seg.g0*x;
+}
+
+/* ---- risoluzione della catena -------------------------------------------
+   decisions: Map(indice item → {choice}) per le spirali non-clotoidi
+     (choice: "clothoid" | "poly" | "stop"); fixes: Map(indice giunzione →
+     "sew" | "refit" | "keep"). Le giunzioni ENTRO tolleranza si cuciono in
+     silenzio (sub-mm: la tolleranza è il contratto, e la catena esce
+     continua per costruzione); "keep" lascia la discontinuità dichiarata.
+   Ritorna hsegs finali (solo LINE/CIRCULARARC/CLOTHOID), le approssimazioni
+   accettate e le giunzioni lasciate aperte.                               */
+function lxResolve(a,swap,uf,opts){
+  opts=opts||{};
+  const items=lxItems(a,swap,uf);
+  const juncs=lxJunctions(items,opts.tolPos==null?0.001:opts.tolPos,opts.tolAng==null?0.001*LX_GON:opts.tolAng);
+  const decisions=opts.decisions||new Map();
+  const fixes=opts.fixes||new Map();
+  const hsegs=[], approx=[], openJ=[];
+  let blocked=null;
+  let anchor=null;   /* {p,th} imposta dall'item precedente (cucitura) */
+  let pendNext=0;    /* erosione del prossimo item (slide-fit della clotoide) */
+  for(let i=0;i<items.length;i++){
+    const it=items[i];
+    let start=it.start, theta=it.theta, r0=it.r0, r1=it.r1, length=it.length;
+    if(anchor){ start=anchor.p; theta=anchor.th; }
+    if(pendNext){ length=Math.max(0.001,length-pendNext); pendNext=0; }
+    const eff={kind:it.kind,spiType:it.spiType,start,theta,r0,r1,length};
+    const unsupported=it.kind==="SPIRAL"&&it.spiType!=="clothoid";
+    if(unsupported){
+      const d=decisions.get(i);
+      const choice=d&&d.choice;
+      if(choice==="clothoid"){
+        const q=lxCloEquiv(it,i>0?items[i-1]:null,i+1<items.length?items[i+1]:null);
+        if(!q){ blocked={reason:"noLaw",i}; break; }
+        if(q.mode==="slide"&&hsegs.length){
+          /* la clotoide scorre: il precedente si allunga/accorcia sul suo
+             stesso locus, il successivo si eroderà di dNext */
+          const ph=hsegs[hsegs.length-1];
+          ph.length=Math.max(0.001,ph.length+q.dPrev);
+          const pe=lxHsegEval(ph,ph.length);
+          hsegs.push({ptype:"CLOTHOID",start:pe.p,theta:pe.th,r0,r1:q.r1,length:q.L,srcSta:it.sta});
+          pendNext=q.dNext;
+        } else {
+          hsegs.push({ptype:"CLOTHOID",start,theta,r0,r1:q.r1,length:q.L,srcSta:it.sta});
+        }
+        approx.push({i,spiType:it.spiType,mode:"clothoid",dev:q.dev,dR:q.dR,sta:it.sta,len:q.L});
+      } else if(choice==="poly"){
+        const pts=lxPolyPts(eff,opts.polySag);
+        if(!pts){ blocked={reason:"noLaw",i}; break; }
+        for(let j=0;j+1<pts.length;j++){
+          const L=Math.hypot(pts[j+1][0]-pts[j][0],pts[j+1][1]-pts[j][1]);
+          if(L>1e-9) hsegs.push({ptype:"LINE",start:pts[j],theta:Math.atan2(pts[j+1][1]-pts[j][1],pts[j+1][0]-pts[j][0]),r0:0,r1:0,length:L,srcSta:it.sta});
+        }
+        approx.push({i,spiType:it.spiType,mode:"poly",n:pts.length-1,sta:it.sta,len:length});
+      } else { blocked={reason:"open",i}; break; }
+    } else {
+      hsegs.push({ptype:it.kind==="ARC"?"CIRCULARARC":(it.kind==="SPIRAL"?"CLOTHOID":"LINE"),
+        start,theta,r0,r1,length,srcSta:it.sta});
+    }
+    /* ancora per il prossimo item: dipende dal fix della giunzione i.
+       La fine della catena è SEMPRE la fine dell'ultimo hseg emesso (vale
+       anche per la clotoide equivalente e per la polilinea).              */
+    const jn=juncs[i];
+    if(jn&&hsegs.length){
+      const lastH=hsegs[hsegs.length-1];
+      const e=lxHsegEval(lastH,lastH.length);
+      const fix=jn.out?(fixes.get(i)||"sew"):"sew";
+      if(fix==="keep"){ anchor=null; lastH.openEnd=true; openJ.push(jn); }
+      else if(fix==="refit"&&items[i+1].kind==="SPIRAL"){
+        const nx=items[i+1];
+        const target=nx.declEnd||lxEnd(nx).p;
+        const rf=lxRefit({p:e.p,th:e.th},lxK(nx.r0),nx.length,lxK(nx.r1),target);
+        if(rf){
+          items[i+1]={...nx,start:e.p,theta:e.th,r1:rf.r1,length:rf.L,_refit:{oldR1:nx.r1,newR1:rf.r1}};
+          anchor=null; /* l'item riscritto porta già l'ancora giusta */
+          approx.push({i:i+1,spiType:nx.spiType||"clothoid",mode:"refit",dR:Math.abs((rf.r1||0)-(nx.r1||0)),sta:nx.sta});
+        } else anchor={p:e.p,th:e.th};   /* refit non converge → cuci */
+      } else anchor={p:e.p,th:e.th};
+    }
+  }
+  const totalLen=hsegs.reduce((s,h)=>s+h.length,0);
+  return {items,juncs,hsegs,approx,openJ,blocked,totalLen};
+}
+
+/* campionamento della catena finale (planimetria: stessi numeri dell'export) */
+function lxHsegEval(h,s){
+  return lxEval({kind:h.ptype==="CIRCULARARC"?"ARC":(h.ptype==="CLOTHOID"?"SPIRAL":"LINE"),
+    spiType:"clothoid",start:h.start,theta:h.theta,r0:h.r0,r1:h.r1,length:h.length},s,LX_LAWS.clothoid);
+}
+function lxSampleChain(hsegs,maxPts){
+  const total=hsegs.reduce((s,h)=>s+h.length,0)||1;
+  const pts=[];
+  for(const h of hsegs){
+    const n=Math.max(1,Math.min(200,Math.ceil((h.length/total)*(maxPts||400))));
+    for(let j=0;j<n;j++) pts.push(lxHsegEval(h,h.length*j/n).p);
+  }
+  const last=hsegs[hsegs.length-1];
+  if(last) pts.push(lxHsegEval(last,last.length).p);
+  return pts;
+}
+function lxChainAt(hsegs,s){
+  let acc=0;
+  for(const h of hsegs){
+    if(s<=acc+h.length||h===hsegs[hsegs.length-1]) return lxHsegEval(h,Math.max(0,Math.min(h.length,s-acc)));
+    acc+=h.length;
+  }
+  return null;
+}
+
+/* =========================================================================
+   Scanner STEP a byte dell'IFC ospite (pattern Georeference Editor) + unità
+   gated su IfcUnitAssignment, sito/progetto/contesto/OwnerHistory,
+   IfcMapConversion con rotazione e degenere riparato.
+   ========================================================================= */
+function lxScan(bytes){
+  const n=bytes.length;
+  const HASH=35,SEMI=59,QUOTE=39,EQ=61,LPAR=40;
+  const dec=new TextDecoder();
+  const ids=[],starts=[],ends=[],typeIdx=[];
+  const typeNames=[],typeMap=new Map();
+  let dataStart=-1;
+  for(let i=0;i<n-4;i++){
+    if(bytes[i]===68&&bytes[i+1]===65&&bytes[i+2]===84&&bytes[i+3]===65&&bytes[i+4]===SEMI){ dataStart=i+5; break; }
+  }
+  if(dataStart<0) throw new Error("no DATA section");
+  const head=dec.decode(bytes.subarray(0,Math.min(4096,n)));
+  const ms=head.match(/FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'/);
+  const schema=ms?ms[1].toUpperCase():"";
+  const nl=head.indexOf("\r\n")>=0?"\r\n":"\n";
+  let endsecPos=n;
+  let i=dataStart;
+  while(i<n){
+    while(i<n&&bytes[i]!==HASH){
+      if(bytes[i]===69&&bytes[i+1]===78&&bytes[i+2]===68&&bytes[i+3]===83&&bytes[i+4]===69&&bytes[i+5]===67){ endsecPos=i; i=n; }
+      else i++;
+    }
+    if(i>=n) break;
+    const st=i; i++;
+    let id=0;
+    while(i<n&&bytes[i]>=48&&bytes[i]<=57){ id=id*10+(bytes[i]-48); i++; }
+    while(i<n&&bytes[i]!==EQ&&bytes[i]!==SEMI) i++;
+    if(bytes[i]!==EQ){ i++; continue; }
+    i++;
+    while(i<n&&(bytes[i]===32||bytes[i]===10||bytes[i]===13||bytes[i]===9)) i++;
+    const t0=i;
+    while(i<n&&bytes[i]!==LPAR&&bytes[i]!==SEMI) i++;
+    let tEnd=i; while(tEnd>t0&&bytes[tEnd-1]<=32) tEnd--;
+    const tName=dec.decode(bytes.subarray(t0,tEnd));
+    let inQ=false;
+    while(i<n){
+      const b=bytes[i];
+      if(inQ){ if(b===QUOTE){ if(bytes[i+1]===QUOTE) i++; else inQ=false; } }
+      else if(b===QUOTE) inQ=true;
+      else if(b===SEMI) break;
+      i++;
+    }
+    i++;
+    let ti=typeMap.get(tName);
+    if(ti===undefined){ ti=typeNames.length; typeNames.push(tName); typeMap.set(tName,ti); }
+    ids.push(id); starts.push(st); ends.push(i); typeIdx.push(ti);
+  }
+  const m=ids.length, idMap=new Map(); let maxId=0;
+  for(let k=0;k<m;k++){ idMap.set(ids[k],k); if(ids[k]>maxId) maxId=ids[k]; }
+  const byType=new Map();
+  for(let k=0;k<m;k++){
+    const t=typeNames[typeIdx[k]];
+    let arr=byType.get(t); if(!arr){ arr=[]; byType.set(t,arr); }
+    arr.push(k);
+  }
+  return {bytes,dataStart,endsecPos,count:m,ids,starts,ends,typeIdx,typeNames,idMap,byType,dec,schema,nl,maxId};
+}
+function lxArgs(text){
+  const p0=text.indexOf("("),p1=text.lastIndexOf(")");
+  if(p0<0||p1<p0) return [];
+  const s=text.slice(p0+1,p1),out=[]; let d=0,q=false,cur="";
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(q){ cur+=c; if(c==="'"){ if(s[i+1]==="'"){cur+="'";i++;} else q=false; } continue; }
+    if(c==="'"){ q=true; cur+=c; }
+    else if(c==="("){ d++; cur+=c; }
+    else if(c===")"){ d--; cur+=c; }
+    else if(c===","&&d===0){ out.push(cur.trim()); cur=""; }
+    else cur+=c;
+  }
+  if(cur.trim()!=="") out.push(cur.trim());
+  return out;
+}
+function lxStmt(model,k){ return model.dec.decode(model.bytes.subarray(model.starts[k],model.ends[k])); }
+function lxRef(model,a){ if(!a||a[0]!=="#") return -1; const id=parseInt(a.slice(1),10); const k=model.idMap.get(id); return k===undefined?-1:k; }
+function lxNumArg(a,def){ if(a==null||a==="$"||a==="*"||a==="") return def; const v=parseFloat(a); return isFinite(v)?v:def; }
+function lxFirst(model,type){ const a=model.byType.get(type); return a&&a.length?a[0]:-1; }
+
+/* unità dell'ospite, gated sull'IfcUnitAssignment (lezione del Georef: un
+   IFCSIUNIT sciolto non deve inquinare il fattore) */
+const LX_SI_PREF={EXA:1e18,PETA:1e15,TERA:1e12,GIGA:1e9,MEGA:1e6,KILO:1e3,HECTO:100,DECA:10,
+  DECI:.1,CENTI:.01,MILLI:.001,MICRO:1e-6,NANO:1e-9};
+function lxHostUnits(model){
+  let uf=1, angF=1;
+  const ua=lxFirst(model,"IFCUNITASSIGNMENT");
+  if(ua<0) return {uf,angF};
+  const list=lxArgs(lxStmt(model,ua))[0];
+  if(!list||list[0]!=="(") return {uf,angF};
+  for(const r of lxArgs("x"+list)){
+    const k=lxRef(model,r); if(k<0) continue;
+    const t=model.typeNames[model.typeIdx[k]];
+    const a=lxArgs(lxStmt(model,k));
+    if(t==="IFCSIUNIT"){
+      if(a[1]===".LENGTHUNIT."){
+        const p=(a[2]||"").replace(/\./g,"");
+        uf=(LX_SI_PREF[p]||1);
+      } else if(a[1]===".PLANEANGLEUNIT.") angF=1;
+    } else if(t==="IFCCONVERSIONBASEDUNIT"&&a[1]===".PLANEANGLEUNIT."){
+      const mk=lxRef(model,a[3]);
+      if(mk>=0){
+        const ma=lxArgs(lxStmt(model,mk));
+        const mv=ma[0]&&ma[0].indexOf("(")>=0?parseFloat(ma[0].slice(ma[0].indexOf("(")+1)):parseFloat(ma[0]);
+        if(isFinite(mv)&&mv>0) angF=mv;
+      }
+    } else if(t==="IFCCONVERSIONBASEDUNIT"&&a[1]===".LENGTHUNIT."){
+      const mk=lxRef(model,a[3]);
+      if(mk>=0){
+        const ma=lxArgs(lxStmt(model,mk));
+        const mv=ma[0]&&ma[0].indexOf("(")>=0?parseFloat(ma[0].slice(ma[0].indexOf("(")+1)):parseFloat(ma[0]);
+        if(isFinite(mv)&&mv>0) uf=mv;
+      }
+    }
+  }
+  return {uf,angF};
+}
+function lxHostInfo(bytes){
+  const model=lxScan(bytes);
+  const {uf,angF}=lxHostUnits(model);
+  const info={model,uf,angF,schema:model.schema,ok4x3:/^IFC4X3/.test(model.schema)};
+  /* che cosa sappiamo farne: 4x3 = inserimento diretto; 2x3 e IFC4 =
+     migrazione di schema al volo (lxMigPlan); IFC4X1/X2 portano entità
+     alignment con firme vecchie → non gestiti, come gli schemi ignoti */
+  info.schemaKind=/^IFC4X3/.test(model.schema)?"4x3":
+    (model.schema==="IFC2X3"?"2x3":(model.schema==="IFC4"?"ifc4":"other"));
+  /* sito, progetto, contesto principale, OwnerHistory */
+  info.siteK=lxFirst(model,"IFCSITE");
+  info.projK=lxFirst(model,"IFCPROJECT");
+  info.ohK=lxFirst(model,"IFCOWNERHISTORY");
+  info.ctxK=-1;
+  for(const k of (model.byType.get("IFCGEOMETRICREPRESENTATIONCONTEXT")||[])){
+    const a=lxArgs(lxStmt(model,k));
+    if((a[1]||"").indexOf("Model")>=0){ info.ctxK=k; break; }
+    if(info.ctxK<0) info.ctxK=k;
+  }
+  info.sitePlcRef=null;
+  if(info.siteK>=0){
+    const sa=lxArgs(lxStmt(model,info.siteK));
+    if(sa[5]&&sa[5][0]==="#") info.sitePlcRef=sa[5];
+  }
+  /* MapConversion: E/N/H + rotazione (degenere riparato come nel viewer) */
+  info.mapConv=null;
+  const mcK=lxFirst(model,"IFCMAPCONVERSION");
+  if(mcK>=0){
+    const a=lxArgs(lxStmt(model,mcK));
+    let xa=lxNumArg(a[5],1), xo=lxNumArg(a[6],0);
+    if(Math.hypot(xa,xo)<1e-12){ xa=1; xo=0; }
+    const h=Math.hypot(xa,xo);
+    info.mapConv={E:lxNumArg(a[2],0),N:lxNumArg(a[3],0),H:lxNumArg(a[4],0),
+      xa:xa/h,xo:xo/h,scale:lxNumArg(a[7],uf)||uf};
+  }
+  /* conteggio IfcAlignment già presenti (informativo) */
+  info.alignCount=(model.byType.get("IFCALIGNMENT")||[]).length;
+  return info;
+}
+
+/* =========================================================================
+   Migrazione di schema dell'ospite: IFC2X3 / IFC4 → IFC4X3_ADD2.
+   Il punto (richiesta reale dell'utente): se l'asse va unito a un IFC è
+   perché quel modello va ANCHE convertito — i modelli di edificio girano
+   ancora in 2x3, e IfcAlignment vive solo nel 4x3.
+   Strategia: riscrittura MIRATA per riga — id INVARIATI, tutto ciò che non
+   è in tabella resta byte-identico. La tabella copre le differenze reali
+   dei file d'authoring comuni (Revit/Archicad/Tekla 2x3):
+   - pad: l'entità ha guadagnato attributi opzionali in coda → si appendono $
+   - to:  l'entità è stata rimossa/rinominata → keyword nuova (stessa firma)
+   - fn:  trasformazioni vere (DoorStyle→DoorType, WindowStyle→WindowType,
+          IfcClassification con la data da IfcCalendarDate → stringa,
+          IfcTransportElement e IfcElectricDistributionPoint accorciati)
+   - drop: entità sparite dallo schema i cui consumatori vengono riscritti
+          (IfcPresentationStyleAssignment appiattita dentro IfcStyledItem;
+          IfcCalendarDate solo se nessun altro la referenzia)
+   I tipi rimossi SENZA una mappa sicura (drafting 2x3, scheduling, proxy…)
+   restano com'erano, contati e dichiarati: il viewer li ignora, il
+   validatore li segnala — meglio di una conversione inventata.            */
+const LX_MIG_23={
+  IFCWALLSTANDARDCASE:{to:"IFCWALL",pad:1},
+  IFCWALL:{pad:1},IFCBEAM:{pad:1},IFCCOLUMN:{pad:1},IFCMEMBER:{pad:1},IFCPLATE:{pad:1},
+  IFCCURTAINWALL:{pad:1},IFCBUILDINGELEMENTPART:{pad:1},IFCOPENINGELEMENT:{pad:1},
+  IFCANNOTATION:{pad:1},IFCGRID:{pad:1},IFCZONE:{pad:1},
+  IFCRAMPFLIGHT:{pad:1},IFCSTAIRFLIGHT:{pad:1},IFCFASTENER:{pad:1},
+  IFCMECHANICALFASTENER:{pad:1},IFCDISCRETEACCESSORY:{pad:1},
+  IFCDOOR:{pad:3},IFCWINDOW:{pad:3},
+  IFCDISTRIBUTIONPORT:{pad:2},
+  IFCELECTRICALELEMENT:{to:"IFCBUILDINGELEMENTPROXY",pad:1},
+  IFCEQUIPMENTELEMENT:{to:"IFCBUILDINGELEMENTPROXY",pad:1},
+  IFCMATERIAL:{pad:2},IFCMATERIALLAYER:{pad:4},IFCMATERIALLAYERSET:{pad:1},
+  IFCMATERIALLAYERSETUSAGE:{pad:1},
+  IFCQUANTITYLENGTH:{pad:1},IFCQUANTITYAREA:{pad:1},IFCQUANTITYVOLUME:{pad:1},
+  IFCQUANTITYCOUNT:{pad:1},IFCQUANTITYWEIGHT:{pad:1},IFCQUANTITYTIME:{pad:1},
+  IFCPROPERTYBOUNDEDVALUE:{pad:1},IFCPROPERTYTABLEVALUE:{pad:1},
+  IFCFURNITURETYPE:{pad:1},IFCSYSTEMFURNITUREELEMENTTYPE:{pad:1},
+  IFCCLASSIFICATIONREFERENCE:{pad:3},
+  IFCCLASSIFICATION:{fn:"classification"},
+  IFCDOORSTYLE:{fn:"doorstyle"},
+  IFCWINDOWSTYLE:{fn:"windowstyle"},
+  IFCTRANSPORTELEMENT:{fn:"transport"},
+  IFCELECTRICDISTRIBUTIONPOINT:{fn:"trim8",to:"IFCFLOWCONTROLLER"},
+  IFCPRESENTATIONSTYLEASSIGNMENT:{drop:true},
+  IFCCALENDARDATE:{drop:"ifUnref"}
+};
+const LX_MIG_4={
+  IFCWALLSTANDARDCASE:{to:"IFCWALL"},IFCWALLELEMENTEDCASE:{to:"IFCWALL"},
+  IFCBEAMSTANDARDCASE:{to:"IFCBEAM"},IFCCOLUMNSTANDARDCASE:{to:"IFCCOLUMN"},
+  IFCMEMBERSTANDARDCASE:{to:"IFCMEMBER"},IFCPLATESTANDARDCASE:{to:"IFCPLATE"},
+  IFCSLABSTANDARDCASE:{to:"IFCSLAB"},IFCSLABELEMENTEDCASE:{to:"IFCSLAB"},
+  IFCDOORSTANDARDCASE:{to:"IFCDOOR"},IFCWINDOWSTANDARDCASE:{to:"IFCWINDOW"},
+  IFCDOORSTYLE:{fn:"doorstyle"},IFCWINDOWSTYLE:{fn:"windowstyle"},
+  IFCPRESENTATIONSTYLEASSIGNMENT:{drop:true}
+};
+/* tipi rimossi senza mappa sicura: restano com'erano, contati e dichiarati */
+const LX_MIG_WARN=/^IFC(PROXY|ANNOTATION\w*OCCURRENCE|DRAUGHTINGCALLOUT|DIMENSIONC\w+|DIMENSIONPAIR|TERMINATORSYMBOL|TASK|RELSEQUENCE|WORKPLAN|WORKSCHEDULE|SCHEDULETIMECONTROL|RELASSIGNSTASKS|RELOVERRIDESPROPERTIES|2DCOMPOSITECURVE|MOVE|ORDERACTION|PERMIT|PROJECTORDER\w*|SERVICELIFE\w*|TIMESERIES\w*|REGULARTIMESERIES|IRREGULARTIMESERIES)$/;
+/* NB: non "DIMENSION\w+" — catturerebbe IfcDimensionalExponents, che esiste
+   identico in 4x3 e sta in OGNI file Revit con unità in gradi (falso "senza
+   mappa" sistematico); qui vanno solo le entità di quotatura del drafting 2x3 */
+/* c'è un riferimento a #id fuori dagli statement esclusi? (byte-scan) */
+function lxRefdElsewhere(model,id,excludeK){
+  const pat=("#"+id);
+  const bytes=model.bytes;
+  const skip=new Set(excludeK);
+  for(let k=0;k<model.count;k++){
+    if(skip.has(k)) continue;
+    const s=model.starts[k], e=model.ends[k];
+    outer:
+    for(let i=s;i<=e-pat.length;i++){
+      if(bytes[i]!==35) continue;
+      for(let j=1;j<pat.length;j++) if(bytes[i+j]!==pat.charCodeAt(j)) continue outer;
+      const nx=bytes[i+pat.length];
+      if(nx>=48&&nx<=57) continue;          /* #123 dentro #1234 */
+      /* l'id in testa allo statement non è un riferimento */
+      if(i===s) { i+=pat.length; continue; }
+      return true;
+    }
+  }
+  return false;
+}
+function lxMigPlan(host){
+  const model=host.model;
+  const table=host.schemaKind==="2x3"?LX_MIG_23:(host.schemaKind==="ifc4"?LX_MIG_4:null);
+  if(!table) return null;
+  const rewrites=new Map();            /* k → testo nuovo, o null = riga tolta */
+  const perType=new Map(), warnTypes=new Map();
+  let adapted=0, dropped=0;
+  const T=model.typeNames, TI=model.typeIdx;
+  const count=(m,t)=>m.set(t,(m.get(t)||0)+1);
+  const calDate=ref=>{
+    const k=lxRef(model,ref); if(k<0) return "$";
+    const a=lxArgs(lxStmt(model,k));
+    const d=Math.round(lxNumArg(a[0],1)), mo=Math.round(lxNumArg(a[1],1)), y=Math.round(lxNumArg(a[2],2000));
+    return "'"+y+"-"+String(mo).padStart(2,"0")+"-"+String(d).padStart(2,"0")+"'";
+  };
+  const pad=(a,n)=>{ for(let i=0;i<n;i++) a.push("$"); return a; };
+  /* prima passata: la tabella */
+  const calK=[], calRefBy=[];          /* IfcCalendarDate e chi le consuma */
+  for(let k=0;k<model.count;k++){
+    const t=T[TI[k]];
+    const rule=table[t];
+    if(!rule){ if(LX_MIG_WARN.test(t)) count(warnTypes,t); continue; }
+    if(rule.drop==="ifUnref"){ calK.push(k); continue; }
+    if(rule.drop){ rewrites.set(k,null); dropped++; count(perType,t+"|drop"); continue; }
+    const a=lxArgs(lxStmt(model,k));
+    let to=rule.to||t;
+    if(rule.fn==="classification"){
+      /* 2x3: (Source, Edition, EditionDate→#IfcCalendarDate, Name) →
+         4x3: (Source, Edition, EditionDate stringa, Name, $, $, $)      */
+      if(a[2]&&a[2][0]==="#"){ const ck=lxRef(model,a[2]); if(ck>=0) calRefBy.push(k); a[2]=calDate(a[2]); }
+      pad(a,7-a.length);
+    } else if(rule.fn==="doorstyle"){
+      /* (8 TypeProduct, OperationType, ConstructionType, ParamTakesPrec,
+         Sizeable) → IFCDOORTYPE (8, ElementType, PredefinedType,
+         OperationType, ParameterTakesPrecedence, UserDefinedOperationType) */
+      to="IFCDOORTYPE";
+      const op=a[8]||"$", prec=a[10]||"$";
+      a.length=8; a.push("$",".DOOR.",op,prec,"$");
+    } else if(rule.fn==="windowstyle"){
+      to="IFCWINDOWTYPE";
+      const op=a[9]||"$", prec=a[10]||"$";
+      a.length=8; a.push("$",".WINDOW.",op,prec,"$");
+    } else if(rule.fn==="transport"){
+      /* 2x3: (8, OperationType, CapacityByWeight, CapacityByNumber) →
+         4x3: (8, PredefinedType) — l'enumerazione coincide (ELEVATOR…)   */
+      const op=a[8]||"$";
+      a.length=8; a.push(op);
+    } else if(rule.fn==="trim8"){
+      a.length=Math.min(a.length,8); pad(a,8-a.length);
+    } else {
+      pad(a,rule.pad||0);
+    }
+    rewrites.set(k,"#"+model.ids[k]+"="+to+"("+a.join(",")+");");
+    adapted++; count(perType,to!==t?t+"|to|"+to:t);
+  }
+  /* IfcCalendarDate: via solo se nessuno la referenzia più (i consumatori
+     riscritti — le classificazioni — sono esclusi dal controllo) */
+  for(const k of calK){
+    if(lxRefdElsewhere(model,model.ids[k],calRefBy.concat([k]))) count(warnTypes,T[TI[k]]);
+    else { rewrites.set(k,null); dropped++; count(perType,T[TI[k]]+"|drop"); }
+  }
+  /* IfcStyledItem: gli IfcPresentationStyleAssignment si appiattiscono —
+     in 4x3 gli stili vanno diretti nel set Styles                         */
+  for(const k of (model.byType.get("IFCSTYLEDITEM")||[])){
+    const a=lxArgs(lxStmt(model,k));
+    const items=listOfMig(a[1]);
+    if(!items) continue;
+    let changed=false; const out=[];
+    for(const r of items){
+      const rk=lxRef(model,r);
+      if(rk>=0&&T[TI[rk]]==="IFCPRESENTATIONSTYLEASSIGNMENT"){
+        const inner=listOfMig(lxArgs(lxStmt(model,rk))[0]);
+        if(inner){ out.push(...inner); changed=true; continue; }
+      }
+      out.push(r);
+    }
+    if(changed){
+      a[1]="("+out.join(",")+")";
+      rewrites.set(k,"#"+model.ids[k]+"=IFCSTYLEDITEM("+a.join(",")+");");
+      adapted++; count(perType,"IFCSTYLEDITEM|styles");
+    }
+  }
+  return {rewrites,adapted,dropped,perType,warnTypes,from:model.schema};
+}
+function listOfMig(a){ if(!a||a[0]!=="(") return null; return lxArgs("x"+a); }
+
+/* =========================================================================
+   Writer IFC — le DUE VERITÀ. Per ogni asse: business logic (IfcAlignment →
+   IfcAlignmentHorizontal/Vertical → IfcAlignmentSegment con i parametri) e
+   geometria (IfcCompositeCurve + IfcGradientCurve di IfcCurveSegment,
+   convenzione bSI ADD2: il punto del parent a SegmentStart cade sul
+   Placement del segmento). Poi lxTwoTruths rilegge la geometria COME UN
+   LETTORE (ri-ancoraggio del parent) e la confronta con la business logic.
+   ========================================================================= */
+function lxStepReal(x,dec){
+  if(!isFinite(x)||Object.is(x,-0)) x=Math.abs(x)===Infinity?0:(x||0);
+  let s=x.toFixed(dec==null?6:dec);
+  if(s.indexOf(".")<0) s+=".";
+  s=s.replace(/(\.\d*?)0+$/,"$1");
+  if(s==="-0."||s==="-0") s="0.";
+  return s;
+}
+const LX_B64="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$";
+function lxGuidFrom(b){
+  const chunk=(v,len)=>{ let s=""; for(let i=0;i<len;i++) s+=LX_B64[Math.floor(v/Math.pow(64,len-i-1))%64]; return s; };
+  let out=chunk(b[0],2);
+  for(let i=1;i<16;i+=3) out+=chunk((b[i]<<16)+(b[i+1]<<8)+b[i+2],4);
+  return out;
+}
+function lxGuid(rnd){
+  const b=new Uint8Array(16);
+  if(rnd) for(let i=0;i<16;i++) b[i]=rnd(i);
+  else{
+    const g=(typeof globalThis!=="undefined")?globalThis:null;
+    if(g&&g.crypto&&g.crypto.getRandomValues) g.crypto.getRandomValues(b);
+    else for(let i=0;i<16;i++) b[i]=Math.floor(Math.random()*256);
+  }
+  b[6]=(b[6]&0x0f)|0x40; b[8]=(b[8]&0x3f)|0x80;
+  return lxGuidFrom(b);
+}
+function lxEsc(s){ return String(s).replace(/\\/g,"\\\\").replace(/'/g,"''"); }
+
+/* trasformazione mappa → sistema locale del file di destinazione:
+   local = Rᵀ·(map − EN)/scale  (IfcMapConversion: map = EN + scale·R·local) */
+function lxToLocal(base,p){
+  const dx=p[0]-base.E0, dy=p[1]-base.N0;
+  return [(dx*base.xa+dy*base.xo)/base.scale,(-dx*base.xo+dy*base.xa)/base.scale];
+}
+function lxDirLocal(base,th){ return th-Math.atan2(base.xo,base.xa); }
+
+function lxBuild(job){
+  const mode=job.mode||"new";
+  const host=job.host||null;
+  const uf=mode==="host"?host.uf:1;               /* m per unità di file */
+  const angF=mode==="host"?host.angF:1;           /* rad per unità d'angolo */
+  const tolPos=job.tolPos==null?0.001:job.tolPos;
+  let base;
+  if(job.base&&job.base.mode==="abs") base={E0:0,N0:0,H0:0,xa:1,xo:0,scale:uf,abs:true};
+  else if(mode==="host"&&host.mapConv) base={E0:host.mapConv.E,N0:host.mapConv.N,H0:host.mapConv.H,
+    xa:host.mapConv.xa,xo:host.mapConv.xo,scale:host.mapConv.scale||uf};
+  else if(mode==="host") base={E0:0,N0:0,H0:0,xa:1,xo:0,scale:uf,abs:true};
+  else base={E0:job.E0||0,N0:job.N0||0,H0:job.H0||0,xa:1,xo:0,scale:1};
+
+  const rows=[]; let nextId=(mode==="host"?host.model.maxId:0)+1;
+  const add=t=>{ rows.push("#"+nextId+"="+t+";"); return nextId++; };
+  const R=(x,d)=>lxStepReal(x,d);
+  const guid=()=>job.guid?job.guid():lxGuid();
+  const now=job.now!=null?job.now:Date.now();
+
+  /* --- contesto comune --- */
+  let ohRef,ctxRef,subRef,siteRef,sitePlcArg,projRef,uaRef,u1Ref;
+  if(mode==="host"){
+    ohRef=host.ohK>=0?"#"+host.model.ids[host.ohK]:"$";
+    if(host.ctxK>=0) ctxRef="#"+host.model.ids[host.ctxK];
+    else{
+      const p0=add("IFCCARTESIANPOINT((0.,0.,0.))");
+      const ax=add("IFCAXIS2PLACEMENT3D(#"+p0+",$,$)");
+      ctxRef="#"+add("IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.0E-5,#"+ax+",$)");
+    }
+    subRef=add("IFCGEOMETRICREPRESENTATIONSUBCONTEXT('Axis','Model',*,*,*,*,"+ctxRef+",$,.MODEL_VIEW.,$)");
+    siteRef=host.siteK>=0?"#"+host.model.ids[host.siteK]:null;
+    sitePlcArg=host.sitePlcRef||"$";
+    if(!siteRef){
+      const p0=add("IFCCARTESIANPOINT((0.,0.,0.))");
+      const ax=add("IFCAXIS2PLACEMENT3D(#"+p0+",$,$)");
+      const plc=add("IFCLOCALPLACEMENT($,#"+ax+")");
+      siteRef="#"+add("IFCSITE('"+guid()+"',"+ohRef+",'Site',$,$,#"+plc+",$,$,.ELEMENT.,$,$,$,$,$)");
+      sitePlcArg="#"+plc;
+      if(host.projK>=0) add("IFCRELAGGREGATES('"+guid()+"',"+ohRef+",$,$,#"+host.model.ids[host.projK]+",("+siteRef+"))");
+    }
+  } else {
+    u1Ref=add("IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.)");
+    const u2=add("IFCSIUNIT(*,.PLANEANGLEUNIT.,$,.RADIAN.)");
+    const u3=add("IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.)");
+    const u4=add("IFCSIUNIT(*,.VOLUMEUNIT.,$,.CUBIC_METRE.)");
+    uaRef=add("IFCUNITASSIGNMENT((#"+u1Ref+",#"+u2+",#"+u3+",#"+u4+"))");
+    const p0=add("IFCCARTESIANPOINT((0.,0.,0.))");
+    const dz=add("IFCDIRECTION((0.,0.,1.))");
+    const dx=add("IFCDIRECTION((1.,0.,0.))");
+    const wcs=add("IFCAXIS2PLACEMENT3D(#"+p0+",#"+dz+",#"+dx+")");
+    const ctx=add("IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.0E-5,#"+wcs+",$)");
+    ctxRef="#"+ctx;
+    subRef=add("IFCGEOMETRICREPRESENTATIONSUBCONTEXT('Axis','Model',*,*,*,*,"+ctxRef+",$,.MODEL_VIEW.,$)");
+    const per=add("IFCPERSON($,$,$,$,$,$,$,$)");
+    const org=add("IFCORGANIZATION($,'viewifc.com',$,$,$)");
+    const pao=add("IFCPERSONANDORGANIZATION(#"+per+",#"+org+",$)");
+    const app=add("IFCAPPLICATION(#"+org+",'1.0','LandXML to IFC','viewifc-landxml-ifc')");
+    ohRef="#"+add("IFCOWNERHISTORY(#"+pao+",#"+app+",$,.ADDED.,$,$,$,"+Math.floor(now/1000)+")");
+    projRef=add("IFCPROJECT('"+guid()+"',"+ohRef+",'"+lxEsc(job.projName||"LandXML")+"',$,$,$,$,("+ctxRef+"),#"+uaRef+")");
+    const sp0=add("IFCCARTESIANPOINT((0.,0.,0.))");
+    const sax=add("IFCAXIS2PLACEMENT3D(#"+sp0+",$,$)");
+    const splc=add("IFCLOCALPLACEMENT($,#"+sax+")");
+    sitePlcArg="#"+splc;
+    siteRef="#"+add("IFCSITE('"+guid()+"',"+ohRef+",'Site',$,$,#"+splc+",$,$,.ELEMENT.,$,$,$,$,$)");
+    add("IFCRELAGGREGATES('"+guid()+"',"+ohRef+",$,$,#"+projRef+",("+siteRef+"))");
+    if(!base.abs){
+      const crsName=job.epsg?("EPSG:"+job.epsg):(job.crsName||"LOCAL");
+      const crs=add("IFCPROJECTEDCRS('"+lxEsc(crsName)+"',$,$,$,$,$,#"+u1Ref+")");
+      add("IFCMAPCONVERSION("+ctxRef+",#"+crs+","+R(base.E0,4)+","+R(base.N0,4)+","+R(base.H0,4)+",1.,0.,1.,$,$)");
+    }
+  }
+
+  /* --- assi --- */
+  const alnRefs=[], stats={perAlign:[]}, truth={maxH:0,maxV:0};
+  for(const al of job.aligns){
+    const chain=al.chain;
+    if(chain.blocked) return {ok:false,err:"blocked"};
+    const hsegs=chain.hsegs, vsegs=al.vsegs||[];
+    const rows0=rows.length;
+
+    /* punto/direzione in unità e sistema locale del file */
+    const P=p=>{ const q=lxToLocal(base,p); return [q[0],q[1]]; };
+    const TH=th=>lxDirLocal(base,th);
+    const geomH=[], segIds=[];
+
+    /* --- geometria orizzontale (IfcCompositeCurve) --- */
+    const csIds=[];
+    for(let i=0;i<hsegs.length;i++){
+      const h=hsegs[i];
+      const p=P(h.start), th=TH(h.theta);
+      const Lu=h.length/base.scale;               /* base.scale = m/unità */
+      const ptId=add("IFCCARTESIANPOINT(("+R(p[0],6)+","+R(p[1],6)+"))");
+      const dirId=add("IFCDIRECTION(("+R(Math.cos(th),12)+","+R(Math.sin(th),12)+"))");
+      const plcId=add("IFCAXIS2PLACEMENT2D(#"+ptId+",#"+dirId+")");
+      const trans=(i===hsegs.length-1||h.openEnd)?".DISCONTINUOUS.":".CONTSAMEGRADIENT.";
+      let parentId,segStart="IFCLENGTHMEASURE(0.)",segLen;
+      const k0=lxK(h.r0)*base.scale, k1=lxK(h.r1)*base.scale;  /* 1/unità file */
+      if(h.ptype==="LINE"){
+        const lp=add("IFCCARTESIANPOINT((0.,0.))");
+        const ld=add("IFCDIRECTION((1.,0.))");
+        const lv=add("IFCVECTOR(#"+ld+",1.)");
+        parentId=add("IFCLINE(#"+lp+",#"+lv+")");
+        segLen="IFCLENGTHMEASURE("+R(Lu,6)+")";
+        geomH.push({type:"line",p,th,L:Lu});
+      } else if(h.ptype==="CIRCULARARC"){
+        const sgn=k0>0?1:-1, Rr=Math.abs(1/k0);
+        const cc=add("IFCCARTESIANPOINT((0.,"+R(sgn*Rr,6)+"))");
+        const cd=add("IFCDIRECTION((0.,"+(sgn>0?"-1.":"1.")+"))");
+        const cp=add("IFCAXIS2PLACEMENT2D(#"+cc+",#"+cd+")");
+        parentId=add("IFCCIRCLE(#"+cp+","+R(Rr,6)+")");
+        segLen="IFCLENGTHMEASURE("+R(sgn*Lu,6)+")";
+        geomH.push({type:"circle",p,th,R:Rr,sgn,L:Lu});
+      } else {
+        const dk=(k1-k0)/Lu;
+        const A=Math.sign(dk)*Math.sqrt(1/Math.abs(dk));
+        const s0=k0*A*Math.abs(A);
+        const ip=add("IFCCARTESIANPOINT((0.,0.))");
+        const idr=add("IFCDIRECTION((1.,0.))");
+        const ipl=add("IFCAXIS2PLACEMENT2D(#"+ip+",#"+idr+")");
+        parentId=add("IFCCLOTHOID(#"+ipl+","+R(A,6)+")");
+        segStart="IFCLENGTHMEASURE("+R(s0,6)+")";
+        segLen="IFCLENGTHMEASURE("+R(Lu,6)+")";
+        geomH.push({type:"clothoid",p,th,A,s0,L:Lu});
+      }
+      csIds.push(add("IFCCURVESEGMENT("+trans+",#"+plcId+","+segStart+","+segLen+",#"+parentId+")"));
+    }
+    const compId=add("IFCCOMPOSITECURVE(("+csIds.map(x=>"#"+x).join(",")+"),.F.)");
+
+    /* --- geometria verticale (IfcGradientCurve) --- */
+    const geomV=[]; let gradId=null;
+    if(vsegs.length){
+      const gIds=[];
+      for(let i=0;i<vsegs.length;i++){
+        const v=vsegs[i];
+        const du=v.sta/base.scale;
+        const zloc=(v.h-base.H0)/base.scale;
+        const Lu=v.L/base.scale;
+        const nrm=Math.hypot(1,v.g0);
+        const ptId=add("IFCCARTESIANPOINT(("+R(du,6)+","+R(zloc,6)+"))");
+        const dirId=add("IFCDIRECTION(("+R(1/nrm,12)+","+R(v.g0/nrm,12)+"))");
+        const plcId=add("IFCAXIS2PLACEMENT2D(#"+ptId+",#"+dirId+")");
+        const trans=(i===vsegs.length-1)?".DISCONTINUOUS.":".CONTSAMEGRADIENT.";
+        let parentId,segStart,segLen;
+        if(v.t==="PARABOLICARC"&&v.L>0){
+          const c2=(v.g1-v.g0)/(2*Lu);
+          const pp=add("IFCCARTESIANPOINT((0.,0.))");
+          const pd=add("IFCDIRECTION((1.,0.))");
+          const ppl=add("IFCAXIS2PLACEMENT2D(#"+pp+",#"+pd+")");
+          parentId=add("IFCPOLYNOMIALCURVE(#"+ppl+",(0.,1.),(0.,"+R(v.g0,9)+","+R(c2,12)+"),$)");
+          segStart="IFCPARAMETERVALUE(0.)";
+          segLen="IFCPARAMETERVALUE("+R(Lu,6)+")";
+          geomV.push({type:"parab",u0:du,z0:zloc,g0:v.g0,c2,L:Lu});
+        } else {
+          const lp=add("IFCCARTESIANPOINT((0.,0.))");
+          const ld=add("IFCDIRECTION(("+R(1/nrm,12)+","+R(v.g0/nrm,12)+"))");
+          const lv=add("IFCVECTOR(#"+ld+",1.)");
+          parentId=add("IFCLINE(#"+lp+",#"+lv+")");
+          segStart="IFCLENGTHMEASURE(0.)";
+          segLen="IFCLENGTHMEASURE("+R(Lu*nrm,6)+")";
+          geomV.push({type:"vline",u0:du,z0:zloc,g0:v.g0,L:Lu});
+        }
+        gIds.push(add("IFCCURVESEGMENT("+trans+",#"+plcId+","+segStart+","+segLen+",#"+parentId+")"));
+      }
+      gradId=add("IFCGRADIENTCURVE(("+gIds.map(x=>"#"+x).join(",")+"),.F.,#"+compId+",$)");
+    }
+
+    /* --- rappresentazioni + placement --- */
+    const repIds=[];
+    repIds.push(add("IFCSHAPEREPRESENTATION(#"+subRef+",'FootPrint','Curve2D',(#"+compId+"))"));
+    if(gradId) repIds.push(add("IFCSHAPEREPRESENTATION(#"+subRef+",'Axis','Curve3D',(#"+gradId+"))"));
+    const pdsId=add("IFCPRODUCTDEFINITIONSHAPE($,$,("+repIds.map(x=>"#"+x).join(",")+"))");
+    const ap0=add("IFCCARTESIANPOINT((0.,0.,0.))");
+    const aax=add("IFCAXIS2PLACEMENT3D(#"+ap0+",$,$)");
+    const aplc=add("IFCLOCALPLACEMENT("+(sitePlcArg||"$")+",#"+aax+")");
+
+    /* --- business logic --- */
+    const hSegIds=[];
+    for(let i=0;i<hsegs.length;i++){
+      const h=hsegs[i];
+      const p=P(h.start), th=TH(h.theta);
+      const r0u=h.r0===0?0:h.r0/base.scale, r1u=h.r1===0?0:h.r1/base.scale;
+      const ptId=add("IFCCARTESIANPOINT(("+R(p[0],6)+","+R(p[1],6)+"))");
+      const dpId=add("IFCALIGNMENTHORIZONTALSEGMENT($,$,#"+ptId+","+R(th/angF,12)+","+
+        R(r0u,6)+","+R(r1u,6)+","+R(h.length/base.scale,6)+",$,."+h.ptype+".)");
+      hSegIds.push(add("IFCALIGNMENTSEGMENT('"+guid()+"',"+ohRef+",'H"+(i+1)+"',$,$,$,$,#"+dpId+")"));
+    }
+    const horId=add("IFCALIGNMENTHORIZONTAL('"+guid()+"',"+ohRef+",$,$,$,$,$)");
+    add("IFCRELNESTS('"+guid()+"',"+ohRef+",$,$,#"+horId+",("+hSegIds.map(x=>"#"+x).join(",")+"))");
+    let verId=null;
+    if(vsegs.length){
+      const vSegIds=[];
+      for(let i=0;i<vsegs.length;i++){
+        const v=vsegs[i];
+        const Rv=(v.t==="PARABOLICARC"&&Math.abs(v.g1-v.g0)>1e-12)?(v.L/(v.g1-v.g0))/base.scale:null;
+        const dpId=add("IFCALIGNMENTVERTICALSEGMENT($,$,"+R(v.sta/base.scale,6)+","+R(v.L/base.scale,6)+","+
+          R((v.h-base.H0)/base.scale,6)+","+R(v.g0,9)+","+R(v.g1,9)+","+(Rv==null?"$":R(Rv,6))+",."+v.t+".)");
+        vSegIds.push(add("IFCALIGNMENTSEGMENT('"+guid()+"',"+ohRef+",'V"+(i+1)+"',$,$,$,$,#"+dpId+")"));
+      }
+      verId=add("IFCALIGNMENTVERTICAL('"+guid()+"',"+ohRef+",$,$,$,$,$)");
+      add("IFCRELNESTS('"+guid()+"',"+ohRef+",$,$,#"+verId+",("+vSegIds.map(x=>"#"+x).join(",")+"))");
+    }
+    /* referenti: inizio asse + equazioni di progressiva confermate */
+    const refIds=[];
+    const mkRef=(nameV,internal,staV,inV)=>{
+      const at=lxChainAt(hsegs,internal)||{p:hsegs[0].start};
+      const pl=P(at.p);
+      const rp=add("IFCCARTESIANPOINT(("+R(pl[0],6)+","+R(pl[1],6)+",0.))");
+      const ra=add("IFCAXIS2PLACEMENT3D(#"+rp+",$,$)");
+      const rl=add("IFCLOCALPLACEMENT("+(sitePlcArg||"$")+",#"+ra+")");
+      const rid=add("IFCREFERENT('"+guid()+"',"+ohRef+",'"+lxEsc(nameV)+"',$,$,#"+rl+",$,.STATION.)");
+      const props=["#"+add("IFCPROPERTYSINGLEVALUE('Station',$,IFCLENGTHMEASURE("+R(staV/base.scale,6)+"),$)")];
+      if(inV!=null) props.push("#"+add("IFCPROPERTYSINGLEVALUE('IncomingStation',$,IFCLENGTHMEASURE("+R(inV/base.scale,6)+"),$)"));
+      const ps=add("IFCPROPERTYSET('"+guid()+"',"+ohRef+",'Pset_Stationing',$,("+props.join(",")+"))");
+      add("IFCRELDEFINESBYPROPERTIES('"+guid()+"',"+ohRef+",$,$,(#"+rid+"),#"+ps+")");
+      refIds.push(rid);
+    };
+    if(al.sta0) mkRef(lxStaFmt(al.sta0),0,al.sta0,null);
+    if(al.useEq&&al.staEqs) for(const eq of al.staEqs){
+      const internal=al.staMap?al.staMap.toInternal(eq.back):0;
+      mkRef(lxStaFmt(eq.ahead),internal,eq.ahead,eq.back);
+    }
+    const alnId=add("IFCALIGNMENT('"+guid()+"',"+ohRef+",'"+lxEsc(al.name)+"',$,$,#"+aplc+",#"+pdsId+",$)");
+    const nested=["#"+horId]; if(verId) nested.push("#"+verId);
+    for(const r2 of refIds) nested.push("#"+r2);
+    add("IFCRELNESTS('"+guid()+"',"+ohRef+",$,$,#"+alnId+",("+nested.join(",")+"))");
+    alnRefs.push("#"+alnId);
+
+    /* --- le due verità: la geometria riletta come farebbe un lettore --- */
+    for(let i=0;i<hsegs.length;i++){
+      const h=hsegs[i], g=geomH[i];
+      for(const f of [0,.5,1]){
+        const s=h.length*f;
+        const b=lxHsegEval(h,s);
+        const bp=P(b.p);
+        const gp=lxGeomHEval(g,s/base.scale);
+        const d=Math.hypot(bp[0]-gp[0],bp[1]-gp[1])*base.scale;
+        if(d>truth.maxH) truth.maxH=d;
+      }
+    }
+    for(let i=0;i<geomV.length;i++){
+      const v=vsegs[i], g=geomV[i];
+      for(const f of [0,.5,1]){
+        const s=v.sta+v.L*f;
+        const zb=(lxProfileAt(vsegs,s)-base.H0)/base.scale;
+        const zg=lxGeomVEval(g,(s-v.sta)/base.scale);
+        const d=Math.abs(zb-zg)*base.scale;
+        if(d>truth.maxV) truth.maxV=d;
+      }
+    }
+    stats.perAlign.push({name:al.name,hseg:hsegs.length,vseg:vsegs.length,rows:rows.length-rows0});
+  }
+
+  /* --- contenimento + Pset_Conversione --- */
+  if(siteRef) add("IFCRELCONTAINEDINSPATIALSTRUCTURE('"+guid()+"',"+ohRef+",$,$,("+alnRefs.join(",")+"),"+siteRef+")");
+  if(job.pset){
+    const props=[];
+    const pv=(n,v)=>props.push("#"+add("IFCPROPERTYSINGLEVALUE('"+lxEsc(n)+"',$,IFCLABEL('"+lxEsc(v)+"'),$)"));
+    pv("SourceFile",job.srcFile||"");
+    pv("SourceFormat","LandXML "+(job.lxVersion||""));
+    pv("ConvertedBy","viewifc.com LandXML to IFC v1");
+    if(job.migFrom) pv("SchemaOrigine",job.migFrom+" -> IFC4X3_ADD2");
+    if(job.psetNotes) for(const nkv of job.psetNotes) pv(nkv[0],nkv[1]);
+    const ps=add("IFCPROPERTYSET('"+guid()+"',"+ohRef+",'Pset_Conversione',$,("+props.join(",")+"))");
+    add("IFCRELDEFINESBYPROPERTIES('"+guid()+"',"+ohRef+",$,$,("+alnRefs.join(",")+"),#"+ps+")");
+  }
+
+  if(truth.maxH>tolPos||truth.maxV>tolPos)
+    return {ok:false,err:"truth",truth};
+
+  stats.ents=rows.length;
+  if(mode==="host"){
+    const nl=host.model.nl;
+    const enc=new TextEncoder();
+    const block=enc.encode(rows.join(nl)+nl);
+    const mig=host.mig||null;
+    const parts=[]; let pos=0;
+    if(mig){
+      /* testata: FILE_SCHEMA riscritta in IFC4X3_ADD2 */
+      const head=host.model.dec.decode(host.model.bytes.subarray(0,host.model.dataStart));
+      parts.push(enc.encode(head.replace(/FILE_SCHEMA\s*\(\s*\(\s*'[^']*'/,"FILE_SCHEMA(('IFC4X3_ADD2'")));
+      pos=host.model.dataStart;
+      /* corpo: riscritture della migrazione, in ordine di posizione */
+      const list=[...mig.rewrites.entries()].sort((x,y)=>host.model.starts[x[0]]-host.model.starts[y[0]]);
+      for(const [k,txt] of list){
+        if(host.model.starts[k]>pos) parts.push(host.model.bytes.subarray(pos,host.model.starts[k]));
+        if(txt!=null) parts.push(enc.encode(txt));
+        pos=host.model.ends[k];
+      }
+    }
+    if(host.model.endsecPos>pos) parts.push(host.model.bytes.subarray(pos,host.model.endsecPos));
+    parts.push(block);
+    parts.push(host.model.bytes.subarray(host.model.endsecPos));
+    if(mig){ stats.adapted=mig.adapted; stats.dropped=mig.dropped; }
+    return {ok:true,parts,stats,truth};
+  }
+  const nl="\n";
+  const iso=new Date(now).toISOString().slice(0,19);
+  const text="ISO-10303-21;"+nl+"HEADER;"+nl+
+    "FILE_DESCRIPTION(('ViewDefinition [Alignment-basedReferenceView]'),'2;1');"+nl+
+    "FILE_NAME('"+lxEsc(job.fileName||"landxml.ifc")+"','"+iso+"',('viewifc.com'),('viewifc.com'),"+
+    "'LandXML to IFC v1 (viewifc.com)','LandXML to IFC v1 (viewifc.com)','');"+nl+
+    "FILE_SCHEMA(('IFC4X3_ADD2'));"+nl+"ENDSEC;"+nl+"DATA;"+nl+
+    rows.join(nl)+nl+"ENDSEC;"+nl+"END-ISO-10303-21;"+nl;
+  return {ok:true,text,stats,truth};
+}
+/* lettore della geometria scritta (per il confronto): ri-ancoraggio ADD2 —
+   il punto del parent a SegmentStart va sul Placement, la DIREZIONE DI
+   PERCORRENZA sulla RefDirection (con lunghezza negativa la percorrenza è
+   opposta al parametro). Tutto in unità del file.                          */
+function lxGeomHEval(g,s){
+  if(g.type==="line") return [g.p[0]+s*Math.cos(g.th),g.p[1]+s*Math.sin(g.th)];
+  if(g.type==="circle"){
+    /* parent: centro (0, sgn·R), RefDirection (0,∓1) → il punto a param 0 è
+       (0,0) e la direzione di percorrenza lì è +x nei due sensi: il
+       ri-ancoraggio si riduce a una rotazione di g.th.                    */
+    const t=g.sgn*s/g.R;
+    const u=[0,g.sgn>0?-1:1];                 /* RefDirection del cerchio */
+    const v=[g.sgn>0?1:-1,0];                 /* u ruotato +90° */
+    const c=[0,g.sgn*g.R];
+    const pt=[c[0]+g.R*(Math.cos(t)*u[0]+Math.sin(t)*v[0]),
+              c[1]+g.R*(Math.cos(t)*u[1]+Math.sin(t)*v[1])];
+    const rot=g.th;
+    return [g.p[0]+pt[0]*Math.cos(rot)-pt[1]*Math.sin(rot),
+            g.p[1]+pt[0]*Math.sin(rot)+pt[1]*Math.cos(rot)];
+  }
+  /* clothoid: κ(σ)=σ/(A|A|), campionamento da σ=s0 a σ=s0+s */
+  const AA=g.A*Math.abs(g.A);
+  const steps=Math.max(64,Math.min(4096,Math.ceil(Math.abs(s)*8)));
+  const ds=s/steps;
+  let x=0,y=0,th=0,sig=g.s0;
+  /* prima: posizione/tangente del parent a σ=s0 (integrando da 0) — ma per
+     il ri-ancoraggio serve solo il TRATTO da s0 in poi, partendo da (0,0)
+     con tangente 0 e curvatura s0/AA: identico a integrare la curvatura
+     locale. */
+  for(let i=0;i<steps;i++){
+    const km=(sig+ds/2)/AA;
+    const thm=th+km*(ds/2);
+    x+=ds*Math.cos(thm); y+=ds*Math.sin(thm);
+    th+=km*ds; sig+=ds;
+  }
+  const rot=g.th;
+  return [g.p[0]+x*Math.cos(rot)-y*Math.sin(rot),
+          g.p[1]+x*Math.sin(rot)+y*Math.cos(rot)];
+}
+function lxGeomVEval(g,x){
+  if(g.type==="parab") return g.z0+g.g0*x+g.c2*x*x;
+  return g.z0+g.g0*x;
+}
+
+/* =========================================================================
+   ZIP store + BCF 2.1 per le giunzioni lasciate aperte (un topic per
+   giunzione dichiarata; pattern Health Check, niente project.bcfp).
+   ========================================================================= */
+const LX_CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c;}return t;})();
+function lxCrc32(parts){ let c=0xFFFFFFFF;
+  for(const p of parts) for(let i=0;i<p.length;i++) c=LX_CRC_T[(c^p[i])&0xFF]^(c>>>8);
+  return (c^0xFFFFFFFF)>>>0; }
+function lxZip(entries){
+  const enc=new TextEncoder(), chunks=[], central=[];
+  let off=0;
+  const u16=v=>new Uint8Array([v&255,(v>>8)&255]);
+  const u32=v=>new Uint8Array([v&255,(v>>8)&255,(v>>16)&255,(v>>>24)&255]);
+  for(const e of entries){
+    const nm=enc.encode(e.name);
+    const loc=[u32(0x04034b50),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(e.crc),u32(e.size),u32(e.size),u16(nm.length),u16(0),nm];
+    const hdrLen=loc.reduce((s,x)=>s+x.length,0);
+    chunks.push(...loc,...e.parts);
+    central.push({nm,crc:e.crc,size:e.size,off});
+    off+=hdrLen+e.size;
+  }
+  const cd=[]; let cdLen=0;
+  for(const c of central){
+    const rec=[u32(0x02014b50),u16(20),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(c.crc),u32(c.size),u32(c.size),u16(c.nm.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(c.off),c.nm];
+    cd.push(...rec); cdLen+=rec.reduce((s,x)=>s+x.length,0);
+  }
+  const end=[u32(0x06054b50),u16(0),u16(0),u16(central.length),u16(central.length),u32(cdLen),u32(off),u16(0)];
+  return [...chunks,...cd,...end];
+}
+function lxXmlEsc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function lxBcfZip(topics,meta){
+  const esc=lxXmlEsc;
+  const files=[{name:"bcf.version",text:'<?xml version="1.0" encoding="UTF-8"?>\n<Version VersionId="2.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n  <DetailedVersion>2.1</DetailedVersion>\n</Version>'}];
+  let idx=1;
+  for(const t of topics){
+    files.push({name:t.guid+"/markup.bcf",text:
+'<?xml version="1.0" encoding="UTF-8"?>\n<Markup xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'+
+'\n  <Header>\n    <File isExternal="true">\n      <Filename>'+esc(meta.file)+'</Filename>\n      <Date>'+t.created+'</Date>\n    </File>\n  </Header>'+
+'\n  <Topic Guid="'+t.guid+'" TopicType="Issue" TopicStatus="Open">'+
+'\n    <Title>'+esc(t.title)+'</Title>'+
+'\n    <Index>'+(idx++)+'</Index>'+
+'\n    <Labels>LandXML</Labels>'+
+'\n    <CreationDate>'+t.created+'</CreationDate>'+
+'\n    <CreationAuthor>'+esc(meta.author||"viewifc.com")+'</CreationAuthor>'+
+'\n    <Description>'+esc(t.description)+'</Description>'+
+'\n  </Topic>'+
+'\n</Markup>'});
+  }
+  const enc=new TextEncoder();
+  return lxZip(files.map(f=>{
+    const b=enc.encode(f.text);
+    return {name:f.name,parts:[b],size:b.length,crc:lxCrc32([b])};
+  }));
+}
+</script>
+
+<script id="lxI18n">
+/* =========================================================================
+   i18n — parità stretta IT/EN (convenzione di progetto: tr(), mai t()).
+   Blocco in un <script> proprio (id="lxI18n") così il test lo estrae e
+   verifica la parità delle chiavi. {var} sostituisce, {var:sing|plur}
+   accorda il nome al conteggio (pattern Health Check).
+   ========================================================================= */
+const I18N = {
+  it: {
+    "nav.home":"Vai a viewifc.com","nav.tools":"Strumenti","cta.open":"Apri il viewer",
+    "head.kicker":"Strumento 11","head.tag":"Client-side","head.geo":"Genera geometria",
+    "head.lead":"Il tracciato del topografo entra nel modello come <code>IfcAlignment</code>, con la sua logica di business e la geometria che le corrisponde. Il verso opposto dello <a href=\"../ifc-alignment-to-landxml/\" style=\"color:var(--acc)\">strumento 03</a>.",
+    "spec.in":"Ingresso","spec.out":"Uscita","spec.tol":"Tolleranza",
+    "tab.map":"Corrispondenze","tab.axis":"Verifica sull'asse",
+    "f.xml":"Nessun file — .xml","f.ifc":"Nessun modello — .ifc (facoltativo)","f.into":"dentro","f.remove":"Rimuovi il file",
+    "f.aligns":"{n} assi già nel modello",
+    "drop.big":"Trascina qui il tracciato .xml — e, se vuoi inserirlo in un modello, anche l'.ifc di destinazione",
+    "drop.hint":"nessun upload: parsing, verifica delle giunzioni e scrittura IFC girano nel browser · senza modello nasce un IFC4X3_ADD2 nuovo · un ospite IFC2X3/IFC4 viene riscritto in 4x3",
+    "map.t":"Cosa c'è nel file, e dove finisce",
+    "map.c1":"Nel LandXML","map.c2":"Diventa","map.c3":"Esito",
+    "map.sub":"{a} {a:allineamento|allineamenti} · {s} segmenti · {sf} {sf:superficie|superfici} · {p} punti.",
+    "map.subOpen":"{n} {n:riga non si mappa|righe non si mappano} da sole.",
+    "map.subOk":"Tutte le righe si mappano da sole.",
+    "map.truths":"Le due verità",
+    "map.truthsD":"Il 4x3 vuole i segmenti parametrici <b>e</b> la curva geometrica che ne discende (<code>IfcCompositeCurve</code> + <code>IfcGradientCurve</code>). Vengono generate entrambe e ricontrollate l'una sull'altra: se divergessero oltre la tolleranza, l'esportazione si ferma invece di produrre un file che ogni software legge in modo diverso.",
+    "truth.ok":"coincidono · scarto max {d}","truth.wait":"si calcolano a decisioni prese","truth.fail":"divergono: {d} — esportazione fermata",
+    "r.h.sub":"CoordGeom · {l} {l:retta|rette}, {a} {a:arco|archi}, {c} {c:clotoide|clotoidi}",
+    "r.h.tgt2":"{n} IfcAlignmentSegment",
+    "r.v.nm":"Profilo di progetto","r.v.pvi":"{n} PVI",
+    "r.v.sub":"ProfAlign · {p} {p:parabola|parabole}, {l} {l:livelletta|livellette}",
+    "r.v.tgt2":"CONSTANTGRADIENT · PARABOLICARC",
+    "r.v.none":"Senza profilo altimetrico","r.v.noneSub":"nel LandXML non c'è ProfAlign: le quote escono a 0",
+    "r.sp.nm":"Spirale","r.sp.sub":"la v1 non sa scriverne la geometria gemella",
+    "r.sp.tbd":"— da decidere —","r.sp.tbd2":"clotoide approssimata o polilinea",
+    "r.sp.dec1":"≈ clotoide · scost. {d}","r.sp.dec1na":"≈ clotoide · scost. non calcolabile",
+    "r.sp.dec2":"polilinea · {n} rettifili","r.sp.stop":"fermato: serve il tracciato corretto",
+    "r.eq.nm":"Equazione di progressiva","r.eq.at":"a {s}",
+    "r.eq.sub":"StaEquation · salto di {d} m nelle progressive",
+    "r.eq.tgt":"IfcReferent","r.eq.tgt2":"STATION · le distanze si ricalcolano",
+    "r.sf.nm":"Superficie del terreno","r.sf.tri":"{n} triangoli",
+    "r.sf.sub":"resta nel LandXML: la v1 non la importa",
+    "r.sf.tgt":"IfcGeographicElement","r.sf.tgt2":"TIN come IfcTriangulatedFaceSet",
+    "r.cg.nm":"Punti di picchettamento","r.cg.sub":"CgPoints · utili in cantiere, non nel modello",
+    "r.cg.tgt":"IfcAnnotation","r.cg.tgt2":"o restano fuori",
+    "es.11":"1:1","es.open":"aperto","es.conf":"conferma","es.excl":"esclusa","es.exclM":"esclusi","es.no":"—",
+    "c.none":"Nessun caso aperto","c.noneD":"Tutte le righe della tavola si mappano da sole: si può scrivere l'IFC.",
+    "c.of":"caso {k} di {n}",
+    "c.sp.t":"Spirale {t}","c.file":"Cosa dice il file","c.lenR":"Lunghezza · raggi","c.type":"spiType",
+    "c.spNote":"L'IFC 4x3 enumera anche questa spirale nella business logic, ma la v1 non sa scriverne la curva geometrica gemella — e scrivere una verità sola è il difetto che questo strumento evita.",
+    "c.how":"Come scriverla",
+    "c.o1":"Clotoide equivalente",
+    "c.o1d":"Stessa lunghezza e raggi estremi. Scostamento massimo {d} a metà curva. Resta un segmento parametrico vero, leggibile da tutti.",
+    "c.o1dna":"Stessa lunghezza e raggi estremi. Legge di curvatura non nota: lo scostamento non è calcolabile.",
+    "c.o2":"Polilinea fedele · {n} rettifili",
+    "c.o2d":"Campiona la legge vera con freccia ≤ 1 mm. Fedele, ma il tratto smette di essere una curva: niente raggio, niente progressive esatte.",
+    "c.o2na":"Polilinea — legge di curvatura non nota",
+    "c.o3":"Fermati e chiedi il tracciato corretto",
+    "c.o3d":"Se l'asse va in cantiere, l'approssimazione non si fa di nascosto: l'export resta bloccato finché la riga non si risolve a monte.",
+    "c.eq.t":"Equazione di progressiva","c.eq.jump":"Salto dichiarato","c.eq.at":"Alla progressiva",
+    "c.eqNote":"Il LandXML riparte con una progressiva nuova a metà asse; l'IFC misura distanze continue. Confermare significa ricalcolare le distanze e dichiarare il salto in un referente.",
+    "c.eqO1":"Scrivi un IfcReferent (STATION)",
+    "c.eqO1d":"Le distanze nel file escono continue; il salto resta dichiarato nel referente con Pset_Stationing (Station · IncomingStation).",
+    "c.eqO2":"Ignora l'equazione",
+    "c.eqO2d":"Le stazioni si leggono come continue: le progressive a valle del salto non corrisponderanno più a quelle del progetto.",
+    "bp.t":"Punto base","bp.origin":"Origine del modello","bp.abs":"Coordinate assolute",
+    "bp.noteHost":"L'asse si scrive relativo all'origine di {f}, e le assolute restano nell'IfcMapConversion del modello. Mettere {e} dentro la geometria fa perdere precisione a ogni viewer che lavora in virgola singola.",
+    "bp.noteHostNoMc":"Il modello non ha IfcMapConversion: senza un'origine dichiarata l'asse può entrare solo con le coordinate assolute.",
+    "bp.noteNew":"Senza modello ospite nasce un IFC nuovo: le assolute vanno nell'IfcMapConversion ({e}) e la geometria resta vicino allo zero.",
+    "bp.noteAbs":"Le coordinate assolute vanno dritte nella geometria. Dichiarato, ma i viewer in virgola singola ci perdono precisione.",
+    "bp.check":"richiusura mappa ↔ locale sui capisaldi dell'asse",
+    "co.t":"Ordine coordinate nel file","co.ne":"Nord Est","co.en":"Est Nord",
+    "co.note":"Lo standard scrive «Nord Est»; alcuni produttori invertono. Con un modello georeferenziato la scelta si fa da sola.",
+    "out.t":"Cosa esce","out.schema":"Schema","out.ents":"Entità nuove",
+    "out.mig":"Adattate allo schema","out.migV":"{n} riscritte · {d} tolte","out.migWarn":" · {k} senza mappa",
+    "mig.note":"Il modello {s} viene riscritto in IFC4X3_ADD2 nella stessa uscita: id invariati, entità adattate secondo la tabella dichiarata, tutto il resto byte-identico. I tipi senza mappa restano com'erano: il viewer li ignora, un validatore li segnala.",
+    "mig.noteGeo":"Il 2X3 non dichiara IfcMapConversion, quindi l'asse entra con le coordinate assolute: se il modello è in coordinate locali, dopo la scrittura passa il file dal Georeference Editor (sul 4x3 può creare la MapConversion).",
+    "mig.detail":"dettaglio per tipo",
+    "mig.secDrop":"Tolte — lo schema 4x3 non le ha più",
+    "mig.secRw":"Riscritte — stesso id, argomenti adattati",
+    "mig.secWarn":"Senza mappa — lasciate com'erano",
+    "mig.styles":"stili appiattiti",
+    "mig.whyStyleAsg":"involucro 2x3 degli stili: in 4x3 gli stili entrano diretti nell'IfcStyledItem — nessuno stile si perde",
+    "mig.whyCal":"la data diventa una stringa ISO dentro l'IfcClassification che la usava",
+    "out.pset":"Annota le scelte nel file (Pset_Conversione): origine, approssimazioni, giunzioni",
+    "rail.load":"Carica un tracciato .xml per cominciare.",
+    "rail.open":"{n} {n:caso aperto|casi aperti}",
+    "rail.blocked":"Fermato: una riga chiede il tracciato corretto a monte.",
+    "rail.ready":"{n} entità nuove · scarto fra le verità {d}",
+    "rail.noAlign":"Nessun asse selezionato.",
+    "rail.write":"Scrivi l'IFC",
+    "ax.plan":"planimetria — dagli stessi numeri dell'export",
+    "ax.prof":"Profilo longitudinale","ax.profMeta":"quote {a} → {b} m","ax.ex":"esagerazione {x}×",
+    "ax.noProf":"senza profilo altimetrico — quote a 0",
+    "ax.leg1":"Asse dal LandXML","ax.leg2":"Giunzioni fuori tolleranza",
+    "j.t":"Giunzioni",
+    "j.badge":"{n} {n:giunzione fuori tolleranza|giunzioni fuori tolleranza}",
+    "j.badgeOk":"giunzioni tutte entro tolleranza",
+    "j.none":"Nessuna giunzione fuori tolleranza: la catena chiude entro 1 mm e 0,001 gon. Le micro-cuciture sotto tolleranza si fanno da sole, e la catena esce continua per costruzione.",
+    "j.seg":"Segmento {a} → {b}",
+    "j.tit":"Il segmento non chiude sul precedente",
+    "j.why":"Il file d'origine porta le coordinate arrotondate: da lì lo scarto. Non è un errore di progetto, è precisione persa nell'esportazione.",
+    "j.pos":"Posizione","j.tan":"Tangente","j.cur":"Curvatura",
+    "j.cont":"continua","j.jump":"salto {v}",
+    "j.max1":"max 1,0","j.max2":"max 0,001","j.maxNo":"—",
+    "j.what":"Cosa fare",
+    "j.o1":"Cuci sul segmento precedente",
+    "j.o1d":"L'attacco si prende dal calcolato, non dal file: sposta l'asse di {d} e la catena esce continua.",
+    "j.o2":"Ricalcola i parametri della clotoide",
+    "j.o2d":"Tiene fermi i due estremi e ritrova la clotoide: chiude anche la tangente, ma il raggio finale cambia di {r}.",
+    "j.o2na":"Ricalcola — solo quando il segmento dopo è una spirale",
+    "j.o3":"Lascia com'è e dichiara",
+    "j.o3d":"Il file esce con la discontinuità dichiarata (transizione DISCONTINUOUS) e la giunzione finisce nei topic BCF, per chi la sistema a monte.",
+    "j.all":"Applica la stessa scelta a tutte le giunzioni fuori tolleranza",
+    "foot.note":"Ogni scelta fatta qui resta scritta nel file come <code>Pset_Conversione</code> sull'allineamento: file d'origine, versione LandXML, approssimazioni accettate e con che scostamento. Chi trova la clotoide sa che non era una clotoide. Nessun file lascia il computer.",
+    "foot.bcf":"Topic BCF delle giunzioni aperte","foot.src":"Codice sorgente","foot.more":"Altri strumenti",
+    "ps.approx":"Approssimazione","ps.joints":"GiunzioneAperta","ps.swap":"OrdineCoordinate",
+    "ps.clo":"{t} {s} ≈ clotoide (scost. max {d})","ps.cloNa":"{t} {s} ≈ clotoide (scost. non calcolabile)",
+    "ps.poly":"{t} {s} → polilinea di {n} rettifili","ps.refit":"clotoide a {s} ricalcolata (ΔR {r})",
+    "ps.joint":"giunzione a {s}: {d} mm dichiarati",
+    "toast.xmlErr":"LandXML non valido o non leggibile",
+    "toast.xmlNone":"Nessun tracciato utilizzabile nel LandXML",
+    "toast.ifcErr":"IFC non leggibile",
+    "toast.ifcBad":"Il modello dichiara {s}: schema non gestito — l'inserimento accetta IFC4x3, IFC4 e IFC2X3",
+    "toast.ifcMig":"Modello {s}: verrà riscritto in IFC4X3_ADD2 nella stessa uscita — {n} entità adattate",
+    "toast.done":"Scritto {f} — {n} entità nuove, scarto max fra le due verità {d}",
+    "toast.bcf":"Esportati {n} topic BCF delle giunzioni dichiarate",
+    "veil.parse":"Lettura del tracciato…","veil.scan":"Scansione del modello…","veil.write":"Scrittura dell'IFC…",
+    "u.mm":"{v} mm","u.gon":"{v} gon","u.m":"{v} m",
+  },
+  en: {
+    "nav.home":"Go to viewifc.com","nav.tools":"Tools","cta.open":"Open the viewer",
+    "head.kicker":"Tool 11","head.tag":"Client-side","head.geo":"Generates geometry",
+    "head.lead":"The surveyor's alignment enters the model as <code>IfcAlignment</code>, with its business logic and the geometry that matches it. The opposite direction of <a href=\"../ifc-alignment-to-landxml/\" style=\"color:var(--acc)\">tool 03</a>.",
+    "spec.in":"Input","spec.out":"Output","spec.tol":"Tolerance",
+    "tab.map":"Mapping","tab.axis":"Check on the axis",
+    "f.xml":"No file — .xml","f.ifc":"No model — .ifc (optional)","f.into":"into","f.remove":"Remove file",
+    "f.aligns":"{n} alignments already in the model",
+    "drop.big":"Drop the .xml alignment here — and, to insert it into a model, the target .ifc too",
+    "drop.hint":"no upload: parsing, junction checks and IFC writing run in the browser · without a model a fresh IFC4X3_ADD2 is created · an IFC2X3/IFC4 host is rewritten as 4x3",
+    "map.t":"What is in the file, and where it goes",
+    "map.c1":"In the LandXML","map.c2":"Becomes","map.c3":"Outcome",
+    "map.sub":"{a} {a:alignment|alignments} · {s} segments · {sf} {sf:surface|surfaces} · {p} points.",
+    "map.subOpen":"{n} {n:row does not map|rows do not map} by itself.",
+    "map.subOk":"Every row maps by itself.",
+    "map.truths":"The two truths",
+    "map.truthsD":"IFC4x3 wants the parametric segments <b>and</b> the geometric curve that follows from them (<code>IfcCompositeCurve</code> + <code>IfcGradientCurve</code>). Both are generated and checked against each other: if they diverged beyond tolerance, the export stops instead of producing a file every application reads differently.",
+    "truth.ok":"they coincide · max deviation {d}","truth.wait":"computed once decisions are made","truth.fail":"they diverge: {d} — export stopped",
+    "r.h.sub":"CoordGeom · {l} {l:tangent|tangents}, {a} {a:arc|arcs}, {c} {c:clothoid|clothoids}",
+    "r.h.tgt2":"{n} IfcAlignmentSegment",
+    "r.v.nm":"Design profile","r.v.pvi":"{n} PVI",
+    "r.v.sub":"ProfAlign · {p} {p:parabola|parabolas}, {l} {l:grade|grades}",
+    "r.v.tgt2":"CONSTANTGRADIENT · PARABOLICARC",
+    "r.v.none":"No vertical profile","r.v.noneSub":"the LandXML has no ProfAlign: elevations come out at 0",
+    "r.sp.nm":"Spiral","r.sp.sub":"v1 cannot write its geometric twin",
+    "r.sp.tbd":"— to decide —","r.sp.tbd2":"approximated clothoid or polyline",
+    "r.sp.dec1":"≈ clothoid · dev. {d}","r.sp.dec1na":"≈ clothoid · deviation not computable",
+    "r.sp.dec2":"polyline · {n} tangents","r.sp.stop":"stopped: the correct alignment is needed",
+    "r.eq.nm":"Station equation","r.eq.at":"at {s}",
+    "r.eq.sub":"StaEquation · a {d} m jump in the stationing",
+    "r.eq.tgt":"IfcReferent","r.eq.tgt2":"STATION · distances are recomputed",
+    "r.sf.nm":"Ground surface","r.sf.tri":"{n} triangles",
+    "r.sf.sub":"stays in the LandXML: v1 does not import it",
+    "r.sf.tgt":"IfcGeographicElement","r.sf.tgt2":"TIN as IfcTriangulatedFaceSet",
+    "r.cg.nm":"Setting-out points","r.cg.sub":"CgPoints · useful on site, not in the model",
+    "r.cg.tgt":"IfcAnnotation","r.cg.tgt2":"or they stay out",
+    "es.11":"1:1","es.open":"open","es.conf":"confirm","es.excl":"excluded","es.exclM":"excluded","es.no":"—",
+    "c.none":"No open case","c.noneD":"Every row of the table maps by itself: the IFC can be written.",
+    "c.of":"case {k} of {n}",
+    "c.sp.t":"{t} spiral","c.file":"What the file says","c.lenR":"Length · radii","c.type":"spiType",
+    "c.spNote":"IFC4x3 does enumerate this spiral in the business logic, but v1 cannot write its geometric twin — and writing a single truth is the very defect this tool exists to avoid.",
+    "c.how":"How to write it",
+    "c.o1":"Equivalent clothoid",
+    "c.o1d":"Same length and end radii. Maximum deviation {d} at mid-curve. It stays a true parametric segment, readable by everyone.",
+    "c.o1dna":"Same length and end radii. Curvature law unknown: the deviation cannot be computed.",
+    "c.o2":"Faithful polyline · {n} tangents",
+    "c.o2d":"Samples the true law with sagitta ≤ 1 mm. Faithful, but the stretch stops being a curve: no radius, no exact stationing.",
+    "c.o2na":"Polyline — curvature law unknown",
+    "c.o3":"Stop and ask for the correct alignment",
+    "c.o3d":"If the axis goes to site, the approximation is not made in silence: the export stays blocked until the row is fixed upstream.",
+    "c.eq.t":"Station equation","c.eq.jump":"Declared jump","c.eq.at":"At station",
+    "c.eqNote":"The LandXML restarts with a new stationing mid-axis; IFC measures continuous distances. Confirming means recomputing distances and declaring the jump in a referent.",
+    "c.eqO1":"Write an IfcReferent (STATION)",
+    "c.eqO1d":"Distances in the file come out continuous; the jump stays declared in the referent with Pset_Stationing (Station · IncomingStation).",
+    "c.eqO2":"Ignore the equation",
+    "c.eqO2d":"Stations are read as continuous: stationing beyond the jump will no longer match the design.",
+    "bp.t":"Base point","bp.origin":"Model origin","bp.abs":"Absolute coordinates",
+    "bp.noteHost":"The axis is written relative to the origin of {f}, and the absolutes stay in the model's IfcMapConversion. Putting {e} inside the geometry loses precision in every single-precision viewer.",
+    "bp.noteHostNoMc":"The model has no IfcMapConversion: without a declared origin the axis can only enter with absolute coordinates.",
+    "bp.noteNew":"Without a host model a fresh IFC is created: the absolutes go into the IfcMapConversion ({e}) and the geometry stays near zero.",
+    "bp.noteAbs":"Absolute coordinates go straight into the geometry. Declared — but single-precision viewers lose precision.",
+    "bp.check":"map ↔ local round trip on the axis endpoints",
+    "co.t":"Coordinate order in the file","co.ne":"North East","co.en":"East North",
+    "co.note":"The standard writes “North East”; some producers swap. With a georeferenced model the choice makes itself.",
+    "out.t":"What comes out","out.schema":"Schema","out.ents":"New entities",
+    "out.mig":"Adapted to the schema","out.migV":"{n} rewritten · {d} removed","out.migWarn":" · {k} unmapped",
+    "mig.note":"The {s} model is rewritten as IFC4X3_ADD2 in the same output: ids unchanged, entities adapted per the declared table, everything else byte-identical. Unmapped types stay as they were: the viewer ignores them, a validator will flag them.",
+    "mig.noteGeo":"IFC2X3 has no IfcMapConversion, so the axis enters with absolute coordinates: if the model sits in local coordinates, run the written file through the Georeference Editor afterwards (on 4x3 it can create the MapConversion).",
+    "mig.detail":"per-type detail",
+    "mig.secDrop":"Removed — no longer in the 4x3 schema",
+    "mig.secRw":"Rewritten — same id, adapted arguments",
+    "mig.secWarn":"Unmapped — left as they were",
+    "mig.styles":"styles flattened",
+    "mig.whyStyleAsg":"2x3 style wrapper: in 4x3 styles go directly into IfcStyledItem — no style is lost",
+    "mig.whyCal":"the date becomes an ISO string inside the IfcClassification that used it",
+    "out.pset":"Record the choices in the file (Pset_Conversione): source, approximations, junctions",
+    "rail.load":"Load a .xml alignment to begin.",
+    "rail.open":"{n} open {n:case|cases}",
+    "rail.blocked":"Stopped: one row asks for the correct alignment upstream.",
+    "rail.ready":"{n} new entities · deviation between the truths {d}",
+    "rail.noAlign":"No alignment selected.",
+    "rail.write":"Write the IFC",
+    "ax.plan":"plan view — from the same numbers as the export",
+    "ax.prof":"Longitudinal profile","ax.profMeta":"elevations {a} → {b} m","ax.ex":"exaggeration {x}×",
+    "ax.noProf":"no vertical profile — elevations at 0",
+    "ax.leg1":"Axis from the LandXML","ax.leg2":"Junctions out of tolerance",
+    "j.t":"Junctions",
+    "j.badge":"{n} {n:junction out of tolerance|junctions out of tolerance}",
+    "j.badgeOk":"all junctions within tolerance",
+    "j.none":"No junction out of tolerance: the chain closes within 1 mm and 0.001 gon. Sub-tolerance micro-seams are stitched silently, and the chain comes out continuous by construction.",
+    "j.seg":"Segment {a} → {b}",
+    "j.tit":"The segment does not close on the previous one",
+    "j.why":"The source file carries rounded coordinates: that is where the gap comes from. Not a design error — precision lost in the export.",
+    "j.pos":"Position","j.tan":"Tangent","j.cur":"Curvature",
+    "j.cont":"continuous","j.jump":"jump {v}",
+    "j.max1":"max 1.0","j.max2":"max 0.001","j.maxNo":"—",
+    "j.what":"What to do",
+    "j.o1":"Sew onto the previous segment",
+    "j.o1d":"The attachment point is taken from the computed chain, not the file: it moves the axis by {d} and the chain comes out continuous.",
+    "j.o2":"Recompute the clothoid parameters",
+    "j.o2d":"Keeps both ends fixed and refits the clothoid: it closes the tangent too, but the end radius changes by {r}.",
+    "j.o2na":"Recompute — only when the next segment is a spiral",
+    "j.o3":"Leave as is and declare",
+    "j.o3d":"The file comes out with the discontinuity declared (DISCONTINUOUS transition) and the junction goes into the BCF topics, for whoever fixes it upstream.",
+    "j.all":"Apply the same choice to every junction out of tolerance",
+    "foot.note":"Every choice made here stays written in the file as <code>Pset_Conversione</code> on the alignment: source file, LandXML version, accepted approximations and their deviation. Whoever finds the clothoid knows it was not a clothoid. No file leaves your computer.",
+    "foot.bcf":"BCF topics of the declared junctions","foot.src":"Source code","foot.more":"More tools",
+    "ps.approx":"Approssimazione","ps.joints":"GiunzioneAperta","ps.swap":"OrdineCoordinate",
+    "ps.clo":"{t} {s} ≈ clothoid (max dev. {d})","ps.cloNa":"{t} {s} ≈ clothoid (deviation not computable)",
+    "ps.poly":"{t} {s} → polyline of {n} tangents","ps.refit":"clothoid at {s} refitted (ΔR {r})",
+    "ps.joint":"junction at {s}: {d} mm declared",
+    "toast.xmlErr":"Invalid or unreadable LandXML",
+    "toast.xmlNone":"No usable alignment in the LandXML",
+    "toast.ifcErr":"Unreadable IFC",
+    "toast.ifcBad":"The model declares {s}: unsupported schema — insertion accepts IFC4x3, IFC4 and IFC2X3",
+    "toast.ifcMig":"{s} model: it will be rewritten as IFC4X3_ADD2 in the same output — {n} entities adapted",
+    "toast.done":"Wrote {f} — {n} new entities, max deviation between the two truths {d}",
+    "toast.bcf":"Exported {n} BCF topics for the declared junctions",
+    "veil.parse":"Reading the alignment…","veil.scan":"Scanning the model…","veil.write":"Writing the IFC…",
+    "u.mm":"{v} mm","u.gon":"{v} gon","u.m":"{v} m",
+  }
+};
+</script>
+
+<script>
+/* =========================================================================
+   Attiva il motore: il blocco text/engine diventa un vero <script>, così le
+   funzioni vivono nello scope globale (stesso schema di Health/Pset/IDS).
+   ========================================================================= */
+(function(){
+  const src=document.getElementById("lxmlEngine").textContent;
+  const s=document.createElement("script");
+  s.textContent=src;
+  document.head.appendChild(s);
+})();
+</script>
+
+<script>
+"use strict";
+/* =========================================================================
+   UI — stato, tavola, casi aperti, giunzioni, disegni, export.
+   ========================================================================= */
+let LANG="it";
+try{ const s=localStorage.getItem("viewifc_tool_lang"); if(s&&I18N[s]) LANG=s; }catch(e){}
+function tr(k){ return (I18N[LANG]&&I18N[LANG][k]!=null)?I18N[LANG][k]:(I18N.it[k]??k); }
+function nf(n,dec){ return Number(n).toLocaleString(LANG==="it"?"it-IT":"en-US",{maximumFractionDigits:dec==null?2:dec,minimumFractionDigits:0}); }
+function nvar(v){
+  if(typeof v==="number"&&isFinite(v)) return Number.isInteger(v)?nf(v,0):nf(v,Math.abs(v)<1?3:2);
+  return v;
+}
+function fmtRaw(s,vars){
+  s=String(s).replace(/\{(\w+):([^|{}]*)\|([^{}]*)\}/g,(m,k,one,many)=>{
+    const v=Number(vars&&vars[k]);
+    return (v===1||v===-1)?one:many;
+  });
+  for(const v in vars) s=s.split("{"+v+"}").join(nvar(vars[v]));
+  return s;
+}
+function fmt(k,vars){ return fmtRaw(tr(k),vars); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+function mmF(m){ return fmt("u.mm",{v:nf(m*1000,m*1000<10?1:0)}); }
+function mF(m){ return fmt("u.m",{v:nf(m,2)}); }
+function staF0(m){ return lxStaFmt(m,0); }
+
+const $=id=>document.getElementById(id);
+const ui={};
+["viewSeg","fxCard","fxName","fxMeta","fxClear","fhCard","fhName","fhMeta","fhClear","fxInput","fhInput",
+ "drop0","mapView","axisView","mapSub","mrows","truthsV","railMap","railAxis","caseWrap","bpSeg","bpNote",
+ "bpCheck","bpCheckV","outName","outSchema","outEnts","outMigRow","outMig","migNote","migDetail","migDetailList","psetTog","railNote","railNoteT","railMsg","writeBtn",
+ "axChips","jBadge","jBadgeT","planSvg","profSvg","profSta","profMeta","profEx","legJn",
+ "jPrev","jNext","jPage","jBody","veil","veilT","toast","thmBtn","bcfBtn"]
+ .forEach(k=>ui[k]=$(k));
+
+/* ---- tema + lingua ------------------------------------------------------ */
+ui.thmBtn.addEventListener("click",()=>{
+  const light=document.documentElement.getAttribute("data-theme")==="light";
+  if(light) document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme","light");
+  try{ localStorage.setItem("viewer_landing_theme",light?"dark":"light"); }catch(e){}
+});
+function applyLang(lang){
+  LANG=I18N[lang]?lang:"it";
+  document.documentElement.lang=LANG;
+  const dict=I18N[LANG];
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    const k=el.getAttribute("data-i18n");
+    if(dict[k]!=null) el.textContent=dict[k];
+  });
+  document.querySelectorAll("[data-i18n-html]").forEach(el=>{
+    const k=el.getAttribute("data-i18n-html");
+    if(dict[k]!=null) el.innerHTML=dict[k];
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach(el=>{
+    const k=el.getAttribute("data-i18n-title");
+    if(dict[k]!=null){ el.title=dict[k]; if(el.hasAttribute("aria-label")) el.setAttribute("aria-label",dict[k]); }
+  });
+  document.querySelectorAll(".langsw button").forEach(b=>b.classList.toggle("on",b.dataset.lang===LANG));
+  try{ localStorage.setItem("viewifc_tool_lang",LANG); }catch(e){}
+  if(ST.parsed) renderAll();
+  else ui.railMsg.textContent=tr("rail.load");
+}
+document.querySelectorAll(".langsw button").forEach(b=>b.addEventListener("click",()=>applyLang(b.dataset.lang)));
+
+/* ---- toast + velo ------------------------------------------------------- */
+let toastT=null;
+function toast(msg){
+  ui.toast.textContent=msg; ui.toast.classList.add("on");
+  clearTimeout(toastT); toastT=setTimeout(()=>ui.toast.classList.remove("on"),4200);
+}
+async function veil(key,fn){
+  ui.veilT.textContent=tr(key); ui.veil.hidden=false;
+  await new Promise(r=>setTimeout(r,30));       /* il velo deve dipingersi */
+  try{ return await fn(); }
+  finally{ ui.veil.hidden=true; }
+}
+
+/* ---- stato -------------------------------------------------------------- */
+const TOL_POS=0.001, TOL_ANG=0.001*Math.PI/200;
+const ST={
+  parsed:null, xmlName:"",
+  host:null, hostName:"",
+  swap:false, swapAuto:true,
+  view:"map", bp:"origin", pset:true,
+  aligns:[],            /* per asse: {src,on,name,sta0M,staEqsM,pvisM,useEq,items,juncs,chain,vsegs,staMap,fixes} */
+  cases:[], caseIdx:0,  /* {kind:'spiral'|'staeq', ai, itemIdx?/eqIdx?, choice} */
+  axIdx:0, jIdx:0, jAll:false,
+  build:null,           /* ultimo lxBuild a secco */
+};
+
+/* ---- caricamento file --------------------------------------------------- */
+function fmtSize(b){ return b>1048576?nf(b/1048576,1)+" MB":nf(Math.max(1,Math.round(b/1024)),0)+" KB"; }
+function wireCard(card,input,onFile){
+  card.addEventListener("click",e=>{ if(e.target.closest(".fcard-x")) return; input.click(); });
+  card.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); input.click(); } });
+  input.addEventListener("change",()=>{ if(input.files[0]) onFile(input.files[0]); input.value=""; });
+  card.addEventListener("dragover",e=>{ e.preventDefault(); card.classList.add("drag"); });
+  card.addEventListener("dragleave",()=>card.classList.remove("drag"));
+  card.addEventListener("drop",e=>{
+    e.preventDefault(); card.classList.remove("drag");
+    const f=e.dataTransfer.files[0]; if(f) routeFile(f);
+  });
+}
+function wireDrop(zone){
+  zone.addEventListener("click",()=>ui.fxInput.click());
+  zone.addEventListener("dragover",e=>{ e.preventDefault(); zone.classList.add("drag"); });
+  zone.addEventListener("dragleave",()=>zone.classList.remove("drag"));
+  zone.addEventListener("drop",e=>{
+    e.preventDefault(); zone.classList.remove("drag");
+    for(const f of e.dataTransfer.files) routeFile(f);
+  });
+}
+function routeFile(f){
+  if(/\.ifc$/i.test(f.name)) loadIfc(f);
+  else loadXml(f);
+}
+async function loadXml(f){
+  await veil("veil.parse",async()=>{
+    let parsed;
+    try{ parsed=lxParse(await f.text()); }
+    catch(e){ console.warn(e); toast(tr("toast.xmlErr")); return; }
+    if(!parsed.aligns.length){ toast(tr("toast.xmlNone")); return; }
+    ST.parsed=parsed; ST.xmlName=f.name;
+    ui.fxName.textContent=f.name; ui.fxCard.classList.add("set");
+    ui.fxMeta.textContent="LandXML "+(parsed.version||"?")+" · "+fmtSize(f.size);
+    setupAligns();
+  });
+}
+async function loadIfc(f){
+  await veil("veil.scan",async()=>{
+    let host;
+    try{ host=lxHostInfo(new Uint8Array(await f.arrayBuffer())); }
+    catch(e){ console.warn(e); toast(tr("toast.ifcErr")); return; }
+    if(host.schemaKind==="other"){
+      toast(fmt("toast.ifcBad",{s:host.schema||"?"}));
+      return;
+    }
+    if(host.schemaKind!=="4x3"){
+      /* 2x3 / IFC4: se l'asse va unito a questo modello, il modello va
+         anche convertito — piano di migrazione preparato subito */
+      host.mig=lxMigPlan(host);
+      toast(fmt("toast.ifcMig",{s:host.schema,n:host.mig.adapted+host.mig.dropped}));
+    }
+    ST.host=host; ST.hostName=f.name;
+    ui.fhName.textContent=f.name; ui.fhCard.classList.add("set");
+    ui.fhMeta.textContent=(host.mig?host.schema+" → IFC4X3_ADD2":host.schema)+" · "+fmtSize(f.size)+
+      (host.alignCount?" · "+fmt("f.aligns",{n:host.alignCount}):"");
+    if(ST.parsed) setupAligns(); else renderAll();
+  });
+}
+ui.fxClear.addEventListener("click",e=>{ e.stopPropagation();
+  ST.parsed=null; ST.xmlName=""; ST.aligns=[]; ST.cases=[]; ST.build=null;
+  ui.fxCard.classList.remove("set"); ui.fxName.textContent=tr("f.xml"); ui.fxMeta.textContent="";
+  renderAll();
+});
+ui.fhClear.addEventListener("click",e=>{ e.stopPropagation();
+  ST.host=null; ST.hostName="";
+  ui.fhCard.classList.remove("set"); ui.fhName.textContent=tr("f.ifc"); ui.fhMeta.textContent="";
+  if(ST.parsed) setupAligns(); else renderAll();
+});
+wireCard(ui.fxCard,ui.fxInput,routeFile);
+wireCard(ui.fhCard,ui.fhInput,routeFile);
+wireDrop(ui.drop0);
+
+/* ---- costruzione dello stato dagli ingressi ----------------------------- */
+function setupAligns(){
+  const p=ST.parsed, uf=p.unitFactor;
+  const hostEN=(ST.host&&ST.host.mapConv)?[ST.host.mapConv.E,ST.host.mapConv.N]:null;
+  if(ST.swapAuto) ST.swap=lxPickSwap(p,hostEN);
+  ST.aligns=p.aligns.map(a=>{
+    const sta0M=a.sta0*uf;
+    const staEqsM=a.staEqs.map(e=>({back:e.back*uf,ahead:e.ahead*uf}));
+    const pvisM=a.pvis.map(v=>({sta:v.sta*uf,z:v.z*uf,L:v.L*uf,R:v.R*uf}));
+    return {src:a,on:true,name:a.name,sta0M,staEqsM,pvisM,useEq:true,fixes:new Map()};
+  });
+  /* casi aperti: spirali non-clotoidi + equazioni di progressiva */
+  ST.cases=[];
+  ST.aligns.forEach((A,ai)=>{
+    const items=lxItems(A.src,ST.swap,uf);
+    items.forEach((it,ii)=>{
+      if(it.kind==="SPIRAL"&&it.spiType!=="clothoid")
+        ST.cases.push({kind:"spiral",ai,itemIdx:ii,choice:null,it});
+    });
+    A.staEqsM.forEach((eq,ei)=>ST.cases.push({kind:"staeq",ai,eqIdx:ei,choice:null,eq}));
+  });
+  ST.caseIdx=0; ST.axIdx=0; ST.jIdx=0; ST.build=null;
+  ui.outName.value=ST.host
+    ? ST.hostName.replace(/\.ifc$/i,"")+"_landxml.ifc"
+    : ST.xmlName.replace(/\.(xml|landxml)$/i,"")+"_alignment.ifc";
+  recompute();
+}
+
+/* risoluzione catene + build a secco */
+function recompute(){
+  if(!ST.parsed){ renderAll(); return; }
+  const uf=ST.parsed.unitFactor;
+  ST.aligns.forEach((A,ai)=>{
+    const decisions=new Map();
+    for(const c of ST.cases)
+      if(c.kind==="spiral"&&c.ai===ai&&c.choice&&c.choice!=="stop")
+        decisions.set(c.itemIdx,{choice:c.choice});
+    A.chain=lxResolve(A.src,ST.swap,uf,{decisions,fixes:A.fixes,tolPos:TOL_POS,tolAng:TOL_ANG});
+    A.items=A.chain.items; A.juncs=A.chain.juncs;
+    /* profilo: equazioni confermate → stazioni rimappate */
+    const eqCases=ST.cases.filter(c=>c.kind==="staeq"&&c.ai===ai);
+    A.useEq=eqCases.length?eqCases.every(c=>c.choice!=="ignore"):true;
+    A.staMap=lxStaMap({sta0:A.sta0M,staEqs:A.staEqsM},A.useEq&&A.staEqsM.length>0);
+    A.vsegs=lxVsegs(A.pvisM.map(v=>({sta:A.staMap.toInternal(v.sta),z:v.z,L:v.L,R:v.R})));
+  });
+  /* build a secco quando tutte le decisioni sono prese */
+  ST.build=null;
+  const open=openCases();
+  const blocked=ST.aligns.some(A=>A.on&&A.chain.blocked);
+  const anyOn=ST.aligns.some(A=>A.on);
+  if(!open.length&&!blocked&&anyOn){
+    try{ ST.build=runBuild(); }catch(e){ console.warn("build:",e); }
+  }
+  renderAll();
+}
+function openCases(){ return ST.cases.filter(c=>!c.choice||c.choice==="stop"); }
+
+function baseNew(){
+  /* origine del nuovo IFC: primo punto del primo asse, arrotondato al metro */
+  const A=ST.aligns.find(a=>a.on)||ST.aligns[0];
+  if(!A||!A.chain||!A.chain.hsegs.length) return {E0:0,N0:0,H0:0};
+  const p=A.chain.hsegs[0].start;
+  const z=A.pvisM.length?A.pvisM[0].z:0;
+  return {E0:Math.floor(p[0]),N0:Math.floor(p[1]),H0:Math.floor(z)};
+}
+function runBuild(){
+  const p=ST.parsed;
+  const aligns=ST.aligns.filter(A=>A.on).map(A=>({
+    name:A.name,chain:A.chain,vsegs:A.vsegs,sta0:A.sta0M,
+    staEqs:A.useEq?A.staEqsM:[],useEq:A.useEq,staMap:A.staMap
+  }));
+  const notes=[];
+  ST.aligns.forEach(A=>{ if(!A.on||!A.chain) return;
+    A.chain.approx.forEach(x=>{
+      const s=staF0(lxStaLabel(A.staMap,A.sta0M,x.sta));
+      if(x.mode==="clothoid") notes.push([tr("ps.approx")+"_"+(notes.length+1),
+        x.dev==null?fmt("ps.cloNa",{t:x.spiType,s}):fmt("ps.clo",{t:x.spiType,s,d:mmF(x.dev)})]);
+      else if(x.mode==="poly") notes.push([tr("ps.approx")+"_"+(notes.length+1),fmt("ps.poly",{t:x.spiType,s,n:x.n})]);
+      else if(x.mode==="refit") notes.push([tr("ps.approx")+"_"+(notes.length+1),fmt("ps.refit",{s,r:mF(x.dR)})]);
+    });
+    A.chain.openJ.forEach(j=>{
+      notes.push([tr("ps.joints")+"_"+(notes.length+1),
+        fmt("ps.joint",{s:staF0(lxStaLabel(A.staMap,A.sta0M,j.sta)),d:nf(j.dPos*1000,1)})]);
+    });
+  });
+  if(ST.swap) notes.push([tr("ps.swap"),"Est Nord"]);
+  const nb=baseNew();
+  return lxBuild({
+    mode:ST.host?"host":"new",
+    host:ST.host,
+    aligns,
+    base:{mode:ST.bp},
+    E0:nb.E0,N0:nb.N0,H0:nb.H0,
+    epsg:p.epsg,crsName:p.crsName,
+    srcFile:ST.xmlName,lxVersion:p.version,
+    projName:ST.xmlName.replace(/\.(xml|landxml)$/i,""),
+    pset:ST.pset,psetNotes:notes,
+    migFrom:(ST.host&&ST.host.mig)?ST.host.schema:null,
+    tolPos:TOL_POS,
+    fileName:ui.outName.value||"landxml.ifc"
+  });
+}
+
+/* ---- viste -------------------------------------------------------------- */
+ui.viewSeg.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+  ST.view=b.dataset.view;
+  ui.viewSeg.querySelectorAll("button").forEach(x=>{
+    x.classList.toggle("on",x===b); x.setAttribute("aria-selected",x===b?"true":"false");
+  });
+  renderAll();
+}));
+ui.bpSeg.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+  if(b.disabled) return;
+  ST.bp=b.dataset.bp; recompute();
+}));
+ui.psetTog.addEventListener("click",()=>{
+  ST.pset=!ST.pset; ui.psetTog.classList.toggle("on",ST.pset); recompute();
+});
+ui.outName.addEventListener("change",()=>{ if(ST.build) renderRail(); });
+
+/* ---- render ------------------------------------------------------------- */
+function renderAll(){
+  const has=!!ST.parsed;
+  ui.drop0.hidden=has;
+  ui.mapView.hidden=!has||ST.view!=="map";
+  ui.axisView.hidden=!has||ST.view!=="axis";
+  ui.railMap.hidden=!has||ST.view!=="map";
+  ui.railAxis.hidden=!has||ST.view!=="axis";
+  ui.railNote.hidden=true;
+  if(!has){
+    ui.railMsg.textContent=tr("rail.load"); ui.railMsg.classList.remove("warn");
+    ui.writeBtn.disabled=true; ui.bcfBtn.hidden=true;
+    return;
+  }
+  if(ST.view==="map"){ renderTable(); renderCase(); }
+  else { renderAxis(); renderJnav(); }
+  renderRail();
+}
+
+function segBreak(items){
+  let l=0,a=0,c=0;
+  for(const it of items){
+    if(it.kind==="LINE") l++;
+    else if(it.kind==="ARC") a++;
+    else c++;
+  }
+  return {l,a,c};
+}
+function caseOf(ai,itemIdx){ return ST.cases.findIndex(c=>c.kind==="spiral"&&c.ai===ai&&c.itemIdx===itemIdx); }
+
+function renderTable(){
+  const p=ST.parsed;
+  const totSegs=ST.aligns.reduce((s,A)=>s+A.items.length,0);
+  const open=openCases().length;
+  ui.mapSub.textContent=fmt("map.sub",{a:ST.aligns.length,s:totSegs,sf:p.surfaces.length,p:p.cgPoints})+" "+
+    (open?fmt("map.subOpen",{n:open}):tr("map.subOk"));
+  const rows=[];
+  const okIcon='<span class="st ok"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span>';
+  const warnIcon='<span class="st warn"><i></i></span>';
+  const noIcon='<span class="st no"></span>';
+  ST.aligns.forEach((A,ai)=>{
+    const br=segBreak(A.items);
+    const selCls=A.on?"selbox on":"selbox";
+    const selSvg=A.on?'<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>':"";
+    rows.push('<div class="mrow" data-sel="'+ai+'">'+
+      '<span class="'+selCls+'" role="checkbox" aria-checked="'+A.on+'" tabindex="0"></span>'.replace("></span>",">"+selSvg+"</span>")+
+      '<span class="el"><span class="nm">'+esc(A.name)+' <span class="mm">'+nf(A.chain.totalLen,1)+' m</span></span>'+
+      '<span class="sub">'+fmt("r.h.sub",{l:br.l,a:br.a,c:br.c})+'</span></span>'+
+      '<span class="tgt"><span class="tn">IfcAlignmentHorizontal</span><span class="ts">'+fmt("r.h.tgt2",{n:A.chain.hsegs.length})+'</span></span>'+
+      '<span class="es">'+tr("es.11")+'</span></div>');
+    if(A.pvisM.length){
+      const pb=A.vsegs.reduce((o,v)=>{ if(v.t==="PARABOLICARC")o.p++; else o.l++; return o; },{p:0,l:0});
+      rows.push('<div class="mrow">'+okIcon+
+        '<span class="el"><span class="nm">'+tr("r.v.nm")+' <span class="mm">'+fmt("r.v.pvi",{n:A.pvisM.length})+'</span></span>'+
+        '<span class="sub">'+fmt("r.v.sub",{p:pb.p,l:pb.l})+'</span></span>'+
+        '<span class="tgt"><span class="tn">IfcAlignmentVertical</span><span class="ts">'+tr("r.v.tgt2")+'</span></span>'+
+        '<span class="es">'+tr("es.11")+'</span></div>');
+    } else {
+      rows.push('<div class="mrow off">'+noIcon+
+        '<span class="el"><span class="nm">'+tr("r.v.none")+'</span>'+
+        '<span class="sub">'+tr("r.v.noneSub")+'</span></span>'+
+        '<span class="tgt"><span class="tn dim">IfcAlignmentVertical</span><span class="ts">—</span></span>'+
+        '<span class="es dim">'+tr("es.no")+'</span></div>');
+    }
+    A.items.forEach((it,ii)=>{
+      if(!(it.kind==="SPIRAL"&&it.spiType!=="clothoid")) return;
+      const ci=caseOf(ai,ii), c=ST.cases[ci];
+      const openC=!c.choice||c.choice==="stop";
+      const sFrom=staF0(lxStaLabel(A.staMap,A.sta0M,it.sta));
+      const sTo=staF0(lxStaLabel(A.staMap,A.sta0M,it.sta+it.length));
+      let tgt1,tgt2,es,esCls;
+      if(!c.choice){ tgt1=tr("r.sp.tbd"); tgt2=tr("r.sp.tbd2"); es=tr("es.open"); esCls="es warn"; }
+      else if(c.choice==="clothoid"){
+        const dev=lxClothoidDev(it,ii>0?A.items[ii-1]:null,ii+1<A.items.length?A.items[ii+1]:null);
+        tgt1="IfcAlignmentSegment"; tgt2="CLOTHOID";
+        es=dev==null?tr("r.sp.dec1na"):fmt("r.sp.dec1",{d:mmF(dev)}); esCls="es";
+      }
+      else if(c.choice==="poly"){
+        const pts=lxPolyPts(it);
+        tgt1="IfcAlignmentSegment"; tgt2="LINE × "+(pts?pts.length-1:0);
+        es=fmt("r.sp.dec2",{n:pts?pts.length-1:0}); esCls="es";
+      }
+      else { tgt1=tr("r.sp.tbd"); tgt2="—"; es=tr("r.sp.stop"); esCls="es warn"; }
+      rows.push('<button type="button" class="mrow'+(ci===ST.caseIdx&&openC?" open":"")+'" data-case="'+ci+'">'+warnIcon+
+        '<span class="el"><span class="nm">'+tr("r.sp.nm")+' <code>'+esc(it.spiType)+'</code> <span class="mm">'+sFrom+' → '+sTo+'</span></span>'+
+        '<span class="sub warn">'+tr("r.sp.sub")+'</span></span>'+
+        '<span class="tgt"><span class="tn'+(!c.choice?" dim":"")+'">'+tgt1+'</span><span class="ts">'+tgt2+'</span></span>'+
+        '<span class="'+esCls+'">'+es+'</span></button>');
+    });
+    A.staEqsM.forEach((eq,ei)=>{
+      const ci=ST.cases.findIndex(c=>c.kind==="staeq"&&c.ai===ai&&c.eqIdx===ei);
+      const c=ST.cases[ci];
+      const jump=eq.ahead-eq.back;
+      let es,esCls,tgt1,tgt2;
+      if(!c.choice){ es=tr("es.conf"); esCls="es warn"; tgt1=tr("r.eq.tgt"); tgt2=tr("r.eq.tgt2"); }
+      else if(c.choice==="referent"){ es=tr("es.11"); esCls="es"; tgt1=tr("r.eq.tgt"); tgt2=tr("r.eq.tgt2"); }
+      else { es=tr("es.excl"); esCls="es dim"; tgt1="—"; tgt2="—"; }
+      rows.push('<button type="button" class="mrow'+(ci===ST.caseIdx&&!c.choice?" open":"")+'" data-case="'+ci+'">'+warnIcon+
+        '<span class="el"><span class="nm">'+tr("r.eq.nm")+' <span class="mm">'+fmt("r.eq.at",{s:staF0(eq.back)})+'</span></span>'+
+        '<span class="sub">'+fmt("r.eq.sub",{d:(jump>=0?"+":"−")+nf(Math.abs(jump),2)})+'</span></span>'+
+        '<span class="tgt"><span class="tn">'+tgt1+'</span><span class="ts">'+tgt2+'</span></span>'+
+        '<span class="'+esCls+'">'+es+'</span></button>');
+    });
+  });
+  ST.parsed.surfaces.forEach(sf=>{
+    rows.push('<div class="mrow off">'+noIcon+
+      '<span class="el"><span class="nm">'+tr("r.sf.nm")+' <span class="mm">'+fmt("r.sf.tri",{n:sf.faces})+'</span></span>'+
+      '<span class="sub">'+esc(sf.name)+' · '+tr("r.sf.sub")+'</span></span>'+
+      '<span class="tgt"><span class="tn">'+tr("r.sf.tgt")+'</span><span class="ts">'+tr("r.sf.tgt2")+'</span></span>'+
+      '<span class="es dim">'+tr("es.excl")+'</span></div>');
+  });
+  if(ST.parsed.cgPoints){
+    rows.push('<div class="mrow off">'+noIcon+
+      '<span class="el"><span class="nm">'+tr("r.cg.nm")+' <span class="mm">'+nf(ST.parsed.cgPoints,0)+'</span></span>'+
+      '<span class="sub">'+tr("r.cg.sub")+'</span></span>'+
+      '<span class="tgt"><span class="tn">'+tr("r.cg.tgt")+'</span><span class="ts">'+tr("r.cg.tgt2")+'</span></span>'+
+      '<span class="es dim">'+tr("es.exclM")+'</span></div>');
+  }
+  ui.mrows.innerHTML=rows.join("");
+  ui.mrows.querySelectorAll("[data-case]").forEach(el=>el.addEventListener("click",()=>{
+    ST.caseIdx=parseInt(el.dataset.case,10); renderTable(); renderCase();
+  }));
+  ui.mrows.querySelectorAll("[data-sel]").forEach(el=>el.addEventListener("click",e=>{
+    if(!e.target.closest(".selbox")) return;
+    const A=ST.aligns[parseInt(el.dataset.sel,10)];
+    A.on=!A.on; recompute();
+  }));
+  /* le due verità */
+  if(ST.build&&ST.build.ok){
+    ui.truthsV.textContent=fmt("truth.ok",{d:mmF(Math.max(ST.build.truth.maxH,ST.build.truth.maxV))});
+    ui.truthsV.classList.remove("warn");
+  } else if(ST.build&&ST.build.err==="truth"){
+    ui.truthsV.textContent=fmt("truth.fail",{d:mmF(Math.max(ST.build.truth.maxH,ST.build.truth.maxV))});
+    ui.truthsV.classList.add("warn");
+  } else {
+    ui.truthsV.textContent=tr("truth.wait");
+    ui.truthsV.classList.add("warn");
+  }
+}
+
+/* ---- pannello del caso aperto ------------------------------------------- */
+function renderCase(){
+  const cases=ST.cases;
+  if(!cases.length){
+    ui.caseWrap.innerHTML='<div class="rblk"><div class="rt"><span class="n">'+tr("c.none")+'</span></div>'+
+      '<div class="rbox"><p>'+tr("c.noneD")+'</p></div></div>';
+    return;
+  }
+  if(ST.caseIdx>=cases.length) ST.caseIdx=0;
+  const c=cases[ST.caseIdx];
+  const A=ST.aligns[c.ai];
+  const nav='<span class="c">'+fmt("c.of",{k:ST.caseIdx+1,n:cases.length})+'</span>';
+  let html='';
+  if(c.kind==="spiral"){
+    const it=c.it;
+    const its=A.items||[];
+    const dev=lxClothoidDev(it,c.itemIdx>0?its[c.itemIdx-1]:null,c.itemIdx+1<its.length?its[c.itemIdx+1]:null);
+    const pts=lxPolyPts(it);
+    const rTxt=(Math.abs(it.r0)>0?nf(Math.abs(it.r0),0):"∞")+" → "+(Math.abs(it.r1)>0?nf(Math.abs(it.r1),0)+" m":"∞");
+    html='<div class="rblk"><div class="rt"><span class="n">'+fmt("c.sp.t",{t:esc(it.spiType)})+'</span>'+nav+'</div>'+
+      '<div class="rbox"><span class="bk">'+tr("c.file")+'</span>'+
+      '<div class="kv"><span class="k">'+tr("c.lenR")+'</span><span class="v">'+nf(it.length,2)+' m · '+rTxt+'</span></div>'+
+      '<div class="kv"><span class="k">'+tr("c.type")+'</span><span class="v warn">'+esc(it.spiType)+'</span></div>'+
+      '<p>'+tr("c.spNote")+'</p></div>'+
+      '<div class="ropts"><span class="ok9">'+tr("c.how")+'</span>'+
+      caseOpt(c,"clothoid",tr("c.o1"),dev==null?tr("c.o1dna"):fmt("c.o1d",{d:mmF(dev)}),false)+
+      (pts?caseOpt(c,"poly",fmt("c.o2",{n:pts.length-1}),tr("c.o2d"),false)
+          :caseOpt(c,"poly",tr("c.o2na"),"",true))+
+      caseOpt(c,"stop",tr("c.o3"),tr("c.o3d"),false,true)+
+      '</div></div>';
+  } else {
+    const eq=c.eq, jump=eq.ahead-eq.back;
+    html='<div class="rblk"><div class="rt"><span class="n">'+tr("c.eq.t")+'</span>'+nav+'</div>'+
+      '<div class="rbox"><span class="bk">'+tr("c.file")+'</span>'+
+      '<div class="kv"><span class="k">'+tr("c.eq.at")+'</span><span class="v">'+staF0(eq.back)+' → '+staF0(eq.ahead)+'</span></div>'+
+      '<div class="kv"><span class="k">'+tr("c.eq.jump")+'</span><span class="v warn">'+(jump>=0?"+":"−")+nf(Math.abs(jump),2)+' m</span></div>'+
+      '<p>'+tr("c.eqNote")+'</p></div>'+
+      '<div class="ropts"><span class="ok9">'+tr("c.how")+'</span>'+
+      caseOpt(c,"referent",tr("c.eqO1"),tr("c.eqO1d"),false)+
+      caseOpt(c,"ignore",tr("c.eqO2"),tr("c.eqO2d"),false,true)+
+      '</div></div>';
+  }
+  ui.caseWrap.innerHTML=html;
+  ui.caseWrap.querySelectorAll("[data-choice]").forEach(b=>b.addEventListener("click",()=>{
+    if(b.disabled) return;
+    c.choice=b.dataset.choice;
+    const nx=ST.cases.findIndex((x,i)=>i>ST.caseIdx&&(!x.choice||x.choice==="stop"));
+    if(nx>=0) ST.caseIdx=nx;
+    recompute();
+  }));
+}
+function caseOpt(c,val,t,d,disabled,dash){
+  const on=c.choice===val;
+  return '<button type="button" class="ropt'+(on?" on":"")+(dash?" dash":"")+'" data-choice="'+val+'"'+(disabled?" disabled":"")+'>'+
+    '<span class="rad"></span><span class="el"><span class="t">'+t+'</span>'+(d?'<span class="d">'+d+'</span>':"")+'</span></button>';
+}
+
+/* ---- rail: punto base + uscita + piede ---------------------------------- */
+/* dettaglio per tipo della migrazione — perType usa chiavi strutturate del
+   motore: "TIPO|drop" (tolta), "TIPO|to|NUOVO" (rinominata/trasformata),
+   "IFCSTYLEDITEM|styles" (stili appiattiti), "TIPO" da solo (pad in coda) */
+function migDetailHtml(mig){
+  const drop=[],rew=[],warn=[...mig.warnTypes].map(([t,n])=>[t,n,null]);
+  for(const [k,n] of mig.perType){
+    if(k.endsWith("|drop")){
+      const t=k.slice(0,-5);
+      const why=t==="IFCCALENDARDATE"?tr("mig.whyCal"):
+        (t==="IFCPRESENTATIONSTYLEASSIGNMENT"?tr("mig.whyStyleAsg"):null);
+      drop.push([t,n,why]);
+    }
+    else if(k==="IFCSTYLEDITEM|styles") rew.push(["IFCSTYLEDITEM · "+tr("mig.styles"),n,null]);
+    else if(k.indexOf("|to|")>=0){ const q=k.split("|to|"); rew.push([q[0]+" → "+q[1],n,null]); }
+    else rew.push([k,n,null]);
+  }
+  const byN=(a,b)=>b[1]-a[1]||(a[0]<b[0]?-1:1);
+  const sec=(h,rows)=>rows.length?'<div class="mg-h">'+esc(h)+'</div>'+
+    rows.sort(byN).map(r=>'<div class="mg-r"><span class="t">'+esc(r[0])+'</span><span class="n">×'+nf(r[1],0)+'</span></div>'+
+      (r[2]?'<p class="mg-why">'+esc(r[2])+'</p>':"")).join(""):"";
+  return sec(tr("mig.secDrop"),drop)+sec(tr("mig.secRw"),rew)+sec(tr("mig.secWarn"),warn);
+}
+function renderRail(){
+  const hasMc=!!(ST.host&&ST.host.mapConv);
+  const bOrigin=ui.bpSeg.querySelector('[data-bp="origin"]');
+  bOrigin.disabled=!!ST.host&&!hasMc;
+  if(bOrigin.disabled&&ST.bp==="origin") ST.bp="abs";
+  ui.bpSeg.querySelectorAll("button").forEach(b=>b.classList.toggle("on",b.dataset.bp===ST.bp));
+  const nb=baseNew();
+  const eTxt=hasMc?nf(Math.round(ST.host.mapConv.E),0):nf(nb.E0,0);
+  if(ST.bp==="abs") ui.bpNote.textContent=tr("bp.noteAbs");
+  else if(ST.host&&hasMc) ui.bpNote.textContent=fmt("bp.noteHost",{f:ST.hostName,e:eTxt});
+  else if(ST.host) ui.bpNote.textContent=tr("bp.noteHostNoMc");
+  else ui.bpNote.textContent=fmt("bp.noteNew",{e:eTxt});
+  if(ST.build&&ST.build.ok&&ST.bp==="origin"){
+    ui.bpCheck.hidden=false;
+    ui.bpCheckV.textContent="≤ "+mmF(Math.max(ST.build.truth.maxH,0.00005));
+  } else ui.bpCheck.hidden=true;
+  ui.outSchema.textContent=ST.host?(ST.host.mig?ST.host.schema+" → IFC4X3_ADD2":ST.host.schema):"IFC4X3_ADD2";
+  ui.outEnts.textContent=ST.build&&ST.build.ok?nf(ST.build.stats.ents,0):"—";
+  const mig=ST.host&&ST.host.mig;
+  ui.outMigRow.hidden=!mig;
+  ui.migNote.hidden=!mig;
+  ui.migDetail.hidden=!mig;
+  if(mig){
+    let v=fmt("out.migV",{n:mig.adapted,d:mig.dropped});
+    const wk=[...mig.warnTypes.values()].reduce((s,x)=>s+x,0);
+    if(wk) v+=fmt("out.migWarn",{k:wk});
+    ui.outMig.textContent=v;
+    ui.outMig.classList.toggle("warn",!!wk);
+    ui.migNote.textContent=fmt("mig.note",{s:ST.host.schema})+
+      (ST.host.mapConv?"":" "+tr("mig.noteGeo"));
+    ui.migDetailList.innerHTML=migDetailHtml(mig);
+  }
+  ui.psetTog.classList.toggle("on",ST.pset);
+  const open=openCases();
+  const anyOn=ST.aligns.some(A=>A.on);
+  const stopped=ST.cases.some(c=>c.choice==="stop");
+  ui.writeBtn.disabled=true;
+  ui.railMsg.classList.add("warn");
+  if(!anyOn) ui.railMsg.textContent=tr("rail.noAlign");
+  else if(stopped) ui.railMsg.textContent=tr("rail.blocked");
+  else if(open.length) ui.railMsg.textContent=fmt("rail.open",{n:open.length});
+  else if(ST.build&&ST.build.err==="truth") ui.railMsg.textContent=fmt("truth.fail",{d:mmF(Math.max(ST.build.truth.maxH,ST.build.truth.maxV))});
+  else if(ST.build&&ST.build.ok){
+    ui.railMsg.classList.remove("warn");
+    ui.railMsg.textContent=fmt("rail.ready",{n:ST.build.stats.ents,d:mmF(Math.max(ST.build.truth.maxH,ST.build.truth.maxV))});
+    ui.writeBtn.disabled=false;
+  } else ui.railMsg.textContent=fmt("rail.open",{n:open.length});
+  const kept=ST.aligns.reduce((s,A)=>s+((A.on&&A.chain)?A.chain.openJ.length:0),0);
+  ui.bcfBtn.hidden=!kept;
+}
+
+/* ---- verifica sull'asse ------------------------------------------------- */
+function activeAlign(){ return ST.aligns[Math.min(ST.axIdx,ST.aligns.length-1)]; }
+function outJuncs(A){ return A.juncs?A.juncs.filter(j=>j.out):[]; }
+function renderAxis(){
+  ui.axChips.innerHTML=ST.aligns.map((A,ai)=>{
+    const on=ai===Math.min(ST.axIdx,ST.aligns.length-1);
+    return '<button type="button" class="axchip'+(on?" on":"")+'" data-ax="'+ai+'">'+
+      (on?'<svg viewBox="0 0 24 24"><path d="M3 17c5 0 5-10 10-10s5 10 8 10"/></svg>':"")+esc(A.name)+'</button>';
+  }).join("");
+  ui.axChips.querySelectorAll("[data-ax]").forEach(b=>b.addEventListener("click",()=>{
+    ST.axIdx=parseInt(b.dataset.ax,10); ST.jIdx=0; renderAxis(); renderJnav();
+  }));
+  const A=activeAlign(); if(!A) return;
+  const totOut=ST.aligns.reduce((s,x)=>s+outJuncs(x).length,0);
+  ui.jBadge.classList.toggle("ok",totOut===0);
+  ui.jBadgeT.textContent=totOut?fmt("j.badge",{n:totOut}):tr("j.badgeOk");
+  ui.legJn.textContent=nf(totOut,0);
+  drawPlan(A);
+  drawProfile(A);
+}
+function drawPlan(A){
+  const svg=ui.planSvg;
+  const hs=A.chain&&A.chain.hsegs.length?A.chain.hsegs:null;
+  if(!hs){ svg.innerHTML=""; return; }
+  const pts=lxSampleChain(hs,500);
+  let x0=1/0,y0=1/0,x1=-1/0,y1=-1/0;
+  for(const p of pts){ if(p[0]<x0)x0=p[0]; if(p[0]>x1)x1=p[0]; if(p[1]<y0)y0=p[1]; if(p[1]>y1)y1=p[1]; }
+  const W=920,H=300,pad=26;
+  const sc=Math.min((W-2*pad)/Math.max(1e-9,x1-x0),(H-2*pad)/Math.max(1e-9,y1-y0));
+  const ox=(W-(x1-x0)*sc)/2, oy=(H-(y1-y0)*sc)/2;
+  const X=p=>ox+(p[0]-x0)*sc, Y=p=>H-(oy+(p[1]-y0)*sc);
+  svg.setAttribute("viewBox","0 0 "+W+" "+H);
+  const path=pts.map((p,i)=>(i?"L":"M")+X(p).toFixed(1)+" "+Y(p).toFixed(1)).join("");
+  let out="";
+  ST.aligns.forEach(B=>{
+    if(B===A||!B.on||!B.chain||!B.chain.hsegs.length) return;
+    const bp=lxSampleChain(B.chain.hsegs,200);
+    const d2=bp.map((p,i)=>(i?"L":"M")+X(p).toFixed(1)+" "+Y(p).toFixed(1)).join("");
+    out+='<path d="'+d2+'" fill="none" stroke="var(--axis2)" stroke-width="1.2" opacity=".55" stroke-dasharray="5 4"/>';
+  });
+  out+='<path d="'+path+'" fill="none" stroke="var(--lime)" stroke-width="2" stroke-linejoin="round"/>';
+  outJuncs(A).forEach((j,k)=>{
+    const sel=k===ST.jIdx;
+    out+='<circle data-j="'+k+'" cx="'+X(j.p).toFixed(1)+'" cy="'+Y(j.p).toFixed(1)+'" r="'+(sel?8:6)+'" fill="rgba(224,166,58,.35)" stroke="var(--amber)" stroke-width="'+(sel?2:1)+'" style="cursor:pointer"/>';
+  });
+  svg.innerHTML=out;
+  svg.querySelectorAll("[data-j]").forEach(c=>c.addEventListener("click",()=>{
+    ST.jIdx=parseInt(c.dataset.j,10); renderAxis(); renderJnav();
+  }));
+}
+function drawProfile(A){
+  const svg=ui.profSvg;
+  const L=A.chain?A.chain.totalLen||1:1;
+  if(!A.vsegs.length){
+    svg.innerHTML=""; ui.profMeta.textContent=tr("ax.noProf"); ui.profEx.textContent="";
+    ui.profSta.innerHTML="";
+    return;
+  }
+  const N=120, W=920, H=96, pad=8;
+  let z0=1/0,z1=-1/0;
+  const zs=[];
+  for(let i=0;i<=N;i++){ const z=lxProfileAt(A.vsegs,L*i/N); zs.push(z); if(z<z0)z0=z; if(z>z1)z1=z; }
+  if(z1-z0<1e-6) z1=z0+1;
+  const ex=(L/(z1-z0))/(W/H);
+  ui.profMeta.textContent=fmt("ax.profMeta",{a:nf(z0,0),b:nf(z1,0)});
+  ui.profEx.textContent=fmt("ax.ex",{x:nf(Math.max(1,Math.round(ex)),0)});
+  svg.setAttribute("viewBox","0 0 "+W+" "+H);
+  const X=s=>pad+(W-2*pad)*s/L, Y=z=>H-pad-(H-2*pad)*(z-z0)/(z1-z0);
+  let d="";
+  zs.forEach((z,i)=>{ const s=L*i/N; d+=(i?"L":"M")+X(s).toFixed(1)+" "+Y(z).toFixed(1); });
+  const dA=d+"L"+X(L).toFixed(1)+" "+(H-2)+"L"+X(0).toFixed(1)+" "+(H-2)+"Z";
+  let out='<path d="'+dA+'" fill="rgba(191,215,48,.10)"/>'+
+    '<path d="'+d+'" fill="none" stroke="var(--lime)" stroke-width="1.6" stroke-linejoin="round"/>';
+  outJuncs(A).forEach((j,k)=>{
+    const x=X(j.sta).toFixed(1);
+    out+='<line x1="'+x+'" y1="0" x2="'+x+'" y2="'+H+'" stroke="rgba(224,166,58,.75)" stroke-width="'+(k===ST.jIdx?1.6:1)+'"/>';
+  });
+  svg.innerHTML=out;
+  const ticks=[];
+  for(let i=0;i<=4;i++) ticks.push('<span>'+staF0(lxStaLabel(A.staMap,A.sta0M,L*i/4))+'</span>');
+  ui.profSta.innerHTML=ticks.join("");
+}
+
+/* ---- navigatore giunzioni ----------------------------------------------- */
+function renderJnav(){
+  const A=activeAlign();
+  const js=A?outJuncs(A):[];
+  if(!js.length){
+    ui.jPage.textContent="—"; ui.jPrev.disabled=true; ui.jNext.disabled=true;
+    ui.jBody.innerHTML='<div class="jempty">'+tr("j.none")+'</div>';
+    return;
+  }
+  if(ST.jIdx>=js.length) ST.jIdx=0;
+  const j=js[ST.jIdx];
+  ui.jPage.textContent=(ST.jIdx+1)+" / "+js.length;
+  ui.jPrev.disabled=ST.jIdx===0; ui.jNext.disabled=ST.jIdx===js.length-1;
+  const fix=A.fixes.get(j.i)||"sew";
+  const canRefit=A.items[j.i+1]&&A.items[j.i+1].kind==="SPIRAL";
+  const sta=staF0(lxStaLabel(A.staMap,A.sta0M,j.sta));
+  ui.jBody.innerHTML=
+    '<div class="jcase"><div class="row">'+
+    '<span class="seg18">'+fmt("j.seg",{a:j.i+1,b:j.i+2}).toUpperCase()+'</span>'+
+    '<span class="sta">'+sta+'</span></div>'+
+    '<span class="t">'+tr("j.tit")+'</span>'+
+    '<p>'+tr("j.why")+'</p></div>'+
+    '<div class="jmeas">'+
+    '<div class="r"><span class="k">'+tr("j.pos")+'</span><span class="v'+(j.posOut?"":" okc")+'">'+nf(j.dPos*1000,1)+' mm</span><span class="mx">'+tr("j.max1")+'</span></div>'+
+    '<div class="r"><span class="k">'+tr("j.tan")+'</span><span class="v'+(j.angOut?"":" okc")+'">'+nf(j.dAng/Math.PI*200,4)+' gon</span><span class="mx">'+tr("j.max2")+'</span></div>'+
+    '<div class="r"><span class="k">'+tr("j.cur")+'</span><span class="v'+(Math.abs(j.dK)<1e-6?" okc":"")+'">'+
+      (Math.abs(j.dK)<1e-6?tr("j.cont"):fmt("j.jump",{v:nf(j.dK,4)}))+'</span><span class="mx">'+tr("j.maxNo")+'</span></div>'+
+    '</div>'+
+    '<div class="jopts"><span class="ok9" style="font:400 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint);padding-bottom:2px">'+tr("j.what")+'</span>'+
+    jOpt(fix,"sew",tr("j.o1"),fmt("j.o1d",{d:mmF(j.dPos)}),false)+
+    (canRefit?jOpt(fix,"refit",tr("j.o2"),fmt("j.o2d",{r:refitDR(A,j)}),false)
+             :jOpt(fix,"refit",tr("j.o2na"),"",true))+
+    jOpt(fix,"keep",tr("j.o3"),tr("j.o3d"),false,true)+
+    '<button type="button" class="rtog'+(ST.jAll?" on":"")+'" id="jAllTog" style="margin-top:4px">'+
+    '<span class="tk"></span><span class="tl">'+tr("j.all")+'</span></button>'+
+    '</div>';
+  ui.jBody.querySelectorAll("[data-fix]").forEach(b=>b.addEventListener("click",()=>{
+    if(b.disabled) return;
+    const val=b.dataset.fix;
+    if(ST.jAll){
+      ST.aligns.forEach(B=>outJuncs(B).forEach(x=>{
+        if(val==="refit"&&!(B.items[x.i+1]&&B.items[x.i+1].kind==="SPIRAL")) B.fixes.set(x.i,"sew");
+        else B.fixes.set(x.i,val);
+      }));
+    } else A.fixes.set(j.i,val);
+    recompute();
+  }));
+  const at=$("jAllTog");
+  if(at) at.addEventListener("click",()=>{ ST.jAll=!ST.jAll; renderJnav(); });
+}
+function jOpt(cur,val,t,d,disabled,dash){
+  return '<button type="button" class="ropt'+(cur===val?" on":"")+(dash?" dash":"")+'" data-fix="'+val+'"'+(disabled?" disabled":"")+'>'+
+    '<span class="rad"></span><span class="el"><span class="t">'+t+'</span>'+(d?'<span class="d">'+d+'</span>':"")+'</span></button>';
+}
+function refitDR(A,j){
+  const nx=A.items[j.i+1];
+  if(!nx||nx.kind!=="SPIRAL") return "—";
+  const e=lxEnd(A.items[j.i]);
+  const target=nx.declEnd||lxEnd(nx).p;
+  const rf=lxRefit({p:e.p,th:e.th},lxK(nx.r0),nx.length,lxK(nx.r1),target);
+  if(!rf) return "—";
+  return mF(Math.abs((rf.r1||0)-(nx.r1||0)));
+}
+ui.jPrev.addEventListener("click",()=>{ if(ST.jIdx>0){ ST.jIdx--; renderAxis(); renderJnav(); } });
+ui.jNext.addEventListener("click",()=>{ ST.jIdx++; renderAxis(); renderJnav(); });
+
+/* ---- export ------------------------------------------------------------- */
+function download(name,parts,mime){
+  const blob=new Blob(parts,{type:mime||"application/octet-stream"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },800);
+}
+ui.writeBtn.addEventListener("click",async()=>{
+  if(ui.writeBtn.disabled) return;
+  await veil("veil.write",async()=>{
+    const res=runBuild();
+    if(!res.ok){
+      ST.build=res; renderRail();
+      if(res.err==="truth") toast(fmt("truth.fail",{d:mmF(Math.max(res.truth.maxH,res.truth.maxV))}));
+      return;
+    }
+    const name=ui.outName.value||"landxml.ifc";
+    if(res.parts) download(name,res.parts,"application/x-step");
+    else download(name,[res.text],"application/x-step");
+    toast(fmt("toast.done",{f:name,n:res.stats.ents,d:mmF(Math.max(res.truth.maxH,res.truth.maxV))}));
+    try{ if(window.goatcounter&&goatcounter.count) goatcounter.count({path:"tool-landxml-ifc-run",event:true}); }catch(e){}
+  });
+});
+ui.bcfBtn.addEventListener("click",()=>{
+  const topics=[];
+  ST.aligns.forEach(A=>{ if(!A.on||!A.chain) return;
+    A.chain.openJ.forEach(j=>{
+      topics.push({
+        guid:(crypto.randomUUID?crypto.randomUUID():(Date.now()+"-"+Math.random())),
+        created:new Date().toISOString().slice(0,19)+"Z",
+        title:A.name+" · "+staF0(lxStaLabel(A.staMap,A.sta0M,j.sta))+" · "+nf(j.dPos*1000,1)+" mm",
+        description:fmt("j.seg",{a:j.i+1,b:j.i+2})+" — "+tr("j.pos")+" "+nf(j.dPos*1000,1)+" mm · "+
+          tr("j.tan")+" "+nf(j.dAng/Math.PI*200,4)+" gon ("+ST.xmlName+")"
+      });
+    });
+  });
+  if(!topics.length) return;
+  const parts=lxBcfZip(topics,{file:ST.xmlName,author:"viewifc.com"});
+  download((ST.xmlName.replace(/\.(xml|landxml)$/i,"")||"landxml")+"_giunzioni.bcfzip",parts,"application/zip");
+  toast(fmt("toast.bcf",{n:topics.length}));
+});
+
+/* ---- avvio -------------------------------------------------------------- */
+applyLang(LANG);
+renderAll();
+</script>
+
+</body>
+</html>

@@ -344,7 +344,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
   <!-- ================= TESTATA ================= -->
   <section class="head">
     <div class="head-l">
-      <span class="kicker" data-i18n="head.kicker">Strumenti · 12</span>
+      <span class="kicker" data-i18n="head.kicker">Strumenti · 13</span>
       <h1 class="h1" data-i18n="head.h1">Utilità che fanno una cosa sola.</h1>
       <p class="lead" data-i18n="head.lead">Ognuna prende un file, lo trasforma e te lo restituisce. Girano nel browser con lo scanner a fette: niente upload, niente account, nessun limite di dimensione imposto da noi.</p>
     </div>
@@ -352,12 +352,12 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <div class="hs-row">
         <span class="hs-dot" style="background:var(--lime)"></span>
         <span class="hs-k" data-i18n="stat.ready">Pronti all'uso</span>
-        <span class="hs-v">10</span>
+        <span class="hs-v">12</span>
       </div>
       <div class="hs-row">
         <span class="hs-dot" style="background:var(--muted)"></span>
         <span class="hs-k" data-i18n="stat.wip">In lavorazione</span>
-        <span class="hs-v">2</span>
+        <span class="hs-v">1</span>
       </div>
       <span class="hs-note"><a href="https://github.com/arsray146/ifc-bcf-viewer/issues" target="_blank" rel="noopener" data-i18n="stat.note">L'ordine lo decidono le issue aperte.</a></span>
     </aside>
@@ -397,7 +397,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <div class="band-h">
         <span class="dot" style="background:var(--lime)"></span>
         <span class="t" data-i18n="band.ready">Pronti all'uso</span>
-        <span class="n" data-i18n="band.readyN">11 · online adesso</span>
+        <span class="n" data-i18n="band.readyN">12 · online adesso</span>
         <span class="ln"></span>
       </div>
       <div class="cards">
@@ -502,6 +502,16 @@ html:not([data-theme="light"]) .thm .sun{display:none}
           </div>
         </a>
 
+        <a class="card live" data-cat="infra" data-tool="11" href="ifc-landxml-to-ifc/">
+          <div class="card-top"><span class="badge">.xml → .ifc</span><span class="card-num">11</span></div>
+          <h3 class="card-t">LandXML → IFC4x3</h3>
+          <p class="card-d" data-i18n="t11.d">Il verso opposto del 03: il tracciato del topografo diventa IfcAlignment — segmenti parametrici e curva geometrica generati insieme e verificati l'uno sull'altra, giunzioni controllate al millimetro, inserimento in un modello esistente.</p>
+          <div class="card-f">
+            <span class="card-cat" data-i18n="catS.infra">Infrastrutture</span>
+            <span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </a>
+
         <a class="card live" data-cat="diag" data-tool="12" href="ifc-ids-editor/">
           <div class="card-top"><span class="badge">.xlsx · .ifc → .ids</span><span class="card-num">12</span></div>
           <h3 class="card-t">IFC IDS Editor</h3>
@@ -520,20 +530,10 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <div class="band-h">
         <span class="dot" style="background:var(--muted)"></span>
         <span class="t" data-i18n="band.wip">In lavorazione</span>
-        <span class="n" data-i18n="band.wipN">2 · nell'ordine in cui li chiedete</span>
+        <span class="n" data-i18n="band.wipN">1 · nell'ordine in cui li chiedete</span>
         <span class="ln"></span>
       </div>
       <div class="cards">
-
-        <div class="card wip" data-cat="infra" data-tool="11">
-          <div class="card-top"><span class="badge">.xml → .ifc</span><span class="card-num">11</span></div>
-          <h3 class="card-t">LandXML → IFC4x3</h3>
-          <p class="card-d" data-i18n="t11.d">Il verso opposto del 03: dal tracciato del topografo alle entità IfcAlignment. Chiude il cerchio dell'interoperabilità stradale.</p>
-          <div class="card-f">
-            <span class="card-cat" data-i18n="catS.infra">Infrastrutture</span>
-            <span class="ver">v3.1</span>
-          </div>
-        </div>
 
         <div class="card wip" data-cat="coord" data-tool="13">
           <div class="card-top"><span class="badge">.bcfzip → .xlsx</span><span class="card-num">13</span></div>
@@ -646,6 +646,14 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <span class="c-c" data-i18n="catS.data">Dati</span>
       <span class="c-s"><span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></span>
     </a>
+    <a class="lrow" data-cat="infra" data-tool="11" href="ifc-landxml-to-ifc/">
+      <span class="c-n">11</span>
+      <span class="c-t">LandXML → IFC4x3</span>
+      <span class="c-d" data-i18n="t11.s">Il tracciato del topografo diventa IfcAlignment, con business logic e geometria verificate insieme</span>
+      <span class="c-io">.xml → .ifc</span>
+      <span class="c-c" data-i18n="catS.infra">Infrastrutture</span>
+      <span class="c-s"><span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></span>
+    </a>
     <a class="lrow" data-cat="diag" data-tool="12" href="ifc-ids-editor/">
       <span class="c-n">12</span>
       <span class="c-t">IFC IDS Editor</span>
@@ -659,14 +667,6 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <span class="dot"></span>
       <span class="t" data-i18n="band.wip">In lavorazione</span>
       <span class="ln"></span>
-    </div>
-    <div class="lrow" data-cat="infra" data-tool="11">
-      <span class="c-n">11</span>
-      <span class="c-t">LandXML → IFC4x3</span>
-      <span class="c-d" data-i18n="t11.s">Dal tracciato del topografo alle entità IfcAlignment: il verso opposto del 03</span>
-      <span class="c-io">.xml → .ifc</span>
-      <span class="c-c" data-i18n="catS.infra">Infrastrutture</span>
-      <span class="c-s"><span class="ver">v3.1</span></span>
     </div>
     <div class="lrow" data-cat="coord" data-tool="13">
       <span class="c-n">13</span>
@@ -722,7 +722,7 @@ const I18N = {
     "nav.home":"Vai a viewifc.com","nav.platform":"Funzioni","nav.tools":"Strumenti",
     "nav.privacy":"Privacy","nav.faq":"FAQ","nav.guide":"Guida","nav.contact":"Contatti",
     "cta.open":"Apri il viewer",
-    "head.kicker":"Strumenti · 12","head.h1":"Utilità che fanno una cosa sola.",
+    "head.kicker":"Strumenti · 13","head.h1":"Utilità che fanno una cosa sola.",
     "head.lead":"Ognuna prende un file, lo trasforma e te lo restituisce. Girano nel browser con lo scanner a fette: niente upload, niente account, nessun limite di dimensione imposto da noi.",
     "stat.ready":"Pronti all'uso","stat.wip":"In lavorazione",
     "stat.note":"L'ordine lo decidono le issue aperte.",
@@ -733,8 +733,8 @@ const I18N = {
     "catS.georef":"Georef","catS.diag":"Diagnostica","catS.coord":"Coordinamento",
     "search.ph":"Filtra per nome o formato",
     "view.grid":"Griglia","view.list":"Elenco",
-    "band.ready":"Pronti all'uso","band.readyN":"11 · online adesso",
-    "band.wip":"In lavorazione","band.wipN":"2 · nell'ordine in cui li chiedete",
+    "band.ready":"Pronti all'uso","band.readyN":"12 · online adesso",
+    "band.wip":"In lavorazione","band.wipN":"1 · nell'ordine in cui li chiedete",
     "act.open":"Apri",
     "list.tool":"Strumento","list.what":"Cosa fa","list.io":"In → out","list.cat":"Materia","list.state":"Stato",
     "t01.d":"Riclassifica entità e PredefinedType in massa da una mappatura Excel, con anteprima delle regole non risolte.",
@@ -757,8 +757,8 @@ const I18N = {
     "t09.s":"Ventotto controlli con gravità, conteggio per problema e chi lo risolve — non un punteggio",
     "t10.d":"Compila le proprietà mancanti per condizione, non per elemento: «gli IfcWall esterni → FireRating EI 90». Esce l'.ifc scritto e un quaderno di regole che si riapplica alla revisione dopo.",
     "t10.s":"Proprietà scritte per condizione, con un quaderno di regole che si riapplica alla revisione dopo",
-    "t11.d":"Il verso opposto del 03: dal tracciato del topografo alle entità IfcAlignment. Chiude il cerchio dell'interoperabilità stradale.",
-    "t11.s":"Dal tracciato del topografo alle entità IfcAlignment: il verso opposto del 03",
+    "t11.d":"Il verso opposto del 03: il tracciato del topografo diventa IfcAlignment — segmenti parametrici e curva geometrica generati insieme e verificati l'uno sull'altra, giunzioni controllate al millimetro, inserimento in un modello esistente.",
+    "t11.s":"Il tracciato del topografo diventa IfcAlignment, con business logic e geometria verificate insieme",
     "t12.d":"Crea e modifica file IDS 1.0 con tutti i sei criteri dello standard, provandoli dal vivo su un modello: la specifica che non prende nessuno è un falso verde, e qui si vede prima dell'export. Genera in blocco da tabella .xlsx/.csv.",
     "t12.s":"File IDS 1.0 scritti provandoli su un modello vero, o generati in blocco da tabella",
     "t13.d":"Il registro issue in tabella: titolo, stato, autore, commenti e snapshot. Quello che i coordinatori rifanno a mano ogni settimana.",
@@ -775,7 +775,7 @@ const I18N = {
     "nav.home":"Go to viewifc.com","nav.platform":"Features","nav.tools":"Tools",
     "nav.privacy":"Privacy","nav.faq":"FAQ","nav.guide":"Guide","nav.contact":"Contact",
     "cta.open":"Open the viewer",
-    "head.kicker":"Tools · 12","head.h1":"Utilities that do one thing.",
+    "head.kicker":"Tools · 13","head.h1":"Utilities that do one thing.",
     "head.lead":"Each one takes a file, transforms it and hands it back. They run in the browser on the sliced-read scanner: no upload, no account, no size limit imposed by us.",
     "stat.ready":"Ready to use","stat.wip":"In the works",
     "stat.note":"Open issues decide the order.",
@@ -786,8 +786,8 @@ const I18N = {
     "catS.georef":"Georef","catS.diag":"Diagnostics","catS.coord":"Coordination",
     "search.ph":"Filter by name or format",
     "view.grid":"Grid","view.list":"List",
-    "band.ready":"Ready to use","band.readyN":"11 · online now",
-    "band.wip":"In the works","band.wipN":"2 · in the order you ask for them",
+    "band.ready":"Ready to use","band.readyN":"12 · online now",
+    "band.wip":"In the works","band.wipN":"1 · in the order you ask for them",
     "act.open":"Open",
     "list.tool":"Tool","list.what":"What it does","list.io":"In → out","list.cat":"Topic","list.state":"State",
     "t01.d":"Bulk-reclassifies entities and PredefinedTypes from an Excel mapping, previewing the unresolved rules.",
@@ -810,8 +810,8 @@ const I18N = {
     "t09.s":"Twenty-eight checks with severity, count per problem and who fixes it — not a score",
     "t10.d":"Fills in missing properties by condition, not element by element: “external IfcWalls → FireRating EI 90”. Out comes the written .ifc and a rulebook that reapplies to the next revision.",
     "t10.s":"Properties written by condition, with a rulebook that reapplies to the next revision",
-    "t11.d":"The opposite direction of 03: from the surveyor's alignment to the IfcAlignment entities. Closes the road-interoperability loop.",
-    "t11.s":"From the surveyor's alignment to the IfcAlignment entities: the opposite of 03",
+    "t11.d":"The opposite direction of 03: the surveyor's alignment becomes IfcAlignment — parametric segments and geometric curve generated together and checked against each other, junctions verified to the millimetre, insertion into an existing model.",
+    "t11.s":"The surveyor's alignment becomes IfcAlignment, business logic and geometry checked together",
     "t12.d":"Creates and edits IDS 1.0 files with all six criteria of the standard, testing them live on a model: a specification that catches nobody is a false green, and here it shows before export. Bulk generation from an .xlsx/.csv table.",
     "t12.s":"IDS 1.0 files written while testing them on a real model, or bulk-generated from a table",
     "t13.d":"The issue register as a table: title, status, author, comments and snapshots. What coordinators redo by hand every week.",
