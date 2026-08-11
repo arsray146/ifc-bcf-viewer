@@ -22,7 +22,7 @@
   </url>
   <url>
     <loc>https://viewifc.com/tools/</loc>
-    <lastmod>2026-08-05</lastmod>
+    <lastmod>2026-08-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -89,6 +89,12 @@
   <url>
     <loc>https://viewifc.com/tools/ifc-ids-editor/</loc>
     <lastmod>2026-08-10</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://viewifc.com/tools/ifc-landxml-to-ifc/</loc>
+    <lastmod>2026-08-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
