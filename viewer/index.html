@@ -1796,7 +1796,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.8.0";
+const APP_VERSION = "2.8.1";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -3344,11 +3344,12 @@ async function buildModel(data, name) {
   /* unità del file → metri: serve all'overlay alignment, che legge le coordinate IFC grezze
      (in unità del file) mentre A è calibrata sui metri (web-ifc normalizza la geometria). */
   const unitFactor = (geo.unitFactor !== undefined) ? geo.unitFactor : readLengthUnit(api, modelID);
+  const angleFactor = readAngleUnit(api, modelID);   // rad per unità d'angolo (overlay alignment)
 
   const model = {
     name, modelID, api, uid: ++modelUidCounter,
     meshes: [], edges: [], elemCount: 0, visible: true,
-    mModelIfc, A: A.clone(), unitFactor, geoInfo: describeGeoref(geo),
+    mModelIfc, A: A.clone(), unitFactor, angleFactor, geoInfo: describeGeoref(geo),
     guidByExpress: new Map(), expressByGuid: new Map(), typeByExpress: new Map(),
     psetMap: null, typeOfElem: null, typePsetIds: null,
     classMap: null, materialMap: null, partOfMap: null,   // indici IDS (classificazioni/materiali/partOf), lazy
@@ -3624,6 +3625,32 @@ function readLengthUnit(api, modelID) {
       return f;
     }
   } catch (e) { /* nessuna unità convertibile */ }
+  return 1;
+}
+
+/** Radianti per unità d'angolo del file, gated sull'IfcUnitAssignment del progetto.
+    IfcPlaneAngleMeasure (es. StartDirection degli alignment) è espressa nell'unità
+    d'angolo dichiarata: i file Revit usano DEGREE (IfcConversionBasedUnit) e il suo
+    IfcSIUnit .RADIAN. sottostante NON è l'unità del progetto — per questo si scorre
+    l'assegnazione, non le unità sciolte (lezione Georef). 1 = radianti. */
+function readAngleUnit(api, modelID) {
+  const ev = (x) => String((x && x.value !== undefined) ? x.value : (x ?? "")).replace(/\./g, "");
+  try {
+    const ids = api.GetLineIDsWithType(modelID, WebIFC.IFCUNITASSIGNMENT);
+    for (let i = 0; i < ids.size(); i++) {
+      const ua = api.GetLine(modelID, ids.get(i));
+      for (const h of (ua.Units || [])) {
+        if (!h || h.value === undefined) continue;
+        let u; try { u = api.GetLine(modelID, h.value); } catch (e) { continue; }
+        if (!u || ev(u.UnitType) !== "PLANEANGLEUNIT") continue;
+        if (u.ConversionFactor === undefined || u.ConversionFactor === null) return 1;  // IfcSIUnit → radianti
+        const mw = api.GetLine(modelID, u.ConversionFactor.value);
+        const vc = mw && mw.ValueComponent;
+        const f = parseFloat((vc && vc.value !== undefined) ? vc.value : vc);
+        return (isFinite(f) && f > 0) ? f : 1;
+      }
+    }
+  } catch (e) { /* nessuna unità d'angolo leggibile */ }
   return 1;
 }
 
@@ -9901,10 +9928,13 @@ function extractAlignments(model, data) {
   const pmap = _alnPointsData(data, need);
 
   let okCount = 0, noPoint = 0;
+  /* StartDirection è IfcPlaneAngleMeasure: va in radianti con l'unità d'angolo del
+     file (Revit/ospiti migrati = gradi; letta come radianti la polilinea zigzagava) */
+  const angF = model.angleFactor || 1;
   for (const b of built) {
     const hsegs = [];
     for (const dp of b.hP) { const a = _alnArgs(dp); const pt = pmap.get(_alnRef(a[2])); if (!pt) continue;
-      hsegs.push({ start: pt, theta: _alnNum(a[3]), r0: _alnNum(a[4]), r1: _alnNum(a[5]), length: _alnNum(a[6]), ptype: (_alnEnum(a[8]) || "LINE").toUpperCase() }); }
+      hsegs.push({ start: pt, theta: _alnNum(a[3]) * angF, r0: _alnNum(a[4]), r1: _alnNum(a[5]), length: _alnNum(a[6]), ptype: (_alnEnum(a[8]) || "LINE").toUpperCase() }); }
     if (!hsegs.length) { if (b.hP.length) noPoint++; continue; }
     const vsegs = [];
     for (const dp of b.vP) { const a = _alnArgs(dp);
