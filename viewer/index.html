@@ -1796,7 +1796,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.8.1";
+const APP_VERSION = "2.8.2";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2032,7 +2032,7 @@ const STRINGS = {
     "btn.section": "Piano di sezione",
     "title.section": "Strumenti di sezione: piano su faccia o box di sezione",
     "btn.sectionBox": "Box di sezione",
-    "title.sectionBox": "Attiva / disattiva section box 3D — ritaglia la vista con un box regolabile (stile Revit)",
+    "title.sectionBox": "Attiva / disattiva section box 3D — ritaglia la vista con un box regolabile e ruotabile (stile Revit)",
     "btn.secPlane": "Piano",
     "title.secPlane": "Piano di sezione parallelo a una faccia: clicca una faccia per posizionarlo, Shift+trascina per spostarlo avanti/indietro",
     "toast.secPlanePick": "Clicca una faccia per posizionare il piano di sezione.",
@@ -2541,7 +2541,7 @@ const STRINGS = {
     "btn.section": "Section plane",
     "title.section": "Sectioning tools: plane on a face or section box",
     "btn.sectionBox": "Section box",
-    "title.sectionBox": "Toggle 3D section box — crop the view with an adjustable box (Revit-style)",
+    "title.sectionBox": "Toggle 3D section box — crop the view with an adjustable, rotatable box (Revit-style)",
     "btn.secPlane": "Plane",
     "title.secPlane": "Section plane parallel to a face: click a face to place it, Shift+drag to move it back/forth",
     "toast.secPlanePick": "Click a face to place the section plane.",
@@ -4677,6 +4677,20 @@ function setNdcFromClient(v, cx, cy) {
   v.set(((cx - r.left) / r.width) * 2 - 1, -((cy - r.top) / r.height) * 2 + 1);
   return v;
 }
+/* Primo hit NON tagliato dalle sezioni attive (section box / piano su faccia / sezione asse).
+   Il raycaster non sa nulla dei clipping plane (three.js scarta i frammenti con distanza
+   dal piano < 0 solo in resa): senza questo filtro, con una sezione attiva il clic
+   selezionava l'elemento davanti, invisibile perché ritagliato (issue #1). */
+function firstUnclippedHit(hits) {
+  const planes = _activeClipPlanes();
+  if (!planes.length) return hits.length ? hits[0] : null;
+  for (const h of hits) {
+    let ok = true;
+    for (const pl of planes) if (pl.distanceToPoint(h.point) < -1e-6) { ok = false; break; }
+    if (ok) return h;
+  }
+  return null;
+}
 let downXY = null;
 renderer.domElement.addEventListener("pointerdown", (e) => { if (e.button === 0) downXY = [e.clientX, e.clientY]; });
 renderer.domElement.addEventListener("pointerup", (e) => {
@@ -4688,11 +4702,11 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   raycaster.setFromCamera(mouseNdc, camera);
   if (typeof SECPL !== "undefined" && SECPL.on && !e.shiftKey) { _spPickFaceFromRay(); return; }   // modalità piano: il clic posiziona il piano sulla faccia
   const visible = allBaseMeshes().filter(m => m.visible);
-  const hits = raycaster.intersectObjects(visible, false);
-  if (!hits.length) {
-    /* clic nel vuoto: deseleziona. Se ci sono risultati clash il pannello
-       destro NON si chiude (chiuderlo li renderebbe irraggiungibili senza
-       rieseguire il run): si torna alla scheda Clash. */
+  const hit = firstUnclippedHit(raycaster.intersectObjects(visible, false));
+  if (!hit) {
+    /* clic nel vuoto (o solo su geometria ritagliata dalle sezioni): deseleziona.
+       Se ci sono risultati clash il pannello destro NON si chiude (chiuderlo li
+       renderebbe irraggiungibili senza rieseguire il run): si torna alla scheda Clash. */
     if (hlGroup.children.length) {
       clearHighlight();
       if (activeTopic) { if ($("detailTitle").textContent === "Elemento") renderTopicDetail(activeTopic); }
@@ -4701,7 +4715,6 @@ renderer.domElement.addEventListener("pointerup", (e) => {
     }
     return;
   }
-  const hit = hits[0];
   const eid = expressFromFace(hit.object, hit.faceIndex);
   if (eid === null) return;
   const model = hit.object.userData.model;
@@ -4762,9 +4775,8 @@ function expressFromFace(mesh, faceIndex) {
 renderer.domElement.addEventListener("dblclick", (e) => {
   setNdcFromClient(mouseNdc, e.clientX, e.clientY);
   raycaster.setFromCamera(mouseNdc, camera);
-  const hits = raycaster.intersectObjects(allBaseMeshes().filter(m => m.visible), false);
-  if (!hits.length) return;
-  const hit = hits[0];
+  const hit = firstUnclippedHit(raycaster.intersectObjects(allBaseMeshes().filter(m => m.visible), false));
+  if (!hit) return;
   const eid = expressFromFace(hit.object, hit.faceIndex);
   if (eid === null) return;
   const model = hit.object.userData.model;
@@ -9165,11 +9177,10 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   setNdcFromClient(mouseNdc, e.clientX, e.clientY);
   raycaster.setFromCamera(mouseNdc, camera);
   const visible = allBaseMeshes().filter(m => m.visible);
-  const hits = raycaster.intersectObjects(visible, false);
+  const hit = firstUnclippedHit(raycaster.intersectObjects(visible, false));
 
   let hitData = null;
-  if (hits.length) {
-    const hit = hits[0];
+  if (hit) {
     const eid = expressFromFace(hit.object, hit.faceIndex);
     if (eid !== null) {
       const model = hit.object.userData.model;
@@ -9262,7 +9273,7 @@ function _openCtxMenu(px, py, hitData) {
     add(_ctxSep());
     if (sectionBoxOn) {
       add(_ctxEl("☐", tr("ctx.sbFrame"), () => {
-        const b = new THREE.Box3(sbMin.clone(), sbMax.clone());
+        const b = sbWorldBox();   /* Box3 mondo, corretto anche a box ruotato */
         fitBox(b.clone().expandByScalar(b.getSize(new THREE.Vector3()).length() * 0.12 + 2));
       }));
       add(_ctxEl("⬚", tr("ctx.sbReset"), () => {
@@ -9361,12 +9372,36 @@ $("clashBody") && $("clashBody").addEventListener("contextmenu", (e) => {
  * applicate ai soli materiali IFC (non al wireframe né agli handle).
  * 6 handle-sfera (una per faccia) draggabili: il drag usa una "screen plane"
  * passante per il centro dell'handle → intercetta il raggio del mouse → proietta
- * sulla componente dell'asse corretto (Δx, Δy, Δz).
+ * sulla componente dell'asse corretto (Δx, Δy, Δz) nel LOCALE del box.
+ * In più un anello di ROTAZIONE sopra la faccia superiore: trascinandolo il box
+ * ruota attorno all'asse verticale (Shift = scatti di 15°).
  * Il tasto destro rimane pan (vedi menu contestuale sopra).                  */
 
 let sectionBoxOn = false;
 const sbMin = new THREE.Vector3();
 const sbMax = new THREE.Vector3();
+
+/* Rotazione del box attorno all'asse verticale (Y): mondo = sbRotCtr + R·(locale − sbRotCtr).
+   Il pivot sbRotCtr NON insegue il centro corrente: viene ribasato al centro solo quando
+   PARTE un drag di rotazione. Così i drag delle facce (che cambiano sbMin/sbMax nel locale)
+   restano esatti anche a box ruotato: la faccia opposta non deriva in mondo. */
+let sbAngle = 0;
+const sbRotCtr = new THREE.Vector3();
+const _sbQuat  = new THREE.Quaternion();
+const _SB_UP   = new THREE.Vector3(0, 1, 0);
+function _sbSyncQuat() { return _sbQuat.setFromAxisAngle(_SB_UP, sbAngle); }
+/* trasforma IN PLACE un punto dal locale del box al mondo (richiede _sbQuat aggiornato) */
+function _sbToWorld(p) { return p.sub(sbRotCtr).applyQuaternion(_sbQuat).add(sbRotCtr); }
+/* Box3 mondo degli 8 spigoli ruotati (per fit / inquadrature) */
+function sbWorldBox() {
+  _sbSyncQuat();
+  const b = new THREE.Box3();
+  for (let i = 0; i < 8; i++) {
+    b.expandByPoint(_sbToWorld(new THREE.Vector3(
+      i & 1 ? sbMax.x : sbMin.x, i & 2 ? sbMax.y : sbMin.y, i & 4 ? sbMax.z : sbMin.z)));
+  }
+  return b;
+}
 
 /* 6 piani: [+X, −X, +Y, −Y, +Z, −Z] → box visibile all'interno */
 const sbPlanes = Array.from({ length: 6 }, () => new THREE.Plane());
@@ -9393,21 +9428,33 @@ scene.add(sbHandleGroup);
 const _sbHMat  = new THREE.MeshBasicMaterial({ color: 0xa3d840, depthTest: false });
 const _sbHHot  = new THREE.MeshBasicMaterial({ color: 0xff6a2b, depthTest: false });
 const _sbHGeo  = new THREE.OctahedronGeometry(1, 0);
-let sbHandles  = [];   /* le 6 mesh handle */
+const _sbRGeo  = new THREE.TorusGeometry(1, 0.08, 10, 48);   /* anello rotazione (raggio unitario, scalato per-mesh) */
+let sbHandles  = [];    /* le 6 mesh handle */
+let sbRotHandle = null; /* mesh anello di rotazione */
+const SB_ROT = 6;       /* faceIdx sintetico dell'anello nel picking */
 
 /* ---- drag state ---- */
 let sbDrag  = null;    /* { faceIdx, plane, startPt, startMin, startMax } */
 const _sbRay = new THREE.Raycaster();
 const _sbNdc = new THREE.Vector2();
 
-/* ---- aggiorna i 6 piani dai valori di sbMin/sbMax ---- */
+/* ---- aggiorna i 6 piani dai valori di sbMin/sbMax (+ rotazione sbAngle) ----
+   Ogni piano: normale interna ruotata + punto della faccia portato in mondo.
+   Con sbAngle = 0 equivale ai piani assiali di prima. */
 function _updateSbPlanes() {
-  sbPlanes[0].set(new THREE.Vector3( 1, 0, 0), -sbMin.x);
-  sbPlanes[1].set(new THREE.Vector3(-1, 0, 0),  sbMax.x);
-  sbPlanes[2].set(new THREE.Vector3( 0, 1, 0), -sbMin.y);
-  sbPlanes[3].set(new THREE.Vector3( 0,-1, 0),  sbMax.y);
-  sbPlanes[4].set(new THREE.Vector3( 0, 0, 1), -sbMin.z);
-  sbPlanes[5].set(new THREE.Vector3( 0, 0,-1),  sbMax.z);
+  _sbSyncQuat();
+  const ctr = new THREE.Vector3().addVectors(sbMin, sbMax).multiplyScalar(0.5);
+  const set = (i, nx, ny, nz, px, py, pz) => {
+    const n = new THREE.Vector3(nx, ny, nz).applyQuaternion(_sbQuat);
+    const p = _sbToWorld(new THREE.Vector3(px, py, pz));
+    sbPlanes[i].setFromNormalAndCoplanarPoint(n, p);
+  };
+  set(0,  1, 0, 0, sbMin.x, ctr.y, ctr.z);
+  set(1, -1, 0, 0, sbMax.x, ctr.y, ctr.z);
+  set(2,  0, 1, 0, ctr.x, sbMin.y, ctr.z);
+  set(3,  0,-1, 0, ctr.x, sbMax.y, ctr.z);
+  set(4,  0, 0, 1, ctr.x, ctr.y, sbMin.z);
+  set(5,  0, 0,-1, ctr.x, ctr.y, sbMax.z);
 }
 
 /* ---- piani di clipping attivi: section box (6) + sezione asse (2), combinati in AND ---- */
@@ -9434,21 +9481,24 @@ function _applyClipping() {
 }
 function _applySbClipping() { _updateSbPlanes(); _applyClipping(); }
 
-/* ---- ricostruisce wireframe + handle dalla sbMin/sbMax corrente ---- */
+/* ---- ricostruisce wireframe + handle dalla sbMin/sbMax corrente (in posa ruotata) ---- */
 function _rebuildSbVisual() {
-  /* wireframe */
+  _sbSyncQuat();
+  /* wireframe: geometria assiale centrata, posa = centro portato in mondo + quaternione.
+     Equivale a ruotare tutti gli spigoli attorno a sbRotCtr (l'offset dal centro è R·o). */
   if (sbWire) { scene.remove(sbWire); sbWire.geometry.dispose(); sbWire = null; }
   const sz = new THREE.Vector3().subVectors(sbMax, sbMin);
   const bGeo = new THREE.BoxGeometry(sz.x, sz.y, sz.z);
   const eGeo = new THREE.EdgesGeometry(bGeo);
   bGeo.dispose();
   sbWire = new THREE.LineSegments(eGeo, sbWireMat);
-  sbWire.position.copy(new THREE.Vector3().addVectors(sbMin, sbMax).multiplyScalar(0.5));
+  sbWire.position.copy(_sbToWorld(new THREE.Vector3().addVectors(sbMin, sbMax).multiplyScalar(0.5)));
+  sbWire.quaternion.copy(_sbQuat);
   sbWire.renderOrder = 8;
   scene.add(sbWire);
 
   /* handle: 1 ottaedro (sfera) per faccia */
-  sbHandleGroup.clear(); sbHandles = [];
+  sbHandleGroup.clear(); sbHandles = []; sbRotHandle = null;
   const hSz = Math.max(sz.length() * 0.013, 0.35);
   const ctr = new THREE.Vector3().addVectors(sbMin, sbMax).multiplyScalar(0.5);
   SB_FACES.forEach((f, i) => {
@@ -9460,18 +9510,29 @@ function _rebuildSbVisual() {
     if (f.axis === "x") pos.x = f.sign > 0 ? sbMax.x : sbMin.x;
     if (f.axis === "y") pos.y = f.sign > 0 ? sbMax.y : sbMin.y;
     if (f.axis === "z") pos.z = f.sign > 0 ? sbMax.z : sbMin.z;
-    h.position.copy(pos);
+    h.position.copy(_sbToWorld(pos));
     sbHandleGroup.add(h);
     sbHandles.push(h);
   });
+
+  /* anello di ROTAZIONE: torus orizzontale sopra il centro della faccia superiore */
+  const rR = Math.max(hSz * 2.6, Math.min(sz.x, sz.z) * 0.16);
+  sbRotHandle = new THREE.Mesh(_sbRGeo, _sbHMat.clone());
+  sbRotHandle.scale.setScalar(rR);
+  sbRotHandle.rotation.x = Math.PI / 2;      /* torus nato in XY → piatto orizzontale */
+  sbRotHandle.renderOrder = 9;
+  sbRotHandle.userData.faceIdx = SB_ROT;
+  sbRotHandle.position.copy(_sbToWorld(new THREE.Vector3(ctr.x, sbMax.y + hSz * 1.8, ctr.z)));
+  sbHandleGroup.add(sbRotHandle);
 }
 
-/* ---- picking handle: restituisce faceIdx (0-5) o -1 ---- */
+/* ---- picking handle: restituisce faceIdx (0-5), SB_ROT per l'anello, o -1 ---- */
 function _pickSbHandle(cx, cy) {
   if (!sectionBoxOn || !sbHandles.length) return -1;
   setNdcFromClient(_sbNdc, cx, cy);
   _sbRay.setFromCamera(_sbNdc, camera);
-  const hits = _sbRay.intersectObjects(sbHandles, false);
+  const targets = sbRotHandle ? sbHandles.concat(sbRotHandle) : sbHandles;
+  const hits = _sbRay.intersectObjects(targets, false);
   return hits.length ? hits[0].object.userData.faceIdx : -1;
 }
 
@@ -9480,6 +9541,7 @@ renderer.domElement.addEventListener("pointermove", (e) => {
   if (sbDrag || walkMode || !sectionBoxOn || !sbHandles.length) return;
   const fi = _pickSbHandle(e.clientX, e.clientY);
   sbHandles.forEach((h, i) => { h.material = i === fi ? _sbHHot : _sbHMat; });
+  if (sbRotHandle) sbRotHandle.material = fi === SB_ROT ? _sbHHot : _sbHMat;
   if (!walkMode) renderer.domElement.style.cursor = fi >= 0 ? "grab" : "";
 });
 
@@ -9490,6 +9552,29 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
   if (fi < 0) return;
   e.stopPropagation();          /* impedisce a OrbitControls di avviare l'orbita */
   controls.enabled = false;
+
+  if (fi === SB_ROT) {
+    /* drag di ROTAZIONE: ribasa il pivot al centro corrente (in mondo) — il ribasamento
+       trasla il locale, il box in mondo non si muove — poi misura l'angolo del cursore
+       su un piano orizzontale passante per l'anello. */
+    _sbSyncQuat();
+    const ctrL = new THREE.Vector3().addVectors(sbMin, sbMax).multiplyScalar(0.5);
+    const ctrW = _sbToWorld(ctrL.clone());
+    const shift = new THREE.Vector3().subVectors(ctrW, ctrL);
+    sbMin.add(shift); sbMax.add(shift);
+    sbRotCtr.copy(ctrW);
+    const dragPlane = new THREE.Plane().setFromNormalAndCoplanarPoint(_SB_UP.clone(), sbRotHandle.position.clone());
+    setNdcFromClient(_sbNdc, e.clientX, e.clientY);
+    _sbRay.setFromCamera(_sbNdc, camera);
+    const startPt = new THREE.Vector3();
+    if (!_sbRay.ray.intersectPlane(dragPlane, startPt)) { controls.enabled = !walkMode; return; }
+    sbDrag = { faceIdx: fi, plane: dragPlane, ctrW,
+               startAng: Math.atan2(startPt.x - ctrW.x, startPt.z - ctrW.z),
+               startBoxAng: sbAngle };
+    renderer.domElement.style.cursor = "grabbing";
+    try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {}
+    return;
+  }
 
   const hPos = sbHandles[fi].position.clone();
   const camDir = camera.getWorldDirection(new THREE.Vector3());
@@ -9513,10 +9598,21 @@ renderer.domElement.addEventListener("pointermove", (e) => {
   const pt = new THREE.Vector3();
   if (!_sbRay.ray.intersectPlane(sbDrag.plane, pt)) return;
 
+  if (sbDrag.faceIdx === SB_ROT) {
+    const ang = Math.atan2(pt.x - sbDrag.ctrW.x, pt.z - sbDrag.ctrW.z);
+    sbAngle = sbDrag.startBoxAng + (ang - sbDrag.startAng);
+    if (e.shiftKey) sbAngle = Math.round(sbAngle / (Math.PI / 12)) * (Math.PI / 12);  /* Shift: scatti di 15° */
+    _applySbClipping();
+    _rebuildSbVisual();
+    return;
+  }
+
   const d = pt.clone().sub(sbDrag.startPt);
   const fi = sbDrag.faceIdx;
   const f = SB_FACES[fi];
-  const delta = f.axis === "x" ? d.x : f.axis === "y" ? d.y : d.z;
+  /* componente del drag lungo l'asse della faccia RUOTATO (nel locale del box) */
+  const axW = new THREE.Vector3(f.axis === "x" ? 1 : 0, f.axis === "y" ? 1 : 0, f.axis === "z" ? 1 : 0).applyQuaternion(_sbSyncQuat());
+  const delta = d.dot(axW);
   const MIN_SZ = 0.05;   /* spessore minimo del box */
 
   if      (fi === 0) sbMax.x = Math.max(sbDrag.startMin.x + MIN_SZ, sbDrag.startMax.x + delta);
@@ -9549,7 +9645,7 @@ function setSectionBox(on) {
   } else {
     /* rimuovi solo la visuale del box: il clipping eventualmente attivo (sezione asse) resta */
     if (sbWire) { scene.remove(sbWire); sbWire.geometry.dispose(); sbWire = null; }
-    sbHandleGroup.clear(); sbHandles = [];
+    sbHandleGroup.clear(); sbHandles = []; sbRotHandle = null;
   }
   _applyClipping();
 }
@@ -9558,8 +9654,10 @@ function setSectionBox(on) {
 function setSectionBoxToBox(box) {
   const sz = box.getSize(new THREE.Vector3());
   const pad = Math.max(sz.length() * 0.04, 0.4);
+  sbAngle = 0;                                   /* nuovo box → torna assiale */
   sbMin.copy(box.min).subScalar(pad);
   sbMax.copy(box.max).addScalar(pad);
+  sbRotCtr.addVectors(sbMin, sbMax).multiplyScalar(0.5);
   setSectionBox(true);
 }
 
@@ -9667,9 +9765,8 @@ function _secDrawSync() {
 
 /* picking della faccia dal ray di selezione corrente (raycaster già impostato dal chiamante) */
 function _spPickFaceFromRay() {
-  const hits = raycaster.intersectObjects(allBaseMeshes().filter(m => m.visible), false);
-  if (!hits.length) return;
-  const hit = hits[0];
+  const hit = firstUnclippedHit(raycaster.intersectObjects(allBaseMeshes().filter(m => m.visible), false));
+  if (!hit) return;
   const nrm = (hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 1, 0));
   nrm.applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();
   setSectionPlaneAt(hit.point, nrm);
