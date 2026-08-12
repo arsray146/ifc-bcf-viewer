@@ -524,7 +524,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
 
         <a class="card live" data-cat="struct" data-tool="13" href="ifc-schema-change/">
           <div class="card-top"><span class="badge">.ifc → .ifc</span><span class="card-num">13</span></div>
-          <h3 class="card-t">Cambio schema IFC</h3>
+          <h3 class="card-t" data-i18n="t13.t">Cambio schema IFC</h3>
           <p class="card-d" data-i18n="t13.d">Lo stesso modello riscritto in un'altra versione dello schema — 2X3 in su, 4X3 in giù — con i GUID conservati e il registro di cosa cambia nome, cosa cambia forma e cosa non ha un posto dove andare. Le firme vengono da web-ifc, non da una tabella inventata.</p>
           <div class="card-f">
             <span class="card-cat" data-i18n="catS.struct">Struttura</span>
@@ -674,7 +674,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
     </a>
     <a class="lrow" data-cat="struct" data-tool="13" href="ifc-schema-change/">
       <span class="c-n">13</span>
-      <span class="c-t">Cambio schema IFC</span>
+      <span class="c-t" data-i18n="t13.t">Cambio schema IFC</span>
       <span class="c-d" data-i18n="t13.s">Il modello riscritto in un'altra versione — 2X3 in su, 4X3 in giù — GUID fermi e perdite nel registro</span>
       <span class="c-io">.ifc → .ifc</span>
       <span class="c-c" data-i18n="catS.struct">Struttura</span>
@@ -779,6 +779,8 @@ const I18N = {
     "t11.s":"Il tracciato del topografo diventa IfcAlignment, con business logic e geometria verificate insieme",
     "t12.d":"Crea e modifica file IDS 1.0 con tutti i sei criteri dello standard, provandoli dal vivo su un modello: la specifica che non prende nessuno è un falso verde, e qui si vede prima dell'export. Genera in blocco da tabella .xlsx/.csv.",
     "t12.s":"File IDS 1.0 scritti provandoli su un modello vero, o generati in blocco da tabella",
+    /* unico titolo con una chiave: gli altri tool si chiamano uguale in IT e EN */
+    "t13.t":"Cambio schema IFC",
     "t13.d":"Lo stesso modello riscritto in un'altra versione dello schema — 2X3 in su, 4X3 in giù — con i GUID conservati e il registro di cosa cambia nome, cosa cambia forma e cosa non ha un posto dove andare. Le firme vengono da web-ifc, non da una tabella inventata.",
     "t13.s":"Il modello riscritto in un'altra versione — 2X3 in su, 4X3 in giù — GUID fermi e perdite nel registro",
     "t14.d":"Il registro issue in tabella: titolo, stato, autore, commenti e snapshot. Quello che i coordinatori rifanno a mano ogni settimana.",
@@ -834,6 +836,7 @@ const I18N = {
     "t11.s":"The surveyor's alignment becomes IfcAlignment, business logic and geometry checked together",
     "t12.d":"Creates and edits IDS 1.0 files with all six criteria of the standard, testing them live on a model: a specification that catches nobody is a false green, and here it shows before export. Bulk generation from an .xlsx/.csv table.",
     "t12.s":"IDS 1.0 files written while testing them on a real model, or bulk-generated from a table",
+    "t13.t":"IFC schema change",
     "t13.d":"The same model rewritten in another schema version — 2X3 upwards, 4X3 downwards — with GUIDs preserved and a register of what changes name, what changes shape and what has nowhere to go. Signatures come from web-ifc, not from an invented table.",
     "t13.s":"The model rewritten in another version — 2X3 up, 4X3 down — GUIDs untouched, losses in a register",
     "t14.d":"The issue register as a table: title, status, author, comments and snapshots. What coordinators redo by hand every week.",
