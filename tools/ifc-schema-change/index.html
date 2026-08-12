@@ -1,0 +1,2968 @@
+<!DOCTYPE html>
+<!--
+  Cambio schema IFC — strumento accessorio di viewifc.com
+  Autore: Alessandro Perugini — BIM Coordinator. Licenza AGPL-3.0.
+  100% client-side: nessun file viene caricato su un server.
+
+  UI v3 — design 16a del canvas "Viewer UI Redesign" (la tavola del cambio)
+  + 16b (il collaudo in discesa), fusi in un banco solo con l'interruttore
+  Tavola del cambio / Collaudo del cambio.
+
+  Il tredicesimo strumento, e il primo che non aggiunge né toglie niente al
+  progetto: riscrive lo stesso modello in un'altra versione dello schema —
+  2X3 in su, 4X3 in giù — con i GUID conservati e la lista di cosa cambia
+  nome, cosa cambia forma e cosa non ha un posto dove andare.
+
+  La conoscenza dello schema NON è inventata: la tabella delle firme
+  (esistenza della classe e numero di argomenti in IFC2X3 / IFC4 / IFC4X3)
+  è ESTRATTA dai Constructors di web-ifc 0.0.77 — lo stesso parser del
+  viewer — e la mappa di demansionamento è calcolata risalendo l'ancestry
+  (InheritanceDef) fino al primo approdo istanziabile presente nel bersaglio.
+  Sopra ci stanno solo le regole curate a mano per i casi che una conta di
+  argomenti non sa dire (DoorStyle⇄DoorType, IfcClassification con la data,
+  IfcProxy, spaziali stradali, MEP…).
+
+  Scelte v1 (punti lasciati aperti dal canvas, o divergenze dichiarate):
+  - il VERSO: la versione di partenza si deduce dal FILE_SCHEMA del file
+    caricato; il bersaglio è una scelta esplicita (default: l'ultimo
+    addendum — 4X3 salendo, 2X3 scendendo). 4X1 e 4X2 si scelgono solo se
+    un capitolato le nomina; il 2X2 non è un bersaglio ammesso.
+  - la discesa è permessa senza collaudo preventivo, ma il collaudo si apre
+    da solo dopo la conversione: le perdite per causa e l'elemento campo
+    per campo, dagli STESSI numeri della conversione appena fatta (niente
+    3D: pattern dello strumento 11).
+  - riscrittura MIRATA per riga, id INVARIATI, tutto ciò che non è in
+    tabella resta byte-identico. I tipi senza mappa sicura (drafting 2x3,
+    scheduling, costi, tessiture, entità alignment di 4X1/4X2) restano
+    com'erano, contati e dichiarati: il viewer li ignora, il validatore li
+    segnala — meglio di una conversione inventata.
+  - in discesa: le classi che il bersaglio non sa dire vengono demansionate
+    sull'antenato calcolato (MEP → famiglie Flow del 2x3) o su
+    IfcBuildingElementProxy/Type, con la classe d'origine scritta in
+    ObjectType ("IfcKerb.RIGID"); IfcRoad/Railway/Bridge → IfcBuilding,
+    le loro parti → IfcBuildingStorey; l'albero IfcAlignment si perde come
+    logica e viene dichiarato; IfcLinearPlacement diventa IfcLocalPlacement
+    (dal CartesianPosition se c'è, altrimenti valutato sui segmenti di
+    business dell'asse); IfcTriangulatedFaceSet/IfcPolygonalFaceSet →
+    IfcFacetedBrep (o SurfaceModel se il guscio è aperto);
+    IfcIndexedPolyCurve → IfcPolyline con gli archi discretizzati (freccia
+    ≤ 2 mm, dichiarata); IfcMapConversion/CRS si perdono e il registro
+    scrive E/N/H per non perderli davvero; IfcOwnerHistory mancante viene
+    generato e dichiarato come conversione.
+  - IfcSectionedSolidHorizontal: v1 NON ne riscrive il corpo (servirebbe il
+    loft dei profili lungo l'asse): resta nel file, contato e dichiarato.
+  - in salita: pad di attributi opzionali e keyword rinominate dalla
+    tabella; le scatole generiche (IfcBuildingElementProxy) possono
+    prendere il nome vero (IfcKerb/IfcPavement/IfcCourse/IfcEarthworks*)
+    per parole chiave IT/EN su Name e ObjectType — a scelta: tutte,
+    nessuna, o gruppo per gruppo; IfcSite+IfcBuilding+Storey possono
+    promuoversi a IfcRoad/IfcRoadPart (interruttore, default spento).
+  - l'intestazione STEP esce con FILE_SCHEMA del bersaglio e ViewDefinition
+    dichiarata (ReferenceView_V1.2 o DesignTransferView salendo,
+    CoordinationView_V2.0 scendendo).
+  - il registro conversione_*.csv elenca ogni entità cambiata: #id, GUID,
+    da, a, azione, nota — col verso per tornare indietro.
+  - le scelte restano scritte nel file come Pset_Conversione sull'IfcProject
+    (disattivabile, perché il modello è del progetto e non dello strumento).
+  - un ospite IFC2X2 si legge con la tabella del 2X3: le differenze reali
+    fra 2X2 e 2X3 non sono modellate, e il registro lo dichiara.
+  - niente marchio oltre al Pset facoltativo: nessuna riga di commento
+    aggiunta, l'originale resta dov'è (esce un file nuovo).
+-->
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cambio schema IFC — viewifc.com</title>
+
+<meta name="description" content="Converte un modello IFC fra le versioni dello schema nel browser: IFC2X3 → IFC4 → IFC4X3 in salita senza perdere nulla, in discesa con la lista di cosa si perde, GUID conservati e registro CSV. Nessun upload.">
+<meta name="author" content="Alessandro Perugini">
+<meta name="theme-color" content="#f1f3ee">
+<link rel="canonical" href="https://viewifc.com/tools/ifc-schema-change/">
+<link rel="icon" type="image/png" href="../../favicon-32.png">
+<script>/* Tema chiaro di default (chiave viewer_landing_theme, condivisa da tutto il sito) */
+document.documentElement.setAttribute("data-theme","light");
+try{
+  if(localStorage.getItem("viewifc_theme_migr_light")!=="1"){
+    localStorage.setItem("viewifc_theme_migr_light","1");
+    localStorage.setItem("viewer_landing_theme","light");
+  }
+  if(localStorage.getItem("viewer_landing_theme")==="dark") document.documentElement.removeAttribute("data-theme");
+}catch(e){}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* =========================================================================
+   Sistema di vetro condiviso con landing, viewer e pagine strumento (v3).
+   Chiave tema: viewer_landing_theme — comune a tutto il sito.
+   ========================================================================= */
+:root{
+  --lime:#bfd730; --lime-deep:#a8c320; --lime-ink:#23310a;
+  --lime-soft:rgba(191,215,48,.13); --lime-line:rgba(191,215,48,.34);
+  --acc:var(--lime-deep);
+  --bg:#141a12; --bg2:#262b24;
+  --pnl:rgba(15,20,13,.82); --pnl2:rgba(237,242,226,.05);
+  --hair:rgba(237,242,226,.09); --hair2:rgba(237,242,226,.06);
+  --inset:rgba(13,18,11,.5);
+  --grid:rgba(237,242,226,.05); --hover:rgba(237,242,226,.022);
+  --text:#edf2e2; --muted:#a9b59b; --faint:#79856c;
+  --red:#d6604d; --amber:#e0a63a; --green:#8dc63f;
+  --amber-bg:rgba(224,166,58,.10); --red-bg:rgba(214,96,77,.10);
+  --sh:0 2px 8px rgba(0,0,0,.28),0 18px 44px rgba(0,0,0,.42);
+  --sh-sm:0 1px 3px rgba(0,0,0,.30),0 6px 18px rgba(0,0,0,.26);
+  --glow:0 4px 24px rgba(191,215,48,.20);
+  --r:24px; --r-md:14px; --r-sm:11px; --r-xs:8px;
+  --blur:blur(20px) saturate(1.25);
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --disp:'Barlow Semi Condensed',var(--sans);
+  --maxw:1180px; --pad:clamp(20px,6vw,90px);
+}
+html[data-theme="light"]{
+  --lime-deep:#67790d;
+  --bg:#f1f3ee; --bg2:#e9ece3;
+  --pnl:rgba(255,255,255,.80); --pnl2:rgba(33,42,35,.035);
+  --hair:rgba(33,42,35,.13); --hair2:rgba(33,42,35,.08);
+  --inset:rgba(33,42,35,.04);
+  --grid:rgba(33,42,35,.05); --hover:rgba(33,42,35,.025);
+  --text:#212a23; --muted:#5f6c61; --faint:#8b978d;
+  --lime-soft:rgba(191,215,48,.22); --lime-line:rgba(154,179,19,.45);
+  --amber:#8f6008; --amber-bg:rgba(224,166,58,.14);
+  --red:#b03a2a; --red-bg:rgba(176,58,42,.10);
+  --sh:0 2px 8px rgba(30,40,28,.07),0 18px 44px rgba(30,40,28,.10);
+  --sh-sm:0 1px 3px rgba(30,40,28,.06),0 6px 18px rgba(30,40,28,.07);
+  --glow:0 4px 24px rgba(154,179,19,.28);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{margin:0}
+::selection{background:var(--lime);color:var(--lime-ink)}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px;border-radius:6px}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+input,textarea{font:inherit}
+
+.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:44px 44px,44px 44px}
+.glow{position:absolute;left:0;right:0;top:0;height:560px;z-index:0;pointer-events:none;
+  background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.085) 0%,transparent 64%)}
+html[data-theme="light"] .glow{background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.20) 0%,transparent 64%)}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--pad);position:relative;z-index:1}
+
+/* ---------- nav a pillola, con briciole (come le altre pagine tool) ---------- */
+.topbar{position:sticky;top:0;z-index:50;display:flex;justify-content:center;
+  padding:18px var(--pad) 0;pointer-events:none}
+.navpill{pointer-events:auto;max-width:100%;display:flex;align-items:center;gap:26px;
+  padding:8px 8px 8px 14px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh)}
+.brand{display:flex;align-items:center;gap:9px;flex:none}
+.hdr-logo{width:26px;height:26px;border-radius:8px;display:block;flex:none}
+.appname{font-family:var(--disp);font-weight:600;font-size:13.5px;letter-spacing:.03em;
+  line-height:1.2;color:var(--text);white-space:nowrap}
+.crumbs{display:flex;align-items:center;gap:9px;font:400 12px/1 var(--sans);color:var(--muted);min-width:0}
+.crumbs .up{display:flex;align-items:center;gap:6px;transition:color .15s;white-space:nowrap}
+.crumbs .up:hover{color:var(--text)}
+.crumbs .up svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+.crumbs .sep{color:var(--faint)}
+.crumbs .here{font-weight:500;color:var(--text);white-space:nowrap}
+.nav-act{display:flex;align-items:center;gap:10px;flex:none;margin-left:auto}
+.langsw{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
+.langsw button{padding:5px 8px;border-radius:999px;color:var(--faint);transition:color .12s,background .12s}
+.langsw button:hover{color:var(--text)}
+.langsw button.on{background:var(--lime-soft);color:var(--text)}
+.thm{width:28px;height:28px;flex:none;border-radius:999px;border:1px solid var(--hair);
+  background:var(--pnl2);display:inline-flex;align-items:center;justify-content:center;
+  color:var(--muted);transition:color .15s,border-color .15s}
+.thm:hover{color:var(--text);border-color:var(--lime-line)}
+.thm svg{width:14px;height:14px}
+html[data-theme="light"] .thm .moon{display:none}
+html:not([data-theme="light"]) .thm .sun{display:none}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;white-space:nowrap;
+  border:1px solid transparent;border-radius:999px;cursor:pointer;
+  font-family:var(--disp);font-weight:600;letter-spacing:.02em;
+  transition:background .18s,border-color .18s,box-shadow .22s,transform .18s,color .18s}
+.btn svg{flex:none}
+.btn.primary{background:var(--lime);color:var(--lime-ink);box-shadow:var(--glow)}
+.btn.primary:hover:not(:disabled){background:#cae23f;box-shadow:0 6px 30px rgba(191,215,48,.32);transform:translateY(-1px)}
+.btn.hollow{background:transparent;border-color:var(--hair);color:var(--text)}
+.btn.hollow:hover:not(:disabled){border-color:var(--lime-line)}
+.btn.sm{padding:9px 16px;font-size:12.5px}
+.btn.sm svg{width:13px;height:13px}
+.btn:disabled{cursor:not-allowed;opacity:.42;box-shadow:none;transform:none}
+
+/* ---------- testata ---------- */
+.head{display:flex;align-items:flex-end;gap:60px;padding:62px 0 0}
+.head-l{flex:1;min-width:0;display:flex;flex-direction:column;gap:13px}
+.head-tags{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kicker{font:500 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.tag{padding:4px 8px;border-radius:999px;background:var(--lime-soft);
+  font:500 9px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--acc)}
+.tag.line{background:none;border:1px solid var(--hair);color:var(--faint)}
+.h1{max-width:620px;font-family:var(--disp);font-weight:600;font-size:clamp(34px,3.9vw,46px);
+  line-height:1.02;letter-spacing:-.006em;color:var(--text)}
+.lead{max-width:600px;margin:0;font:400 14px/1.7 var(--sans);color:var(--muted)}
+.lead code{font-family:var(--mono);font-size:13px}
+.spec{flex:0 0 300px;display:flex;flex-direction:column;gap:9px;padding-bottom:6px}
+.spec-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.spec-row:not(:last-child){padding-bottom:9px;border-bottom:1px solid var(--hair)}
+.spec-k{font:400 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.spec-v{font:500 11.5px/1 var(--mono);color:var(--text)}
+
+/* ---------- riga vista + file ---------- */
+.filebar{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;padding:34px 0 0}
+.seg{display:flex;align-items:center;gap:4px;padding:4px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh-sm)}
+.seg button{display:flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;
+  color:var(--muted);font:600 12.5px/1 var(--disp);letter-spacing:.02em;
+  transition:color .15s,background .15s}
+.seg button:hover{color:var(--text)}
+.seg button.on{background:var(--lime);color:var(--lime-ink)}
+.seg button svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round}
+.fbits{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-left:auto}
+.fcard{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 14px;border-radius:999px;
+  background:var(--pnl2);border:1px dashed var(--hair);cursor:pointer;max-width:100%;
+  transition:border-color .15s,background .15s}
+.fcard:hover{border-color:var(--lime-line)}
+.fcard.drag{border-color:var(--lime);background:var(--lime-soft)}
+.fcard.set{border-style:solid;border-color:var(--lime-line)}
+.fcard-n{font:500 12px/1 var(--sans);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fcard:not(.set) .fcard-n{color:var(--muted);font-weight:400}
+.fcard-m{font:400 10.5px/1 var(--mono);color:var(--faint);white-space:nowrap}
+.fcard-x{flex:none;display:none;width:20px;height:20px;align-items:center;justify-content:center;color:var(--faint);transition:color .15s}
+.fcard.set .fcard-x{display:flex}
+.fcard-x:hover{color:var(--text)}
+.fcard-x svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+
+/* velo di attesa */
+.veil{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;
+  background:rgba(13,18,11,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+html[data-theme="light"] .veil{background:rgba(241,243,238,.6)}
+.veil .sp{width:34px;height:34px;border-radius:50%;
+  border:3px solid var(--lime-soft);border-top-color:var(--lime);
+  animation:vspin .8s linear infinite}
+@keyframes vspin{to{transform:rotate(360deg)}}
+.veil .lb{font:500 12px/1 var(--mono);color:var(--text)}
+
+/* ---------- il banco ---------- */
+.bench{display:flex;align-items:stretch;margin-top:16px;border-radius:var(--r);
+  background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh);overflow:hidden;min-height:440px}
+.bench-l{flex:1;min-width:0;display:flex;flex-direction:column}
+.bench-r{flex:0 0 400px;display:flex;flex-direction:column;border-left:1px solid var(--hair);background:var(--inset)}
+
+/* stato vuoto */
+.drop0{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;margin:24px;border-radius:var(--r-md);border:1px dashed var(--hair);
+  color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s;text-align:center}
+.drop0:hover{border-color:var(--lime-line)}
+.drop0.drag{border-color:var(--lime);background:var(--lime-soft)}
+.drop0 svg{width:26px;height:26px;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.drop0 .t1{font:500 13.5px/1.4 var(--sans);color:var(--text);max-width:480px}
+.drop0 .t2{font:400 11px/1.6 var(--mono);color:var(--faint);max-width:460px}
+
+/* --- il verso (testa della tavola, 16a) --- */
+.verso{display:flex;flex-direction:column;gap:11px;padding:15px 24px;border-bottom:1px solid var(--hair);
+  background:rgba(191,215,48,.05)}
+.verso .vrow{display:flex;align-items:center;gap:12px}
+.verso .vfrom{flex:none;display:flex;flex-direction:column;gap:4px}
+.verso .vk{font:400 9px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.verso .vlock{display:flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;
+  background:var(--inset);box-shadow:inset 0 0 0 1px var(--hair)}
+.verso .vlock svg{flex:none;width:10px;height:10px;fill:none;stroke:var(--faint);stroke-width:2.2;
+  stroke-linecap:round;stroke-linejoin:round}
+.verso .vlock span{font:600 12.5px/1 var(--mono);letter-spacing:.02em;color:var(--text)}
+.verso .varr{flex:none;margin-top:14px;width:15px;height:15px;fill:none;stroke:var(--lime);
+  stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.verso .vto{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.vchips{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.vchip{padding:6px 8px;border-radius:999px;font:400 11px/1 var(--mono);color:var(--muted);
+  box-shadow:inset 0 0 0 1px var(--hair);transition:box-shadow .12s,color .12s,background .12s}
+.vchip:hover:not(:disabled){box-shadow:inset 0 0 0 1px var(--lime-line);color:var(--text)}
+.vchip.on{background:var(--lime);box-shadow:none;font-weight:600;color:var(--lime-ink)}
+.vchip.na{box-shadow:none;color:var(--faint);text-decoration:line-through;cursor:not-allowed}
+.vchip.src{box-shadow:none;color:var(--faint);cursor:not-allowed}
+.verso .vnote{display:flex;align-items:center;gap:12px}
+.verso .vnote p{flex:1;min-width:0;margin:0;font:400 11px/1.45 var(--sans);color:var(--muted)}
+.verso .vnote p .dim{color:var(--faint)}
+.verso .vnote p code{font-family:var(--mono);font-size:10.5px}
+.vswap{flex:none;display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:999px;
+  background:var(--pnl2);box-shadow:inset 0 0 0 1px var(--hair);font:500 11px/1 var(--mono);
+  color:var(--muted);transition:color .12s,box-shadow .12s}
+.vswap:hover{color:var(--text);box-shadow:inset 0 0 0 1px var(--lime-line)}
+.vswap svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* --- tavola del cambio (16a) --- */
+.mhead{display:flex;align-items:center;gap:16px;padding:16px 24px 14px;border-bottom:1px solid var(--hair)}
+.mhead .ml{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.mhead .mt{font:600 16px/1 var(--disp);letter-spacing:.01em;color:var(--text)}
+.mhead .ms{font:400 11.5px/1.55 var(--sans);color:var(--muted)}
+.mcols{display:flex;align-items:center;gap:12px;padding:9px 24px;border-bottom:1px solid var(--hair);background:var(--hover)}
+.mcols .c1{flex:1;min-width:0}
+.mcols .c2{flex:0 0 220px}
+.mcols .c3{flex:0 0 92px;text-align:right}
+.mcols span{font:400 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.mrows{display:flex;flex-direction:column;max-height:min(56vh,580px);overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--hair) transparent}
+.mrow{display:flex;align-items:center;gap:12px;padding:11px 24px;border-bottom:1px solid var(--hair2);
+  width:100%;text-align:left;transition:background .1s}
+.mrow.hot{background:var(--lime-soft);box-shadow:inset 2px 0 0 var(--lime)}
+.mrow.dim{opacity:.62}
+.mrow .st{flex:none;display:flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:4px}
+.mrow .st.ok{background:var(--lime)}
+.mrow .st.ok svg{width:10px;height:10px;fill:none;stroke:var(--lime-ink);stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.mrow .st.gain{background:var(--lime)}
+.mrow .st.gain svg{width:10px;height:10px;fill:none;stroke:var(--lime-ink);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.mrow .st.warn{background:rgba(224,166,58,.16);box-shadow:inset 0 0 0 1px rgba(224,166,58,.5)}
+.mrow .st.warn svg{width:9px;height:9px;fill:none;stroke:var(--amber);stroke-width:3;stroke-linecap:round}
+.mrow .st.lost{background:var(--red-bg);box-shadow:inset 0 0 0 1px rgba(214,96,77,.5)}
+.mrow .st.lost i{display:block;width:5px;height:5px;border-radius:50%;background:var(--red)}
+.mrow .st.no{background:var(--inset);box-shadow:inset 0 0 0 1px var(--hair)}
+.mrow .el{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.mrow .nm{font:500 12px/1.2 var(--sans);color:var(--text)}
+.mrow .nm .mm{font:400 10.5px/1 var(--mono);color:var(--faint)}
+.mrow .sub{font:400 9.5px/1.35 var(--mono);color:var(--faint);overflow-wrap:anywhere}
+.mrow .sub.warn{color:var(--amber)}
+.mrow .sub.gain{color:var(--acc)}
+.mrow .tgt{flex:0 0 220px;display:flex;flex-direction:column;gap:2px}
+.mrow .tn{font:500 11px/1.2 var(--mono);color:var(--text);overflow-wrap:anywhere}
+.mrow .tn.dim2{color:var(--faint);font-weight:400}
+.mrow .ts{font:400 9.5px/1.35 var(--mono);color:var(--faint)}
+.mrow .es{flex:0 0 92px;text-align:right;font:400 11px/1 var(--mono);color:var(--acc)}
+.mrow .es.warn{color:var(--amber)}
+.mrow .es.lost{color:var(--red)}
+.mrow .es.dim3{color:var(--faint)}
+.mfoot{display:flex;flex-direction:column;gap:0;margin-top:auto;border-top:1px solid var(--hair);background:rgba(13,18,11,.34)}
+html[data-theme="light"] .mfoot{background:rgba(33,42,35,.03)}
+.mfoot .sh{display:flex;align-items:center;gap:8px;padding:13px 24px 11px}
+.mfoot .sh .k{font:500 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.mfoot .sh .sp{flex:1}
+.mfoot .sh .n{font:400 10px/1 var(--mono);color:var(--faint)}
+.stepbox{display:flex;align-items:stretch;gap:0;border-top:1px solid var(--hair2)}
+.stepbox .col{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;padding:13px 24px 16px}
+.stepbox .col:first-child{border-right:1px solid var(--hair2)}
+.stepbox .col.after{background:rgba(191,215,48,.05)}
+.stepbox .ck{font:400 9px/1 var(--mono);letter-spacing:.12em;color:var(--faint)}
+.stepbox .col.after .ck{color:var(--acc)}
+.stepbox .ln{font:400 10px/1.75 var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stepbox .ln .v{color:var(--text)}
+.stepbox .ln .hi{color:var(--acc)}
+.stepbox .ln .dm{color:var(--faint)}
+
+/* --- collaudo del cambio (16b, senza 3D) --- */
+.klayout{display:flex;align-items:stretch;flex:1;min-height:0}
+.kloss{flex:1;min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--hair)}
+.kloss-h{display:flex;flex-direction:column;gap:5px;padding:15px 20px 13px;border-bottom:1px solid var(--hair)}
+.kloss-h .r{display:flex;align-items:baseline;gap:8px}
+.kloss-h .t{font:600 14.5px/1 var(--disp);letter-spacing:.01em;color:var(--text)}
+.kloss-h .sp{flex:1}
+.kloss-h .n{font:500 10.5px/1 var(--mono);color:var(--red)}
+.kloss-h .n.okc{color:var(--acc)}
+.kloss-h p{margin:0;font:400 10.5px/1.5 var(--sans);color:var(--muted)}
+.kloss-list{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--hair) transparent;
+  display:flex;flex-direction:column}
+.krow{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid var(--hair2);
+  width:100%;text-align:left;transition:background .1s;cursor:pointer}
+.krow:hover{background:var(--pnl2)}
+.krow.hot{background:var(--lime-soft);box-shadow:inset 2px 0 0 var(--lime)}
+.krow.sev-lost{background:rgba(210,112,92,.10);box-shadow:inset 2px 0 0 var(--red)}
+.krow .dot{flex:none;margin-top:2px;width:7px;height:7px;border-radius:99px}
+.krow .el{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.krow .t{font:500 11.5px/1.3 var(--sans);color:var(--text)}
+.krow .t .mm{font:400 10px/1 var(--mono);color:var(--faint)}
+.krow .sub{font:400 9.5px/1.45 var(--mono);color:var(--faint);overflow-wrap:anywhere}
+.krow .d{font:400 10.5px/1.5 var(--sans);color:var(--muted)}
+.krow .d code{font-family:var(--mono);font-size:10px;color:var(--text)}
+.krow .tag2{flex:none;font:400 9.5px/1 var(--mono);margin-top:3px}
+.kfoot{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--hair);background:rgba(13,18,11,.4)}
+html[data-theme="light"] .kfoot{background:rgba(33,42,35,.04)}
+.kfoot .msg{flex:1;min-width:0;font:400 11px/1.45 var(--sans);color:var(--muted);overflow-wrap:anywhere}
+.kfoot .msg b{font:500 11px/1.45 var(--mono);color:var(--text);font-weight:500}
+/* ispettore elemento (destra del collaudo) */
+.kinsp{flex:0 0 306px;display:flex;flex-direction:column;min-height:0}
+.kinsp-h{display:flex;flex-direction:column;gap:6px;padding:15px 16px 13px;border-bottom:1px solid var(--hair)}
+.kinsp-h .k{font:400 9.5px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.kinsp-h .t{font:500 12.5px/1.35 var(--sans);color:var(--text);overflow-wrap:anywhere}
+.kinsp-h .g{font:400 10px/1 var(--mono);color:var(--faint);overflow-wrap:anywhere}
+.kcols{display:flex;align-items:center;gap:0;padding:9px 16px;border-bottom:1px solid var(--hair2);background:var(--hover)}
+.kcols span{font:400 9px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.kcols .a{flex:1}
+.kcols .b{flex:0 0 118px}
+.kbody{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--hair) transparent}
+.kfield{display:flex;flex-direction:column;gap:5px;padding:11px 16px;border-bottom:1px solid var(--hair2)}
+.kfield.chg{background:rgba(210,112,92,.09)}
+.kfield.gain{background:var(--lime-soft)}
+.kfield .k{font:400 9.5px/1 var(--mono);color:var(--faint)}
+.kfield.gain .k{color:var(--acc)}
+.kfield .vv{display:flex;align-items:center;gap:0}
+.kfield .va{flex:1;min-width:0;font:500 11px/1.3 var(--mono);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kfield .va.dim{font-weight:400;color:var(--muted)}
+.kfield .vb{flex:0 0 118px;font:500 11px/1.3 var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kfield .vb.bad{color:var(--red)}
+.kfield .vb.good{color:var(--acc)}
+.kempty{padding:22px 16px;font:400 11.5px/1.6 var(--sans);color:var(--faint)}
+.knav{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid var(--hair);background:rgba(13,18,11,.4)}
+html[data-theme="light"] .knav{background:rgba(33,42,35,.04)}
+.knav .pg{display:flex;align-items:center;gap:5px;margin-left:auto}
+.knav .pg span{font:400 10.5px/1 var(--mono);color:var(--faint)}
+.knav .pg button{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:7px;
+  background:var(--pnl2);border:1px solid var(--hair);transition:border-color .12s}
+.knav .pg button:hover:not(:disabled){border-color:var(--lime-line)}
+.knav .pg button:disabled{opacity:.4;cursor:not-allowed}
+.knav .pg svg{width:11px;height:11px;fill:none;stroke:var(--muted);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+/* legenda in fondo al collaudo */
+.kleg{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:11px 20px;border-top:1px solid var(--hair)}
+.kleg .li{display:flex;align-items:center;gap:7px;font:400 10.5px/1 var(--mono);color:var(--muted)}
+.kleg .sw{width:8px;height:8px;border-radius:2px}
+.kleg .note{flex:1 1 240px;min-width:0;margin-left:auto;text-align:right;
+  font:400 10.5px/1.45 var(--sans);color:var(--faint);overflow-wrap:anywhere}
+.kleg .note code{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+/* --- rail di destra (decisioni / uscita) --- */
+.rail-sc{display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:var(--hair) transparent}
+.rblk{display:flex;flex-direction:column;gap:12px;padding:17px 22px 15px}
+.rblk .rt{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.rblk .rt .n{font:600 15px/1 var(--disp);letter-spacing:.02em;color:var(--text)}
+.rblk .rt .c{font:400 10.5px/1 var(--mono);color:var(--faint)}
+.rblk .rt .c.gain{color:var(--acc)}
+.rbox{display:flex;flex-direction:column;gap:7px;padding:13px 14px;border-radius:var(--r-md);
+  background:var(--pnl2);border:1px solid var(--hair)}
+.rbox .bk{font:400 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.rbox .bk .bn{float:right;color:var(--acc);letter-spacing:0}
+.rbox .kv{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.rbox .kv .k{flex:none;font:400 11px/1 var(--sans);color:var(--muted)}
+.rbox .kv .v{min-width:0;font:500 10.5px/1.35 var(--mono);color:var(--text);text-align:right;overflow-wrap:anywhere}
+.rbox .kv .v.warn{color:var(--amber)}
+.rbox .kv .v.okc{color:var(--acc)}
+.rbox .kv .v.lost{color:var(--red)}
+.rbox p{margin:0;font:400 10.5px/1.5 var(--sans);color:var(--faint);text-wrap:pretty}
+.rbox p code{font-family:var(--mono);font-size:10.5px}
+.rbox .bt{padding-top:6px;border-top:1px solid var(--hair2)}
+.ropts{display:flex;flex-direction:column;gap:6px}
+.ropt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:var(--r-xs);
+  background:var(--pnl2);box-shadow:inset 0 0 0 1px var(--hair);cursor:pointer;text-align:left;width:100%;
+  transition:box-shadow .12s,background .12s}
+.ropt:hover{box-shadow:inset 0 0 0 1px var(--lime-line)}
+.ropt.on{background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line)}
+.ropt .rad{flex:none;margin-top:1px;width:13px;height:13px;border-radius:99px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--hair)}
+.ropt.on .rad{background:var(--lime);box-shadow:inset 0 0 0 3px var(--pnl)}
+.ropt .el{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.ropt .t{font:500 12px/1.2 var(--sans);color:var(--text)}
+.ropt .t .mm{font:400 10px/1 var(--mono);color:var(--faint)}
+.ropt .d{font:400 10.5px/1.5 var(--sans);color:var(--muted)}
+.ropt:not(.on) .d{color:var(--faint)}
+/* gruppi da rivedere (scatole, modalità "una per una") */
+.pgroups{display:flex;flex-direction:column;gap:1px;max-height:180px;overflow-y:auto;
+  border-radius:var(--r-xs);box-shadow:inset 0 0 0 1px var(--hair);
+  scrollbar-width:thin;scrollbar-color:var(--hair) transparent}
+.pgrow{display:flex;align-items:center;gap:9px;padding:8px 11px;background:var(--pnl2);width:100%;text-align:left;cursor:pointer}
+.pgrow:hover{background:var(--hover)}
+.pgrow .cb{flex:none;display:flex;align-items:center;justify-content:center;width:14px;height:14px;
+  border-radius:4px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--hair)}
+.pgrow.on .cb{background:var(--lime);box-shadow:none}
+.pgrow .cb svg{width:9px;height:9px;fill:none;stroke:var(--lime-ink);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.pgrow .t{flex:1;min-width:0;font:400 10.5px/1.3 var(--sans);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pgrow .to{font:400 9.5px/1 var(--mono);color:var(--acc);white-space:nowrap}
+.pgrow .n{font:400 9.5px/1 var(--mono);color:var(--faint)}
+.mini-seg{display:flex;align-items:center;gap:2px;padding:3px;border-radius:10px;background:var(--inset);box-shadow:inset 0 0 0 1px var(--hair)}
+.mini-seg button{flex:1;text-align:center;padding:8px 6px;border-radius:8px;
+  font:600 11px/1 var(--disp);letter-spacing:.02em;color:var(--muted);transition:color .12s,background .12s}
+.mini-seg button:hover{color:var(--text)}
+.mini-seg button.on{background:var(--lime);color:var(--lime-ink)}
+.mini-seg button span{display:block;font:400 9px/1.4 var(--mono);letter-spacing:0;color:inherit;opacity:.75}
+.rname{display:flex;align-items:center;gap:8px}
+.rname input{flex:1;min-width:0;padding:8px 10px;border-radius:9px;border:1px solid var(--hair);
+  background:var(--inset);color:var(--text);font:400 11.5px/1.3 var(--mono)}
+.rname input:focus{outline:none;border-color:var(--lime-line)}
+.rtog{display:flex;align-items:center;gap:9px;cursor:pointer;width:100%;text-align:left}
+.rtog .tk{flex:none;width:30px;height:17px;border-radius:999px;background:var(--inset);
+  box-shadow:inset 0 0 0 1px var(--hair);position:relative;transition:background .15s}
+.rtog .tk::after{content:"";position:absolute;top:2.5px;left:3px;width:12px;height:12px;border-radius:50%;
+  background:var(--faint);transition:left .15s,background .15s}
+.rtog.on .tk{background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line)}
+.rtog.on .tk::after{left:15px;background:var(--lime)}
+.rtog .tl{flex:1;font:400 11px/1.45 var(--sans);color:var(--muted)}
+.rtog .tl code{font-family:var(--mono);font-size:10.5px;color:var(--text)}
+.treebox{display:flex;flex-direction:column;gap:4px;padding:9px 11px;border-radius:var(--r-xs);
+  background:var(--inset);box-shadow:inset 0 0 0 1px var(--hair)}
+.treebox .l{font:400 10px/1.6 var(--mono);color:var(--faint)}
+.treebox .l .v{color:var(--muted)}
+.treebox .l.to{display:flex;align-items:center;gap:6px;color:var(--acc)}
+.treebox .l.to svg{flex:none;width:10px;height:10px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.rail-foot{display:flex;flex-direction:column;gap:11px;margin-top:auto;padding:15px 22px 18px;border-top:1px solid var(--hair);background:var(--pnl2)}
+.rail-foot .out{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.rail-foot .out .k{font:400 11px/1 var(--mono);color:var(--faint)}
+.rail-foot .out .v{font:500 11px/1.5 var(--mono);color:var(--text);text-align:right}
+.rail-foot .out .v .dm{color:var(--faint)}
+.rail-foot .btn{width:100%;padding:13px 20px;font-size:13.5px}
+.rail-foot .btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;stroke-linejoin:round}
+.rail-foot .under{text-align:center;font:400 10.5px/1.5 var(--mono);color:var(--faint)}
+.rail-foot .msg{font:400 11px/1.5 var(--sans);color:var(--faint);text-align:center}
+.rail-foot .msg.warn{color:var(--amber)}
+
+/* ---------- chiusura pagina ---------- */
+.foot{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap;
+  margin:34px 0 0;padding:20px 0 30px;border-top:1px solid var(--hair)}
+.foot p{margin:0;max-width:640px;font:400 11.5px/1.6 var(--sans);color:var(--faint);text-wrap:pretty}
+.foot p code{font-family:var(--mono);font-size:11px}
+.foot .links{display:flex;align-items:center;gap:20px;font:400 11.5px/1 var(--sans);color:var(--muted);flex-wrap:wrap}
+.foot .links a,.foot .links button{transition:color .12s;white-space:nowrap}
+.foot .links a:hover,.foot .links button:hover{color:var(--text)}
+.foot .go{display:flex;align-items:center;gap:7px;color:var(--acc);transition:gap .15s}
+.foot .go:hover{gap:11px;color:var(--acc)}
+.foot .go svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(8px);z-index:95;
+  padding:11px 18px;border-radius:999px;background:var(--pnl);backdrop-filter:var(--blur);
+  -webkit-backdrop-filter:var(--blur);border:1px solid var(--hair);box-shadow:var(--sh);
+  font:500 12px/1.4 var(--sans);color:var(--text);opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;max-width:min(560px,86vw);text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+@media (max-width:1080px){
+  .bench{flex-direction:column}
+  .bench-r{flex:auto;border-left:0;border-top:1px solid var(--hair)}
+  .mrow .tgt{flex-basis:170px}
+  .kinsp{flex:0 0 260px}
+}
+@media (max-width:840px){
+  .navpill{gap:14px}
+  .appname{display:none}
+  .head{flex-direction:column;align-items:stretch;gap:24px}
+  .spec{flex:none}
+  .filebar{justify-content:flex-start}
+  .mrow .tgt{display:none}
+  .klayout{flex-direction:column}
+  .kloss{border-right:0;border-bottom:1px solid var(--hair)}
+  .kinsp{flex:auto}
+}
+</style>
+
+<!-- Statistiche di visita anonime e senza cookie (GoatCounter) — vedi /analytics.js -->
+<script src="/analytics.js" defer></script>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true"></div>
+
+<!-- ================= NAV ================= -->
+<header class="topbar">
+  <div class="navpill">
+    <a class="brand" href="../../" data-i18n-title="nav.home" title="Vai a viewifc.com" aria-label="viewifc.com">
+      <img class="hdr-logo" src="../../favicon-32.png" alt="APE" width="26" height="26">
+      <span class="appname">Viewer IFC · BCF</span>
+    </a>
+    <nav class="crumbs" aria-label="breadcrumb">
+      <a class="up" href="../">
+        <svg viewBox="0 0 24 24"><path d="M19 12H6M11 18l-6-6 6-6"/></svg>
+        <span data-i18n="nav.tools">Strumenti</span>
+      </a>
+      <span class="sep" aria-hidden="true">/</span>
+      <span class="here" aria-current="page" data-i18n="nav.here">Cambio schema IFC</span>
+    </nav>
+    <div class="nav-act">
+      <div class="langsw" role="group" aria-label="Language">
+        <button data-lang="it" class="on">IT</button>
+        <button data-lang="en">EN</button>
+      </div>
+      <button class="thm" id="thmBtn" aria-label="Light / dark" title="Light / dark">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+      <a class="btn hollow sm" href="../../viewer/">
+        <span data-i18n="cta.open">Apri il viewer</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<div class="glow" aria-hidden="true"></div>
+
+<main class="wrap">
+
+  <!-- ================= TESTATA ================= -->
+  <section class="head">
+    <div class="head-l">
+      <div class="head-tags">
+        <span class="kicker" data-i18n="head.kicker">Strumento 13</span>
+        <span class="tag" data-i18n="head.tag">Client-side</span>
+        <span class="tag line" data-i18n="head.new">Nuovo file, originale intatto</span>
+      </div>
+      <h1 class="h1" data-i18n="head.h1">Cambio schema IFC</h1>
+      <p class="lead" data-i18n-html="head.lead">Lo stesso modello riscritto in un'altra versione dello schema — 2X3 in su, 4X3 in giù — con i GUID conservati e la lista di cosa cambia nome, cosa cambia forma e cosa non ha un posto dove andare.</p>
+    </div>
+    <div class="spec">
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.in">Ingresso</span>
+        <span class="spec-v" data-i18n="spec.inV">6 versioni, 2X2 → 4X3</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.out">Uscita</span>
+        <span class="spec-v">.ifc + registro .csv</span>
+      </div>
+      <div class="spec-row">
+        <span class="spec-k" data-i18n="spec.key">Chiave</span>
+        <span class="spec-v" data-i18n="spec.keyV">IfcGuid invariato</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= VISTA + FILE ================= -->
+  <div class="filebar">
+    <div class="seg" id="viewSeg" role="tablist">
+      <button class="on" data-view="map" role="tab" aria-selected="true">
+        <svg viewBox="0 0 24 24"><path d="M4 7h7M4 12h7M4 17h7"/><path d="M14.5 9.5L17 7l2.5 2.5M17 7v10"/></svg>
+        <span data-i18n="tab.map">Tavola del cambio</span>
+      </button>
+      <button data-view="check" role="tab" aria-selected="false">
+        <svg viewBox="0 0 24 24"><path d="M12 4l8 4.5v7L12 20l-8-4.5v-7z"/><path d="M12 12l8-4.5M12 12v8M12 12L4 7.5"/></svg>
+        <span data-i18n="tab.check">Collaudo del cambio</span>
+      </button>
+    </div>
+    <div class="fbits">
+      <div class="fcard" id="fCard" role="button" tabindex="0">
+        <span class="fcard-n" id="fName" data-i18n="f.ifc">Nessun file — .ifc</span>
+        <span class="fcard-m" id="fMeta"></span>
+        <button class="fcard-x" id="fClear" type="button" data-i18n-title="f.remove" title="Rimuovi il file" aria-label="Rimuovi il file">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="fInput" accept=".ifc" hidden>
+
+  <!-- ================= BANCO ================= -->
+  <section class="bench">
+
+    <!-- --- sinistra: tavola oppure collaudo --- -->
+    <div class="bench-l">
+
+      <!-- stato vuoto -->
+      <div class="drop0" id="drop0">
+        <svg viewBox="0 0 24 24"><path d="M4 7h7M4 12h7M4 17h7"/><path d="M14.5 9.5L17 7l2.5 2.5M17 7v10"/></svg>
+        <span class="t1" data-i18n="drop.big">Trascina qui il modello .ifc da riscrivere in un'altra versione dello schema</span>
+        <span class="t2" data-i18n="drop.hint">nessun upload: scansione, tavola del cambio e riscrittura girano nel browser · in salita non si perde nulla · in discesa la lista di cosa si perde arriva prima del file</span>
+      </div>
+
+      <!-- ---------------- la tavola del cambio (16a) ---------------- -->
+      <div id="mapView" hidden>
+        <div class="verso">
+          <div class="vrow">
+            <div class="vfrom">
+              <span class="vk" data-i18n="v.from">Dal file</span>
+              <span class="vlock">
+                <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                <span id="vFrom">—</span>
+              </span>
+            </div>
+            <svg class="varr" viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"/></svg>
+            <div class="vto">
+              <span class="vk" data-i18n="v.to">Verso quale versione</span>
+              <div class="vchips" id="vChips"></div>
+            </div>
+          </div>
+          <div class="vnote">
+            <p id="vNote"></p>
+            <button class="vswap" id="vSwap" type="button">
+              <svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>
+              <span data-i18n="v.swap">inverti il verso</span>
+            </button>
+          </div>
+        </div>
+        <div class="mhead">
+          <div class="ml">
+            <span class="mt" data-i18n="map.t">Cosa c'è nel file, e cosa diventa</span>
+            <span class="ms" id="mapSub"></span>
+          </div>
+        </div>
+        <div class="mcols">
+          <span class="c1" id="mapC1">Nel file</span>
+          <span class="c2" id="mapC2">Diventa</span>
+          <span class="c3" data-i18n="map.c3">Esito</span>
+        </div>
+        <div class="mrows" id="mrows"></div>
+        <div class="mfoot">
+          <div class="sh">
+            <span class="k" data-i18n="step.t">Intestazione STEP · prima e dopo</span>
+            <span class="sp"></span>
+            <span class="n" data-i18n="step.n">è la riga che ogni altro software legge per prima</span>
+          </div>
+          <div class="stepbox">
+            <div class="col">
+              <span class="ck" data-i18n="step.now">Ora</span>
+              <span class="ln" id="stepNow1"></span>
+              <span class="ln" id="stepNow2"></span>
+              <span class="ln" id="stepNow3"></span>
+            </div>
+            <div class="col after">
+              <span class="ck" data-i18n="step.after">Dopo</span>
+              <span class="ln" id="stepAft1"></span>
+              <span class="ln" id="stepAft2"></span>
+              <span class="ln" id="stepAft3"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------------- il collaudo del cambio (16b) ---------------- -->
+      <div id="checkView" class="klayout" hidden>
+        <div class="kloss">
+          <div class="kloss-h">
+            <div class="r">
+              <span class="t" id="klossT">—</span>
+              <span class="sp"></span>
+              <span class="n" id="klossN"></span>
+            </div>
+            <p id="klossSub"></p>
+          </div>
+          <div class="kloss-list" id="klossList"></div>
+          <div class="kfoot">
+            <span class="msg" id="kfootMsg"></span>
+          </div>
+          <div class="kleg">
+            <span class="li"><span class="sw" style="background:var(--red)"></span><span data-i18n="leg.lost">perso</span></span>
+            <span class="li"><span class="sw" style="background:var(--amber)"></span><span data-i18n="leg.degr">degradato</span></span>
+            <span class="li"><span class="sw" style="background:var(--faint)"></span><span data-i18n="leg.rew">riscritto</span></span>
+            <span class="li"><span class="sw" style="background:rgba(237,242,226,.14);box-shadow:inset 0 0 0 1px var(--hair)"></span><span data-i18n="leg.keep">intatto</span></span>
+            <span class="note" id="klegNote"></span>
+          </div>
+        </div>
+        <div class="kinsp">
+          <div class="kinsp-h">
+            <span class="k" data-i18n="k.sel">Elemento selezionato</span>
+            <span class="t" id="kiName">—</span>
+            <span class="g" id="kiGuid"></span>
+          </div>
+          <div class="kcols">
+            <span class="a" id="kiColA">—</span>
+            <span class="b" id="kiColB">—</span>
+          </div>
+          <div class="kbody" id="kiBody"><div class="kempty" data-i18n="k.empty">Scegli una voce a sinistra: qui l'elemento campione si legge campo per campo, prima e dopo.</div></div>
+          <div class="knav">
+            <span style="flex:1;font:400 10.5px/1.4 var(--sans);color:var(--faint)" id="kiMore"></span>
+            <div class="pg">
+              <button id="kiPrev" type="button" aria-label="precedente"><svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6"/></svg></button>
+              <span id="kiPage">—</span>
+              <button id="kiNext" type="button" aria-label="successivo"><svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- --- destra: le decisioni aperte --- -->
+    <div class="bench-r">
+      <div id="railMap" class="rail-sc" hidden>
+        <div class="rblk" style="padding-bottom:0">
+          <div class="rt">
+            <span class="n" data-i18n="r.t">Le decisioni aperte</span>
+            <span class="c" id="rCount"></span>
+          </div>
+          <p style="margin:0;font:400 11px/1.55 var(--sans);color:var(--muted)" data-i18n="r.sub">Tutto il resto passa da solo e il registro lo scrive riga per riga.</p>
+        </div>
+
+        <!-- scatole generiche (solo in salita verso 4x3) -->
+        <div class="rblk" id="blkProxy" hidden>
+          <div class="rbox">
+            <span class="bk"><span data-i18n="px.t">Le scatole generiche</span><span class="bn" id="pxN"></span></span>
+            <div class="ropts" id="pxOpts">
+              <button class="ropt on" data-px="auto" type="button">
+                <span class="rad"></span>
+                <span class="el">
+                  <span class="t" data-i18n="px.auto">Dai loro il nome vero</span>
+                  <span class="d" id="pxAutoD"></span>
+                </span>
+              </button>
+              <button class="ropt" data-px="keep" type="button">
+                <span class="rad"></span>
+                <span class="el">
+                  <span class="t" data-i18n="px.keep">Lasciale come stanno</span>
+                  <span class="d" data-i18n="px.keepD">Conversione minima: cambia solo lo schema, nessuna riclassificazione.</span>
+                </span>
+              </button>
+              <button class="ropt" data-px="review" type="button">
+                <span class="rad"></span>
+                <span class="el">
+                  <span class="t"><span data-i18n="px.rev">Rivedile una per una</span> <span class="mm" id="pxGN"></span></span>
+                  <span class="d" data-i18n="px.revD">Le proposte raggruppate per nome ricorrente, da spuntare.</span>
+                </span>
+              </button>
+            </div>
+            <div class="pgroups" id="pxGroups" hidden></div>
+          </div>
+        </div>
+
+        <!-- albero del progetto (solo in salita verso 4x3, se ci sono edifici) -->
+        <div class="rblk" id="blkTree" hidden>
+          <div class="rbox">
+            <span class="bk" data-i18n="tr.t">L'albero del progetto</span>
+            <button class="rtog" id="treeTog" type="button">
+              <span class="tk"></span>
+              <span class="tl" id="treeTogT"></span>
+            </button>
+            <div class="treebox" id="treeBox" hidden></div>
+          </div>
+        </div>
+
+        <!-- come dichiararlo (MVD) -->
+        <div class="rblk" id="blkMvd">
+          <div class="rbox">
+            <span class="bk" data-i18n="mv.t">Come dichiararlo</span>
+            <div class="ropts" id="mvOpts">
+              <button class="ropt on" data-mv="rv" type="button">
+                <span class="rad"></span>
+                <span class="el">
+                  <span class="t" id="mvRvT">Reference View 1.2</span>
+                  <span class="d" data-i18n="mv.rvD">per coordinare e vedere</span>
+                </span>
+              </button>
+              <button class="ropt" data-mv="dtv" type="button">
+                <span class="rad"></span>
+                <span class="el">
+                  <span class="t" id="mvDtvT">Design Transfer View</span>
+                  <span class="d" data-i18n="mv.dtvD">per riaprire e modificare</span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- annotazioni -->
+        <div class="rblk" id="blkNotes">
+          <div class="rbox">
+            <button class="rtog on" id="psetTog" type="button">
+              <span class="tk"></span>
+              <span class="tl" data-i18n-html="nt.pset">Scrivi la classe d'origine e le scelte in <code>Pset_Conversione</code> sull'IfcProject</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- cosa esce -->
+        <div class="rblk" style="padding-top:0">
+          <div class="rbox">
+            <span class="bk" data-i18n="out.t">Cosa esce</span>
+            <div class="rname"><input id="outName" autocomplete="off" spellcheck="false"></div>
+            <div class="kv"><span class="k" data-i18n="out.schema">Schema</span><span class="v" id="outSchema">—</span></div>
+            <div class="kv"><span class="k" data-i18n="out.adapt">Adattate allo schema</span><span class="v" id="outAdapt">—</span></div>
+            <div class="kv" id="outDemRow" hidden><span class="k" data-i18n="out.dem">Demansionate</span><span class="v warn" id="outDem">—</span></div>
+            <div class="kv" id="outLostRow" hidden><span class="k" data-i18n="out.lost">Perse</span><span class="v lost" id="outLost">—</span></div>
+            <div class="kv" id="outWarnRow" hidden><span class="k" data-i18n="out.nomap">Senza mappa, dichiarate</span><span class="v warn" id="outWarn">—</span></div>
+            <div class="kv bt"><span class="k" data-i18n="out.reg">Registro</span><span class="v" id="outReg">conversione.csv</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- piede del rail -->
+      <div class="rail-foot">
+        <div class="out" id="railOut" hidden>
+          <span class="k" data-i18n="rf.out">Uscirà</span>
+          <span class="v" id="railOutV"></span>
+        </div>
+        <span class="msg" id="railMsg" data-i18n="rail.load">Carica un modello .ifc per cominciare.</span>
+        <button class="btn primary" id="convBtn" type="button" disabled>
+          <svg viewBox="0 0 24 24"><path d="M12 4v11M12 15l-4-4M12 15l4-4M5 19h14"/></svg>
+          <span data-i18n="rail.conv">Converti e scarica</span>
+        </button>
+        <span class="under" data-i18n="rail.under">esce un file nuovo · l'originale resta dov'è</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CHIUSURA ================= -->
+  <section class="foot">
+    <p data-i18n-html="foot.note">La conoscenza dello schema non è inventata: esistenza delle classi e numero di argomenti vengono dalla stessa libreria che il viewer usa per leggere i file (web-ifc), e ciò che non ha una mappa sicura resta com'era — contato e dichiarato nel registro, mai convertito a caso. Nessun file lascia il computer.</p>
+    <div class="links">
+      <button id="regBtn" type="button" hidden data-i18n="foot.reg">Registro della conversione (.csv)</button>
+      <a href="https://github.com/arsray146/ifc-bcf-viewer" target="_blank" rel="noopener" data-i18n="foot.src">Codice sorgente</a>
+      <a class="go" href="../"><span data-i18n="foot.more">Altri strumenti</span>
+        <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<div class="veil" id="veil" hidden><div class="sp"></div><div class="lb" id="veilT">…</div></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="text/engine" id="schEngine">
+"use strict";
+/* =========================================================================
+   MOTORE Cambio schema IFC — il blocco viene eseguito come vero <script>
+   più sotto, e il test lo estrae per farlo girare in node (vm).
+
+   Filosofia (la stessa della migrazione dell'ospite nello strumento 11):
+   riscrittura MIRATA per riga — id INVARIATI, tutto ciò che non è in
+   tabella resta byte-identico. La tabella non è scritta a mano: esistenza
+   delle classi e numero di argomenti per IFC2X3 / IFC4 / IFC4X3 vengono
+   ESTRATTI dai Constructors di web-ifc 0.0.77 (scripts nel repo), e la
+   mappa di demansionamento è calcolata risalendo l'InheritanceDef fino al
+   primo approdo istanziabile presente nel bersaglio. Sopra, solo regole
+   curate per i casi che una conta di argomenti non sa dire.
+
+   Limiti dichiarati (v1):
+   - il pad/trim generico assume che gli attributi siano stati aggiunti o
+     tolti IN CODA alla firma (vero per quasi tutte le classi); le famiglie
+     ristrutturate a metà (scheduling, costi, tessiture…) sono in SC_XWARN
+     e restano com'erano, contate e dichiarate;
+   - IFC4X1/IFC4X2 usano le firme dell'IFC4: le loro entità alignment
+     (IfcAlignment2DHorizontal…) non hanno mappa e restano dichiarate;
+   - un IFC2X2 si legge con la tabella del 2X3, e il registro lo dichiara;
+   - IfcSectionedSolidHorizontal non viene riscritto in discesa (servirebbe
+     il loft dei profili lungo l'asse): resta nel file, contato e dichiarato.
+   ========================================================================= */
+
+/* ---- tabella delle firme (generata: scripts/gen_schema_table) ----------- */
+/* formato: "Nome" (firma identica nei tre schemi) oppure
+   "Nome:a2x3,a4,a4x3,CAT" — -1 = assente; CAT: E elemento, T tipo,
+   S spaziale, P altro prodotto, G gruppo, R risorsa/relazione            */
+var SC_PACK="2DCompositeCurve:2,-1,-1,R;ActionRequest:6,9,9,R;Actor:6,R;ActorRole:3,R;Actuator:-1,9,9,E;ActuatorType:10,T;Address:3,R;AdvancedBrep:-1,1,1,R;AdvancedBrepWithVoids:-1,2,2,R;AdvancedFace:-1,3,3,R;AirTerminal:-1,9,9,E;AirTerminalBox:-1,9,9,E;AirTerminalBoxType:10,T;AirTerminalType:10,T;AirToAirHeatRecovery:-1,9,9,E;AirToAirHeatRecoveryType:10,T;Alarm:-1,9,9,E;AlarmType:10,T;Alignment:-1,-1,8,P;AlignmentCant:-1,-1,8,P;AlignmentCantSegment:-1,-1,9,R;AlignmentHorizontal:-1,-1,7,P;AlignmentHorizontalSegment:-1,-1,9,R;AlignmentParameterSegment:-1,-1,2,R;AlignmentSegment:-1,-1,8,P;AlignmentVertical:-1,-1,7,P;AlignmentVerticalSegment:-1,-1,9,R;AngularDimension:1,-1,-1,R;Annotation:7,7,8,P;AnnotationCurveOccurrence:3,-1,-1,R;AnnotationFillArea:2,R;AnnotationFillAreaOccurrence:5,-1,-1,R;AnnotationOccurrence:3,-1,-1,R;AnnotationSurface:2,-1,-1,R;AnnotationSurfaceOccurrence:3,-1,-1,R;AnnotationSymbolOccurrence:3,-1,-1,R;AnnotationTextOccurrence:3,-1,-1,R;Application:4,R;AppliedValue:6,10,10,R;AppliedValueRelationship:5,-1,-1,R;Approval:7,9,9,R;ApprovalActorRelationship:3,-1,-1,R;ApprovalPropertyRelationship:2,-1,-1,R;ApprovalRelationship:4,R;ArbitraryClosedProfileDef:3,R;ArbitraryOpenProfileDef:3,R;ArbitraryProfileDefWithVoids:4,R;Asset:14,G;AsymmetricIShapeProfileDef:12,15,15,R;AudioVisualAppliance:-1,9,9,E;AudioVisualApplianceType:-1,10,10,T;Axis1Placement:2,R;Axis2Placement2D:2,R;Axis2Placement3D:3,R;Axis2PlacementLinear:-1,-1,3,R;Beam:8,9,9,E;BeamStandardCase:-1,9,-1,E;BeamType:10,T;Bearing:-1,-1,9,E;BearingType:-1,-1,10,T;BezierCurve:5,-1,-1,R;BlobTexture:6,7,7,R;Block:4,R;Boiler:-1,9,9,E;BoilerType:10,T;BooleanClippingResult:3,R;BooleanResult:3,R;Borehole:-1,-1,8,E;BoundaryCondition:1,R;BoundaryCurve:-1,2,2,R;BoundaryEdgeCondition:7,R;BoundaryFaceCondition:4,R;BoundaryNodeCondition:7,R;BoundaryNodeConditionWarping:8,R;BoundedCurve:0,R;BoundedSurface:0,R;BoundingBox:4,R;BoxedHalfSpace:3,R;Bridge:-1,-1,10,S;BridgePart:-1,-1,11,S;BSplineCurve:5,R;BSplineCurveWithKnots:-1,8,8,R;BSplineSurface:-1,7,7,R;BSplineSurfaceWithKnots:-1,12,12,R;Building:12,S;BuildingElement:8,8,-1,E;BuildingElementComponent:8,-1,-1,E;BuildingElementPart:8,9,9,E;BuildingElementPartType:-1,10,10,T;BuildingElementProxy:9,E;BuildingElementProxyType:10,T;BuildingElementType:9,9,-1,T;BuildingStorey:10,S;BuildingSystem:-1,7,7,G;BuiltElement:-1,-1,8,E;BuiltElementType:-1,-1,9,T;BuiltSystem:-1,-1,7,G;Burner:-1,9,9,E;BurnerType:-1,10,10,T;CableCarrierFitting:-1,9,9,E;CableCarrierFittingType:10,T;CableCarrierSegment:-1,9,9,E;CableCarrierSegmentType:10,T;CableFitting:-1,9,9,E;CableFittingType:-1,10,10,T;CableSegment:-1,9,9,E;CableSegmentType:10,T;CaissonFoundation:-1,-1,9,E;CaissonFoundationType:-1,-1,10,T;CalendarDate:3,-1,-1,R;CartesianPoint:1,R;CartesianPointList:-1,0,0,R;CartesianPointList2D:-1,1,2,R;CartesianPointList3D:-1,1,2,R;CartesianTransformationOperator:4,R;CartesianTransformationOperator2D:4,R;CartesianTransformationOperator2DnonUniform:5,R;CartesianTransformationOperator3D:5,R;CartesianTransformationOperator3DnonUniform:7,R;CenterLineProfileDef:4,R;ChamferEdgeFeature:11,-1,-1,E;Chiller:-1,9,9,E;ChillerType:10,T;Chimney:-1,9,9,E;ChimneyType:-1,10,10,T;Circle:2,R;CircleHollowProfileDef:5,R;CircleProfileDef:4,R;CivilElement:-1,8,8,E;CivilElementType:-1,9,9,T;Classification:4,7,7,R;ClassificationItem:3,-1,-1,R;ClassificationItemRelationship:2,-1,-1,R;ClassificationNotation:1,-1,-1,R;ClassificationNotationFacet:1,-1,-1,R;ClassificationReference:4,6,6,R;ClosedShell:1,R;Clothoid:-1,-1,2,R;Coil:-1,9,9,E;CoilType:10,T;ColourRgb:4,R;ColourRgbList:-1,1,1,R;ColourSpecification:1,R;Column:8,9,9,E;ColumnStandardCase:-1,9,-1,E;ColumnType:10,T;CommunicationsAppliance:-1,9,9,E;CommunicationsApplianceType:-1,10,10,T;ComplexProperty:4,R;ComplexPropertyTemplate:-1,7,7,R;CompositeCurve:2,R;CompositeCurveOnSurface:-1,2,2,R;CompositeCurveSegment:3,R;CompositeProfileDef:4,R;Compressor:-1,9,9,E;CompressorType:10,T;Condenser:-1,9,9,E;CondenserType:10,T;Condition:5,-1,-1,G;ConditionCriterion:7,-1,-1,R;Conic:1,R;ConnectedFaceSet:1,R;ConnectionCurveGeometry:2,R;ConnectionGeometry:0,R;ConnectionPointEccentricity:5,R;ConnectionPointGeometry:2,R;ConnectionPortGeometry:3,-1,-1,R;ConnectionSurfaceGeometry:2,R;ConnectionVolumeGeometry:-1,2,2,R;Constraint:7,R;ConstraintAggregationRelationship:5,-1,-1,R;ConstraintClassificationRelationship:2,-1,-1,R;ConstraintRelationship:4,-1,-1,R;ConstructionEquipmentResource:9,11,11,R;ConstructionEquipmentResourceType:-1,12,12,R;ConstructionMaterialResource:11,R;ConstructionMaterialResourceType:-1,12,12,R;ConstructionProductResource:9,11,11,R;ConstructionProductResourceType:-1,12,12,R;ConstructionResource:9,10,10,R;ConstructionResourceType:-1,11,11,R;Context:-1,9,9,R;ContextDependentUnit:3,R;Control:5,6,6,R;Controller:-1,9,9,E;ControllerType:10,T;ConversionBasedUnit:4,R;ConversionBasedUnitWithOffset:-1,5,5,R;ConveyorSegment:-1,-1,9,E;ConveyorSegmentType:-1,-1,10,T;CooledBeam:-1,9,9,E;CooledBeamType:10,T;CoolingTower:-1,9,9,E;CoolingTowerType:10,T;CoordinatedUniversalTimeOffset:3,-1,-1,R;CoordinateOperation:-1,2,2,R;CoordinateReferenceSystem:-1,4,3,R;CosineSpiral:-1,-1,3,R;CostItem:5,9,9,R;CostSchedule:13,10,10,R;CostValue:8,10,10,R;Course:-1,-1,9,E;CourseType:-1,-1,10,T;Covering:9,E;CoveringType:10,T;CraneRailAShapeProfileDef:15,-1,-1,R;CraneRailFShapeProfileDef:12,-1,-1,R;CrewResource:9,11,11,R;CrewResourceType:-1,12,12,R;CsgPrimitive3D:1,R;CsgSolid:1,R;CShapeProfileDef:9,8,8,R;CurrencyRelationship:5,7,7,R;CurtainWall:8,9,9,E;CurtainWallType:10,T;Curve:0,R;CurveBoundedPlane:3,R;CurveBoundedSurface:-1,3,3,R;CurveSegment:-1,-1,5,R;CurveStyle:4,5,5,R;CurveStyleFont:2,R;CurveStyleFontAndScaling:3,R;CurveStyleFontPattern:2,R;CylindricalSurface:-1,2,2,R;Damper:-1,9,9,E;DamperType:10,T;DateAndTime:2,-1,-1,R;DeepFoundation:-1,-1,8,E;DeepFoundationType:-1,-1,9,T;DefinedSymbol:2,-1,-1,R;DerivedProfileDef:5,R;DerivedUnit:3,3,4,R;DerivedUnitElement:2,R;DiameterDimension:1,-1,-1,R;DimensionalExponents:7,R;DimensionCalloutRelationship:4,-1,-1,R;DimensionCurve:3,-1,-1,R;DimensionCurveDirectedCallout:1,-1,-1,R;DimensionCurveTerminator:5,-1,-1,R;DimensionPair:4,-1,-1,R;Direction:1,R;DirectrixCurveSweptAreaSolid:-1,-1,5,R;DirectrixDerivedReferenceSweptAreaSolid:-1,-1,6,R;DiscreteAccessory:8,9,9,E;DiscreteAccessoryType:9,10,10,T;DistributionBoard:-1,-1,9,E;DistributionBoardType:-1,-1,10,T;DistributionChamberElement:8,9,9,E;DistributionChamberElementType:10,T;DistributionCircuit:-1,7,7,G;DistributionControlElement:9,8,8,E;DistributionControlElementType:9,T;DistributionElement:8,E;DistributionElementType:9,T;DistributionFlowElement:8,E;DistributionFlowElementType:9,T;DistributionPort:8,10,10,P;DistributionSystem:-1,7,7,G;DocumentElectronicFormat:3,-1,-1,R;DocumentInformation:17,R;DocumentInformationRelationship:3,5,5,R;DocumentReference:3,5,5,R;Door:10,13,13,E;DoorLiningProperties:15,17,17,R;DoorPanelProperties:9,R;DoorStandardCase:-1,13,-1,E;DoorStyle:12,12,-1,T;DoorType:-1,13,13,T;DraughtingCallout:1,-1,-1,R;DraughtingCalloutRelationship:4,-1,-1,R;DraughtingPreDefinedColour:1,R;DraughtingPreDefinedCurveFont:1,R;DraughtingPreDefinedTextFont:1,-1,-1,R;DuctFitting:-1,9,9,E;DuctFittingType:10,T;DuctSegment:-1,9,9,E;DuctSegmentType:10,T;DuctSilencer:-1,9,9,E;DuctSilencerType:10,T;EarthworksCut:-1,-1,9,E;EarthworksElement:-1,-1,8,E;EarthworksFill:-1,-1,9,E;Edge:2,R;EdgeCurve:4,R;EdgeFeature:9,-1,-1,E;EdgeLoop:1,R;ElectricalBaseProperties:14,-1,-1,R;ElectricalCircuit:5,-1,-1,G;ElectricalElement:8,-1,-1,E;ElectricAppliance:-1,9,9,E;ElectricApplianceType:10,T;ElectricDistributionBoard:-1,9,9,E;ElectricDistributionBoardType:-1,10,10,T;ElectricDistributionPoint:10,-1,-1,E;ElectricFlowStorageDevice:-1,9,9,E;ElectricFlowStorageDeviceType:10,T;ElectricFlowTreatmentDevice:-1,-1,9,E;ElectricFlowTreatmentDeviceType:-1,-1,10,T;ElectricGenerator:-1,9,9,E;ElectricGeneratorType:10,T;ElectricHeaterType:10,-1,-1,T;ElectricMotor:-1,9,9,E;ElectricMotorType:10,T;ElectricTimeControl:-1,9,9,E;ElectricTimeControlType:10,T;Element:8,E;ElementarySurface:1,R;ElementAssembly:10,E;ElementAssemblyType:-1,10,10,T;ElementComponent:8,E;ElementComponentType:9,T;ElementQuantity:6,R;ElementType:9,T;Ellipse:3,R;EllipseProfileDef:5,R;EnergyConversionDevice:8,E;EnergyConversionDeviceType:9,T;EnergyProperties:6,-1,-1,R;Engine:-1,9,9,E;EngineType:-1,10,10,T;EnvironmentalImpactValue:9,-1,-1,R;EquipmentElement:8,-1,-1,E;EquipmentStandard:5,-1,-1,R;EvaporativeCooler:-1,9,9,E;EvaporativeCoolerType:10,T;Evaporator:-1,9,9,E;EvaporatorType:10,T;Event:-1,11,11,R;EventTime:-1,7,7,R;EventType:-1,12,12,R;ExtendedMaterialProperties:4,-1,-1,R;ExtendedProperties:-1,3,3,R;ExternalInformation:-1,0,0,R;ExternallyDefinedHatchStyle:3,R;ExternallyDefinedSurfaceStyle:3,R;ExternallyDefinedSymbol:3,-1,-1,R;ExternallyDefinedTextFont:3,R;ExternalReference:3,R;ExternalReferenceRelationship:-1,4,4,R;ExternalSpatialElement:-1,9,9,S;ExternalSpatialStructureElement:-1,8,8,S;ExtrudedAreaSolid:4,R;ExtrudedAreaSolidTapered:-1,5,5,R;Face:1,R;FaceBasedSurfaceModel:1,R;FaceBound:2,R;FaceOuterBound:2,R;FaceSurface:3,R;FacetedBrep:1,R;FacetedBrepWithVoids:2,R;Facility:-1,-1,9,S;FacilityPart:-1,-1,10,S;FacilityPartCommon:-1,-1,11,S;FailureConnectionCondition:7,R;Fan:-1,9,9,E;FanType:10,T;Fastener:8,9,9,E;FastenerType:9,10,10,T;FeatureElement:8,E;FeatureElementAddition:8,E;FeatureElementSubtraction:8,E;FillAreaStyle:2,3,3,R;FillAreaStyleHatching:5,R;FillAreaStyleTiles:3,R;FillAreaStyleTileSymbolWithStyle:1,-1,-1,R;Filter:-1,9,9,E;FilterType:10,T;FireSuppressionTerminal:-1,9,9,E;FireSuppressionTerminalType:10,T;FixedReferenceSweptAreaSolid:-1,6,6,R;FlowController:8,E;FlowControllerType:9,T;FlowFitting:8,E;FlowFittingType:9,T;FlowInstrument:-1,9,9,E;FlowInstrumentType:10,T;FlowMeter:-1,9,9,E;FlowMeterType:10,T;FlowMovingDevice:8,E;FlowMovingDeviceType:9,T;FlowSegment:8,E;FlowSegmentType:9,T;FlowStorageDevice:8,E;FlowStorageDeviceType:9,T;FlowTerminal:8,E;FlowTerminalType:9,T;FlowTreatmentDevice:8,E;FlowTreatmentDeviceType:9,T;FluidFlowProperties:19,-1,-1,R;Footing:9,E;FootingType:-1,10,10,T;FuelProperties:5,-1,-1,R;FurnishingElement:8,E;FurnishingElementType:9,T;Furniture:-1,9,9,E;FurnitureStandard:5,-1,-1,R;FurnitureType:10,11,11,T;GasTerminalType:10,-1,-1,T;GeneralMaterialProperties:4,-1,-1,R;GeneralProfileProperties:7,-1,-1,R;GeographicCRS:-1,-1,6,R;GeographicElement:-1,9,9,E;GeographicElementType:-1,10,10,T;GeometricCurveSet:1,R;GeometricRepresentationContext:6,R;GeometricRepresentationItem:0,R;GeometricRepresentationSubContext:6,R;GeometricSet:1,R;Geomodel:-1,-1,8,E;Geoslice:-1,-1,8,E;GeotechnicalAssembly:-1,-1,8,E;GeotechnicalElement:-1,-1,8,E;GeotechnicalStratum:-1,-1,9,E;GradientCurve:-1,-1,4,R;Grid:10,11,11,P;GridAxis:3,R;GridPlacement:2,2,3,R;Group:5,G;HalfSpaceSolid:2,R;HeatExchanger:-1,9,9,E;HeatExchangerType:10,T;Humidifier:-1,9,9,E;HumidifierType:10,T;HygroscopicMaterialProperties:6,-1,-1,R;ImageTexture:5,6,6,R;ImpactProtectionDevice:-1,-1,9,E;ImpactProtectionDeviceType:-1,-1,10,T;IndexedColourMap:-1,4,4,R;IndexedPolyCurve:-1,3,3,R;IndexedPolygonalFace:-1,1,1,R;IndexedPolygonalFaceWithVoids:-1,2,2,R;IndexedPolygonalTextureMap:-1,-1,4,R;IndexedTextureMap:-1,3,3,R;IndexedTriangleTextureMap:-1,4,4,R;Interceptor:-1,9,9,E;InterceptorType:-1,10,10,T;IntersectionCurve:-1,3,3,R;Inventory:11,G;IrregularTimeSeries:9,R;IrregularTimeSeriesValue:2,R;IShapeProfileDef:8,10,10,R;JunctionBox:-1,9,9,E;JunctionBoxType:10,T;Kerb:-1,-1,9,E;KerbType:-1,-1,10,T;LaborResource:10,11,11,R;LaborResourceType:-1,12,12,R;LagTime:-1,5,5,R;Lamp:-1,9,9,E;LampType:10,T;LibraryInformation:5,6,6,R;LibraryReference:3,6,6,R;LightDistributionData:3,R;LightFixture:-1,9,9,E;LightFixtureType:10,T;LightIntensityDistribution:2,R;LightSource:4,R;LightSourceAmbient:4,R;LightSourceDirectional:5,R;LightSourceGoniometric:10,R;LightSourcePositional:9,R;LightSourceSpot:13,R;Line:2,R;LinearDimension:1,-1,-1,R;LinearElement:-1,-1,7,P;LinearPlacement:-1,-1,3,R;LinearPositioningElement:-1,-1,7,P;LiquidTerminal:-1,-1,9,E;LiquidTerminalType:-1,-1,10,T;LocalPlacement:2,R;LocalTime:5,-1,-1,R;Loop:0,R;LShapeProfileDef:11,9,9,R;ManifoldSolidBrep:1,R;MapConversion:-1,8,8,R;MapConversionScaled:-1,-1,11,R;MappedItem:2,R;MarineFacility:-1,-1,10,S;MarinePart:-1,-1,11,S;Material:1,3,3,R;MaterialClassificationRelationship:2,R;MaterialConstituent:-1,5,5,R;MaterialConstituentSet:-1,3,3,R;MaterialDefinition:-1,0,0,R;MaterialDefinitionRepresentation:4,R;MaterialLayer:3,7,7,R;MaterialLayerSet:2,3,3,R;MaterialLayerSetUsage:4,5,5,R;MaterialLayerWithOffsets:-1,9,9,R;MaterialList:1,R;MaterialProfile:-1,6,6,R;MaterialProfileSet:-1,4,4,R;MaterialProfileSetUsage:-1,3,3,R;MaterialProfileSetUsageTapering:-1,5,5,R;MaterialProfileWithOffsets:-1,7,7,R;MaterialProperties:1,4,4,R;MaterialRelationship:-1,5,5,R;MaterialUsageDefinition:-1,0,0,R;MeasureWithUnit:2,R;MechanicalConcreteMaterialProperties:12,-1,-1,R;MechanicalFastener:10,11,11,E;MechanicalFastenerType:9,12,12,T;MechanicalMaterialProperties:6,-1,-1,R;MechanicalSteelMaterialProperties:13,-1,-1,R;MedicalDevice:-1,9,9,E;MedicalDeviceType:-1,10,10,T;Member:8,9,9,E;MemberStandardCase:-1,9,-1,E;MemberType:10,T;Metric:10,11,11,R;MirroredProfileDef:-1,4,4,R;MobileTelecommunicationsAppliance:-1,-1,9,E;MobileTelecommunicationsApplianceType:-1,-1,10,T;MonetaryUnit:1,R;MooringDevice:-1,-1,9,E;MooringDeviceType:-1,-1,10,T;MotorConnection:-1,9,9,E;MotorConnectionType:10,T;Move:13,-1,-1,R;NamedUnit:2,R;NavigationElement:-1,-1,9,E;NavigationElementType:-1,-1,10,T;Object:5,R;ObjectDefinition:4,R;Objective:11,R;ObjectPlacement:0,0,1,R;Occupant:7,R;OffsetCurve:-1,-1,1,R;OffsetCurve2D:3,R;OffsetCurve3D:4,R;OffsetCurveByDistances:-1,-1,3,R;OneDirectionRepeatFactor:1,-1,-1,R;OpenCrossProfileDef:-1,-1,7,R;OpeningElement:8,9,9,E;OpeningStandardCase:-1,9,-1,E;OpenShell:1,R;OpticalMaterialProperties:10,-1,-1,R;OrderAction:11,-1,-1,R;Organization:5,R;OrganizationRelationship:4,R;OrientedEdge:2,R;OuterBoundaryCurve:-1,2,2,R;Outlet:-1,9,9,E;OutletType:10,T;OwnerHistory:8,R;ParameterizedProfileDef:3,R;Path:1,R;Pavement:-1,-1,9,E;PavementType:-1,-1,10,T;Pcurve:-1,2,2,R;PerformanceHistory:6,8,8,R;PermeableCoveringProperties:9,R;Permit:6,9,9,R;Person:8,R;PersonAndOrganization:3,R;PhysicalComplexQuantity:6,R;PhysicalQuantity:2,R;PhysicalSimpleQuantity:3,R;Pile:10,E;PileType:-1,10,10,T;PipeFitting:-1,9,9,E;PipeFittingType:10,T;PipeSegment:-1,9,9,E;PipeSegmentType:10,T;PixelTexture:8,9,9,R;Placement:1,R;PlanarBox:3,R;PlanarExtent:2,R;Plane:1,R;Plate:8,9,9,E;PlateStandardCase:-1,9,-1,E;PlateType:10,T;Point:0,R;PointByDistanceExpression:-1,-1,5,R;PointOnCurve:2,R;PointOnSurface:3,R;PolygonalBoundedHalfSpace:4,R;PolygonalFaceSet:-1,4,4,R;Polyline:1,R;PolyLoop:1,R;PolynomialCurve:-1,-1,4,R;Port:7,P;PositioningElement:-1,-1,7,P;PostalAddress:10,R;PreDefinedColour:1,R;PreDefinedCurveFont:1,R;PreDefinedDimensionSymbol:1,-1,-1,R;PreDefinedItem:1,R;PreDefinedPointMarkerSymbol:1,-1,-1,R;PreDefinedProperties:-1,0,0,R;PreDefinedPropertySet:-1,4,4,R;PreDefinedSymbol:1,-1,-1,R;PreDefinedTerminatorSymbol:1,-1,-1,R;PreDefinedTextFont:1,R;PresentationItem:-1,0,0,R;PresentationLayerAssignment:4,R;PresentationLayerWithStyle:8,R;PresentationStyle:1,R;PresentationStyleAssignment:1,1,-1,R;Procedure:8,R;ProcedureType:-1,10,10,R;Process:5,7,7,R;Product:7,P;ProductDefinitionShape:3,R;ProductRepresentation:3,R;ProductsOfCombustionProperties:5,-1,-1,R;ProfileDef:2,R;ProfileProperties:2,4,4,R;Project:9,R;ProjectedCRS:-1,7,7,R;ProjectionCurve:3,-1,-1,R;ProjectionElement:8,9,9,E;ProjectLibrary:-1,9,9,R;ProjectOrder:8,9,9,R;ProjectOrderRecord:7,-1,-1,R;Property:2,R;PropertyAbstraction:-1,0,0,R;PropertyBoundedValue:5,6,6,R;PropertyConstraintRelationship:4,-1,-1,R;PropertyDefinition:4,R;PropertyDependencyRelationship:5,R;PropertyEnumeratedValue:4,R;PropertyEnumeration:3,R;PropertyListValue:4,R;PropertyReferenceValue:4,R;PropertySet:5,R;PropertySetDefinition:4,R;PropertySetTemplate:-1,7,7,R;PropertySingleValue:4,R;PropertyTableValue:7,8,8,R;PropertyTemplate:-1,4,4,R;PropertyTemplateDefinition:-1,4,4,R;ProtectiveDevice:-1,9,9,E;ProtectiveDeviceTrippingUnit:-1,9,9,E;ProtectiveDeviceTrippingUnitType:-1,10,10,T;ProtectiveDeviceType:10,T;Proxy:9,9,-1,P;Pump:-1,9,9,E;PumpType:10,T;QuantityArea:4,5,5,R;QuantityCount:4,5,5,R;QuantityLength:4,5,5,R;QuantityNumber:-1,-1,5,R;QuantitySet:-1,4,4,R;QuantityTime:4,5,5,R;QuantityVolume:4,5,5,R;QuantityWeight:4,5,5,R;RadiusDimension:1,-1,-1,R;Rail:-1,-1,9,E;Railing:9,E;RailingType:10,T;RailType:-1,-1,10,T;Railway:-1,-1,10,S;RailwayPart:-1,-1,11,S;Ramp:9,E;RampFlight:8,9,9,E;RampFlightType:10,T;RampType:-1,10,10,T;RationalBezierCurve:6,-1,-1,R;RationalBSplineCurveWithKnots:-1,9,9,R;RationalBSplineSurfaceWithKnots:-1,13,13,R;RectangleHollowProfileDef:8,R;RectangleProfileDef:5,R;RectangularPyramid:4,R;RectangularTrimmedSurface:7,R;RecurrencePattern:-1,8,8,R;Reference:-1,5,5,R;ReferencesValueDocument:4,-1,-1,R;Referent:-1,-1,8,P;RegularTimeSeries:10,R;ReinforcedSoil:-1,-1,9,E;ReinforcementBarProperties:6,R;ReinforcementDefinitionProperties:6,R;ReinforcingBar:14,E;ReinforcingBarType:-1,16,16,T;ReinforcingElement:9,E;ReinforcingElementType:-1,9,9,T;ReinforcingMesh:17,18,18,E;ReinforcingMeshType:-1,20,20,T;RelAdheresToElement:-1,-1,6,R;RelAggregates:6,R;RelAssigns:6,R;RelAssignsTasks:8,-1,-1,R;RelAssignsToActor:8,R;RelAssignsToControl:7,R;RelAssignsToGroup:7,R;RelAssignsToGroupByFactor:-1,8,8,R;RelAssignsToProcess:8,R;RelAssignsToProduct:7,R;RelAssignsToProjectOrder:7,-1,-1,R;RelAssignsToResource:7,R;RelAssociates:5,R;RelAssociatesAppliedValue:6,-1,-1,R;RelAssociatesApproval:6,R;RelAssociatesClassification:6,R;RelAssociatesConstraint:7,R;RelAssociatesDocument:6,R;RelAssociatesLibrary:6,R;RelAssociatesMaterial:6,R;RelAssociatesProfileDef:-1,-1,6,R;RelAssociatesProfileProperties:8,-1,-1,R;Relationship:4,R;Relaxation:2,-1,-1,R;RelConnects:4,R;RelConnectsElements:7,R;RelConnectsPathElements:11,R;RelConnectsPorts:7,R;RelConnectsPortToElement:6,R;RelConnectsStructuralActivity:6,R;RelConnectsStructuralElement:6,-1,-1,R;RelConnectsStructuralMember:10,R;RelConnectsWithEccentricity:11,R;RelConnectsWithRealizingElements:9,R;RelContainedInSpatialStructure:6,R;RelCoversBldgElements:6,R;RelCoversSpaces:6,R;RelDeclares:-1,6,6,R;RelDecomposes:6,4,4,R;RelDefines:5,4,4,R;RelDefinesByObject:-1,6,6,R;RelDefinesByProperties:6,R;RelDefinesByTemplate:-1,6,6,R;RelDefinesByType:6,R;RelFillsElement:6,R;RelFlowControlElements:6,R;RelInteractionRequirements:9,-1,-1,R;RelInterferesElements:-1,9,10,R;RelNests:6,R;RelOccupiesSpaces:8,-1,-1,R;RelOverridesProperties:7,-1,-1,R;RelPositions:-1,-1,6,R;RelProjectsElement:6,R;RelReferencedInSpatialStructure:6,R;RelSchedulesCostItems:7,-1,-1,R;RelSequence:8,9,9,R;RelServicesBuildings:6,R;RelSpaceBoundary:9,R;RelSpaceBoundary1stLevel:-1,10,10,R;RelSpaceBoundary2ndLevel:-1,11,11,R;RelVoidsElement:6,R;ReparametrisedCompositeCurveSegment:-1,4,4,R;Representation:4,R;RepresentationContext:2,R;RepresentationItem:0,R;RepresentationMap:2,R;Resource:5,7,7,R;ResourceApprovalRelationship:-1,4,4,R;ResourceConstraintRelationship:-1,4,4,R;ResourceLevelRelationship:-1,2,2,R;ResourceTime:-1,18,18,R;RevolvedAreaSolid:4,R;RevolvedAreaSolidTapered:-1,5,5,R;RibPlateProfileProperties:7,-1,-1,R;RightCircularCone:3,R;RightCircularCylinder:3,R;RigidOperation:-1,-1,5,R;Road:-1,-1,10,S;RoadPart:-1,-1,11,S;Roof:9,E;RoofType:-1,10,10,T;Root:4,R;RoundedEdgeFeature:10,-1,-1,E;RoundedRectangleProfileDef:6,R;SanitaryTerminal:-1,9,9,E;SanitaryTerminalType:10,T;ScheduleTimeControl:23,-1,-1,R;SchedulingTime:-1,3,3,R;SeamCurve:-1,3,3,R;SecondOrderPolynomialSpiral:-1,-1,4,R;SectionedSolid:-1,-1,2,R;SectionedSolidHorizontal:-1,-1,3,R;SectionedSpine:3,R;SectionedSurface:-1,-1,3,R;SectionProperties:3,R;SectionReinforcementProperties:6,R;Segment:-1,-1,1,R;SegmentedReferenceCurve:-1,-1,4,R;Sensor:-1,9,9,E;SensorType:10,T;ServiceLife:7,-1,-1,R;ServiceLifeFactor:8,-1,-1,R;SeventhOrderPolynomialSpiral:-1,-1,9,R;ShadingDevice:-1,9,9,E;ShadingDeviceType:-1,10,10,T;ShapeAspect:5,R;ShapeModel:4,R;ShapeRepresentation:4,R;ShellBasedSurfaceModel:1,R;Sign:-1,-1,9,E;Signal:-1,-1,9,E;SignalType:-1,-1,10,T;SignType:-1,-1,10,T;SimpleProperty:2,R;SimplePropertyTemplate:-1,12,12,R;SineSpiral:-1,-1,4,R;Site:14,S;SIUnit:3,R;Slab:9,E;SlabElementedCase:-1,9,-1,E;SlabStandardCase:-1,9,-1,E;SlabType:10,T;SlippageConnectionCondition:4,R;SolarDevice:-1,9,9,E;SolarDeviceType:-1,10,10,T;SolidModel:0,R;SoundProperties:7,-1,-1,R;SoundValue:7,-1,-1,R;Space:11,S;SpaceHeater:-1,9,9,E;SpaceHeaterType:10,T;SpaceProgram:10,-1,-1,R;SpaceThermalLoadProperties:14,-1,-1,R;SpaceType:10,11,11,T;SpatialElement:-1,8,8,S;SpatialElementType:-1,9,9,T;SpatialStructureElement:9,S;SpatialStructureElementType:9,T;SpatialZone:-1,9,9,S;SpatialZoneType:-1,11,11,T;Sphere:2,R;SphericalSurface:-1,2,2,R;Spiral:-1,-1,1,R;StackTerminal:-1,9,9,E;StackTerminalType:10,T;Stair:9,E;StairFlight:12,13,13,E;StairFlightType:10,T;StairType:-1,10,10,T;StructuralAction:11,10,10,P;StructuralActivity:9,P;StructuralAnalysisModel:9,10,10,G;StructuralConnection:8,P;StructuralConnectionCondition:1,R;StructuralCurveAction:-1,12,12,P;StructuralCurveConnection:8,9,9,P;StructuralCurveMember:8,9,9,P;StructuralCurveMemberVarying:8,9,9,P;StructuralCurveReaction:-1,10,10,P;StructuralItem:7,P;StructuralLinearAction:12,P;StructuralLinearActionVarying:14,-1,-1,P;StructuralLoad:1,R;StructuralLoadCase:-1,11,11,G;StructuralLoadConfiguration:-1,3,3,R;StructuralLoadGroup:10,G;StructuralLoadLinearForce:7,R;StructuralLoadOrResult:-1,1,1,R;StructuralLoadPlanarForce:4,R;StructuralLoadSingleDisplacement:7,R;StructuralLoadSingleDisplacementDistortion:8,R;StructuralLoadSingleForce:7,R;StructuralLoadSingleForceWarping:8,R;StructuralLoadStatic:1,R;StructuralLoadTemperature:4,R;StructuralMember:7,P;StructuralPlanarAction:12,P;StructuralPlanarActionVarying:14,-1,-1,P;StructuralPointAction:11,10,10,P;StructuralPointConnection:8,9,9,P;StructuralPointReaction:9,P;StructuralProfileProperties:23,-1,-1,R;StructuralReaction:9,P;StructuralResultGroup:8,G;StructuralSteelProfileProperties:27,-1,-1,R;StructuralSurfaceAction:-1,12,12,P;StructuralSurfaceConnection:8,P;StructuralSurfaceMember:9,P;StructuralSurfaceMemberVarying:11,9,9,P;StructuralSurfaceReaction:-1,10,10,P;StructuredDimensionCallout:1,-1,-1,R;StyledItem:3,R;StyledRepresentation:4,R;StyleModel:4,R;SubContractResource:11,R;SubContractResourceType:-1,12,12,R;Subedge:3,R;Surface:0,R;SurfaceCurve:-1,3,3,R;SurfaceCurveSweptAreaSolid:6,R;SurfaceFeature:-1,9,9,E;SurfaceOfLinearExtrusion:4,R;SurfaceOfRevolution:3,R;SurfaceReinforcementArea:-1,4,4,R;SurfaceStyle:3,R;SurfaceStyleLighting:4,R;SurfaceStyleRefraction:2,R;SurfaceStyleRendering:9,R;SurfaceStyleShading:1,2,2,R;SurfaceStyleWithTextures:1,R;SurfaceTexture:4,5,5,R;SweptAreaSolid:2,R;SweptDiskSolid:5,R;SweptDiskSolidPolygonal:-1,6,6,R;SweptSurface:2,R;SwitchingDevice:-1,9,9,E;SwitchingDeviceType:10,T;SymbolStyle:2,-1,-1,R;System:5,G;SystemFurnitureElement:-1,9,9,E;SystemFurnitureElementType:9,10,10,T;Table:2,3,3,R;TableColumn:-1,5,5,R;TableRow:2,R;Tank:-1,9,9,E;TankType:10,T;Task:10,13,13,R;TaskTime:-1,20,20,R;TaskTimeRecurring:-1,21,21,R;TaskType:-1,11,11,R;TelecomAddress:8,9,9,R;Tendon:17,E;TendonAnchor:9,10,10,E;TendonAnchorType:-1,10,10,T;TendonConduit:-1,-1,10,E;TendonConduitType:-1,-1,10,T;TendonType:-1,13,13,T;TerminatorSymbol:4,-1,-1,R;TessellatedFaceSet:-1,1,1,R;TessellatedItem:-1,0,0,R;TextLiteral:3,R;TextLiteralWithExtent:5,R;TextStyle:4,5,5,R;TextStyleFontModel:6,R;TextStyleForDefinedFont:2,R;TextStyleTextModel:7,R;TextStyleWithBoxCharacteristics:5,-1,-1,R;TextureCoordinate:0,1,1,R;TextureCoordinateGenerator:2,3,3,R;TextureCoordinateIndices:-1,-1,2,R;TextureCoordinateIndicesWithVoids:-1,-1,3,R;TextureMap:1,3,3,R;TextureVertex:1,R;TextureVertexList:-1,1,1,R;ThermalMaterialProperties:5,-1,-1,R;ThirdOrderPolynomialSpiral:-1,-1,5,R;TimePeriod:-1,2,2,R;TimeSeries:8,R;TimeSeriesReferenceRelationship:2,-1,-1,R;TimeSeriesSchedule:8,-1,-1,R;TimeSeriesValue:1,R;TopologicalRepresentationItem:0,R;TopologyRepresentation:4,R;ToroidalSurface:-1,3,3,R;TrackElement:-1,-1,9,E;TrackElementType:-1,-1,10,T;Transformer:-1,9,9,E;TransformerType:10,T;TransportationDevice:-1,-1,8,E;TransportationDeviceType:-1,-1,9,T;TransportElement:11,9,9,E;TransportElementType:10,T;TrapeziumProfileDef:7,R;TriangulatedFaceSet:-1,5,5,R;TriangulatedIrregularNetwork:-1,-1,6,R;TrimmedCurve:5,R;TShapeProfileDef:13,12,12,R;TubeBundle:-1,9,9,E;TubeBundleType:10,T;TwoDirectionRepeatFactor:2,-1,-1,R;TypeObject:6,R;TypeProcess:-1,9,9,R;TypeProduct:8,T;TypeResource:-1,9,9,R;UnitaryControlElement:-1,9,9,E;UnitaryControlElementType:-1,10,10,T;UnitaryEquipment:-1,9,9,E;UnitaryEquipmentType:10,T;UnitAssignment:1,R;UShapeProfileDef:11,10,10,R;Valve:-1,9,9,E;ValveType:10,T;Vector:2,R;Vehicle:-1,-1,9,E;VehicleType:-1,-1,10,T;Vertex:0,R;VertexBasedTextureMap:2,-1,-1,R;VertexLoop:1,R;VertexPoint:1,R;VibrationDamper:-1,-1,9,E;VibrationDamperType:-1,-1,10,T;VibrationIsolator:-1,9,9,E;VibrationIsolatorType:10,T;VirtualElement:8,8,9,E;VirtualGridIntersection:2,R;VoidingFeature:-1,9,9,E;Wall:8,9,9,E;WallElementedCase:-1,9,-1,E;WallStandardCase:8,9,9,E;WallType:10,T;WasteTerminal:-1,9,9,E;WasteTerminalType:10,T;WaterProperties:8,-1,-1,R;WellKnownText:-1,-1,2,R;Window:10,13,13,E;WindowLiningProperties:13,16,16,R;WindowPanelProperties:9,R;WindowStandardCase:-1,13,-1,E;WindowStyle:12,12,-1,T;WindowType:-1,13,13,T;WorkCalendar:-1,9,9,R;WorkControl:15,13,13,R;WorkPlan:15,14,14,R;WorkSchedule:15,14,14,R;WorkTime:-1,6,6,R;Zone:5,6,6,G;ZShapeProfileDef:9,R";
+/* demansionamenti calcolati (ancestry → approdo): "Nome>d23|d4>Approdo" */
+var SC_FALLPACK="Actuator>d23>DistributionControlElement;AirTerminal>d23>FlowTerminal;AirTerminalBox>d23>FlowController;AirToAirHeatRecovery>d23>EnergyConversionDevice;Alarm>d23>DistributionControlElement;AudioVisualAppliance>d23>FlowTerminal;AudioVisualApplianceType>d23>DistributionElementType;Boiler>d23>EnergyConversionDevice;BuildingSystem>d23>System;BuiltSystem>d23>System;BuiltSystem>d4>System;Burner>d23>EnergyConversionDevice;BurnerType>d23>DistributionElementType;CableCarrierFitting>d23>FlowFitting;CableCarrierSegment>d23>FlowSegment;CableFitting>d23>FlowFitting;CableFittingType>d23>DistributionElementType;CableSegment>d23>FlowSegment;Chiller>d23>EnergyConversionDevice;Coil>d23>EnergyConversionDevice;CommunicationsAppliance>d23>FlowTerminal;CommunicationsApplianceType>d23>DistributionElementType;Compressor>d23>FlowMovingDevice;Condenser>d23>EnergyConversionDevice;Controller>d23>DistributionControlElement;ConveyorSegment>d23>FlowSegment;ConveyorSegment>d4>FlowSegment;ConveyorSegmentType>d23>DistributionElementType;ConveyorSegmentType>d4>DistributionElementType;CooledBeam>d23>EnergyConversionDevice;CoolingTower>d23>EnergyConversionDevice;Damper>d23>FlowController;DistributionBoard>d23>FlowController;DistributionBoard>d4>FlowController;DistributionBoardType>d23>DistributionElementType;DistributionBoardType>d4>DistributionElementType;DistributionCircuit>d23>System;DistributionSystem>d23>System;DuctFitting>d23>FlowFitting;DuctSegment>d23>FlowSegment;DuctSilencer>d23>FlowTreatmentDevice;ElectricAppliance>d23>FlowTerminal;ElectricDistributionBoard>d23>FlowController;ElectricDistributionBoardType>d23>DistributionElementType;ElectricFlowStorageDevice>d23>FlowStorageDevice;ElectricFlowTreatmentDevice>d23>FlowTreatmentDevice;ElectricFlowTreatmentDevice>d4>FlowTreatmentDevice;ElectricFlowTreatmentDeviceType>d23>DistributionElementType;ElectricFlowTreatmentDeviceType>d4>DistributionElementType;ElectricGenerator>d23>EnergyConversionDevice;ElectricMotor>d23>EnergyConversionDevice;ElectricTimeControl>d23>FlowController;Engine>d23>EnergyConversionDevice;EngineType>d23>DistributionElementType;EvaporativeCooler>d23>EnergyConversionDevice;Evaporator>d23>EnergyConversionDevice;Fan>d23>FlowMovingDevice;Filter>d23>FlowTreatmentDevice;FireSuppressionTerminal>d23>FlowTerminal;FlowInstrument>d23>DistributionControlElement;FlowMeter>d23>FlowController;Furniture>d23>FurnishingElement;HeatExchanger>d23>EnergyConversionDevice;Humidifier>d23>EnergyConversionDevice;Interceptor>d23>FlowTreatmentDevice;InterceptorType>d23>DistributionElementType;JunctionBox>d23>FlowFitting;Lamp>d23>FlowTerminal;LightFixture>d23>FlowTerminal;LiquidTerminal>d23>FlowTerminal;LiquidTerminal>d4>FlowTerminal;LiquidTerminalType>d23>DistributionElementType;LiquidTerminalType>d4>DistributionElementType;MedicalDevice>d23>FlowTerminal;MedicalDeviceType>d23>DistributionElementType;MobileTelecommunicationsAppliance>d23>FlowTerminal;MobileTelecommunicationsAppliance>d4>FlowTerminal;MobileTelecommunicationsApplianceType>d23>DistributionElementType;MobileTelecommunicationsApplianceType>d4>DistributionElementType;MotorConnection>d23>EnergyConversionDevice;OpeningStandardCase>d23>OpeningElement;Outlet>d23>FlowTerminal;PipeFitting>d23>FlowFitting;PipeSegment>d23>FlowSegment;ProtectiveDevice>d23>FlowController;ProtectiveDeviceTrippingUnit>d23>DistributionControlElement;ProtectiveDeviceTrippingUnitType>d23>DistributionElementType;Pump>d23>FlowMovingDevice;SanitaryTerminal>d23>FlowTerminal;Sensor>d23>DistributionControlElement;Signal>d23>FlowTerminal;Signal>d4>FlowTerminal;SignalType>d23>DistributionElementType;SignalType>d4>DistributionElementType;SolarDevice>d23>EnergyConversionDevice;SolarDeviceType>d23>DistributionElementType;SpaceHeater>d23>FlowTerminal;StackTerminal>d23>FlowTerminal;SwitchingDevice>d23>FlowController;SystemFurnitureElement>d23>FurnishingElement;Tank>d23>FlowStorageDevice;Transformer>d23>EnergyConversionDevice;TubeBundle>d23>EnergyConversionDevice;UnitaryControlElement>d23>DistributionControlElement;UnitaryControlElementType>d23>DistributionElementType;UnitaryEquipment>d23>EnergyConversionDevice;Valve>d23>FlowController;WasteTerminal>d23>FlowTerminal";
+
+var SC_TAB=(()=>{ const m=new Map();
+  for(const row of SC_PACK.split(";")){
+    if(!row) continue;
+    const ci=row.indexOf(":");
+    if(ci<0) continue;
+    const nm=row.slice(0,ci), p=row.slice(ci+1).split(",");
+    if(p.length===2){                      /* firma identica nei tre schemi */
+      const n=parseInt(p[0],10);
+      m.set("IFC"+nm.toUpperCase(),{camel:"Ifc"+nm,a:[n,n,n],cat:p[1]||"R"});
+      continue;
+    }
+    m.set("IFC"+nm.toUpperCase(),{camel:"Ifc"+nm,
+      a:[parseInt(p[0],10),parseInt(p[1],10),parseInt(p[2],10)],cat:p[3]||"R"});
+  }
+  return m; })();
+var SC_FALL=(()=>{ const m=new Map();
+  for(const row of SC_FALLPACK.split(";")){
+    if(!row) continue;
+    const p=row.split(">");
+    m.set("IFC"+p[0].toUpperCase()+"|"+p[1],"IFC"+p[2].toUpperCase());
+  }
+  return m; })();
+function scKnow(K){ return SC_TAB.get(K)||null; }
+function scArgc(K,col){ const t=scKnow(K); if(!t) return -2;      /* ignota */
+  return t.a[col]; }
+function scCamel(K){ const t=scKnow(K); return t?t.camel:("Ifc"+K.slice(3)); }
+
+/* ---- versioni ----------------------------------------------------------- */
+/* col: colonna della tabella (0 = 2X3, 1 = era IFC4, 2 = 4X3).
+   Si esce sempre sull'ultimo addendum pubblicato (out).                    */
+var SC_VERS={
+  IFC2X3:{col:0,out:"IFC2X3",label:"IFC2X3",mvd:{rv:"CoordinationView_V2.0"}},
+  IFC4:{col:1,out:"IFC4",label:"IFC4",mvd:{rv:"ReferenceView_V1.2",dtv:"DesignTransferView_V1.1"}},
+  IFC4X1:{col:1,out:"IFC4X1",label:"IFC4X1",approx:true,mvd:{rv:"ReferenceView_V1.2"}},
+  IFC4X2:{col:1,out:"IFC4X2",label:"IFC4X2",approx:true,mvd:{rv:"ReferenceView_V1.2"}},
+  IFC4X3:{col:2,out:"IFC4X3_ADD2",label:"IFC4X3",mvd:{rv:"ReferenceView_V1.2",dtv:"DesignTransferView"}}
+};
+var SC_ORDER=["IFC2X3","IFC4","IFC4X1","IFC4X2","IFC4X3"];
+function scVersOf(schema){
+  const s=String(schema||"").toUpperCase();
+  if(/^IFC2X2/.test(s)) return {key:"IFC2X3",twoX2:true,raw:s};
+  if(/^IFC2X3/.test(s)) return {key:"IFC2X3",raw:s};
+  if(/^IFC4X1/.test(s)) return {key:"IFC4X1",raw:s};
+  if(/^IFC4X2/.test(s)) return {key:"IFC4X2",raw:s};
+  if(/^IFC4X3/.test(s)) return {key:"IFC4X3",raw:s};
+  if(/^IFC4/.test(s))   return {key:"IFC4",raw:s};
+  return null;
+}
+
+/* ---- scanner STEP (pattern collaudato dello strumento 11) --------------- */
+function scScan(bytes){
+  const n=bytes.length;
+  const HASH=35,SEMI=59,QUOTE=39,EQ=61,LPAR=40;
+  const dec=new TextDecoder();
+  const ids=[],starts=[],ends=[],typeIdx=[];
+  const typeNames=[],typeMap=new Map();
+  let dataStart=-1;
+  for(let i=0;i<n-4;i++){
+    if(bytes[i]===68&&bytes[i+1]===65&&bytes[i+2]===84&&bytes[i+3]===65&&bytes[i+4]===SEMI){ dataStart=i+5; break; }
+  }
+  if(dataStart<0) throw new Error("no DATA section");
+  const head=dec.decode(bytes.subarray(0,Math.min(8192,n)));
+  const ms=head.match(/FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'/);
+  const schema=ms?ms[1].toUpperCase():"";
+  const nl=head.indexOf("\r\n")>=0?"\r\n":"\n";
+  let endsecPos=n;
+  let i=dataStart;
+  while(i<n){
+    while(i<n&&bytes[i]!==HASH){
+      if(bytes[i]===69&&bytes[i+1]===78&&bytes[i+2]===68&&bytes[i+3]===83&&bytes[i+4]===69&&bytes[i+5]===67){ endsecPos=i; i=n; }
+      else i++;
+    }
+    if(i>=n) break;
+    const st=i; i++;
+    let id=0;
+    while(i<n&&bytes[i]>=48&&bytes[i]<=57){ id=id*10+(bytes[i]-48); i++; }
+    while(i<n&&bytes[i]!==EQ&&bytes[i]!==SEMI) i++;
+    if(bytes[i]!==EQ){ i++; continue; }
+    i++;
+    while(i<n&&(bytes[i]===32||bytes[i]===10||bytes[i]===13||bytes[i]===9)) i++;
+    const t0=i;
+    while(i<n&&bytes[i]!==LPAR&&bytes[i]!==SEMI) i++;
+    let tEnd=i; while(tEnd>t0&&bytes[tEnd-1]<=32) tEnd--;
+    const tName=dec.decode(bytes.subarray(t0,tEnd));
+    let inQ=false;
+    while(i<n){
+      const b=bytes[i];
+      if(inQ){ if(b===QUOTE){ if(bytes[i+1]===QUOTE) i++; else inQ=false; } }
+      else if(b===QUOTE) inQ=true;
+      else if(b===SEMI) break;
+      i++;
+    }
+    i++;
+    let ti=typeMap.get(tName);
+    if(ti===undefined){ ti=typeNames.length; typeNames.push(tName); typeMap.set(tName,ti); }
+    ids.push(id); starts.push(st); ends.push(i); typeIdx.push(ti);
+  }
+  const m=ids.length, idMap=new Map(); let maxId=0;
+  for(let k=0;k<m;k++){ idMap.set(ids[k],k); if(ids[k]>maxId) maxId=ids[k]; }
+  const byType=new Map();
+  for(let k=0;k<m;k++){
+    const t=typeNames[typeIdx[k]];
+    let arr=byType.get(t); if(!arr){ arr=[]; byType.set(t,arr); }
+    arr.push(k);
+  }
+  return {bytes,dataStart,endsecPos,count:m,ids,starts,ends,typeIdx,typeNames,idMap,byType,dec,schema,nl,maxId,headText:head};
+}
+function scArgs(text){
+  const p0=text.indexOf("("),p1=text.lastIndexOf(")");
+  if(p0<0||p1<p0) return [];
+  const s=text.slice(p0+1,p1),out=[]; let d=0,q=false,cur="";
+  for(let i=0;i<s.length;i++){
+    const c=s[i];
+    if(q){ cur+=c; if(c==="'"){ if(s[i+1]==="'"){cur+="'";i++;} else q=false; } continue; }
+    if(c==="'"){ q=true; cur+=c; }
+    else if(c==="("){ d++; cur+=c; }
+    else if(c===")"){ d--; cur+=c; }
+    else if(c===","&&d===0){ out.push(cur.trim()); cur=""; }
+    else cur+=c;
+  }
+  if(cur.trim()!=="") out.push(cur.trim());
+  return out;
+}
+function scStmt(model,k){ return model.dec.decode(model.bytes.subarray(model.starts[k],model.ends[k])); }
+function scRef(model,a){ if(!a||a[0]!=="#") return -1; const id=parseInt(a.slice(1),10); const k=model.idMap.get(id); return k===undefined?-1:k; }
+function scNumArg(a,def){ if(a==null||a==="$"||a==="*"||a==="") return def; const v=parseFloat(a); return isFinite(v)?v:def; }
+function scMeasure(a,def){
+  if(a==null||a==="$"||a==="*") return def;
+  const p=a.indexOf("(");
+  if(p>=0&&a[0]!=="#"&&a[0]!=="("){ const v=parseFloat(a.slice(p+1)); return isFinite(v)?v:def; }
+  const v=parseFloat(a); return isFinite(v)?v:def;
+}
+function scList(a){ if(!a||a[0]!=="(") return null; return scArgs("x"+a); }
+function scFirst(model,type){ const a=model.byType.get(type); return a&&a.length?a[0]:-1; }
+function scUnq(a){ if(!a||a[0]!=="'") return ""; return a.slice(1,-1).replace(/''/g,"'"); }
+function scEsc(s){ return String(s).replace(/\\/g,"\\\\").replace(/'/g,"''"); }
+function scStepReal(x,dec){
+  if(!isFinite(x)||Object.is(x,-0)) x=Math.abs(x)===Infinity?0:(x||0);
+  let s=x.toFixed(dec==null?6:dec);
+  if(s.indexOf(".")<0) s+=".";
+  s=s.replace(/(\.\d*?)0+$/,"$1");
+  if(s==="-0."||s==="-0") s="0.";
+  return s;
+}
+var SC_B64="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_$";
+function scGuidFrom(b){
+  const chunk=(v,len)=>{ let s=""; for(let i=0;i<len;i++) s+=SC_B64[Math.floor(v/Math.pow(64,len-i-1))%64]; return s; };
+  return chunk(b[0],2)+chunk((b[1]<<16)|(b[2]<<8)|b[3],4)+chunk((b[4]<<16)|(b[5]<<8)|b[6],4)+
+    chunk((b[7]<<16)|(b[8]<<8)|b[9],4)+chunk((b[10]<<16)|(b[11]<<8)|b[12],4)+chunk((b[13]<<16)|(b[14]<<8)|b[15],4);
+}
+function scGuid(rnd){
+  const b=new Uint8Array(16);
+  if(rnd) rnd(b);
+  else if(typeof crypto!=="undefined"&&crypto.getRandomValues) crypto.getRandomValues(b);
+  else for(let i=0;i<16;i++) b[i]=Math.floor(Math.random()*256);
+  b[0]&=0x3f;                       /* primo carattere < 64² per stare nei 22 */
+  return scGuidFrom(b);
+}
+/* GlobalId euristico: primo argomento stringa di 22 caratteri base64 IFC */
+function scIsRooted(a0){
+  return typeof a0==="string"&&a0.length===24&&a0[0]==="'"&&a0[23]==="'"&&
+    !/[^0-9A-Za-z_$]/.test(a0.slice(1,23));
+}
+
+/* ---- unità dell'ospite (gated su IfcUnitAssignment — lezione Georef) ---- */
+var SC_SI_PREF={EXA:1e18,PETA:1e15,TERA:1e12,GIGA:1e9,MEGA:1e6,KILO:1e3,HECTO:100,DECA:10,
+  DECI:.1,CENTI:.01,MILLI:.001,MICRO:1e-6,NANO:1e-9};
+function scUnits(model){
+  let uf=1, angF=1;
+  const ua=scFirst(model,"IFCUNITASSIGNMENT");
+  if(ua<0) return {uf,angF};
+  const list=scArgs(scStmt(model,ua))[0];
+  if(!list||list[0]!=="(") return {uf,angF};
+  for(const r of scArgs("x"+list)){
+    const k=scRef(model,r); if(k<0) continue;
+    const t=model.typeNames[model.typeIdx[k]];
+    const a=scArgs(scStmt(model,k));
+    if(t==="IFCSIUNIT"){
+      if(a[1]===".LENGTHUNIT."){
+        const p=(a[2]||"").replace(/\./g,"");
+        uf=(SC_SI_PREF[p]||1);
+      } else if(a[1]===".PLANEANGLEUNIT.") angF=1;
+    } else if(t==="IFCCONVERSIONBASEDUNIT"&&(a[1]===".PLANEANGLEUNIT."||a[1]===".LENGTHUNIT.")){
+      const mk=scRef(model,a[3]);
+      if(mk>=0){
+        const ma=scArgs(scStmt(model,mk));
+        const mv=ma[0]&&ma[0].indexOf("(")>=0?parseFloat(ma[0].slice(ma[0].indexOf("(")+1)):parseFloat(ma[0]);
+        if(isFinite(mv)&&mv>0){ if(a[1]===".PLANEANGLEUNIT.") angF=mv; else uf=mv; }
+      }
+    }
+  }
+  return {uf,angF};
+}
+
+/* ---- lettura del file --------------------------------------------------- */
+function scInfo(bytes){
+  const model=scScan(bytes);
+  const v=scVersOf(model.schema);
+  const {uf,angF}=scUnits(model);
+  const info={model,uf,angF,schemaRaw:model.schema,src:v,srcCol:v?SC_VERS[v.key].col:-1};
+  /* intestazione STEP com'è */
+  const hd=model.headText;
+  const md=hd.match(/FILE_DESCRIPTION\s*\(\s*\(\s*'([^']*)'/);
+  const mn=hd.match(/FILE_NAME\s*\(\s*'([^']*)'/);
+  info.headDesc=md?md[1]:"";
+  info.headName=mn?mn[1]:"";
+  /* conteggi utili */
+  let rooted=0, products=0;
+  const T=model.typeNames, TI=model.typeIdx;
+  const catCount={E:0,T:0,S:0,P:0,G:0,R:0};
+  for(let k=0;k<model.count;k++){
+    const know=scKnow(T[TI[k]]);
+    if(know&&know.cat) catCount[know.cat]=(catCount[know.cat]||0)+1;
+  }
+  for(const [t,arr] of model.byType){
+    const know=scKnow(t);
+    const cat=know?(know.cat||null):null;
+    if(cat==="E"||cat==="S"||cat==="P"||cat==="G"||cat==="T") products+=arr.length;
+  }
+  info.products=products;
+  info.pset=(model.byType.get("IFCPROPERTYSET")||[]).length;
+  info.projK=scFirst(model,"IFCPROJECT");
+  info.ohK=scFirst(model,"IFCOWNERHISTORY");
+  info.alignN=(model.byType.get("IFCALIGNMENT")||[]).length;
+  info.buildN=(model.byType.get("IFCBUILDING")||[]).length;
+  info.storeyN=(model.byType.get("IFCBUILDINGSTOREY")||[]).length;
+  info.mapConvK=scFirst(model,"IFCMAPCONVERSION");
+  const nameOf=t=>{ const k=scFirst(model,t); if(k<0) return "";
+    const a=scArgs(scStmt(model,k)); return scUnq(a[2])||scUnq(a[7])||""; };
+  info.siteName=nameOf("IFCSITE");
+  info.buildingName=nameOf("IFCBUILDING");
+  info.storeyName=nameOf("IFCBUILDINGSTOREY");
+  info.proxyGroups=scProxyGroups(model);
+  return info;
+}
+
+/* ---- scatole generiche: riconoscimento per parole chiave (IT/EN) -------- */
+var SC_KEYS=[
+  {cls:"IFCKERB",re:/(cordol|kerb|curb)/i},
+  {cls:"IFCPAVEMENT",re:/(paviment|pavement|asfalt|conglomerat|binder|usura|tappet|carreggiat)/i},
+  {cls:"IFCCOURSE",re:/(strat[oi]\b|course|ballast|massicciat|sottofond|fondazione stradale|misto granulare)/i},
+  {cls:"IFCEARTHWORKSFILL",re:/(rilevat|riporto|embankment|riempiment)/i},
+  {cls:"IFCEARTHWORKSCUT",re:/(scav[oi]|trincea|sbancament|excavat)/i}
+];
+function scProxyGroups(model){
+  const out={groups:[],matched:0,total:0};
+  const arr=model.byType.get("IFCBUILDINGELEMENTPROXY")||[];
+  out.total=arr.length;
+  const gm=new Map();
+  for(const k of arr){
+    const a=scArgs(scStmt(model,k));
+    const label=(scUnq(a[2])+" "+scUnq(a[4])).trim();
+    let cls=null;
+    for(const K of SC_KEYS){ if(K.re.test(label)){ cls=K.cls; break; } }
+    if(!cls) continue;
+    out.matched++;
+    const stem=scUnq(a[2]).toLowerCase().replace(/[\d:#_.\-]+/g," ").replace(/\s+/g," ").trim().slice(0,44)||"—";
+    const key=cls+"|"+stem;
+    let g=gm.get(key);
+    if(!g){ g={key,cls,label:scUnq(a[2])||stem,n:0,ks:[]}; gm.set(key,g); out.groups.push(g); }
+    g.n++; g.ks.push(k);
+  }
+  out.groups.sort((x,y)=>y.n-x.n);
+  return out;
+}
+
+/* ---- valutatore dell'asse (per la discesa) ------------------------------ */
+/* Ricostruisce gli item planimetrici dai SEGMENTI DI BUSINESS
+   (IfcAlignmentHorizontalSegment: parametri espliciti) e il profilo dai
+   verticali. StartDirection viene letta nell'unità d'angolo del FILE
+   (lezione dello zig-zag, strumento 11). Le transizioni non clotoidiche
+   si valutano con la legge di curvatura lineare (dichiarato).            */
+function scNestChildren(model,parentK){
+  const out=[];
+  const pid="#"+model.ids[parentK];
+  for(const t of ["IFCRELNESTS","IFCRELAGGREGATES"]){    /* SierraSoft annida con Aggregates */
+    for(const k of (model.byType.get(t)||[])){
+      const a=scArgs(scStmt(model,k));
+      if(a[4]!==pid) continue;
+      const list=scList(a[5])||[];
+      for(const r of list){ const ck=scRef(model,r); if(ck>=0) out.push(ck); }
+    }
+  }
+  return out;
+}
+function scItemEval(it,s){
+  if(s<0) s=0; if(s>it.L) s=it.L;
+  const k0=it.k0,k1=it.k1;
+  if(k0===0&&k1===0) return {x:it.x+Math.cos(it.th)*s,y:it.y+Math.sin(it.th)*s,th:it.th};
+  if(Math.abs(k1-k0)<1e-15){
+    const r=1/k0, th=it.th+k0*s;
+    return {x:it.x+r*(Math.sin(th)-Math.sin(it.th)),y:it.y-r*(Math.cos(th)-Math.cos(it.th)),th};
+  }
+  /* curvatura lineare: integrazione di Simpson */
+  const nSeg=Math.max(8,Math.min(256,Math.ceil(s/0.5)))*2;
+  const h=s/nSeg;
+  const thAt=u=>it.th+k0*u+(k1-k0)*u*u/(2*it.L);
+  let cx=0,cy=0;
+  for(let i=0;i<=nSeg;i++){
+    const w=(i===0||i===nSeg)?1:(i%2?4:2);
+    const th=thAt(i*h);
+    cx+=w*Math.cos(th); cy+=w*Math.sin(th);
+  }
+  cx*=h/3; cy*=h/3;
+  return {x:it.x+cx,y:it.y+cy,th:thAt(s)};
+}
+function scAlignEval(model,angF){
+  const res={byCurve:new Map(),aligns:[],nonClo:0};
+  for(const alK of (model.byType.get("IFCALIGNMENT")||[])){
+    const A={items:[],vsegs:[],len:0};
+    for(const ck of scNestChildren(model,alK)){
+      const t=model.typeNames[model.typeIdx[ck]];
+      if(t==="IFCALIGNMENTHORIZONTAL"){
+        for(const sk of scNestChildren(model,ck)){
+          if(model.typeNames[model.typeIdx[sk]]!=="IFCALIGNMENTSEGMENT") continue;
+          const sa=scArgs(scStmt(model,sk));
+          const dk=scRef(model,sa[7]); if(dk<0) continue;
+          if(model.typeNames[model.typeIdx[dk]]!=="IFCALIGNMENTHORIZONTALSEGMENT") continue;
+          const d=scArgs(scStmt(model,dk));
+          const pk=scRef(model,d[2]);
+          let x=0,y=0;
+          if(pk>=0){ const pa=scArgs(scStmt(model,pk)); const c=scList(pa[0])||[]; x=scNumArg(c[0],0); y=scNumArg(c[1],0); }
+          const th=scMeasure(d[3],0)*angF;
+          const r0=scMeasure(d[4],0), r1=scMeasure(d[5],0);
+          const L=Math.abs(scMeasure(d[6],0));
+          const type=(d[8]||"").replace(/\./g,"");
+          if(L<=0) continue;
+          if(type!=="LINE"&&type!=="CIRCULARARC"&&type!=="CLOTHOID") res.nonClo++;
+          A.items.push({x,y,th,k0:r0===0?0:1/r0,k1:r1===0?0:1/r1,L,s0:A.len,type});
+          A.len+=L;
+        }
+      } else if(t==="IFCALIGNMENTVERTICAL"){
+        for(const sk of scNestChildren(model,ck)){
+          if(model.typeNames[model.typeIdx[sk]]!=="IFCALIGNMENTSEGMENT") continue;
+          const sa=scArgs(scStmt(model,sk));
+          const dk=scRef(model,sa[7]); if(dk<0) continue;
+          if(model.typeNames[model.typeIdx[dk]]!=="IFCALIGNMENTVERTICALSEGMENT") continue;
+          const d=scArgs(scStmt(model,dk));
+          A.vsegs.push({s0:scMeasure(d[2],0),L:Math.abs(scMeasure(d[3],0)),
+            h0:scMeasure(d[4],0),g0:scMeasure(d[5],0),g1:scMeasure(d[6],0)});
+        }
+      }
+    }
+    if(!A.items.length) continue;
+    A.vsegs.sort((p,q)=>p.s0-q.s0);
+    A.eval=s=>{
+      let it=A.items[0];
+      for(const c of A.items){ if(s>=c.s0) it=c; else break; }
+      const p=scItemEval(it,s-it.s0);
+      let h=0;
+      if(A.vsegs.length){
+        let vs=A.vsegs[0];
+        for(const c of A.vsegs){ if(s>=c.s0) vs=c; else break; }
+        const ds=Math.max(0,Math.min(s-vs.s0,vs.L||(s-vs.s0)));
+        h=vs.h0+vs.g0*ds+(vs.L>0?(vs.g1-vs.g0)*ds*ds/(2*vs.L):0);
+      }
+      return {x:p.x,y:p.y,th:p.th,h};
+    };
+    res.aligns.push(A);
+    /* mappa curva → asse: rappresentazione dell'alignment */
+    const aa=scArgs(scStmt(model,alK));
+    const rk=scRef(model,aa[6]);
+    if(rk>=0){
+      const ra=scArgs(scStmt(model,rk));
+      for(const rr of (scList(ra[2])||[])){
+        const srK=scRef(model,rr); if(srK<0) continue;
+        const sa=scArgs(scStmt(model,srK));
+        for(const ir of (scList(sa[3])||[])){
+          const ik=scRef(model,ir); if(ik<0) continue;
+          res.byCurve.set(model.ids[ik],A);
+          const it=model.typeNames[model.typeIdx[ik]];
+          if(it==="IFCGRADIENTCURVE"||it==="IFCSEGMENTEDREFERENCECURVE"){
+            const ga=scArgs(scStmt(model,ik));
+            const bk=scRef(model,ga[2]);
+            if(bk>=0) res.byCurve.set(model.ids[bk],A);
+          }
+        }
+      }
+    }
+  }
+  res.single=res.aligns.length===1?res.aligns[0]:null;
+  return res;
+}
+
+/* ---- regole curate a mano ----------------------------------------------- */
+/* classi con la firma cambiata A METÀ fra le ere: il pad/trim in coda le
+   corromperebbe → restano com'erano, contate e dichiarate                 */
+/* classi presenti in entrambe le ere che vanno trattate con una regola
+   curata (non col pad/trim generico) quando la firma differisce          */
+var SC_FNBOTH=new Set(["IFCCLASSIFICATION","IFCTRANSPORTELEMENT","IFCASYMMETRICISHAPEPROFILEDEF"]);
+var SC_XWARN=new Set(["IFCAPPLIEDVALUE","IFCCOSTVALUE","IFCCOSTITEM","IFCCOSTSCHEDULE","IFCTASK",
+  "IFCWORKPLAN","IFCWORKSCHEDULE","IFCWORKCONTROL","IFCPERFORMANCEHISTORY","IFCPERMIT",
+  "IFCACTIONREQUEST","IFCPROJECTORDER","IFCMETRIC","IFCAPPROVAL","IFCCURRENCYRELATIONSHIP",
+  "IFCDOCUMENTINFORMATIONRELATIONSHIP","IFCLIBRARYINFORMATION","IFCCONSTRUCTIONEQUIPMENTRESOURCE",
+  "IFCCONSTRUCTIONMATERIALRESOURCE","IFCCONSTRUCTIONPRODUCTRESOURCE","IFCCREWRESOURCE",
+  "IFCLABORRESOURCE","IFCSUBCONTRACTRESOURCE","IFCCONSTRUCTIONRESOURCE","IFCRELSEQUENCE",
+  "IFCSURFACETEXTURE","IFCIMAGETEXTURE","IFCPIXELTEXTURE","IFCBLOBTEXTURE","IFCTEXTUREMAP",
+  "IFCTEXTURECOORDINATEGENERATOR","IFCTEXTURECOORDINATE"]);
+/* tipi 2x3 rimossi senza mappa sicura (drafting, scheduling, proprietà
+   materiali vecchie…): restano com'erano — pattern dello strumento 11.
+   NB: niente "DIMENSION\w+" secco — IfcDimensionalExponents esiste
+   identico ovunque e sta in ogni file Revit (lezione del falso positivo) */
+var SC_WARN23=/^IFC(2DCOMPOSITECURVE$|ANGULARDIMENSION|ANNOTATION\w*OCCURRENCE|ANNOTATIONSURFACE$|APPLIEDVALUERELATIONSHIP|APPROVALACTORRELATIONSHIP|APPROVALPROPERTYRELATIONSHIP|BEZIERCURVE|RATIONALBEZIERCURVE|CHAMFEREDGEFEATURE|EDGEFEATURE|ROUNDEDEDGEFEATURE|CLASSIFICATIONITEM|CLASSIFICATIONITEMRELATIONSHIP|CLASSIFICATIONNOTATION|CLASSIFICATIONNOTATIONFACET|CONDITION$|CONDITIONCRITERION|CONNECTIONPORTGEOMETRY|CONSTRAINT\w*RELATIONSHIP|CRANERAIL\w+|DEFINEDSYMBOL|DIAMETERDIMENSION|DIMENSIONCALLOUTRELATIONSHIP|DIMENSIONCURVE\w*|DIMENSIONPAIR|DOCUMENTELECTRONICFORMAT|DRAUGHTINGCALLOUT\w*|DRAUGHTINGPREDEFINEDTEXTFONT|ELECTRICALBASEPROPERTIES|ENERGYPROPERTIES|ENVIRONMENTALIMPACTVALUE|EQUIPMENTSTANDARD|EXTENDEDMATERIALPROPERTIES|EXTERNALLYDEFINEDSYMBOL|FILLAREASTYLETILESYMBOLWITHSTYLE|FLUIDFLOWPROPERTIES|FUELPROPERTIES|FURNITURESTANDARD|GENERALMATERIALPROPERTIES|GENERALPROFILEPROPERTIES|HYGROSCOPICMATERIALPROPERTIES|LINEARDIMENSION|MECHANICAL\w*MATERIALPROPERTIES|MOVE$|ONEDIRECTIONREPEATFACTOR|TWODIRECTIONREPEATFACTOR|OPTICALMATERIALPROPERTIES|ORDERACTION|PREDEFINED\w*SYMBOL|PRODUCTSOFCOMBUSTIONPROPERTIES|PROJECTIONCURVE|PROJECTORDERRECORD|PROPERTYCONSTRAINTRELATIONSHIP|RADIUSDIMENSION|REFERENCESVALUEDOCUMENT|RELASSIGNSTASKS|RELASSIGNSTOPROJECTORDER|RELASSOCIATESAPPLIEDVALUE|RELASSOCIATESPROFILEPROPERTIES|RELAXATION|RELCONNECTSSTRUCTURALELEMENT|RELINTERACTIONREQUIREMENTS|RELOCCUPIESSPACES|RELOVERRIDESPROPERTIES|RELSCHEDULESCOSTITEMS|RIBPLATEPROFILEPROPERTIES|SCHEDULETIMECONTROL|SERVICELIFE\w*|SOUNDPROPERTIES|SOUNDVALUE|SPACEPROGRAM|SPACETHERMALLOADPROPERTIES|STRUCTURALLINEARACTIONVARYING|STRUCTURALPLANARACTIONVARYING|STRUCTURALPROFILEPROPERTIES|STRUCTURALSTEELPROFILEPROPERTIES|STRUCTUREDDIMENSIONCALLOUT|SYMBOLSTYLE|TERMINATORSYMBOL|TEXTSTYLEWITHBOXCHARACTERISTICS|THERMALMATERIALPROPERTIES|TIMESERIESREFERENCERELATIONSHIP|TIMESERIESSCHEDULE|VERTEXBASEDTEXTUREMAP|WATERPROPERTIES)/;
+/* eccezione: IFC2DCOMPOSITECURVE ha una mappa pulita */
+
+/* prodotti del posizionamento lineare: in discesa si PERDONO come logica */
+var SC_ALIGN_P=new Set(["IFCALIGNMENT","IFCALIGNMENTHORIZONTAL","IFCALIGNMENTVERTICAL",
+  "IFCALIGNMENTCANT","IFCALIGNMENTSEGMENT","IFCREFERENT","IFCLINEARELEMENT",
+  "IFCLINEARPOSITIONINGELEMENT","IFCPOSITIONINGELEMENT"]);
+
+/* spaziali 4x3 → 2x3/4 */
+var SC_SPATIAL_DOWN=new Set(["IFCROAD","IFCRAILWAY","IFCBRIDGE","IFCMARINEFACILITY","IFCFACILITY"]);
+var SC_SPATIALPART_DOWN=new Set(["IFCROADPART","IFCRAILWAYPART","IFCBRIDGEPART","IFCMARINEPART",
+  "IFCFACILITYPART","IFCFACILITYPARTCOMMON"]);
+
+/* override d'addendum: web-ifc genera il 4X3 base; ADD2 vuole
+   IfcMapConversion a 10 argomenti (lezione dello strumento 11)           */
+var SC_OVR_43={IFCMAPCONVERSION:10};
+
+/* ========================================================================
+   IL CONVERTITORE — un solo passaggio con exec true/false:
+   plan  (exec:false): classificazione, conteggi, righe della tavola,
+                       perdite per il collaudo, registro sintetico;
+   build (exec:true):  riscrittura vera, entità nuove, GC, header, CSV.
+   opts: {proxyMode:"auto"|"keep"|"review", proxySel:Set, promoteRoad,
+          mvd:"rv"|"dtv", pset:true, keepOH:true, outName, rnd, now}
+   ======================================================================== */
+function scConvert(info,tgtKey,opts){
+  opts=opts||{};
+  const exec=!!opts.exec;
+  const model=info.model;
+  const V=SC_VERS[tgtKey];
+  if(!V) throw new Error("bersaglio ignoto: "+tgtKey);
+  if(!info.src) throw new Error("schema d'origine non riconosciuto");
+  const S=info.srcCol, T=V.col;
+  const down=T<S, up=T>S;
+  const TN=model.typeNames, TI=model.typeIdx;
+
+  const rew=new Map();               /* k → testo nuovo | null (riga tolta) */
+  const gcCand=new Set();            /* k eliminabili se orfane             */
+  const addRows=[];
+  let nextId=model.maxId+1;
+  const add=t=>{ addRows.push("#"+nextId+"="+t+";"); return nextId++; };
+  const refRepl=new Map();           /* idVecchio → idNuovo (geometria)     */
+  const repKind=new Map();           /* idNuovo → "closed"|"open"           */
+  const reg=[];                      /* registro: righe per entità          */
+  const regAgg=new Map();            /* registro: adattamenti aggregati     */
+  const warnTypes=new Map();         /* senza mappa: tipo → conteggio       */
+  const lostPos=[];                  /* posizionamenti non valutabili       */
+  const stats={adapted:0,renamed:0,demoted:0,dropped:0,gc:0,warned:0,rootedFix:0,
+    reclass:0,promoted:0,geomRewritten:0,attrLost:0,products:info.products,
+    rooted:0,unchanged:0,triCap:0};
+  const samples=new Map();           /* gruppo collaudo → [campioni]        */
+  const count=(m,t)=>m.set(t,(m.get(t)||0)+1);
+  const MAXTRI=250000;
+  let triBudget=MAXTRI;
+
+  const aEval=down?scAlignEval(model,info.angF):null;
+  const sagitta=0.002/(info.uf||1);            /* freccia 2 mm in unità del file */
+
+  /* OwnerHistory per il 2x3: se manca, se ne genera uno dichiarato */
+  let ohRef=null, ohMade=false;
+  if(T===0){
+    if(info.ohK>=0) ohRef="#"+model.ids[info.ohK];
+    else{
+      ohMade=true;
+      if(exec){
+        const pe=add("IFCPERSON($,$,'viewifc.com',$,$,$,$,$)");
+        const or=add("IFCORGANIZATION($,'viewifc.com — Cambio schema IFC',$,$,$)");
+        const po=add("IFCPERSONANDORGANIZATION(#"+pe+",#"+or+",$)");
+        const ap=add("IFCAPPLICATION(#"+or+",'1.0','Cambio schema IFC — viewifc.com','viewifc-schema-change')");
+        const ts=Math.floor((opts.now!=null?opts.now:Date.now())/1000);
+        ohRef="#"+add("IFCOWNERHISTORY(#"+po+",#"+ap+",$,.NOCHANGE.,$,$,$,"+ts+")");
+      } else ohRef="#0";
+    }
+  }
+
+  /* selezione scatole per la riclassificazione (salita a 4x3) */
+  const pxOn=new Set();
+  if(up&&T===2&&opts.proxyMode!=="keep"){
+    for(const g of info.proxyGroups.groups){
+      if(opts.proxyMode==="review"&&opts.proxySel&&!opts.proxySel.has(g.key)) continue;
+      for(const k of g.ks) pxOn.add(k);
+    }
+  }
+  const pxCls=new Map();
+  for(const g of info.proxyGroups.groups) for(const k of g.ks) pxCls.set(k,g.cls);
+
+  const sample=(grp,obj)=>{
+    let a=samples.get(grp); if(!a){ a=[]; samples.set(grp,a); }
+    if(a.length<60) a.push(obj);
+  };
+  let regSkipped=0;
+  const regRow=(k,a,da,aTo,az,nota)=>{
+    if(!exec&&reg.length>=5000){ regSkipped++; return; }   /* il piano non ha bisogno di tutto */
+    reg.push({id:model.ids[k],guid:scIsRooted(a&&a[0])?scUnq(a[0]):"",da,a:aTo,az,nota:nota||""});
+  };
+
+  /* --- passata principale ------------------------------------------------ */
+  const relFix=[];                   /* k di relazioni da ripulire dopo i drop */
+  for(let k=0;k<model.count;k++){
+    const K=TN[TI[k]];
+    const know=scKnow(K);
+
+    /* classe ignota alla tabella (schemi intermedi, refusi): resta, dichiarata */
+    if(!know){ count(warnTypes,K); stats.warned++; continue; }
+
+    const aS0=know.a[S];
+    let aT0=know.a[T];
+    /* web-ifc tiene IfcWallStandardCase anche nel 4x3 (deprecata): la si
+       rinomina comunque, come fa la migrazione dello strumento 11 */
+    if(T===2&&K==="IFCWALLSTANDARDCASE") aT0=-1;
+
+    /* relazioni: raccolte per la ripulitura dai riferimenti caduti */
+    if(K.startsWith("IFCREL")&&(aT0!==-1)) relFix.push(k);
+
+    /* classi identiche nei due schemi: resta solo l'eventuale fix OwnerHistory
+       e la riclassificazione delle scatole */
+    let a=null, to=K, az=null, nota="", touched=false;
+
+    const needOH=T===0;
+    const getA=()=>{ if(!a) a=scArgs(scStmt(model,k)); return a; };
+
+    /* --- scatole generiche → classi 4x3 (salita, opt-in) --- */
+    if(up&&T===2&&K==="IFCBUILDINGELEMENTPROXY"&&pxOn.has(k)){
+      getA();
+      to=pxCls.get(k);
+      const old9=a[8];
+      a.length=8; a.push("$");                    /* Mobility/PredefinedType: $ */
+      az="riclassificata"; stats.reclass++; touched=true;
+      nota="scatola → "+scCamel(to);
+      if(old9&&old9!=="$"&&old9!=="*") nota+=" · CompositionType "+old9+" caduto";
+      regRow(k,a,"IfcBuildingElementProxy",scCamel(to),az,nota);
+      sample("reclass",{id:model.ids[k],guid:scUnq(a[0]),name:scUnq(a[2]),
+        from:"IfcBuildingElementProxy",toC:scCamel(to),otype:scUnq(a[4])});
+      rew.set(k,"#"+model.ids[k]+"="+to+"("+a.join(",")+");");
+      continue;
+    }
+
+    /* --- promozione dell'albero (salita a 4x3, opt-in) --- */
+    if(up&&T===2&&opts.promoteRoad&&(K==="IFCBUILDING"||K==="IFCBUILDINGSTOREY")){
+      getA();
+      if(K==="IFCBUILDING"){
+        to="IFCROAD";
+        const dropped=a.slice(9).filter(x=>x!=="$"&&x!=="*").length;
+        a.length=9; a.push("$");
+        if(dropped) nota="quote/indirizzo dell'edificio caduti ("+dropped+")";
+      } else {
+        to="IFCROADPART";
+        const elev=a[9];
+        a.length=9; a.push(".NOTDEFINED.",".ROADSEGMENT.");
+        if(elev&&elev!=="$") nota="Elevation "+elev+" caduta";
+      }
+      az="promossa"; stats.promoted++; touched=true;
+      regRow(k,a,scCamel(K),scCamel(to),az,nota);
+      sample("promote",{id:model.ids[k],guid:scUnq(a[0]),name:scUnq(a[2]),from:scCamel(K),toC:scCamel(to)});
+      rew.set(k,"#"+model.ids[k]+"="+to+"("+a.join(",")+");");
+      continue;
+    }
+
+    /* --- discesa: posizionamento lineare → locale --- */
+    if(down&&K==="IFCLINEARPLACEMENT"&&aT0===-1){
+      getA();
+      let done=false;
+      if(a[2]&&a[2][0]==="#"){
+        if(exec) rew.set(k,"#"+model.ids[k]+"=IFCLOCALPLACEMENT("+(a[0]||"$")+","+a[2]+");");
+        az="assolutizzato"; nota="dal CartesianPosition dichiarato"; done=true;
+      } else {
+        /* valuta il PointByDistanceExpression sui segmenti di business */
+        const apl=scRef(model,a[1]);
+        let ev=null, pb=null;
+        if(apl>=0){
+          const pa=scArgs(scStmt(model,apl));
+          const pbk=scRef(model,pa[0]);
+          if(pbk>=0&&TN[TI[pbk]]==="IFCPOINTBYDISTANCEEXPRESSION"){
+            pb=scArgs(scStmt(model,pbk));
+            const bcK=scRef(model,pb[4]);
+            if(bcK>=0&&aEval) ev=aEval.byCurve.get(model.ids[bcK])||aEval.single;
+            else if(aEval) ev=aEval.single;
+          }
+        }
+        if(ev&&pb){
+          const s=scMeasure(pb[0],0), lat=scMeasure(pb[1],0), ver=scMeasure(pb[2],0);
+          const p=ev.eval(s);
+          const x=p.x-Math.sin(p.th)*lat, y=p.y+Math.cos(p.th)*lat, z=p.h+ver;
+          if(exec){
+            const pt=add("IFCCARTESIANPOINT(("+scStepReal(x)+","+scStepReal(y)+","+scStepReal(z)+"))");
+            const dz=add("IFCDIRECTION((0.,0.,1.))");
+            const dx=add("IFCDIRECTION(("+scStepReal(Math.cos(p.th))+","+scStepReal(Math.sin(p.th))+",0.))");
+            const ax=add("IFCAXIS2PLACEMENT3D(#"+pt+",#"+dz+",#"+dx+")");
+            rew.set(k,"#"+model.ids[k]+"=IFCLOCALPLACEMENT("+(a[0]||"$")+",#"+ax+");");
+          }
+          az="assolutizzato"; nota="valutato sull'asse a s="+scStepReal(s,2); done=true;
+        }
+      }
+      if(!done){
+        if(exec){
+          const pt=add("IFCCARTESIANPOINT((0.,0.,0.))");
+          const ax=add("IFCAXIS2PLACEMENT3D(#"+pt+",$,$)");
+          rew.set(k,"#"+model.ids[k]+"=IFCLOCALPLACEMENT("+(a[0]||"$")+",#"+ax+");");
+        }
+        az="perso"; nota="posizionamento lineare non valutabile: elemento all'origine";
+        lostPos.push(model.ids[k]);
+      }
+      stats.adapted++;
+      regRow(k,a,"IfcLinearPlacement","IfcLocalPlacement",az,nota);
+      continue;
+    }
+
+    /* --- discesa: tassellature → brep (solo verso il 2x3) --- */
+    if(down&&T===0&&(K==="IFCTRIANGULATEDFACESET"||K==="IFCPOLYGONALFACESET"||K==="IFCTRIANGULATEDIRREGULARNETWORK")&&aT0===-1){
+      getA();
+      const r=exec?scTessToBrep(model,k,K,a,{add,triBudget}):scTessCount(model,k,K,a);
+      if(r&&r.tris!=null&&exec) triBudget-=r.tris;
+      if(r&&r.ok){
+        if(exec){
+          refRepl.set(model.ids[k],r.newId);
+          repKind.set(r.newId,r.closed?"closed":"open");
+          rew.set(k,null);
+        }
+        stats.geomRewritten++;
+        regRow(k,null,scCamel(K),r.closed?"IfcFacetedBrep":"IfcShellBasedSurfaceModel","riscritta",
+          r.tris+" facce");
+        sample("tess",{id:model.ids[k],guid:"",name:scCamel(K),from:scCamel(K),
+          toC:r.closed?"IfcFacetedBrep":"IfcShellBasedSurfaceModel",geo:r.tris+" f"});
+      } else {
+        count(warnTypes,K); stats.warned++;
+        if(r&&r.why==="cap") stats.triCap++;
+      }
+      continue;
+    }
+    if(down&&T===0&&K==="IFCINDEXEDPOLYCURVE"&&aT0===-1){
+      getA();
+      const r=exec?scIpcToPolyline(model,k,a,{add,sagitta}):{ok:true,pts:0};
+      if(r.ok){
+        if(exec){ refRepl.set(model.ids[k],r.newId); rew.set(k,null); }
+        stats.geomRewritten++;
+        regRow(k,null,"IfcIndexedPolyCurve","IfcPolyline","riscritta",
+          r.arcs?("archi discretizzati, freccia ≤ 2 mm"):"");
+      } else { count(warnTypes,K); stats.warned++; }
+      continue;
+    }
+
+    /* --- discesa: georeferenziazione senza posto nel 2x3 --- */
+    if(down&&T===0&&(K==="IFCMAPCONVERSION"||K==="IFCMAPCONVERSIONSCALED"||K==="IFCPROJECTEDCRS"||
+       K==="IFCGEOGRAPHICCRS"||K==="IFCCOORDINATEOPERATION"||K==="IFCRIGIDOPERATION"||K==="IFCWELLKNOWNTEXT")){
+      getA();
+      let nota="";
+      if(K==="IFCMAPCONVERSION"||K==="IFCMAPCONVERSIONSCALED")
+        nota="E="+scNumArg(a[2],0)+" N="+scNumArg(a[3],0)+" H="+scNumArg(a[4],0)+" — riapplicabile col Georef Editor";
+      rew.set(k,null); stats.dropped++;
+      az="persa";
+      regRow(k,a,scCamel(K),"—",az,nota);
+      sample("georef",{id:model.ids[k],guid:"",name:scCamel(K),from:scCamel(K),toC:"—",nota});
+      continue;
+    }
+
+    /* --- la classe non esiste nel bersaglio --- */
+    if(aT0===-1){
+      /* alberi alignment: si perdono come logica (discesa) */
+      if(down&&SC_ALIGN_P.has(K)){
+        getA();
+        rew.set(k,null); stats.dropped++;
+        /* placement e rappresentazione dell'asse restano orfani → candidati al GC */
+        for(const ri of [5,6]){
+          const rk=scRef(model,a[ri]);
+          if(rk<0) continue;
+          gcCand.add(rk);
+          if(ri===6){
+            const pa=scArgs(scStmt(model,rk));
+            for(const rr of (scList(pa[2])||[])){
+              const sk=scRef(model,rr);
+              if(sk>=0) gcCand.add(sk);
+            }
+          }
+        }
+        regRow(k,a,scCamel(K),"—","persa","il "+V.label+" non sa dire il posizionamento lineare");
+        sample("align",{id:model.ids[k],guid:scIsRooted(a[0])?scUnq(a[0]):"",name:scUnq(a[2])||scCamel(K),
+          from:scCamel(K),toC:"—"});
+        continue;
+      }
+      /* spaziali 4x3 → edificio/piano */
+      if(down&&SC_SPATIAL_DOWN.has(K)){
+        getA();
+        const pt=a[9]&&a[9]!=="$"?a[9].replace(/\./g,""):"";
+        if(a[4]==="$"||!a[4]) a[4]="'"+scEsc(scCamel(K)+(pt?("."+pt):""))+"'";
+        a.length=9; while(a.length<12) a.push("$");
+        if(needOH&&scIsRooted(a[0])&&a[1]==="$"){ a[1]=ohRef; stats.rootedFix++; }
+        rew.set(k,"#"+model.ids[k]+"=IFCBUILDING("+a.join(",")+");");
+        az="demansionata"; stats.demoted++;
+        regRow(k,a,scCamel(K),"IfcBuilding",az,"classe d'origine in ObjectType");
+        sample("spatial",{id:model.ids[k],guid:scUnq(a[0]),name:scUnq(a[2]),from:scCamel(K),toC:"IfcBuilding",otype:scUnq(a[4])});
+        continue;
+      }
+      if(down&&SC_SPATIALPART_DOWN.has(K)){
+        getA();
+        const usage=a[9]&&a[9]!=="$"?a[9].replace(/\./g,""):"";
+        const pt=a[10]&&a[10]!=="$"?a[10].replace(/\./g,""):"";
+        if(a[4]==="$"||!a[4]) a[4]="'"+scEsc(scCamel(K)+(pt?("."+pt):(usage?("."+usage):"")))+"'";
+        a.length=9; a.push("$");                          /* Elevation */
+        if(needOH&&scIsRooted(a[0])&&a[1]==="$"){ a[1]=ohRef; stats.rootedFix++; }
+        rew.set(k,"#"+model.ids[k]+"=IFCBUILDINGSTOREY("+a.join(",")+");");
+        az="demansionata"; stats.demoted++;
+        regRow(k,a,scCamel(K),"IfcBuildingStorey",az,"classe d'origine in ObjectType");
+        sample("spatial",{id:model.ids[k],guid:scUnq(a[0]),name:scUnq(a[2]),from:scCamel(K),toC:"IfcBuildingStorey",otype:scUnq(a[4])});
+        continue;
+      }
+      /* regole puntuali con firma diversa */
+      const fnRes=scFnMissing(model,k,K,S,T,{getA:()=>getA(),add,exec,down,up,needOH,ohRef,stats});
+      if(fnRes){
+        if(fnRes.drop){ rew.set(k,null); stats.dropped++; }
+        else if(fnRes.text!==undefined){ if(exec||true) rew.set(k,fnRes.text); }
+        if(fnRes.az){
+          if(fnRes.az==="rinominata") stats.renamed++;
+          else if(fnRes.az==="demansionata") stats.demoted++;
+          else stats.adapted++;
+          regRow(k,a,scCamel(K),fnRes.toC||"—",fnRes.az,fnRes.nota);
+          if(fnRes.grp) sample(fnRes.grp,{id:model.ids[k],guid:a&&scIsRooted(a[0])?scUnq(a[0]):"",
+            name:(a&&scUnq(a[2]))||scCamel(K),from:scCamel(K),toC:fnRes.toC||"—",otype:a?scUnq(a[4]):""});
+        }
+        continue;
+      }
+      /* tipi ritirati senza mappa sicura (drafting 2x3, scheduling…):
+         restano com'erano, contati e dichiarati — pattern dello strumento 11 */
+      if(SC_WARN23.test(K)){ count(warnTypes,K); stats.warned++; continue; }
+      /* demansionamento calcolato (ancestry) o per categoria */
+      const cat=know.cat||"R";
+      const tag=T===0?"d23":"d4";
+      let toK=SC_FALL.get(K+"|"+tag)||null;
+      if(!toK){
+        if(cat==="E") toK="IFCBUILDINGELEMENTPROXY";
+        else if(cat==="T") toK="IFCBUILDINGELEMENTPROXYTYPE";
+        else if(cat==="G") toK="IFCSYSTEM";
+      }
+      if(toK&&(cat==="E"||cat==="T"||cat==="G")){
+        getA();
+        const argcTo=scArgc(toK,T);
+        const argcTo2=argcTo>=0?argcTo:8;
+        /* PredefinedType in coda che cade → lo dice l'ObjectType/ElementType */
+        const aSrc=know.a?know.a[S]:a.length;
+        let pt="";
+        if(aSrc>0&&a.length>=aSrc){
+          const last=a[aSrc-1];
+          if(last&&last[0]==="."&&last!==".NOTDEFINED.") pt=last.replace(/\./g,"");
+        }
+        const noteIdx=cat==="T"?8:4;               /* ElementType | ObjectType */
+        const orig=scCamel(K)+(pt?("."+pt):"");
+        if(argcTo2>noteIdx&&(a[noteIdx]==="$"||!a[noteIdx])) a[noteIdx]="'"+scEsc(orig)+"'";
+        while(a.length<argcTo2) a.push("$");
+        a.length=argcTo2;
+        if(cat==="T"&&toK==="IFCBUILDINGELEMENTPROXYTYPE") a[argcTo2-1]=".NOTDEFINED.";
+        if(needOH&&scIsRooted(a[0])&&a[1]==="$"){ a[1]=ohRef; stats.rootedFix++; }
+        rew.set(k,"#"+model.ids[k]+"="+toK+"("+a.join(",")+");");
+        stats.demoted++;
+        regRow(k,a,scCamel(K),scCamel(toK),"demansionata","classe d'origine annotata: "+orig);
+        sample("demote",{id:model.ids[k],guid:scUnq(a[0]),name:scUnq(a[2]),from:scCamel(K),
+          toC:scCamel(toK),otype:a[noteIdx]?scUnq(a[noteIdx]):"",pt});
+        continue;
+      }
+      /* relazioni sparite dallo schema: cadono, dichiarate */
+      if(K.startsWith("IFCREL")){
+        rew.set(k,null); stats.dropped++;
+        regRow(k,null,scCamel(K),"—","persa","relazione senza posto nel "+V.label);
+        continue;
+      }
+      /* risorse/geometria orfanabili: via col GC, altrimenti dichiarate */
+      gcCand.add(k);
+      continue;
+    }
+
+    /* --- la classe esiste nel bersaglio --- */
+    let aTgt=aT0, aSrc=aS0;
+    if(T===2&&SC_OVR_43[K]!=null) aTgt=SC_OVR_43[K];
+
+    /* casi curati che esistono in entrambe le ere ma cambiano a metà firma */
+    if(S!==T&&aSrc!==aTgt&&SC_FNBOTH.has(K)){
+      const fnRes=scFnMissing(model,k,K,S,T,{getA:()=>getA(),add,exec,down,up,needOH,ohRef,stats});
+      if(fnRes&&fnRes.text!==undefined){
+        if(exec) rew.set(k,fnRes.text);
+        stats.adapted++;
+        regRow(k,a,scCamel(K),fnRes.toC||scCamel(K),fnRes.az||"adattata",fnRes.nota);
+        continue;
+      }
+    }
+
+    /* l'enum del proxy cambia fra le ere: si tiene solo ciò che il bersaglio sa dire */
+    if(K==="IFCBUILDINGELEMENTPROXY"&&S!==T){
+      getA();
+      const v9=a[8]||"$";
+      let bad=false;
+      if(T===2&&/^\.(COMPLEX|ELEMENT|PARTIAL)\.$/.test(v9)) bad=true;
+      if(T===0&&v9[0]==="."&&!/^\.(COMPLEX|ELEMENT|PARTIAL)\.$/.test(v9)) bad=true;
+      if(bad){
+        a[8]="$";
+        if(needOH&&scIsRooted(a[0])&&a[1]==="$"){ a[1]=ohRef; stats.rootedFix++; }
+        if(exec) rew.set(k,"#"+model.ids[k]+"=IFCBUILDINGELEMENTPROXY("+a.join(",")+");");
+        stats.adapted++;
+        count(regAgg,"IfcBuildingElementProxy;IfcBuildingElementProxy;adattata;"+v9+" non esiste nell'enumerazione del "+V.label);
+        continue;
+      }
+    }
+
+    if(aTgt===aSrc){
+      /* firma identica: resta byte-identica (salvo OwnerHistory nel 2x3) */
+      if(needOH){
+        /* sguardo rapido: solo i radicati con OwnerHistory a $ vanno riscritti */
+        const pre=model.dec.decode(model.bytes.subarray(model.starts[k],Math.min(model.ends[k],model.starts[k]+72)));
+        if(/^#\d+=\s*[A-Z0-9_]+\('[0-9A-Za-z_$]{22}',\$/.test(pre)){
+          getA();
+          a[1]=ohRef; stats.rootedFix++;
+          if(exec) rew.set(k,"#"+model.ids[k]+"="+K+"("+a.join(",")+");");
+        }
+      }
+      continue;
+    }
+    if(SC_XWARN.has(K)){ count(warnTypes,K); stats.warned++; continue; }
+    getA();
+    if(a.length>aTgt){
+      const cut=a.slice(aTgt).filter(x=>x!=="$"&&x!=="*"&&x!=="");
+      if(cut.length){ stats.attrLost+=cut.length; nota=(nota?nota+" · ":"")+cut.length+" attributi caduti"; }
+      a.length=aTgt;
+    }
+    while(a.length<aTgt) a.push("$");
+    if(needOH&&scIsRooted(a[0])&&a[1]==="$"){ a[1]=ohRef; stats.rootedFix++; }
+    if(exec) rew.set(k,"#"+model.ids[k]+"="+K+"("+a.join(",")+");");
+    stats.adapted++;
+    count(regAgg,scCamel(K)+";"+scCamel(K)+";adattata;"+(aTgt>aSrc?"attributi opzionali aggiunti ($)":"attributi in coda ricalibrati")+(nota?" · "+nota:""));
+  }
+
+  /* --- 2x3 → 4x3: gli IfcStyledItem appiattiscono le StyleAssignment --- */
+  if(T===2){
+    for(const k of (model.byType.get("IFCSTYLEDITEM")||[])){
+      if(rew.has(k)) continue;
+      const a=scArgs(scStmt(model,k));
+      const items=scList(a[1]);
+      if(!items) continue;
+      let changed=false; const out=[];
+      for(const r of items){
+        const rk=scRef(model,r);
+        if(rk>=0&&TN[TI[rk]]==="IFCPRESENTATIONSTYLEASSIGNMENT"){
+          const inner=scList(scArgs(scStmt(model,rk))[0]);
+          if(inner){ out.push(...inner); changed=true; continue; }
+        }
+        out.push(r);
+      }
+      if(changed){
+        a[1]="("+out.join(",")+")";
+        rew.set(k,"#"+model.ids[k]+"=IFCSTYLEDITEM("+a.join(",")+");");
+        stats.adapted++;
+      }
+    }
+  }
+
+  /* --- ripulitura delle relazioni dai riferimenti caduti --- */
+  const droppedIds=new Set();
+  for(const [k,v] of rew) if(v===null) droppedIds.add(model.ids[k]);
+  if(droppedIds.size){
+    for(const k of relFix){
+      if(rew.get(k)===null) continue;
+      const base=rew.has(k)?rew.get(k):scStmt(model,k);
+      if(!/#\d/.test(base)) continue;
+      const K=TN[TI[k]];
+      const a=scArgs(base);
+      let touched=false, dead=false, emptied=false;
+      for(let i=0;i<a.length;i++){
+        const x=a[i];
+        if(!x) continue;
+        if(x[0]==="#"){
+          if(droppedIds.has(parseInt(x.slice(1),10))){ if(i>1){ dead=true; } else { a[i]="$"; touched=true; } }
+        } else if(x[0]==="("&&x.indexOf("#")>=0){
+          const items=scList(x)||[];
+          const kept=items.filter(r=>!(r[0]==="#"&&droppedIds.has(parseInt(r.slice(1),10))));
+          if(kept.length!==items.length){
+            touched=true;
+            if(!kept.length) emptied=true;
+            a[i]="("+kept.join(",")+")";
+          }
+        }
+      }
+      if(dead||emptied){
+        rew.set(k,null); stats.gc++;
+        droppedIds.add(model.ids[k]);
+      } else if(touched){
+        rew.set(k,"#"+model.ids[k]+"="+K+"("+a.join(",")+");");
+      }
+    }
+  }
+
+  /* --- GC: risorse orfane (curve dell'asse, liste di punti consumate…) --- */
+  let gcDropped=0;
+  if(gcCand.size){
+    for(let round=0;round<6;round++){
+      const refd=new Set();
+      const markRefs=(text)=>{
+        let i=0;
+        while(true){
+          const h=text.indexOf("#",i);
+          if(h<0) break;
+          let j=h+1, id=0, any=false;
+          while(j<text.length&&text.charCodeAt(j)>=48&&text.charCodeAt(j)<=57){ id=id*10+(text.charCodeAt(j)-48); j++; any=true; }
+          if(any&&h>0) refd.add(id);
+          i=j>h?j:h+1;
+        }
+      };
+      for(let k=0;k<model.count;k++){
+        if(rew.get(k)===null) continue;
+        const text=rew.has(k)?rew.get(k):scStmt(model,k);
+        if(text) markRefs(text.slice(1));              /* salta l'id in testa */
+      }
+      for(const t of addRows) markRefs(t.slice(1));
+      let changed=false;
+      for(const k of [...gcCand]){
+        if(rew.has(k)) continue;
+        if(!refd.has(model.ids[k])){ rew.set(k,null); gcCand.delete(k); gcDropped++; changed=true; }
+      }
+      if(!changed) break;
+    }
+    /* i candidati ancora referenziati restano, dichiarati */
+    for(const k of gcCand){ if(!rew.has(k)){ count(warnTypes,TN[TI[k]]); stats.warned++; } }
+  }
+  stats.gc+=gcDropped;
+
+  /* --- sostituzione dei riferimenti alla geometria riscritta --- */
+  if(exec&&refRepl.size){
+    const oldIds=new Set(refRepl.keys());
+    for(let k=0;k<model.count;k++){
+      if(rew.get(k)===null) continue;
+      const text=rew.has(k)?rew.get(k):null;
+      const src=text!=null?text:scStmt(model,k);
+      let hit=false;
+      {
+        let i=1;
+        while(true){
+          const h=src.indexOf("#",i);
+          if(h<0) break;
+          let j=h+1, id=0, any=false;
+          while(j<src.length&&src.charCodeAt(j)>=48&&src.charCodeAt(j)<=57){ id=id*10+(src.charCodeAt(j)-48); j++; any=true; }
+          if(any&&oldIds.has(id)){ hit=true; break; }
+          i=j>h?j:h+1;
+        }
+      }
+      if(!hit) continue;
+      let out=src.replace(/#(\d+)/g,(m,d)=>{ const nid=refRepl.get(parseInt(d,10)); return nid!=null?("#"+nid):m; });
+      /* la ShapeRepresentation dichiara il tipo nuovo */
+      if(TN[TI[k]]==="IFCSHAPEREPRESENTATION"){
+        const a=scArgs(out);
+        const kinds=(scList(a[3])||[]).map(r=>repKind.get(parseInt((r||"").slice(1),10))).filter(Boolean);
+        if(kinds.length){
+          a[2]=kinds.every(x=>x==="closed")?"'Brep'":"'SurfaceModel'";
+          out="#"+model.ids[k]+"=IFCSHAPEREPRESENTATION("+a.join(",")+");";
+        }
+      }
+      rew.set(k,out);
+    }
+  }
+
+  /* --- Pset_Conversione sull'IfcProject (facoltativo) --- */
+  if(exec&&opts.pset!==false&&info.projK>=0){
+    const pj=scArgs(scStmt(model,info.projK));
+    const oh=(T===0?ohRef:(info.ohK>=0?"#"+model.ids[info.ohK]:"$"))||"$";
+    const P=[];
+    const pv=(n,v)=>P.push("#"+add("IFCPROPERTYSINGLEVALUE('"+scEsc(n)+"',$,IFCLABEL('"+scEsc(v)+"'),$)"));
+    pv("SchemaOrigine",info.schemaRaw);
+    pv("SchemaDestinazione",V.out);
+    pv("Strumento","viewifc.com — Cambio schema IFC v1");
+    pv("Adattate",String(stats.adapted));
+    pv("Demansionate",String(stats.demoted));
+    pv("Perse",String(stats.dropped+stats.gc));
+    pv("SenzaMappa",String(stats.warned));
+    const ps=add("IFCPROPERTYSET('"+scGuid(opts.rnd)+"',"+oh+",'Pset_Conversione',$,("+P.join(",")+"))");
+    add("IFCRELDEFINESBYPROPERTIES('"+scGuid(opts.rnd)+"',"+oh+",$,$,(#"+model.ids[info.projK]+"),#"+ps+")");
+  }
+
+  /* --- intestazione STEP e assemblaggio --- */
+  const mvdKey=(opts.mvd==="dtv"&&V.mvd.dtv)?"dtv":"rv";
+  const mvd="ViewDefinition["+(V.mvd[mvdKey]||V.mvd.rv)+"]";
+  const outName=opts.outName||scOutName(info.headName||"modello.ifc",V.label);
+  const header={
+    beforeDesc:info.headDesc,beforeSchema:info.schemaRaw,beforeName:info.headName,
+    afterDesc:mvd,afterSchema:V.out,afterName:outName
+  };
+
+  const result={header,stats,warnTypes,reg,regAgg,samples,lostPos,outName,
+    tgt:tgtKey,outSchema:V.out,down,up,ohMade,
+    nonClo:aEval?aEval.nonClo:0,twoX2:!!info.src.twoX2,approx:!!V.approx};
+
+  if(!exec) return result;
+
+  /* testo dell'intestazione: sostituzioni mirate su quella originale */
+  let head=model.dec.decode(model.bytes.subarray(0,model.dataStart));
+  if(/FILE_DESCRIPTION\s*\(\s*\(\s*'[^']*'/.test(head))
+    head=head.replace(/(FILE_DESCRIPTION\s*\(\s*\(\s*')[^']*(')/,"$1"+mvd.replace(/\$/g,"$$$$")+"$2");
+  else head=head.replace(/FILE_DESCRIPTION\s*\(\s*\(/,"FILE_DESCRIPTION(('"+mvd+"'");
+  head=head.replace(/(FILE_NAME\s*\(\s*')[^']*(')/,"$1"+scEsc(outName).replace(/\$/g,"$$$$")+"$2");
+  head=head.replace(/(FILE_SCHEMA\s*\(\s*\(\s*')[^']*(')/,"$1"+V.out+"$2");
+
+  const parts=[head];
+  const bytes=model.bytes, nlB=model.nl;
+  let run0=model.dataStart;
+  for(let k=0;k<model.count;k++){
+    if(!rew.has(k)) continue;
+    if(run0<model.starts[k]) parts.push(bytes.subarray(run0,model.starts[k]));
+    const t=rew.get(k);
+    if(t!==null) parts.push(t);          /* il newline lo dà il run originale */
+    run0=model.ends[k];
+    /* il byte-run salta anche l'eventuale newline dopo la riga tolta */
+    if(t===null){
+      while(run0<bytes.length&&(bytes[run0]===10||bytes[run0]===13)) run0++;
+    }
+  }
+  if(run0<model.endsecPos) parts.push(bytes.subarray(run0,model.endsecPos));
+  if(addRows.length) parts.push(addRows.join(nlB)+nlB);
+  parts.push(bytes.subarray(model.endsecPos));
+
+  result.parts=parts;
+  result.csv=scRegisterCsv(info,result);
+  return result;
+}
+
+function scOutName(name,label){
+  /* il FILE_NAME dei file reali porta spesso l'intero percorso (D:\\…\\x.ifc):
+     il nome proposto è il solo nome file, senza cartelle */
+  const leaf=String(name||"modello.ifc").split(/[\\/]/).pop()||"modello.ifc";
+  const base=leaf.replace(/\.ifc$/i,"");
+  return base+"_"+label.replace(/^IFC/,"")+".ifc";
+}
+
+/* regole puntuali per le classi assenti nel bersaglio ---------------------- */
+function scFnMissing(model,k,K,S,T,ctx){
+  const down=ctx.down;
+  const A=()=>ctx.getA();
+  const id=model.ids[k];
+  const fixOH=a=>{ if(ctx.needOH&&scIsRooted(a[0])&&a[1]==="$"){ a[1]=ctx.ohRef; ctx.stats.rootedFix++; } };
+  switch(K){
+    case "IFC2DCOMPOSITECURVE":{ const a=A();
+      return {text:"#"+id+"=IFCCOMPOSITECURVE("+a.join(",")+");",az:"rinominata",toC:"IfcCompositeCurve"}; }
+    case "IFCWALLSTANDARDCASE": case "IFCWALLELEMENTEDCASE": return scRenTrim(model,k,K,"IFCWALL",T,ctx);
+    case "IFCBEAMSTANDARDCASE": return scRenTrim(model,k,K,"IFCBEAM",T,ctx);
+    case "IFCCOLUMNSTANDARDCASE": return scRenTrim(model,k,K,"IFCCOLUMN",T,ctx);
+    case "IFCMEMBERSTANDARDCASE": return scRenTrim(model,k,K,"IFCMEMBER",T,ctx);
+    case "IFCPLATESTANDARDCASE": return scRenTrim(model,k,K,"IFCPLATE",T,ctx);
+    case "IFCSLABSTANDARDCASE": case "IFCSLABELEMENTEDCASE": return scRenTrim(model,k,K,"IFCSLAB",T,ctx);
+    case "IFCDOORSTANDARDCASE": return scRenTrim(model,k,K,"IFCDOOR",T,ctx);
+    case "IFCWINDOWSTANDARDCASE": return scRenTrim(model,k,K,"IFCWINDOW",T,ctx);
+    case "IFCOPENINGSTANDARDCASE": return scRenTrim(model,k,K,"IFCOPENINGELEMENT",T,ctx);
+    case "IFCBUILDINGELEMENTCOMPONENT": return scRenTrim(model,k,K,"IFCBUILDINGELEMENTPART",T,ctx);
+    case "IFCVOIDINGFEATURE": return scRenTrim(model,k,K,"IFCOPENINGELEMENT",T,ctx);
+    case "IFCQUANTITYNUMBER": return scRenTrim(model,k,K,"IFCQUANTITYCOUNT",T,ctx);
+    case "IFCFURNITURE": case "IFCSYSTEMFURNITUREELEMENT":
+      return scRenTrim(model,k,K,"IFCFURNISHINGELEMENT",T,ctx,true);
+    case "IFCTRIANGULATEDIRREGULARNETWORK":              /* verso l'IFC4 (verso il 2x3 ci pensa il brep) */
+      return scRenTrim(model,k,K,"IFCTRIANGULATEDFACESET",T,ctx);
+    case "IFCMAPCONVERSIONSCALED": return scRenTrim(model,k,K,"IFCMAPCONVERSION",T,ctx);
+    case "IFCELECTRICALELEMENT": return scRenTrim(model,k,K,"IFCDISTRIBUTIONELEMENT",T,ctx,true);
+    case "IFCEQUIPMENTELEMENT": return scRenTrim(model,k,K,"IFCBUILDINGELEMENTPROXY",T,ctx,true);
+    case "IFCELECTRICDISTRIBUTIONPOINT":{ const a=A();
+      if(a[8]&&a[8]!=="$"&&(a[4]==="$"||!a[4])) a[4]="'"+scEsc("IfcElectricDistributionPoint."+a[8].replace(/\./g,""))+"'";
+      a.length=Math.min(a.length,8); while(a.length<8) a.push("$");
+      return {text:"#"+id+"=IFCFLOWCONTROLLER("+a.join(",")+");",az:"demansionata",toC:"IfcFlowController",
+        nota:"la classe non esiste più dopo il 2x3",grp:"demote"}; }
+    case "IFCELECTRICALCIRCUIT":{ const a=A();
+      while(a.length<6) a.push("$");
+      a.length=6; a.push(".ELECTRICAL.");
+      return {text:"#"+id+"=IFCDISTRIBUTIONCIRCUIT("+a.join(",")+");",az:"rinominata",toC:"IfcDistributionCircuit"}; }
+    case "IFCGASTERMINALTYPE":{ const a=A();
+      const pt=a[9]&&a[9]!=="$"?a[9].replace(/\./g,""):"";
+      if(pt&&(a[8]==="$"||!a[8])) a[8]="'"+scEsc("IfcGasTerminalType."+pt)+"'";
+      a.length=9; a.push(pt?".USERDEFINED.":".NOTDEFINED.");
+      return {text:"#"+id+"=IFCBURNERTYPE("+a.join(",")+");",az:"demansionata",toC:"IfcBurnerType",grp:"demote"}; }
+    case "IFCELECTRICHEATERTYPE":{ const a=A();
+      const pt=a[9]&&a[9]!=="$"?a[9].replace(/\./g,""):"";
+      if(pt&&(a[8]==="$"||!a[8])) a[8]="'"+scEsc("IfcElectricHeaterType."+pt)+"'";
+      a.length=9; a.push(pt?".USERDEFINED.":".NOTDEFINED.");
+      return {text:"#"+id+"=IFCSPACEHEATERTYPE("+a.join(",")+");",az:"demansionata",toC:"IfcSpaceHeaterType",grp:"demote"}; }
+    case "IFCDOORSTYLE":{ const a=A();                     /* salita: → IfcDoorType */
+      const op=a[8]||"$", prec=a[10]||"$";
+      a.length=8; a.push("$",".DOOR.",op,prec,"$"); fixOH(a);
+      return {text:"#"+id+"=IFCDOORTYPE("+a.join(",")+");",az:"rinominata",toC:"IfcDoorType"}; }
+    case "IFCWINDOWSTYLE":{ const a=A();
+      const op=a[9]||"$", prec=a[10]||"$";
+      a.length=8; a.push("$",".WINDOW.",op,prec,"$"); fixOH(a);
+      return {text:"#"+id+"=IFCWINDOWTYPE("+a.join(",")+");",az:"rinominata",toC:"IfcWindowType"}; }
+    case "IFCDOORTYPE":{ const a=A();                      /* discesa: → IfcDoorStyle */
+      const op=a[10]||".NOTDEFINED.", prec=a[11]||".F.";
+      a.length=8; a.push(op,".NOTDEFINED.",prec,".F."); fixOH(a);
+      return {text:"#"+id+"=IFCDOORSTYLE("+a.join(",")+");",az:"rinominata",toC:"IfcDoorStyle"}; }
+    case "IFCWINDOWTYPE":{ const a=A();
+      const part=a[10]||".NOTDEFINED.", prec=a[11]||".F.";
+      a.length=8; a.push(".NOTDEFINED.",part,prec,".F."); fixOH(a);
+      return {text:"#"+id+"=IFCWINDOWSTYLE("+a.join(",")+");",az:"rinominata",toC:"IfcWindowStyle"}; }
+    case "IFCPROXY":{ const a=A();                         /* solo il 4x3 l'ha perso */
+      const ptype=a[7]&&a[7]!=="$"?a[7].replace(/\./g,""):"";
+      const tag=a[8]||"$";
+      if(a[4]==="$"||!a[4]) a[4]="'"+scEsc("IfcProxy"+(ptype?("."+ptype):""))+"'";
+      a.length=7; a.push(tag,"$");
+      return {text:"#"+id+"=IFCBUILDINGELEMENTPROXY("+a.join(",")+");",az:"demansionata",
+        toC:"IfcBuildingElementProxy",grp:"demote"}; }
+    case "IFCPRESENTATIONSTYLEASSIGNMENT":                 /* appiattita negli StyledItem */
+      return {drop:true,az:"persa",toC:"—",nota:"stili portati diretti nello StyledItem"};
+    case "IFCCLASSIFICATION":{ const a=A();
+      if(!down){                                           /* 2x3 → su: data da entità a stringa */
+        if(a[2]&&a[2][0]==="#"){
+          const ck=scRef(model,a[2]);
+          if(ck>=0&&model.typeNames[model.typeIdx[ck]]==="IFCCALENDARDATE"){
+            const c=scArgs(scStmt(model,ck));
+            a[2]="'"+Math.round(scNumArg(c[2],2000))+"-"+String(Math.round(scNumArg(c[1],1))).padStart(2,"0")+"-"+String(Math.round(scNumArg(c[0],1))).padStart(2,"0")+"'";
+          } else a[2]="$";
+        }
+        while(a.length<7) a.push("$");
+        return {text:"#"+id+"=IFCCLASSIFICATION("+a.join(",")+");",az:"adattata",toC:"IfcClassification"};
+      } else {                                             /* giù: stringa a entità */
+        const m=(scUnq(a[2])||"").match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if(m&&ctx.exec){
+          const cd=ctx.add("IFCCALENDARDATE("+parseInt(m[3],10)+","+parseInt(m[2],10)+","+parseInt(m[1],10)+")");
+          a[2]="#"+cd;
+        } else if(m) a[2]="#0"; else a[2]="$";
+        a.length=4;
+        return {text:"#"+id+"=IFCCLASSIFICATION("+a.join(",")+");",az:"adattata",toC:"IfcClassification"};
+      }}
+    case "IFCCALENDARDATE": case "IFCDATEANDTIME": case "IFCLOCALTIME":
+    case "IFCCOORDINATEDUNIVERSALTIMEOFFSET":
+      return null;                                         /* → gcCand (drop se orfane) */
+    case "IFCTRANSPORTELEMENT":{ const a=A();
+      if(!down){ const op=a[8]||"$"; a.length=8; a.push(op);
+        return {text:"#"+id+"=IFCTRANSPORTELEMENT("+a.join(",")+");",az:"adattata",toC:"IfcTransportElement"}; }
+      return null; }
+    case "IFCASYMMETRICISHAPEPROFILEDEF":{ const a=A();
+      if(!down){ if(a.length>11) a.length=11; while(a.length<15) a.push("$");
+        return {text:"#"+id+"=IFCASYMMETRICISHAPEPROFILEDEF("+a.join(",")+");",az:"adattata",toC:"IfcAsymmetricIShapeProfileDef"}; }
+      a.length=Math.min(a.length,11); while(a.length<12) a.push("$");
+      return {text:"#"+id+"=IFCASYMMETRICISHAPEPROFILEDEF("+a.join(",")+");",az:"adattata",toC:"IfcAsymmetricIShapeProfileDef"}; }
+  }
+  return null;
+}
+/* rinomina + ricalibra il numero di argomenti sul bersaglio */
+function scRenTrim(model,k,K,toK,T,ctx,annota){
+  const a=ctx.getA();
+  const argc=scArgc(toK,T);
+  if(argc<0) return null;
+  if(annota&&(a[4]==="$"||!a[4])) a[4]="'"+scEsc(scCamel(K))+"'";
+  if(a.length>argc){
+    a.length=argc;
+  }
+  while(a.length<argc) a.push("$");
+  if(ctx.needOH&&scIsRooted(a[0])&&a[1]==="$"){ a[1]=ctx.ohRef; ctx.stats.rootedFix++; }
+  return {text:"#"+model.ids[k]+"="+toK+"("+a.join(",")+");",
+    az:toK===K?"adattata":"rinominata",toC:scCamel(toK),grp:annota?"demote":undefined};
+}
+
+/* ---- tassellature → brep ------------------------------------------------ */
+function scPointList(model,ref){
+  const k=scRef(model,ref); if(k<0) return null;
+  const a=scArgs(scStmt(model,k));
+  const rows=scList(a[0])||[];
+  return rows.map(r=>(scList(r)||[]).map(v=>parseFloat(v)||0));
+}
+function scTessCount(model,k,K,a){
+  const isPFS=K==="IFCPOLYGONALFACESET";
+  const rows=scList(isPFS?a[2]:a[3])||[];
+  return {ok:true,tris:rows.length,closed:(isPFS?a[1]:a[2])===".T."};
+}
+function scTessToBrep(model,k,K,a,ctx){
+  const isPFS=K==="IFCPOLYGONALFACESET";
+  const pts=scPointList(model,a[0]);
+  if(!pts||!pts.length) return {ok:false,why:"points"};
+  const closed=(isPFS?a[1]:a[2])===".T.";
+  /* PnIndex: indirezione facoltativa sugli indici */
+  const pnRaw=isPFS?a[3]:a[4];
+  const pn=pnRaw&&pnRaw[0]==="("?(scList(pnRaw)||[]).map(v=>parseInt(v,10)):null;
+  const P=i=>{ const j=pn?pn[i-1]:i; return pts[j-1]; };
+  const faces=[];
+  if(isPFS){
+    for(const r of (scList(a[2])||[])){
+      const fk=scRef(model,r); if(fk<0) continue;
+      const fa=scArgs(scStmt(model,fk));
+      const outer=(scList(fa[0])||[]).map(v=>parseInt(v,10));
+      const inner=model.typeNames[model.typeIdx[fk]]==="IFCINDEXEDPOLYGONALFACEWITHVOIDS"?
+        (scList(fa[1])||[]).map(x=>(scList(x)||[]).map(v=>parseInt(v,10))):[];
+      faces.push({outer,inner});
+    }
+  } else {
+    const idx=K==="IFCTRIANGULATEDIRREGULARNETWORK"?3:3;
+    for(const r of (scList(a[idx])||[])){
+      const t=(scList(r)||[]).map(v=>parseInt(v,10));
+      if(t.length>=3) faces.push({outer:t,inner:[]});
+    }
+  }
+  if(!faces.length) return {ok:false,why:"faces"};
+  if(faces.length>ctx.triBudget) return {ok:false,why:"cap",tris:0};
+  const add=ctx.add;
+  const ptId=new Map();
+  const pid=i=>{ let v=ptId.get(i); if(v!=null) return v;
+    const p=P(i)||[0,0,0];
+    v=add("IFCCARTESIANPOINT(("+scStepReal(p[0])+","+scStepReal(p[1])+","+scStepReal(p[2]||0)+"))");
+    ptId.set(i,v); return v; };
+  const faceIds=[];
+  for(const f of faces){
+    const loop=add("IFCPOLYLOOP(("+f.outer.map(i=>"#"+pid(i)).join(",")+"))");
+    const bounds=["#"+add("IFCFACEOUTERBOUND(#"+loop+",.T.)")];
+    for(const inn of f.inner){
+      const l2=add("IFCPOLYLOOP(("+inn.map(i=>"#"+pid(i)).join(",")+"))");
+      bounds.push("#"+add("IFCFACEBOUND(#"+l2+",.T.)"));
+    }
+    faceIds.push("#"+add("IFCFACE(("+bounds.join(",")+"))"));
+  }
+  let newId;
+  if(closed){
+    const sh=add("IFCCLOSEDSHELL(("+faceIds.join(",")+"))");
+    newId=add("IFCFACETEDBREP(#"+sh+")");
+  } else {
+    const sh=add("IFCOPENSHELL(("+faceIds.join(",")+"))");
+    newId=add("IFCSHELLBASEDSURFACEMODEL((#"+sh+"))");
+  }
+  return {ok:true,newId,closed,tris:faces.length};
+}
+
+/* ---- IndexedPolyCurve → Polyline ---------------------------------------- */
+function scIpcToPolyline(model,k,a,ctx){
+  const pts=scPointList(model,a[0]);
+  if(!pts||!pts.length) return {ok:false};
+  const dim=pts[0].length>=3?3:2;
+  const out=[];
+  const push=p=>{ const q=out[out.length-1];
+    if(q&&Math.abs(q[0]-p[0])<1e-9&&Math.abs(q[1]-p[1])<1e-9) return;
+    out.push(p); };
+  const segs=a[1]&&a[1][0]==="("?scList(a[1]):null;
+  if(!segs){ for(const p of pts) push(p); }
+  else{
+    for(const s of segs){
+      const mm=s.match(/^IFC(LINE|ARC)INDEX\s*\((\([^)]*\))\)$/i);
+      if(!mm){ return {ok:false}; }
+      const idx=(scList(mm[2])||[]).map(v=>parseInt(v,10));
+      if(/LINE/i.test(mm[1])){ for(const i of idx){ const p=pts[i-1]; if(p) push(p); } }
+      else{
+        const A=pts[idx[0]-1],B=pts[idx[1]-1],C=pts[idx[2]-1];
+        if(!A||!B||!C) return {ok:false};
+        for(const p of scArc3(A,B,C,ctx.sagitta)) push(p);
+      }
+    }
+  }
+  if(out.length<2) return {ok:false};
+  const ids=out.map(p=>"#"+ctx.add("IFCCARTESIANPOINT(("+p.slice(0,dim).map(v=>scStepReal(v)).join(",")+"))"));
+  const newId=ctx.add("IFCPOLYLINE(("+ids.join(",")+"))");
+  return {ok:true,newId,arcs:!!segs,pts:out.length};
+}
+/* arco per tre punti, campionato con freccia massima data */
+function scArc3(A,B,C,sag){
+  const ax=A[0],ay=A[1],bx=B[0],by=B[1],cx=C[0],cy=C[1];
+  const d=2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by));
+  if(Math.abs(d)<1e-12) return [A,B,C];
+  const ux=((ax*ax+ay*ay)*(by-cy)+(bx*bx+by*by)*(cy-ay)+(cx*cx+cy*cy)*(ay-by))/d;
+  const uy=((ax*ax+ay*ay)*(cx-bx)+(bx*bx+by*by)*(ax-cx)+(cx*cx+cy*cy)*(bx-ax))/d;
+  const r=Math.hypot(ax-ux,ay-uy);
+  let t0=Math.atan2(ay-uy,ax-ux), t1=Math.atan2(by-uy,bx-ux), t2=Math.atan2(cy-uy,cx-ux);
+  const ccw=((bx-ax)*(cy-ay)-(by-ay)*(cx-ax))>0;
+  const norm=t=>{ while(t<0)t+=2*Math.PI; return t; };
+  let sweep;
+  if(ccw){ sweep=norm(t2-t0); } else { sweep=-norm(t0-t2); }
+  const dth=2*Math.acos(Math.max(0,Math.min(1,1-(sag||0.002)/Math.max(r,1e-9))));
+  const nSeg=Math.max(2,Math.min(720,Math.ceil(Math.abs(sweep)/Math.max(dth,1e-4))));
+  const outP=[];
+  for(let i=0;i<=nSeg;i++){
+    const t=t0+sweep*i/nSeg;
+    outP.push([ux+r*Math.cos(t),uy+r*Math.sin(t),A[2]||0]);
+  }
+  return outP;
+}
+
+/* ---- registro CSV ------------------------------------------------------- */
+function scRegisterCsv(info,res){
+  const q=s=>{ s=String(s==null?"":s); return /[;"\n]/.test(s)?('"'+s.replace(/"/g,'""')+'"'):s; };
+  const lines=[];
+  lines.push("registro della conversione;viewifc.com — Cambio schema IFC");
+  lines.push("file;"+q(info.headName||""));
+  lines.push("da;"+q(info.schemaRaw)+";a;"+q(res.outSchema));
+  lines.push("");
+  lines.push("#id;GlobalId;da;a;azione;nota");
+  for(const r of res.reg) lines.push("#"+r.id+";"+q(r.guid)+";"+q(r.da)+";"+q(r.a)+";"+q(r.az)+";"+q(r.nota));
+  if(res.regAgg.size){
+    lines.push("");
+    lines.push("adattamenti aggregati;classe;azione;nota;quante");
+    for(const [key,n] of res.regAgg){
+      const p=key.split(";");
+      lines.push(";"+q(p[0])+";"+q(p[2])+";"+q(p[3]||"")+";"+n);
+    }
+  }
+  if(res.warnTypes.size){
+    lines.push("");
+    lines.push("senza mappa sicura — restano com'erano;tipo;quante");
+    for(const [t,n] of res.warnTypes) lines.push(";"+q(scCamel(t))+";"+n);
+  }
+  if(res.twoX2){ lines.push(""); lines.push("avviso;il file dichiara IFC2X2: letto con la tabella del 2X3, differenze non modellate"); }
+  if(res.approx){ lines.push(""); lines.push("avviso;bersaglio "+res.tgt+": firme dell'IFC4, tappa intermedia scelta da capitolato"); }
+  return lines.join("\r\n");
+}
+</script>
+
+<script id="schI18n">
+/* =========================================================================
+   i18n — parità stretta IT/EN (convenzione di progetto: tr(), mai t()).
+   Blocco in un <script> proprio (id="schI18n") così il test lo estrae e
+   verifica la parità delle chiavi. {var} sostituisce, {var:sing|plur}
+   accorda il nome al conteggio (pattern Health Check).
+   ========================================================================= */
+const I18N = {
+  it: {
+    "nav.home":"Vai a viewifc.com","nav.tools":"Strumenti","nav.here":"Cambio schema IFC","cta.open":"Apri il viewer",
+    "head.kicker":"Strumento 13","head.tag":"Client-side","head.new":"Nuovo file, originale intatto",
+    "head.h1":"Cambio schema IFC",
+    "head.lead":"Lo stesso modello riscritto in un'altra versione dello schema — 2X3 in su, 4X3 in giù — con i GUID conservati e la lista di cosa cambia nome, cosa cambia forma e cosa non ha un posto dove andare.",
+    "spec.in":"Ingresso","spec.inV":"6 versioni, 2X2 → 4X3","spec.out":"Uscita","spec.key":"Chiave","spec.keyV":"IfcGuid invariato",
+    "tab.map":"Tavola del cambio","tab.check":"Collaudo del cambio",
+    "f.ifc":"Nessun file — .ifc","f.remove":"Rimuovi il file",
+    "drop.big":"Trascina qui il modello .ifc da riscrivere in un'altra versione dello schema",
+    "drop.hint":"nessun upload: scansione, tavola del cambio e riscrittura girano nel browser · in salita non si perde nulla · in discesa la lista di cosa si perde arriva prima del file",
+    "v.from":"Dal file","v.to":"Verso quale versione","v.swap":"inverti il verso",
+    "v.upNote":"In salita nessuna geometria si perde. <span class=\"dim\">Si esce sempre sull'ultimo addendum pubblicato — <code>IFC4 ADD2 TC1</code>, <code>IFC4X3 ADD2</code>. 4X1 e 4X2 sono tappe intermedie: sceglile solo se il capitolato le nomina; il 2X2 non è più un bersaglio ammesso.</span>",
+    "v.downNote":"In discesa si perde per forza: l'asse, il posizionamento lineare e le classi infrastrutturali non hanno un posto dove andare. <span class=\"dim\">La lista sta qui sotto e nel collaudo; il registro la scrive riga per riga.</span>",
+    "v.sameNote":"Stessa era di schema: cambia la dichiarazione in testa al file, il resto passa 1:1.",
+    "v.srcTitle":"è la versione del file","v.naTitle":"non più un bersaglio ammesso",
+    "map.t":"Cosa c'è nel file, e cosa diventa",
+    "map.c1":"Nel file {v}","map.c2":"Diventa in {v}","map.c3":"Esito",
+    "map.sub":"{e} entità · {p} fra elementi, tipi e spazi · {d} {d:decisione aperta|decisioni aperte}.",
+    "step.t":"Intestazione STEP · prima e dopo","step.n":"è la riga che ogni altro software legge per prima",
+    "step.now":"Ora","step.after":"Dopo",
+    "row.guid":"GUID e albero spaziale","row.guidSub":"le issue BCF e i fogli esportati restano agganciati agli stessi elementi",
+    "row.guidT":"IfcGuid invariato","row.guidTs":"stessa gerarchia",
+    "row.adapt":"Stessa classe, firma ricalibrata","row.adaptSub":"attributi opzionali aggiunti o tolti in coda, valori invariati",
+    "row.adaptT":"stessa classe","row.adaptTs":"pad/trim dichiarato nel registro",
+    "row.ren":"Classi rinominate","row.renT":"keyword nuova, argomenti mappati",
+    "row.px":"Scatole generiche","row.pxSub":"{m} su {t} hanno un nome che il {v} sa dire",
+    "row.pxT":"IfcKerb · IfcPavement · IfcCourse","row.pxTs":"{r} restano proxy","row.pxKeep":"restano IfcBuildingElementProxy",
+    "row.tree":"Una strada modellata come edificio","row.treeSub":"IfcSite + IfcBuildingStorey: in {v} non c'era altro modo di dirlo",
+    "row.treeT":"IfcRoad · IfcRoadPart","row.treeOff":"resta com'è",
+    "row.dem":"Classi senza posto nel {v}","row.demSub":"demansionate sull'antenato, classe d'origine in ObjectType",
+    "row.demT":"famiglie Flow · IfcBuildingElementProxy","row.demTs":"reversibile dal registro",
+    "row.align":"L'asse sparisce come logica","row.alignSub":"IfcAlignment · IfcLinearPlacement: diventano coordinate assolute",
+    "row.alignT":"coordinate assolute",
+    "row.alignUp":"Allineamento e posizionamento lineare","row.alignUpSub":"il {v} sa descrivere un asse, ma nel file non c'è nulla da cui ricavarlo",
+    "row.alignUpT":"resta vuoto","row.alignUpTs":"si importa con LandXML → IFC4x3",
+    "row.geom":"Geometria da riscrivere","row.geomSub":"tassellature e curve indicizzate che il {v} non conosce",
+    "row.geomT":"IfcFacetedBrep · IfcPolyline","row.geomTs":"stessa forma, più byte",
+    "row.georef":"Georeferenziazione","row.georefSub":"IfcMapConversion e CRS non esistono nel {v}",
+    "row.georefT":"nel registro: E/N/H","row.georefTs":"riapplicabile col Georef Editor",
+    "row.oh":"Storico d'autore da inventare","row.ohSub":"IfcOwnerHistory assente, obbligatorio nel 2x3",
+    "row.ohT":"generato, dichiarato come conversione",
+    "row.pset":"Property set","row.psetSub":"i vostri passano intatti, valori invariati",
+    "row.psetT":"invariati","row.psetTs":"conteggio nel registro",
+    "row.warn":"Senza mappa sicura","row.warnSub":"restano com'erano: il viewer li ignora, il validatore li segnala",
+    "row.warnT":"lasciate, contate","row.warnTs":"meglio di una conversione inventata",
+    "row.x2":"Il file dichiara IFC2X2","row.x2Sub":"letto con la tabella del 2X3: le differenze reali non sono modellate",
+    "row.approx":"Tappa intermedia {v}","row.approxSub":"firme dell'IFC4: da scegliere solo se il capitolato la nomina",
+    "es.11":"1:1","es.gain":"guadagno","es.choice":"scelta","es.lost":"perso","es.degr":"degrada",
+    "es.rew":"riscritta","es.made":"creato","es.decl":"dichiarate","es.none":"—",
+    "r.t":"Le decisioni aperte","r.sub":"Tutto il resto passa da solo e il registro lo scrive riga per riga.",
+    "px.t":"Le scatole","px.autoN":"{n} riconosciute",
+    "px.auto":"Dai loro il nome vero","px.autoD":"Riconosciute dal nome e dal tipo: {d}. Le {r} dubbie restano proxy.",
+    "px.keep":"Lasciale come stanno","px.keepD":"Conversione minima: cambia solo lo schema, nessuna riclassificazione.",
+    "px.rev":"Rivedile una per una","px.revD":"Le proposte raggruppate per nome ricorrente, da spuntare.",
+    "px.groups":"{n} gruppi",
+    "tr.t":"L'albero del progetto","tr.tog":"Promuovi a <code>IfcRoad</code> — {n} entità spaziali",
+    "mv.t":"Come dichiararlo","mv.rvD":"per coordinare e vedere","mv.dtvD":"per riaprire e modificare",
+    "nt.pset":"Scrivi la classe d'origine e le scelte in <code>Pset_Conversione</code> sull'IfcProject",
+    "out.t":"Cosa esce","out.schema":"Schema","out.adapt":"Adattate allo schema","out.dem":"Demansionate",
+    "out.lost":"Perse","out.nomap":"Senza mappa, dichiarate","out.reg":"Registro",
+    "rf.out":"Uscirà","rf.outV":"{s} · ~{n} entità",
+    "rail.load":"Carica un modello .ifc per cominciare.","rail.conv":"Converti e scarica",
+    "rail.under":"esce un file nuovo · l'originale resta dov'è",
+    "rail.noschema":"FILE_SCHEMA non riconosciuto: questo file non dichiara una versione IFC nota.",
+    "k.sel":"Elemento selezionato",
+    "k.empty":"Scegli una voce a sinistra: qui l'elemento campione si legge campo per campo, prima e dopo.",
+    "k.title.down":"Cosa si perde scendendo","k.title.up":"Cosa cambia salendo",
+    "k.sub.down":"Nessuna opzione può evitarle: il {v} non ha le parole per dirle.",
+    "k.sub.up":"In salita non si perde nulla: qui c'è cosa cambia nome e cosa guadagna una classe vera.",
+    "k.n":"{n} {n:voce|voci}","k.foot":"{n} toccati · GUID e pset salvi",
+    "k.more":"Altri {n} nella stessa voce. Il registro li elenca tutti.",
+    "kl.align":"L'asse sparisce come logica","kl.alignD":"Diventano coordinate assolute.",
+    "kl.lostPos":"Posizionamenti non valutabili","kl.lostPosD":"Senza CartesianPosition né segmenti di business: elementi all'origine, dichiarati.",
+    "kl.dem":"Le classi tornano scatole","kl.demD":"Il nome vero resta in <code>ObjectType</code>.",
+    "kl.georef":"La georeferenziazione si perde","kl.georefD":"E/N/H restano nel registro, riapplicabili col Georef Editor.",
+    "kl.tess":"Geometria riscritta","kl.tessD":"Stessa forma, più byte.",
+    "kl.warn":"Senza mappa sicura","kl.warnD":"Restano com'erano: il validatore le segnalerà.",
+    "kl.oh":"Storico d'autore da inventare","kl.ohD":"Ne viene generato uno, dichiarato come conversione.",
+    "kl.reclass":"Le scatole prendono il nome vero","kl.reclassD":"Riconosciute da nome e tipo; le dubbie restano proxy.",
+    "kl.promote":"L'albero diventa strada","kl.promoteD":"IfcBuilding → IfcRoad, i piani → IfcRoadPart.",
+    "kl.ren":"Classi rinominate","kl.renD":"Keyword nuova, argomenti mappati, GUID fermi.",
+    "kt.lost":"perso","kt.degr":"degrada","kt.rew":"riscritta","kt.made":"creato","kt.gain":"guadagno","kt.decl":"dichiarate",
+    "kf.cls":"Classe","kf.pt":"PredefinedType","kf.ot":"ObjectType","kf.note":"Nota","kf.name":"Nome",
+    "kf.in":"IN {v}",
+    "leg.lost":"perso","leg.degr":"degradato","leg.rew":"riscritto","leg.keep":"intatto",
+    "leg.note":"Il registro <code>{f}</code> elenca ogni entità cambiata, col verso per tornare indietro.",
+    "veil.scan":"scansione del modello…","veil.plan":"tavola del cambio…","veil.write":"riscrittura nello schema nuovo…",
+    "toast.done":"{f} scritto — {n} entità toccate. Il registro è qui sotto, nel piede.",
+    "toast.reg":"registro scaricato","toast.bad":"Questo non sembra un file IFC (manca la sezione DATA).",
+    "toast.noschema":"FILE_SCHEMA non riconosciuto: {s}",
+    "foot.note":"La conoscenza dello schema non è inventata: esistenza delle classi e numero di argomenti vengono dalla stessa libreria che il viewer usa per leggere i file (web-ifc), e ciò che non ha una mappa sicura resta com'era — contato e dichiarato nel registro, mai convertito a caso. Nessun file lascia il computer.",
+    "foot.reg":"Registro della conversione (.csv)","foot.src":"Codice sorgente","foot.more":"Altri strumenti"
+  },
+  en: {
+    "nav.home":"Go to viewifc.com","nav.tools":"Tools","nav.here":"IFC schema change","cta.open":"Open the viewer",
+    "head.kicker":"Tool 13","head.tag":"Client-side","head.new":"New file, original untouched",
+    "head.h1":"IFC schema change",
+    "head.lead":"The same model rewritten in another schema version — 2X3 upwards, 4X3 downwards — with GUIDs preserved and the list of what changes name, what changes shape and what has nowhere to go.",
+    "spec.in":"Input","spec.inV":"6 versions, 2X2 → 4X3","spec.out":"Output","spec.key":"Key","spec.keyV":"IfcGuid unchanged",
+    "tab.map":"Change table","tab.check":"Change check",
+    "f.ifc":"No file — .ifc","f.remove":"Remove file",
+    "drop.big":"Drop here the .ifc model to rewrite in another schema version",
+    "drop.hint":"no upload: scanning, change table and rewriting run in the browser · going up nothing is lost · going down the list of losses comes before the file",
+    "v.from":"From the file","v.to":"To which version","v.swap":"swap direction",
+    "v.upNote":"Going up no geometry is lost. <span class=\"dim\">Output is always the latest published addendum — <code>IFC4 ADD2 TC1</code>, <code>IFC4X3 ADD2</code>. 4X1 and 4X2 are intermediate stops: pick them only if a specification names them; 2X2 is no longer an allowed target.</span>",
+    "v.downNote":"Going down something must be lost: the alignment, linear placement and infrastructure classes have nowhere to go. <span class=\"dim\">The list is below and in the check; the register writes it line by line.</span>",
+    "v.sameNote":"Same schema era: only the file header declaration changes, the rest passes 1:1.",
+    "v.srcTitle":"this is the file's version","v.naTitle":"no longer an allowed target",
+    "map.t":"What is in the file, and what it becomes",
+    "map.c1":"In the {v} file","map.c2":"Becomes in {v}","map.c3":"Outcome",
+    "map.sub":"{e} entities · {p} elements, types and spatial · {d} open {d:decision|decisions}.",
+    "step.t":"STEP header · before and after","step.n":"the first line every other software reads",
+    "step.now":"Now","step.after":"After",
+    "row.guid":"GUIDs and spatial tree","row.guidSub":"BCF issues and exported sheets stay attached to the same elements",
+    "row.guidT":"IfcGuid unchanged","row.guidTs":"same hierarchy",
+    "row.adapt":"Same class, recalibrated signature","row.adaptSub":"optional attributes added or removed at the tail, values unchanged",
+    "row.adaptT":"same class","row.adaptTs":"pad/trim declared in the register",
+    "row.ren":"Renamed classes","row.renT":"new keyword, mapped arguments",
+    "row.px":"Generic boxes","row.pxSub":"{m} of {t} have a name that {v} can say",
+    "row.pxT":"IfcKerb · IfcPavement · IfcCourse","row.pxTs":"{r} stay proxies","row.pxKeep":"stay IfcBuildingElementProxy",
+    "row.tree":"A road modelled as a building","row.treeSub":"IfcSite + IfcBuildingStorey: in {v} there was no other way to say it",
+    "row.treeT":"IfcRoad · IfcRoadPart","row.treeOff":"stays as is",
+    "row.dem":"Classes with no place in {v}","row.demSub":"demoted onto their ancestor, original class in ObjectType",
+    "row.demT":"Flow families · IfcBuildingElementProxy","row.demTs":"reversible from the register",
+    "row.align":"The alignment disappears as logic","row.alignSub":"IfcAlignment · IfcLinearPlacement: they become absolute coordinates",
+    "row.alignT":"absolute coordinates",
+    "row.alignUp":"Alignment and linear placement","row.alignUpSub":"{v} can describe an axis, but there is nothing in the file to derive it from",
+    "row.alignUpT":"stays empty","row.alignUpTs":"import it with LandXML → IFC4x3",
+    "row.geom":"Geometry to rewrite","row.geomSub":"tessellations and indexed curves that {v} does not know",
+    "row.geomT":"IfcFacetedBrep · IfcPolyline","row.geomTs":"same shape, more bytes",
+    "row.georef":"Georeferencing","row.georefSub":"IfcMapConversion and CRS do not exist in {v}",
+    "row.georefT":"in the register: E/N/H","row.georefTs":"re-applicable with the Georef Editor",
+    "row.oh":"Author history to invent","row.ohSub":"IfcOwnerHistory absent, mandatory in 2x3",
+    "row.ohT":"generated, declared as conversion",
+    "row.pset":"Property sets","row.psetSub":"yours pass through untouched, values unchanged",
+    "row.psetT":"unchanged","row.psetTs":"count in the register",
+    "row.warn":"No safe map","row.warnSub":"they stay as they were: the viewer ignores them, the validator flags them",
+    "row.warnT":"left, counted","row.warnTs":"better than an invented conversion",
+    "row.x2":"The file declares IFC2X2","row.x2Sub":"read with the 2X3 table: real differences are not modelled",
+    "row.approx":"Intermediate stop {v}","row.approxSub":"IFC4 signatures: choose it only if the specification names it",
+    "es.11":"1:1","es.gain":"gain","es.choice":"choice","es.lost":"lost","es.degr":"degrades",
+    "es.rew":"rewritten","es.made":"created","es.decl":"declared","es.none":"—",
+    "r.t":"The open decisions","r.sub":"Everything else passes on its own and the register writes it line by line.",
+    "px.t":"The boxes","px.autoN":"{n} recognised",
+    "px.auto":"Give them their real name","px.autoD":"Recognised by name and type: {d}. The {r} doubtful ones stay proxies.",
+    "px.keep":"Leave them as they are","px.keepD":"Minimal conversion: only the schema changes, no reclassification.",
+    "px.rev":"Review them one by one","px.revD":"Proposals grouped by recurring name, to tick.",
+    "px.groups":"{n} groups",
+    "tr.t":"The project tree","tr.tog":"Promote to <code>IfcRoad</code> — {n} spatial entities",
+    "mv.t":"How to declare it","mv.rvD":"to coordinate and view","mv.dtvD":"to reopen and edit",
+    "nt.pset":"Write the original class and the choices in <code>Pset_Conversione</code> on the IfcProject",
+    "out.t":"What comes out","out.schema":"Schema","out.adapt":"Adapted to the schema","out.dem":"Demoted",
+    "out.lost":"Lost","out.nomap":"No map, declared","out.reg":"Register",
+    "rf.out":"Will come out","rf.outV":"{s} · ~{n} entities",
+    "rail.load":"Load an .ifc model to begin.","rail.conv":"Convert and download",
+    "rail.under":"a new file comes out · the original stays where it is",
+    "rail.noschema":"FILE_SCHEMA not recognised: this file does not declare a known IFC version.",
+    "k.sel":"Selected element",
+    "k.empty":"Pick an entry on the left: here the sample element reads field by field, before and after.",
+    "k.title.down":"What is lost going down","k.title.up":"What changes going up",
+    "k.sub.down":"No option can avoid them: {v} does not have the words to say them.",
+    "k.sub.up":"Going up nothing is lost: here is what changes name and what gains a real class.",
+    "k.n":"{n} {n:entry|entries}","k.foot":"{n} touched · GUIDs and psets safe",
+    "k.more":"Another {n} under the same entry. The register lists them all.",
+    "kl.align":"The alignment disappears as logic","kl.alignD":"They become absolute coordinates.",
+    "kl.lostPos":"Placements that cannot be evaluated","kl.lostPosD":"No CartesianPosition and no business segments: elements at origin, declared.",
+    "kl.dem":"Classes go back to boxes","kl.demD":"The real name stays in <code>ObjectType</code>.",
+    "kl.georef":"Georeferencing is lost","kl.georefD":"E/N/H stay in the register, re-applicable with the Georef Editor.",
+    "kl.tess":"Geometry rewritten","kl.tessD":"Same shape, more bytes.",
+    "kl.warn":"No safe map","kl.warnD":"They stay as they were: the validator will flag them.",
+    "kl.oh":"Author history to invent","kl.ohD":"One is generated, declared as conversion.",
+    "kl.reclass":"Boxes take their real name","kl.reclassD":"Recognised by name and type; doubtful ones stay proxies.",
+    "kl.promote":"The tree becomes a road","kl.promoteD":"IfcBuilding → IfcRoad, storeys → IfcRoadPart.",
+    "kl.ren":"Renamed classes","kl.renD":"New keyword, mapped arguments, GUIDs untouched.",
+    "kt.lost":"lost","kt.degr":"degrades","kt.rew":"rewritten","kt.made":"created","kt.gain":"gain","kt.decl":"declared",
+    "kf.cls":"Class","kf.pt":"PredefinedType","kf.ot":"ObjectType","kf.note":"Note","kf.name":"Name",
+    "kf.in":"IN {v}",
+    "leg.lost":"lost","leg.degr":"degraded","leg.rew":"rewritten","leg.keep":"untouched",
+    "leg.note":"The register <code>{f}</code> lists every changed entity, with the way back.",
+    "veil.scan":"scanning the model…","veil.plan":"building the change table…","veil.write":"rewriting into the new schema…",
+    "toast.done":"{f} written — {n} entities touched. The register is below, in the footer.",
+    "toast.reg":"register downloaded","toast.bad":"This does not look like an IFC file (DATA section missing).",
+    "toast.noschema":"FILE_SCHEMA not recognised: {s}",
+    "foot.note":"The schema knowledge is not invented: class existence and argument counts come from the same library the viewer uses to read files (web-ifc), and whatever has no safe map stays as it was — counted and declared in the register, never converted at random. No file leaves your computer.",
+    "foot.reg":"Conversion register (.csv)","foot.src":"Source code","foot.more":"More tools"
+  }
+};
+</script>
+
+<script>
+/* =========================================================================
+   Attiva il motore: il blocco text/engine diventa un vero <script>, così le
+   funzioni sc* stanno nel global scope e il test le estrae dallo stesso testo.
+   ========================================================================= */
+(function(){
+  const s=document.createElement("script");
+  s.textContent=document.getElementById("schEngine").textContent;
+  document.head.appendChild(s);
+})();
+</script>
+
+<script>
+"use strict";
+/* ========================= util di pagina ========================= */
+let LANG="it";
+try{ const s=localStorage.getItem("viewifc_tool_lang"); if(s&&I18N[s]) LANG=s; }catch(e){}
+function tr(k){ return (I18N[LANG]&&I18N[LANG][k]!=null)?I18N[LANG][k]:(I18N.it[k]??k); }
+function nf(n,dec){ return Number(n).toLocaleString(LANG==="it"?"it-IT":"en-US",{maximumFractionDigits:dec==null?2:dec,minimumFractionDigits:0}); }
+function nvar(v){
+  if(typeof v==="number") return nf(v);
+  return String(v);
+}
+function fmtRaw(s,vars){
+  s=String(s).replace(/\{(\w+):([^|{}]*)\|([^{}]*)\}/g,(m,k,one,many)=>{
+    const v=vars&&vars[k]; return (Number(v)===1)?one:many;
+  });
+  return s.replace(/\{(\w+)\}/g,(m,k)=>vars&&vars[k]!=null?nvar(vars[k]):m);
+}
+function fmt(k,vars){ return fmtRaw(tr(k),vars); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;"); }
+function fmtSize(b){ return b>1048576?nf(b/1048576,1)+" MB":nf(Math.max(1,Math.round(b/1024)),0)+" KB"; }
+const $=id=>document.getElementById(id);
+const ui={};
+["thmBtn","viewSeg","fCard","fName","fMeta","fClear","fInput","drop0","mapView","checkView",
+ "vFrom","vChips","vNote","vSwap","mapSub","mapC1","mapC2","mrows",
+ "stepNow1","stepNow2","stepNow3","stepAft1","stepAft2","stepAft3",
+ "klossT","klossN","klossSub","klossList","kfootMsg","klegNote",
+ "kiName","kiGuid","kiColA","kiColB","kiBody","kiMore","kiPrev","kiNext","kiPage",
+ "railMap","rCount","blkProxy","pxN","pxOpts","pxAutoD","pxGN","pxGroups",
+ "blkTree","treeTog","treeTogT","treeBox","blkMvd","mvOpts","mvRvT","mvDtvT",
+ "psetTog","outName","outSchema","outAdapt","outDemRow","outDem","outLostRow","outLost",
+ "outWarnRow","outWarn","outReg","railOut","railOutV","railMsg","convBtn",
+ "regBtn","veil","veilT","toast"].forEach(id=>ui[id]=$(id));
+
+ui.thmBtn.addEventListener("click",()=>{
+  const light=document.documentElement.getAttribute("data-theme")==="light";
+  if(light) document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme","light");
+  try{ localStorage.setItem("viewer_landing_theme",light?"dark":"light"); }catch(e){}
+});
+function applyLang(lang){
+  LANG=I18N[lang]?lang:"it";
+  try{ localStorage.setItem("viewifc_tool_lang",LANG); }catch(e){}
+  document.documentElement.lang=LANG;
+  document.querySelectorAll(".langsw button").forEach(b=>b.classList.toggle("on",b.dataset.lang===LANG));
+  document.querySelectorAll("[data-i18n]").forEach(el=>{ el.textContent=tr(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-html]").forEach(el=>{ el.innerHTML=tr(el.dataset.i18nHtml); });
+  document.querySelectorAll("[data-i18n-title]").forEach(el=>{
+    el.title=tr(el.dataset.i18nTitle); el.setAttribute("aria-label",tr(el.dataset.i18nTitle));
+  });
+  renderAll();
+}
+document.querySelectorAll(".langsw button").forEach(b=>b.addEventListener("click",()=>applyLang(b.dataset.lang)));
+let toastT=null;
+function toast(msg){
+  ui.toast.textContent=msg; ui.toast.classList.add("on");
+  clearTimeout(toastT); toastT=setTimeout(()=>ui.toast.classList.remove("on"),4200);
+}
+async function veil(key,fn){
+  ui.veilT.textContent=tr(key); ui.veil.hidden=false;
+  await new Promise(r=>setTimeout(r,30));
+  try{ await fn(); } finally{ ui.veil.hidden=true; }
+}
+function download(name,parts,mime){
+  const blob=new Blob(parts,{type:mime||"application/octet-stream"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },800);
+}
+
+/* ========================= stato ========================= */
+const ST={bytes:null,name:"",size:0,info:null,tgt:null,
+  opts:{proxyMode:"auto",proxySel:new Set(),promoteRoad:false,mvd:"rv",pset:true},
+  plan:null,built:null,view:"map",kSel:null,kIdx:0,nameTouched:false};
+
+/* ========================= caricamento file ========================= */
+function wireCard(card,input,onFile){
+  card.addEventListener("click",e=>{ if(e.target.closest(".fcard-x")) return; input.click(); });
+  card.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); input.click(); } });
+  input.addEventListener("change",()=>{ if(input.files[0]) onFile(input.files[0]); input.value=""; });
+  card.addEventListener("dragover",e=>{ e.preventDefault(); card.classList.add("drag"); });
+  card.addEventListener("dragleave",()=>card.classList.remove("drag"));
+  card.addEventListener("drop",e=>{
+    e.preventDefault(); card.classList.remove("drag");
+    if(e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
+  });
+}
+wireCard(ui.fCard,ui.fInput,loadIfc);
+wireCard(ui.drop0,ui.fInput,loadIfc);
+ui.fClear.addEventListener("click",e=>{ e.stopPropagation(); resetFile(); });
+function resetFile(){
+  ST.bytes=null; ST.name=""; ST.size=0; ST.info=null; ST.plan=null; ST.built=null;
+  ST.kSel=null; ST.kIdx=0; ST.nameTouched=false;
+  renderAll();
+}
+async function loadIfc(f){
+  await veil("veil.scan",async()=>{
+    try{
+      const buf=await f.arrayBuffer();
+      const bytes=new Uint8Array(buf);
+      const info=scInfo(bytes);
+      if(!info.src){ toast(fmt("toast.noschema",{s:info.schemaRaw||"?"})); return; }
+      ST.bytes=bytes; ST.name=f.name; ST.size=f.size; ST.info=info;
+      ST.built=null; ST.kSel=null; ST.kIdx=0; ST.nameTouched=false;
+      ST.opts.proxyMode="auto"; ST.opts.proxySel=new Set(info.proxyGroups.groups.map(g=>g.key));
+      ST.opts.promoteRoad=false; ST.opts.mvd="rv"; ST.opts.pset=true;
+      /* verso di default: l'ultimo addendum — 4X3 salendo, 2X3 scendendo */
+      ST.tgt=info.src.key==="IFC4X3"?"IFC2X3":"IFC4X3";
+      replanSync();
+    }catch(err){
+      console.error(err);
+      toast(tr("toast.bad"));
+    }
+    renderAll();
+  });
+}
+function replanSync(){
+  if(!ST.info||!ST.tgt){ ST.plan=null; return; }
+  ST.plan=scConvert(ST.info,ST.tgt,{
+    proxyMode:ST.opts.proxyMode,proxySel:ST.opts.proxySel,promoteRoad:ST.opts.promoteRoad,
+    mvd:ST.opts.mvd,pset:ST.opts.pset,exec:false});
+  ST.built=null;
+}
+async function replan(){
+  if(!ST.info) return;
+  await veil("veil.plan",async()=>{ replanSync(); });
+  renderAll();
+}
+
+/* ========================= viste ========================= */
+ui.viewSeg.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+  ST.view=b.dataset.view;
+  ui.viewSeg.querySelectorAll("button").forEach(x=>{
+    x.classList.toggle("on",x===b); x.setAttribute("aria-selected",x===b?"true":"false");
+  });
+  renderAll();
+}));
+
+ui.vSwap.addEventListener("click",()=>{
+  if(!ST.info) return;
+  const up=SC_VERS[ST.tgt].col>ST.info.srcCol;
+  ST.tgt=up?"IFC2X3":"IFC4X3";
+  if(SC_VERS[ST.tgt].col===ST.info.srcCol) ST.tgt=ST.info.srcCol===2?"IFC2X3":"IFC4X3";
+  replan();
+});
+ui.pxOpts.querySelectorAll(".ropt").forEach(b=>b.addEventListener("click",()=>{
+  ST.opts.proxyMode=b.dataset.px; replan();
+}));
+ui.treeTog.addEventListener("click",()=>{ ST.opts.promoteRoad=!ST.opts.promoteRoad; replan(); });
+ui.mvOpts.querySelectorAll(".ropt").forEach(b=>b.addEventListener("click",()=>{
+  ST.opts.mvd=b.dataset.mv; replan();
+}));
+ui.psetTog.addEventListener("click",()=>{ ST.opts.pset=!ST.opts.pset; ui.psetTog.classList.toggle("on",ST.opts.pset); ST.built=null; renderRail(); });
+ui.outName.addEventListener("input",()=>{ ST.nameTouched=true; ST.built=null; });
+
+/* ========================= render ========================= */
+function renderAll(){
+  const has=!!ST.info;
+  ui.fName.textContent=has?ST.name:tr("f.ifc");
+  ui.fMeta.textContent=has?fmtSize(ST.size)+" · "+ST.info.schemaRaw:"";
+  ui.fCard.classList.toggle("set",has);
+  ui.drop0.hidden=has;
+  ui.mapView.hidden=!has||ST.view!=="map";
+  ui.checkView.hidden=!has||ST.view!=="check";
+  ui.railMap.hidden=!has;
+  ui.railMsg.hidden=has;
+  ui.convBtn.disabled=!has;
+  ui.railOut.hidden=!has;
+  ui.regBtn.hidden=!(ST.built&&ST.built.csv);
+  if(!has) return;
+  renderVerso(); renderTable(); renderStep(); renderRail(); renderCheck();
+}
+function srcLabel(){ return ST.info?SC_VERS[ST.info.src.key].label.replace(/^IFC/,""):"—"; }
+function tgtLabel(){ return ST.tgt?SC_VERS[ST.tgt].label.replace(/^IFC/,""):"—"; }
+function renderVerso(){
+  const info=ST.info;
+  ui.vFrom.textContent=info.schemaRaw+(info.src.twoX2?" ≈ IFC2X3":"");
+  const chips=[];
+  chips.push({key:"IFC2X2",na:true});
+  for(const k of SC_ORDER) chips.push({key:k});
+  ui.vChips.innerHTML="";
+  for(const c of chips){
+    const b=document.createElement("button");
+    b.type="button"; b.className="vchip"; b.textContent=c.key;
+    if(c.na){ b.classList.add("na"); b.disabled=true; b.title=tr("v.naTitle"); }
+    else if(c.key===info.src.key&&!info.src.twoX2){ b.classList.add("src"); b.disabled=true; b.title=tr("v.srcTitle"); }
+    else{
+      if(c.key===ST.tgt) b.classList.add("on");
+      b.addEventListener("click",()=>{ ST.tgt=c.key; replan(); });
+    }
+    ui.vChips.appendChild(b);
+  }
+  const p=ST.plan;
+  ui.vNote.innerHTML=p?(p.down?tr("v.downNote"):(p.up?tr("v.upNote"):tr("v.sameNote"))):"";
+}
+function decisionsOpen(){
+  let n=0;
+  if(!ST.plan) return 0;
+  if(ST.plan.up&&ST.tgt==="IFC4X3"&&ST.info.proxyGroups.matched>0) n++;
+  if(ST.plan.up&&ST.tgt==="IFC4X3"&&ST.info.buildN>0) n++;
+  if(SC_VERS[ST.tgt].mvd.dtv) n++;
+  return n+1;                                   /* + Pset_Conversione */
+}
+function row(o){
+  const st={ok:"<span class=\"st ok\"><svg viewBox=\"0 0 24 24\"><path d=\"M5 13l4 4L19 7\"/></svg></span>",
+    gain:"<span class=\"st gain\"><svg viewBox=\"0 0 24 24\"><path d=\"M12 5v14M5 12h14\"/></svg></span>",
+    warn:"<span class=\"st warn\"><svg viewBox=\"0 0 24 24\"><path d=\"M12 7v6M12 17h.01\"/></svg></span>",
+    lost:"<span class=\"st lost\"><i></i></span>",
+    no:"<span class=\"st no\"></span>"}[o.st||"ok"];
+  return "<div class=\"mrow"+(o.hot?" hot":"")+(o.dim?" dim":"")+"\">"+st+
+    "<span class=\"el\"><span class=\"nm\">"+esc(o.name)+(o.mm?" <span class=\"mm\">"+esc(o.mm)+"</span>":"")+"</span>"+
+    (o.sub?"<span class=\"sub"+(o.subCls?" "+o.subCls:"")+"\">"+o.sub+"</span>":"")+"</span>"+
+    "<span class=\"tgt\"><span class=\"tn"+(o.tnDim?" dim2":"")+"\">"+esc(o.tn||"—")+"</span>"+
+    (o.ts?"<span class=\"ts\">"+esc(o.ts)+"</span>":"")+"</span>"+
+    "<span class=\"es "+(o.esCls||"")+"\">"+esc(o.es)+"</span></div>";
+}
+function renderTable(){
+  const info=ST.info,p=ST.plan;
+  if(!p){ ui.mrows.innerHTML=""; return; }
+  const sL=srcLabel(), tL=tgtLabel();
+  ui.mapC1.textContent=fmt("map.c1",{v:sL});
+  ui.mapC2.textContent=fmt("map.c2",{v:tL});
+  ui.mapSub.textContent=fmt("map.sub",{e:info.model.count,p:info.products,d:decisionsOpen()});
+  const R=[];
+  R.push({st:"ok",name:tr("row.guid"),mm:nf(info.products),sub:esc(tr("row.guidSub")),
+    tn:tr("row.guidT"),ts:tr("row.guidTs"),es:tr("es.11")});
+  if(p.stats.adapted>0) R.push({st:"ok",name:tr("row.adapt"),mm:nf(p.stats.adapted),
+    sub:esc(tr("row.adaptSub")),tn:tr("row.adaptT"),ts:tr("row.adaptTs"),es:tr("es.11")});
+  if(p.stats.renamed>0){
+    const ex=[...new Set(p.reg.filter(r=>r.az==="rinominata").map(r=>r.da))].slice(0,3).join(" · ");
+    R.push({st:"ok",name:tr("row.ren"),mm:nf(p.stats.renamed),sub:esc(ex),
+      tn:tr("row.renT"),ts:"",es:tr("es.11")});
+  }
+  if(p.up&&ST.tgt==="IFC4X3"&&info.proxyGroups.total>0){
+    const g=info.proxyGroups;
+    const keep=ST.opts.proxyMode==="keep";
+    R.push({st:keep?"no":"gain",hot:!keep,name:tr("row.px"),
+      mm:"IfcBuildingElementProxy · "+nf(g.total),
+      sub:esc(fmt("row.pxSub",{m:g.matched,t:g.total,v:tL})),subCls:keep?"":"gain",
+      tn:keep?tr("row.pxKeep"):tr("row.pxT"),ts:fmt("row.pxTs",{r:g.total-(keep?0:p.stats.reclass)}),
+      es:keep?tr("es.none"):tr("es.gain"),esCls:keep?"dim3":""});
+  }
+  if(p.up&&ST.tgt==="IFC4X3"&&info.buildN>0){
+    R.push({st:ST.opts.promoteRoad?"gain":"warn",hot:ST.opts.promoteRoad,
+      name:tr("row.tree"),mm:nf(info.buildN+info.storeyN),
+      sub:esc(fmt("row.treeSub",{v:sL})),
+      tn:ST.opts.promoteRoad?tr("row.treeT"):tr("row.treeOff"),ts:"",
+      es:tr("es.choice"),esCls:"warn"});
+  }
+  if(p.down&&p.stats.demoted>0){
+    const ex=[...new Set(p.reg.filter(r=>r.az==="demansionata").map(r=>r.da))].slice(0,3).join(" · ");
+    R.push({st:"warn",name:fmt("row.dem",{v:tL}),mm:nf(p.stats.demoted),
+      sub:esc(ex||tr("row.demSub")),subCls:"warn",
+      tn:tr("row.demT"),ts:tr("row.demTs"),es:tr("es.degr"),esCls:"warn"});
+  }
+  if(p.down&&info.alignN>0){
+    R.push({st:"lost",name:tr("row.align"),mm:nf(info.alignN),
+      sub:esc(tr("row.alignSub")),tn:tr("row.alignT"),
+      ts:p.lostPos.length?fmt("kl.lostPos")+": "+nf(p.lostPos.length):"",
+      es:tr("es.lost"),esCls:"lost"});
+  }
+  if(p.down&&p.stats.geomRewritten>0){
+    R.push({st:"ok",name:tr("row.geom"),mm:nf(p.stats.geomRewritten),
+      sub:esc(fmt("row.geomSub",{v:tL})),
+      tn:tr("row.geomT"),ts:tr("row.geomTs"),es:tr("es.rew")});
+  }
+  if(p.down&&SC_VERS[ST.tgt].col===0&&info.mapConvK>=0){
+    R.push({st:"lost",name:tr("row.georef"),mm:"IfcMapConversion",
+      sub:esc(fmt("row.georefSub",{v:tL})),
+      tn:tr("row.georefT"),ts:tr("row.georefTs"),es:tr("es.lost"),esCls:"lost"});
+  }
+  if(p.ohMade){
+    R.push({st:"ok",name:tr("row.oh"),sub:esc(tr("row.ohSub")),
+      tn:tr("row.ohT"),ts:"",es:tr("es.made"),esCls:"dim3"});
+  }
+  if(info.pset>0) R.push({st:"ok",name:tr("row.pset"),mm:nf(info.pset),
+    sub:esc(tr("row.psetSub")),tn:tr("row.psetT"),ts:tr("row.psetTs"),es:tr("es.11")});
+  if(p.up&&ST.tgt==="IFC4X3"&&info.alignN===0){
+    R.push({st:"no",dim:true,name:tr("row.alignUp"),mm:"0",
+      sub:esc(fmt("row.alignUpSub",{v:tL})),
+      tn:tr("row.alignUpT"),ts:tr("row.alignUpTs"),tnDim:true,es:tr("es.none"),esCls:"dim3"});
+  }
+  if(p.warnTypes.size>0){
+    const tot=[...p.warnTypes.values()].reduce((s,n)=>s+n,0);
+    const ex=[...p.warnTypes.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>scCamel(x[0])).join(" · ");
+    R.push({st:"warn",name:tr("row.warn"),mm:nf(tot),
+      sub:esc(ex),subCls:"warn",tn:tr("row.warnT"),ts:tr("row.warnTs"),
+      es:tr("es.decl"),esCls:"warn"});
+  }
+  if(p.twoX2) R.push({st:"warn",name:tr("row.x2"),sub:esc(tr("row.x2Sub")),subCls:"warn",
+    tn:"≈ IFC2X3",ts:"",es:tr("es.decl"),esCls:"warn"});
+  if(p.approx) R.push({st:"warn",name:fmt("row.approx",{v:SC_VERS[ST.tgt].label}),
+    sub:esc(tr("row.approxSub")),subCls:"warn",tn:SC_VERS[ST.tgt].out,ts:"",es:tr("es.decl"),esCls:"warn"});
+  ui.mrows.innerHTML=R.map(row).join("");
+}
+function stepLine(el,fn,args,hiRe){
+  el.innerHTML=fn+"(("+args+"));";
+}
+function renderStep(){
+  const info=ST.info,p=ST.plan;
+  if(!p) return;
+  ui.stepNow1.innerHTML="FILE_DESCRIPTION((<span class=\"dm\">'"+esc(p.header.beforeDesc||"…")+"'</span>),'2;1');";
+  ui.stepNow2.innerHTML="FILE_SCHEMA((<span class=\"v\">'"+esc(p.header.beforeSchema)+"'</span>));";
+  ui.stepNow3.innerHTML="FILE_NAME(<span class=\"dm\">'"+esc(p.header.beforeName||ST.name)+"'</span>,…);";
+  ui.stepAft1.innerHTML="FILE_DESCRIPTION((<span class=\"hi\">'"+esc(p.header.afterDesc)+"'</span>),'2;1');";
+  ui.stepAft2.innerHTML="FILE_SCHEMA((<span class=\"hi\">'"+esc(p.header.afterSchema)+"'</span>));";
+  ui.stepAft3.innerHTML="FILE_NAME(<span class=\"dm\">'"+esc(ui.outName.value||p.header.afterName)+"'</span>,…);";
+}
+function renderRail(){
+  const info=ST.info,p=ST.plan;
+  if(!p) return;
+  ui.rCount.textContent=nf(decisionsOpen());
+  /* scatole */
+  const showPx=p.up&&ST.tgt==="IFC4X3"&&info.proxyGroups.total>0;
+  ui.blkProxy.hidden=!showPx;
+  if(showPx){
+    const g=info.proxyGroups;
+    ui.pxN.textContent=fmt("px.autoN",{n:g.matched});
+    const byCls=new Map();
+    for(const gr of g.groups) byCls.set(gr.cls,(byCls.get(gr.cls)||0)+gr.n);
+    const d=[...byCls.entries()].map(x=>nf(x[1])+" "+scCamel(x[0]).replace(/^Ifc/,"").toLowerCase()).join(", ")||"—";
+    ui.pxAutoD.textContent=fmt("px.autoD",{d,r:g.total-g.matched});
+    ui.pxGN.textContent=fmt("px.groups",{n:g.groups.length});
+    ui.pxOpts.querySelectorAll(".ropt").forEach(b=>b.classList.toggle("on",b.dataset.px===ST.opts.proxyMode));
+    ui.pxGroups.hidden=ST.opts.proxyMode!=="review";
+    if(ST.opts.proxyMode==="review"){
+      ui.pxGroups.innerHTML="";
+      for(const gr of g.groups){
+        const b=document.createElement("button");
+        b.type="button"; b.className="pgrow"+(ST.opts.proxySel.has(gr.key)?" on":"");
+        b.innerHTML="<span class=\"cb\"><svg viewBox=\"0 0 24 24\"><path d=\"M5 13l4 4L19 7\"/></svg></span>"+
+          "<span class=\"t\">"+esc(gr.label)+"</span>"+
+          "<span class=\"to\">→ "+esc(scCamel(gr.cls))+"</span><span class=\"n\">"+nf(gr.n)+"</span>";
+        b.addEventListener("click",()=>{
+          if(ST.opts.proxySel.has(gr.key)) ST.opts.proxySel.delete(gr.key);
+          else ST.opts.proxySel.add(gr.key);
+          replan();
+        });
+        ui.pxGroups.appendChild(b);
+      }
+    }
+  }
+  /* albero */
+  const showTree=p.up&&ST.tgt==="IFC4X3"&&info.buildN>0;
+  ui.blkTree.hidden=!showTree;
+  if(showTree){
+    ui.treeTog.classList.toggle("on",ST.opts.promoteRoad);
+    ui.treeTogT.innerHTML=fmt("tr.tog",{n:info.buildN+info.storeyN});
+    ui.treeBox.hidden=!ST.opts.promoteRoad;
+    if(ST.opts.promoteRoad){
+      ui.treeBox.innerHTML=
+        "<span class=\"l\">IfcSite <span class=\"v\">"+esc(info.siteName||"—")+"</span></span>"+
+        "<span class=\"l\">&nbsp;&nbsp;└ IfcBuilding <span class=\"v\">"+esc(info.buildingName||"—")+"</span> · IfcBuildingStorey <span class=\"v\">"+esc(info.storeyName||"—")+"</span></span>"+
+        "<span class=\"l to\"><svg viewBox=\"0 0 24 24\"><path d=\"M12 5v14M6 13l6 6 6-6\"/></svg>IfcRoad › IfcRoadPart</span>";
+    }
+  }
+  /* MVD */
+  const V=SC_VERS[ST.tgt];
+  ui.blkMvd.hidden=false;
+  ui.mvRvT.textContent=V.mvd.rv.replace(/_V/," ").replace(/_/g," ");
+  const hasDtv=!!V.mvd.dtv;
+  ui.mvOpts.querySelector("[data-mv=dtv]").style.display=hasDtv?"":"none";
+  if(!hasDtv&&ST.opts.mvd==="dtv") ST.opts.mvd="rv";
+  if(hasDtv) ui.mvDtvT.textContent=V.mvd.dtv.replace(/_V/," ").replace(/_/g," ");
+  ui.mvOpts.querySelectorAll(".ropt").forEach(b=>b.classList.toggle("on",b.dataset.mv===ST.opts.mvd));
+  ui.psetTog.classList.toggle("on",ST.opts.pset);
+  /* cosa esce */
+  if(!ST.nameTouched) ui.outName.value=p.outName;
+  ui.outSchema.textContent=p.outSchema;
+  ui.outAdapt.textContent=nf(p.stats.adapted+p.stats.renamed+p.stats.reclass+p.stats.promoted+p.stats.geomRewritten);
+  ui.outDemRow.hidden=p.stats.demoted===0;
+  ui.outDem.textContent=nf(p.stats.demoted);
+  const lost=p.stats.dropped+p.stats.gc;
+  ui.outLostRow.hidden=lost===0;
+  ui.outLost.textContent=nf(lost);
+  const wt=[...p.warnTypes.values()].reduce((s,n)=>s+n,0);
+  ui.outWarnRow.hidden=wt===0;
+  ui.outWarn.textContent=nf(wt);
+  ui.outReg.textContent=regName();
+  const entOut=ST.info.model.count-lost;
+  ui.railOutV.innerHTML=esc(fmtRaw(tr("rf.outV"),{s:p.outSchema,n:entOut}));
+}
+function regName(){
+  const base=(ui.outName.value||ST.name||"modello.ifc").replace(/\.ifc$/i,"");
+  return "conversione_"+base+".csv";
+}
+
+/* ---- collaudo ---- */
+function lossEntries(){
+  const p=ST.plan,info=ST.info;
+  if(!p) return [];
+  const E=[];
+  const push=(key,sev,title,mm,sub,d,tag)=>E.push({key,sev,title,mm,sub,d,tag});
+  if(p.down){
+    if(info.alignN>0) push("align","lost",tr("kl.align"),nf(info.alignN),
+      "IfcAlignment · IfcLinearPlacement",tr("kl.alignD"),tr("kt.lost"));
+    if(p.lostPos.length) push("lostPos","lost",tr("kl.lostPos"),nf(p.lostPos.length),
+      "IfcLinearPlacement → (0,0,0)",tr("kl.lostPosD"),tr("kt.lost"));
+    if(p.stats.demoted) push("demote","degr",tr("kl.dem"),nf(p.stats.demoted),
+      [...new Set(p.reg.filter(r=>r.az==="demansionata").map(r=>r.da))].slice(0,3).join(" · "),
+      tr("kl.demD"),tr("kt.degr"));
+    if(SC_VERS[ST.tgt].col===0&&info.mapConvK>=0) push("georef","lost",tr("kl.georef"),"1",
+      "IfcMapConversion · IfcProjectedCRS",tr("kl.georefD"),tr("kt.lost"));
+    if(p.stats.geomRewritten) push("tess","rew",tr("kl.tess"),nf(p.stats.geomRewritten),
+      "IfcTriangulatedFaceSet · IfcIndexedPolyCurve → IfcFacetedBrep · IfcPolyline",
+      tr("kl.tessD"),tr("kt.rew"));
+    if(p.ohMade) push("oh","made",tr("kl.oh"),"1","IfcOwnerHistory",tr("kl.ohD"),tr("kt.made"));
+  } else {
+    if(p.stats.reclass) push("reclass","gain",tr("kl.reclass"),nf(p.stats.reclass),
+      "IfcBuildingElementProxy → IfcKerb · IfcPavement · IfcCourse",tr("kl.reclassD"),tr("kt.gain"));
+    if(p.stats.promoted) push("promote","gain",tr("kl.promote"),nf(p.stats.promoted),
+      "IfcBuilding → IfcRoad · IfcBuildingStorey → IfcRoadPart",tr("kl.promoteD"),tr("kt.gain"));
+    if(p.stats.renamed) push("ren","rew",tr("kl.ren"),nf(p.stats.renamed),
+      [...new Set(p.reg.filter(r=>r.az==="rinominata").map(r=>r.da))].slice(0,3).join(" · "),
+      tr("kl.renD"),tr("kt.rew"));
+  }
+  const wt=[...p.warnTypes.values()].reduce((s,n)=>s+n,0);
+  if(wt) push("warn","decl",tr("kl.warn"),nf(wt),
+    [...p.warnTypes.entries()].sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>scCamel(x[0])).join(" · "),
+    tr("kl.warnD"),tr("kt.decl"));
+  return E;
+}
+const SEV_COLOR={lost:"var(--red)",degr:"var(--amber)",rew:"var(--faint)",made:"var(--faint)",
+  gain:"var(--lime)",decl:"var(--amber)"};
+function renderCheck(){
+  const p=ST.plan,info=ST.info;
+  if(!p||ST.view!=="check") return;
+  const tL=tgtLabel();
+  ui.klossT.textContent=p.down?tr("k.title.down"):tr("k.title.up");
+  ui.klossSub.textContent=p.down?fmt("k.sub.down",{v:tL}):tr("k.sub.up");
+  const E=lossEntries();
+  ui.klossN.textContent=fmt("k.n",{n:E.length});
+  ui.klossN.classList.toggle("okc",!p.down);
+  ui.klossList.innerHTML="";
+  for(const e of E){
+    const b=document.createElement("button");
+    b.type="button";
+    b.className="krow"+(ST.kSel===e.key?" hot":"")+(e.sev==="lost"&&ST.kSel!==e.key?" sev-lost":"");
+    b.innerHTML="<span class=\"dot\" style=\"background:"+SEV_COLOR[e.sev]+"\"></span>"+
+      "<span class=\"el\"><span class=\"t\">"+esc(e.title)+(e.mm?" <span class=\"mm\">"+esc(e.mm)+"</span>":"")+"</span>"+
+      (e.sub?"<span class=\"sub\">"+esc(e.sub)+"</span>":"")+
+      (e.d?"<span class=\"d\">"+e.d+"</span>":"")+"</span>"+
+      "<span class=\"tag2\" style=\"color:"+SEV_COLOR[e.sev]+"\">"+esc(e.tag)+"</span>";
+    b.addEventListener("click",()=>{ ST.kSel=e.key; ST.kIdx=0; renderCheck(); });
+    ui.klossList.appendChild(b);
+  }
+  const touched=p.stats.adapted+p.stats.renamed+p.stats.demoted+p.stats.reclass+
+    p.stats.promoted+p.stats.geomRewritten+p.stats.dropped+p.stats.gc;
+  ui.kfootMsg.innerHTML=fmtRaw(tr("k.foot"),{n:"§N§"}).replace("§N§","<b>"+nf(touched)+"</b>");
+  ui.klegNote.innerHTML=fmtRaw(tr("leg.note"),{f:regName()});
+  renderInspector();
+}
+const SAMPLE_KEY={align:"align",lostPos:null,demote:"demote",georef:"georef",tess:"tess",
+  reclass:"reclass",promote:"promote",ren:null,warn:null,oh:null};
+function renderInspector(){
+  const p=ST.plan;
+  const grp=ST.kSel?SAMPLE_KEY[ST.kSel]:null;
+  const arr=(grp&&p.samples.get(grp))||(ST.kSel==="spatial"?p.samples.get("spatial"):null)||[];
+  ui.kiColA.textContent=fmt("kf.in",{v:srcLabel()});
+  ui.kiColB.textContent=fmt("kf.in",{v:tgtLabel()});
+  if(!arr.length){
+    ui.kiName.textContent="—"; ui.kiGuid.textContent="";
+    ui.kiBody.innerHTML="<div class=\"kempty\">"+esc(tr("k.empty"))+"</div>";
+    ui.kiPage.textContent="—"; ui.kiPrev.disabled=ui.kiNext.disabled=true; ui.kiMore.textContent="";
+    return;
+  }
+  if(ST.kIdx>=arr.length) ST.kIdx=0;
+  const s=arr[ST.kIdx];
+  ui.kiName.textContent=s.name||s.from;
+  ui.kiGuid.textContent=s.guid||("#"+s.id);
+  const F=[];
+  const field=(k,va,vb,cls)=>F.push("<div class=\"kfield"+(cls?" "+cls:"")+"\"><span class=\"k\">"+esc(k)+"</span>"+
+    "<div class=\"vv\"><span class=\"va"+(va==="—"?" dim":"")+"\">"+esc(va)+"</span>"+
+    "<span class=\"vb"+(cls==="chg"?" bad":(cls==="gain"?" good":""))+"\">"+esc(vb)+"</span></div></div>");
+  field(tr("kf.cls"),s.from,s.toC,s.toC==="—"?"chg":(ST.plan.down?"chg":"gain"));
+  if(s.pt) field(tr("kf.pt"),s.pt,"NOTDEFINED","");
+  if(s.otype) field(tr("kf.ot"),"—","\""+s.otype+"\"","gain");
+  if(s.geo) field(tr("kf.note"),"—",s.geo,"");
+  if(s.nota) field(tr("kf.note"),"—",s.nota,"");
+  ui.kiBody.innerHTML=F.join("");
+  ui.kiPage.textContent=(ST.kIdx+1)+" / "+arr.length;
+  ui.kiPrev.disabled=ST.kIdx<=0; ui.kiNext.disabled=ST.kIdx>=arr.length-1;
+  const entry=lossEntries().find(e=>e.key===ST.kSel);
+  const tot=entry?parseInt(String(entry.mm).replace(/\D/g,""),10)||arr.length:arr.length;
+  ui.kiMore.textContent=tot>arr.length?fmt("k.more",{n:tot-arr.length}):"";
+}
+ui.kiPrev.addEventListener("click",()=>{ if(ST.kIdx>0){ ST.kIdx--; renderInspector(); } });
+ui.kiNext.addEventListener("click",()=>{ ST.kIdx++; renderInspector(); });
+
+/* ========================= conversione ========================= */
+async function buildNow(){
+  if(ST.built) return ST.built;
+  await veil("veil.write",async()=>{
+    ST.built=scConvert(ST.info,ST.tgt,{
+      proxyMode:ST.opts.proxyMode,proxySel:ST.opts.proxySel,promoteRoad:ST.opts.promoteRoad,
+      mvd:ST.opts.mvd,pset:ST.opts.pset,outName:ui.outName.value||undefined,exec:true});
+  });
+  return ST.built;
+}
+async function convertAndDownload(){
+  if(!ST.info) return;
+  const b=await buildNow();
+  download(b.outName,b.parts,"application/x-step");
+  const touched=b.stats.adapted+b.stats.renamed+b.stats.demoted+b.stats.reclass+
+    b.stats.promoted+b.stats.geomRewritten+b.stats.dropped+b.stats.gc;
+  toast(fmt("toast.done",{f:b.outName,n:touched}));
+  ui.regBtn.hidden=false;
+  try{ if(window.goatcounter&&goatcounter.count) goatcounter.count({path:"tool-schema-change-run",event:true}); }catch(e){}
+  renderAll();
+}
+ui.convBtn.addEventListener("click",convertAndDownload);
+ui.regBtn.addEventListener("click",async()=>{
+  if(!ST.built) await buildNow();
+  if(!ST.built||!ST.built.csv) return;
+  download(regName(),["﻿"+ST.built.csv],"text/csv;charset=utf-8");
+  toast(tr("toast.reg"));
+});
+
+/* ---- avvio -------------------------------------------------------------- */
+applyLang(LANG);
+</script>
+
+</body>
+</html>
