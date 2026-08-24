@@ -515,6 +515,18 @@ html[data-theme="light"] .mk-badgetxt{fill:#67790d}
   .chip .pulse::after{animation:none}
   .btn:hover,.tool:hover{transform:none}
 }
+/* ---- velo del trascinamento: è lo STESSO velo del viewer (#dragVeil),
+   copiato riga per riga perché i due trascinamenti si somiglino. Colori
+   scritti per esteso e non con i token della landing: nel tema chiaro qui
+   il lime si scurisce più che nel viewer (#67790d contro #8aa310) e il velo
+   verrebbe diverso. In più del viewer ci sono solo: lo z-index, che qui deve
+   stare sopra la pillola sticky della nav, e text-align/padding, perché la riga
+   della home è più lunga e su schermo stretto va a capo. ---- */
+#dropVeil{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:120;
+  background:#bfd730d1;border:3px dashed #a8c320;font-family:var(--disp);font-weight:700;font-size:21px;
+  letter-spacing:.08em;text-transform:uppercase;color:#23310a;text-align:center;padding:0 24px}
+html[data-theme="light"] #dropVeil{border-color:#8aa310}
+#dropVeil.on{display:flex}
 </style>
 
 <!-- Statistiche di visita anonime e senza cookie (GoatCounter) — vedi /analytics.js -->
@@ -1204,6 +1216,10 @@ html[data-theme="light"] .mk-badgetxt{fill:#67790d}
   </div>
 </footer>
 
+<!-- velo del trascinamento: compare quando si trascina un file sulla pagina.
+     Il file non si apre qui: viene consegnato al viewer (initDropHandoff). -->
+<div id="dropVeil" data-i18n="drop.veil" aria-hidden="true">Rilascia per aprire nel viewer</div>
+
 <script>
 /* ---------------- i18n ---------------- */
 const I18N = {
@@ -1300,7 +1316,8 @@ const I18N = {
     "band.mail":"Domande, idee o segnalazioni?",
     "foot.os":"Codice sorgente su GitHub · AGPL-3.0",
     "foot.local":"100% client-side","foot.tag":"Costruito per il coordinamento openBIM.",
-    "foot.warranty":"Software fornito \"così com'è\", senza alcuna garanzia. Verifica sempre i risultati con i tuoi strumenti di authoring prima di usarli per decisioni progettuali."
+    "foot.warranty":"Software fornito \"così com'è\", senza alcuna garanzia. Verifica sempre i risultati con i tuoi strumenti di authoring prima di usarli per decisioni progettuali.",
+    "drop.veil":"Rilascia per aprire nel viewer","drop.prep":"Apro il viewer…"
   },
   en:{
     "appname.sub":"openBIM coordination in your browser",
@@ -1395,7 +1412,8 @@ const I18N = {
     "band.mail":"Questions, ideas or bug reports?",
     "foot.os":"Source code on GitHub · AGPL-3.0",
     "foot.local":"100% client-side","foot.tag":"Built for openBIM coordination.",
-    "foot.warranty":"Software provided \"as is\", without warranty of any kind. Always verify results against your authoring tools before relying on them for design decisions."
+    "foot.warranty":"Software provided \"as is\", without warranty of any kind. Always verify results against your authoring tools before relying on them for design decisions.",
+    "drop.veil":"Drop to open in the viewer","drop.prep":"Opening the viewer…"
   }
 };
 
@@ -1575,6 +1593,92 @@ document.querySelectorAll(".rv").forEach(el=>io.observe(el));
     requestAnimationFrame(tick);
   })(t0);
 })();
+
+/* ===================== trascina un file: si apre nel viewer =================
+   La landing accetta i file al volo. Landing e viewer sono due documenti
+   diversi della stessa origine, quindi il File non può viaggiare nell'URL: si
+   deposita in IndexedDB (Blob e File sono structured-cloneable; sessionStorage
+   tiene solo stringhe) e il viewer, aperto con ?drop=1, lo ritira e lo cancella
+   subito — consegna a uso singolo, niente fantasmi al ricaricamento.
+
+   NB: mettere un File in IndexedDB COPIA i byte nello storage del browser; su
+   un federato di centinaia di MB è una scrittura vera, ed è il motivo per cui
+   il velo resta su "Apro il viewer…" finché non è finita. La via senza copia
+   (getAsFileSystemHandle, solo Chromium: l'handle si salva per riferimento) è
+   rimasta fuori di proposito — che il permesso di lettura sopravviva alla
+   navigazione va provato su un drop vero, e un ripiego sbagliato costerebbe
+   il file all'utente.
+
+   Se il deposito non riesce (IndexedDB assente su file://, spazio finito,
+   navigazione privata) il viewer si apre lo stesso con ?drop=err: dice che il
+   file non è arrivato invece di lasciare la pagina bianca.
+
+   Le costanti DB/STORE/KEY sono gemelle di quelle in viewer/index.html (là si
+   chiama dropHandoff): se cambiano qui, cambiano anche là.
+   ========================================================================= */
+(function initDropHandoff(){
+  const DB = "viewifc_handoff", DBV = 1, STORE = "drop", KEY = "pending";
+  const veil = document.getElementById("dropVeil");
+  if(!veil) return;
+
+  /* solo i trascinamenti che portano FILE: testo e link restano al browser */
+  const hasFiles = (dt)=> !!dt && Array.prototype.indexOf.call(dt.types||[], "Files") >= 0;
+  let depth = 0, busy = false;
+
+  window.addEventListener("dragenter",(e)=>{
+    if(busy || !hasFiles(e.dataTransfer)) return;
+    e.preventDefault(); depth++; veil.classList.add("on");
+  });
+  window.addEventListener("dragover",(e)=>{
+    if(busy || !hasFiles(e.dataTransfer)) return;
+    e.preventDefault();                       /* senza questo il drop non arriva */
+    try{ e.dataTransfer.dropEffect = "copy"; }catch(err){}
+  });
+  window.addEventListener("dragleave",(e)=>{
+    if(busy) return;
+    if(--depth <= 0){ depth = 0; veil.classList.remove("on"); }
+  });
+  window.addEventListener("drop",(e)=>{
+    if(busy) return;
+    depth = 0;
+    if(!hasFiles(e.dataTransfer)){ veil.classList.remove("on"); return; }
+    e.preventDefault();                       /* il browser non apre il file */
+    const files = Array.prototype.slice.call(e.dataTransfer.files);
+    if(!files.length){ veil.classList.remove("on"); return; }
+    busy = true;
+    veil.classList.add("on");
+    /* il velo resta acceso e dice che sta lavorando: depositare i byte di un
+       federato pesante non è istantaneo */
+    veil.textContent = (I18N[currentLang] || I18N.it)["drop.prep"];
+    handoff(files).then(
+      ()=>{ location.href = "viewer/?drop=1"; },
+      (err)=>{ console.warn("passaggio al viewer non riuscito:", err); location.href = "viewer/?drop=err"; }
+    );
+  });
+
+  /* deposito a uso singolo: un solo record, con l'ora del drop (il viewer
+     scarta quelli vecchi, se una navigazione si è persa per strada) */
+  function handoff(files){
+    return new Promise((res,rej)=>{
+      let rq;
+      try{ rq = indexedDB.open(DB, DBV); }catch(err){ rej(err); return; }
+      rq.onupgradeneeded = ()=>{
+        const db = rq.result;
+        if(!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+      };
+      rq.onerror = ()=> rej(rq.error);
+      rq.onsuccess = ()=>{
+        const db = rq.result;
+        let tx;
+        try{ tx = db.transaction(STORE, "readwrite"); }
+        catch(err){ db.close(); rej(err); return; }
+        tx.objectStore(STORE).put({ t: Date.now(), files: files }, KEY);
+        tx.oncomplete = ()=>{ db.close(); res(); };
+        tx.onerror = tx.onabort = ()=>{ db.close(); rej(tx.error); };
+      };
+    });
+  }
+})(); /* fine initDropHandoff */
 </script>
 </body>
 </html>
