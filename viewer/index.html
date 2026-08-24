@@ -1796,7 +1796,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.8.2";
+const APP_VERSION = "2.8.4";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2245,6 +2245,8 @@ const STRINGS = {
     "toast.ifcLoadErr": "Errore caricamento {f}: {e}",
     "toast.farOrigin": "{f}: geometria a ~{km} km dall'origine condivisa — probabile sistema di coordinate diverso dagli altri modelli; vista e precisione possono degradare",
     "toast.skippedElems": "{f}: {n} elementi esclusi dalla vista 3D per geometria non processabile (dettagli in console).",
+    "toast.voidBombs": "{f}: fori non ritagliati su {n} elementi — troppe sottrazioni booleane sul corpo (dettagli in console).",
+    "toast.boolTruncated": "{f}: {n} elementi mostrati senza i tagli dello shape editing — catena booleana oltre soglia (dettagli in console).",
     "toast.recoverAbort": "{f}: troppi elementi problematici — modello caricato parzialmente.",
     "load.recover": "Recupero {f}: isolo gli elementi con geometria non processabile…",
     "toast.modelRemoved": "{name} rimosso.",
@@ -2262,12 +2264,14 @@ const STRINGS = {
     "toast.dxfOk": "Sezione esportata in DXF.",
     "toast.dxfNodata": "Nessuna sezione da esportare.",
     "toast.unknownFormat": "Formato non riconosciuto: trascina file .ifc, .bcf/.bcfzip, report .xlsx, nuvole .las/.e57 o specifiche .ids.",
+    "toast.handoffFail": "Il file trascinato sulla home non è arrivato fin qui: trascinalo di nuovo in questa finestra.",
     "ft.reportFound": "Report «{name}» — componenti trovati {found}/{tot}",
     "ft.noModelForReport": "Nessun modello IFC caricato: la issue è visibile solo come scheda.",
     "ft.issueFound": "Issue «{title}» — elementi trovati {found}/{tot}",
     "ft.issueMissing": " (mancanti nei modelli caricati: {n})",
     "ft.noModelForIssue": "Nessun modello IFC caricato: la issue è visibile solo come scheda + snapshot.",
     "load.reading": "Lettura {f}…", "load.geom": "Elaborazione geometrie — {f}…",
+    "load.geomPct": "Elaborazione geometrie — {f} ({p}%)…",
     "load.gpu": "Preparazione scena 3D…",
     "load.indexCat": "Indicizzazione categorie IFC…", "load.findByValue": "Cerco elementi per valore…",
     "load.analyzePsets": "Analizzo i pset della selezione…", "load.serializing": "Serializzo {name}…",
@@ -2746,6 +2750,8 @@ const STRINGS = {
     "toast.ifcLoadErr": "Error loading {f}: {e}",
     "toast.farOrigin": "{f}: geometry ~{km} km away from the shared origin — its coordinate system likely differs from the other models; view and precision may degrade",
     "toast.skippedElems": "{f}: {n} elements excluded from the 3D view due to unprocessable geometry (details in console).",
+    "toast.voidBombs": "{f}: openings left uncut on {n} elements — too many boolean subtractions on the body (details in console).",
+    "toast.boolTruncated": "{f}: {n} elements shown without their shape-editing cuts — boolean chain over threshold (details in console).",
     "toast.recoverAbort": "{f}: too many problematic elements — model loaded partially.",
     "load.recover": "Recovering {f}: isolating elements with unprocessable geometry…",
     "toast.modelRemoved": "{name} removed.",
@@ -2763,12 +2769,14 @@ const STRINGS = {
     "toast.dxfOk": "Section exported to DXF.",
     "toast.dxfNodata": "No section to export.",
     "toast.unknownFormat": "Unrecognized format: drag .ifc, .bcf/.bcfzip, .xlsx report, .las/.e57 point clouds or .ids specifications.",
+    "toast.handoffFail": "The file dropped on the home page did not make it here: drop it again in this window.",
     "ft.reportFound": "Report «{name}» — components found {found}/{tot}",
     "ft.noModelForReport": "No IFC model loaded: the issue is visible only as a card.",
     "ft.issueFound": "Issue «{title}» — elements found {found}/{tot}",
     "ft.issueMissing": " (missing in the loaded models: {n})",
     "ft.noModelForIssue": "No IFC model loaded: the issue is visible only as a card + snapshot.",
     "load.reading": "Reading {f}…", "load.geom": "Processing geometry — {f}…",
+    "load.geomPct": "Processing geometry — {f} ({p}%)…",
     "load.gpu": "Preparing 3D scene…",
     "load.indexCat": "Indexing IFC categories…", "load.findByValue": "Searching elements by value…",
     "load.analyzePsets": "Analyzing selection psets…", "load.serializing": "Serializing {name}…",
@@ -3055,19 +3063,43 @@ function extractEdges(g, angleDeg) {
   const thr = Math.cos(angleDeg * Math.PI / 180);
   const pos = g.getAttribute("position");
   const srcIdx = g.index;
+  /* v2.8.4 — chiavi numeriche al posto delle stringhe nelle due hash map (saldatura
+     e spigoli): 2,8× misurato a parità di output. La chiave di saldatura impacchetta
+     x,y quantizzati al mm in un double ((qx+2^25)·2^26 + qy+2^25, esatto e biunivoco
+     fino a ±33,5 km dall'origine) con mappa annidata sul terzo asse; i modelli che
+     escono dal raggio (opere lineari molto lunghe, federazioni con origini remote)
+     ripiegano sulle vecchie chiavi stringa, che non hanno limiti di grandezza. */
+  const bb = g.boundingBox;   // già calcolato da buildModel prima di makeEdges
+  const PACK = 67108864, HALF = 33554432;
+  const packable = !!bb &&
+    Math.max(Math.abs(bb.min.x), Math.abs(bb.max.x), Math.abs(bb.min.y), Math.abs(bb.max.y)) < 33000;
   /* 1) saldatura per posizione (1 mm) */
   const map = new Map(); const remap = new Uint32Array(pos.count);
   const px = [], py = [], pz = [];
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-    const k = Math.round(x * 1000) + "_" + Math.round(y * 1000) + "_" + Math.round(z * 1000);
-    let id = map.get(k);
-    if (id === undefined) { id = px.length; map.set(k, id); px.push(x); py.push(y); pz.push(z); }
-    remap[i] = id;
+  if (packable) {
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      const k1 = (Math.round(x * 1000) + HALF) * PACK + (Math.round(y * 1000) + HALF);
+      let mz = map.get(k1);
+      if (mz === undefined) { mz = new Map(); map.set(k1, mz); }
+      const qz = Math.round(z * 1000);
+      let id = mz.get(qz);
+      if (id === undefined) { id = px.length; mz.set(qz, id); px.push(x); py.push(y); pz.push(z); }
+      remap[i] = id;
+    }
+  } else {
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      const k = Math.round(x * 1000) + "_" + Math.round(y * 1000) + "_" + Math.round(z * 1000);
+      let id = map.get(k);
+      if (id === undefined) { id = px.length; map.set(k, id); px.push(x); py.push(y); pz.push(z); }
+      remap[i] = id;
+    }
   }
-  /* 2) normali per triangolo + hash spigoli */
+  /* 2) normali per triangolo + hash spigoli (chiave lo·2^26+hi: gli indici saldati
+     stanno sotto 2^26 per costruzione — il tetto EDGE_TRI_LIMIT è molto più basso) */
   const nIdx = srcIdx ? srcIdx.count : pos.count;
-  const edges = new Map();
+  const edges = new Map();   // chiave → indice triangolo (number) o [indici]
   const nx = [], ny = [], nz = [];
   let t = 0;
   for (let i = 0; i + 2 < nIdx; i += 3, t++) {
@@ -3084,24 +3116,32 @@ function extractEdges(g, angleDeg) {
     let p1 = a, p2 = b;
     for (let e = 0; e < 3; e++) {
       if (e === 1) { p1 = b; p2 = c; } else if (e === 2) { p1 = c; p2 = a; }
-      const lo = Math.min(p1, p2), hi = Math.max(p1, p2);
-      const k = lo + "_" + hi;
-      let rec = edges.get(k);
-      if (!rec) { rec = { a: lo, b: hi, t: [] }; edges.set(k, rec); }
-      rec.t.push(t);
+      const k = p1 < p2 ? p1 * PACK + p2 : p2 * PACK + p1;
+      const rec = edges.get(k);
+      if (rec === undefined) edges.set(k, t);
+      else if (typeof rec === "number") edges.set(k, [rec, t]);
+      else rec.push(t);
     }
   }
   /* 3) emissione */
   const out = [];
-  for (const e of edges.values()) {
-    const valid = e.t.filter(ti => nx[ti] !== 0 || ny[ti] !== 0 || nz[ti] !== 0);
-    let draw;
-    if (valid.length === 1) draw = true;                       /* bordo di shell aperta */
-    else if (valid.length === 2) {
-      const i1 = valid[0], i2 = valid[1];
+  const isValid = (ti) => nx[ti] !== 0 || ny[ti] !== 0 || nz[ti] !== 0;
+  for (const [k, rec] of edges) {
+    let draw, i1 = -1, i2 = -1, nValid = 0;
+    if (typeof rec === "number") { if (isValid(rec)) nValid = 1; }
+    else for (const ti of rec) {
+      if (!isValid(ti)) continue;
+      nValid++;
+      if (i1 < 0) i1 = ti; else if (i2 < 0) i2 = ti;
+    }
+    if (nValid === 1) draw = true;                             /* bordo di shell aperta */
+    else if (nValid === 2)
       draw = Math.abs(nx[i1] * nx[i2] + ny[i1] * ny[i2] + nz[i1] * nz[i2]) < thr;
-    } else draw = valid.length > 2;                            /* giunzione non-manifold */
-    if (draw) out.push(px[e.a], py[e.a], pz[e.a], px[e.b], py[e.b], pz[e.b]);
+    else draw = nValid > 2;                                    /* giunzione non-manifold */
+    if (draw) {
+      const lo = Math.floor(k / PACK), hi = k - lo * PACK;
+      out.push(px[lo], py[lo], pz[lo], px[hi], py[hi], pz[hi]);
+    }
   }
   return out;
 }
@@ -3169,14 +3209,31 @@ async function readPickedFile(file) {
 async function loadIfcFiles(files) {
   await ifcReady;
   const wasEmpty = models.length === 0;
-  for (const f of files) {
+  const list = Array.from(files);
+  /* v2.8.4 — pipeline I/O: mentre un modello è in elaborazione (CPU), i byte del
+     file SUCCESSIVO si leggono in parallelo — sui dischi di rete e i client di
+     sincronizzazione la lettura costa quanto l'elaborazione, e così è gratis.
+     Un solo prefetch alla volta e solo sotto i 512 MiB: il picco di memoria
+     resta "due file", non l'intera federazione. */
+  const PREFETCH_MAX = 512 * 1048576;
+  let ahead = null;   // Promise dei byte di list[i+1] (readPickedFile non rigetta mai)
+  for (let i = 0; i < list.length; i++) {
+    const f = list[i];
     try {
       showLoading(tr("load.reading", { f: f.name }));
-      const data = await readPickedFile(f);
+      const data = await (ahead || readPickedFile(f));
+      ahead = (i + 1 < list.length && list[i + 1].size <= PREFETCH_MAX)
+        ? readPickedFile(list[i + 1]) : null;
       if (!data) continue;
       showLoading(tr("load.geom", { f: f.name }));
-      await tick();
-      await buildModel(data, f.name);
+      await loadYield();
+      const m = await buildModel(data, f.name);
+      /* v2.8.4 — warmup GPU del solo modello appena costruito: l'upload dei buffer
+         si spalma file per file (e il trasferimento asincrono verso la GPU si
+         sovrappone al parse del file successivo) invece di accumularsi tutto
+         nella passata unica di fine coda, che sulle federazioni erano ~10 s di
+         "Preparazione scena 3D" in un colpo solo. */
+      if (m && m.meshes.length) { showLoading(tr("load.gpu")); await loadYield(); warmupRender(m); }
     } catch (e) {
       console.error(e);
       toast(tr("toast.ifcLoadErr", { f: f.name, e: (e.message || e) }));
@@ -3215,14 +3272,17 @@ async function loadIfcFiles(files) {
    caricamento la camera può non inquadrare ancora i modelli nuovi, e gli oggetti
    fuori vista non verrebbero caricati sulla GPU). Un solo render sincrono: il costo
    resta dentro la fase di caricamento etichettata invece del primo frame utile. */
-function warmupRender() {
+function warmupRender(onlyModel) {
+  /* v2.8.4 — con onlyModel: warmup del SOLO modello appena costruito (upload
+     spalmato file per file); senza argomento: passata totale di fine coda. */
   const touched = [];
-  rootGroup.traverse((o) => {
-    if ((o.isMesh || o.isLineSegments || o.isPoints) && o.frustumCulled) {
-      o.frustumCulled = false;
-      touched.push(o);
-    }
-  });
+  const uncull = (o) => { if (o.frustumCulled) { o.frustumCulled = false; touched.push(o); } };
+  if (onlyModel) {
+    for (const o of onlyModel.meshes) uncull(o);
+    for (const o of onlyModel.edges) uncull(o);
+  } else {
+    rootGroup.traverse((o) => { if (o.isMesh || o.isLineSegments || o.isPoints) uncull(o); });
+  }
   renderer.render(scene, camera);
   for (const o of touched) o.frustumCulled = true;
 }
@@ -3256,11 +3316,17 @@ function streamableProducts(api, modelID, streamedEids, excluded) {
    questo il recupero reattivo non può nulla, perché non c'è eccezione da catturare).
    Individuarle qui, sulle sole entità booleane, costa millisecondi. Soglia tarata sui
    file reali: catene tossiche ≥14, catene legittime ≤9 (NB43) e ≤3 (NDT/50-STR).
-   Restituisce [{eid, depth}] dei prodotti da escludere; [] se il file è sano. */
+   Restituisce [{eid, depth, fixes}] dei prodotti oltre soglia; [] se il file è sano.
+   v2.8.4 — `fixes` è il piano di SEMPLIFICAZIONE: se la spina dei FirstOperand è
+   tutta DIFFERENCE fino a un solido di base, l'item della ShapeRepresentation si può
+   ripuntare sul solido di base (truncateBoolBombs) e l'elemento resta VISIBILE senza
+   i tagli dello shape editing, invece di sparire. Con unioni/intersezioni lungo la
+   spina, cicli o operandi rotti il piano non è sicuro (mostrerebbe un pezzo solo o
+   geometria fuorviante): fixes=null e l'elemento resta escluso come prima. */
 const BOOL_DEPTH_MAX = 12;
 function findBooleanBombs(api, modelID) {
   const ref = (x) => (x && x.value !== undefined ? x.value : null);
-  const ops = new Map();   // id booleano → refs degli operandi
+  const ops = new Map();   // id booleano → [firstOp, secondOp, èDIFFERENCE]
   let it;
   try { it = api.GetLineIDsWithType(modelID, WebIFC.IFCBOOLEANRESULT, true); }
   catch (e) { return []; }
@@ -3268,7 +3334,8 @@ function findBooleanBombs(api, modelID) {
     const id = it.get(i);
     try {
       const l = api.GetLine(modelID, id);
-      ops.set(id, [ref(l.FirstOperand), ref(l.SecondOperand)]);
+      const op = String((l.Operator && l.Operator.value !== undefined ? l.Operator.value : l.Operator) || "").replace(/\./g, "").toUpperCase();
+      ops.set(id, [ref(l.FirstOperand), ref(l.SecondOperand), op === "DIFFERENCE"]);
     } catch (e) { ops.set(id, []); }
   }
   if (!ops.size) return [];
@@ -3292,6 +3359,21 @@ function findBooleanBombs(api, modelID) {
   let anyDeep = false;
   for (const d of depth.values()) if (d > BOOL_DEPTH_MAX) { anyDeep = true; break; }
   if (!anyDeep) return [];
+  /* solido di base di un item oltre soglia: si scende lungo la spina dei
+     FirstOperand finché si esce dalle entità booleane. Il piano è sicuro solo
+     se OGNI nodo attraversato è una DIFFERENCE: togliere i tagli mostra il
+     corpo pieno (superinsieme); troncare una UNION mostrerebbe un pezzo solo. */
+  const baseOf = (itemId) => {
+    let base = itemId, guard = 0;
+    while (ops.has(base) && guard++ < 4096) {
+      const o = ops.get(base) || [];
+      if (!o[2]) return null;                       // non-DIFFERENCE lungo la spina
+      const fo = o[0];
+      if (fo === null || fo === undefined || fo === base) break;
+      base = fo;
+    }
+    return ops.has(base) ? null : base;             // ciclo/operando rotto → niente base
+  };
   /* solo se esistono catene profonde: risali al prodotto proprietario via
      ProductDefinitionShape → ShapeRepresentation → Items */
   const bombs = [];
@@ -3303,17 +3385,134 @@ function findBooleanBombs(api, modelID) {
       if (!ref(p.Representation)) continue;
       const pds = api.GetLine(modelID, ref(p.Representation));
       let worst = 0;
+      const fixes = [];
+      let fixable = true;
       for (const rRef of (pds.Representations || [])) {
-        const sr = api.GetLine(modelID, ref(rRef));
+        const srId = ref(rRef);
+        const sr = api.GetLine(modelID, srId);
         for (const iRef of (sr.Items || [])) {
-          const d = depth.get(ref(iRef));
-          if (d && d > worst) worst = d;
+          const itemId = ref(iRef);
+          const d = depth.get(itemId);
+          if (!d) continue;
+          if (d > worst) worst = d;
+          if (d <= BOOL_DEPTH_MAX) continue;
+          const base = baseOf(itemId);
+          if (base === null) { fixable = false; continue; }
+          fixes.push({ sr: srId, from: itemId, to: base });
         }
       }
-      if (worst > BOOL_DEPTH_MAX) bombs.push({ eid, depth: worst });
+      if (worst > BOOL_DEPTH_MAX)
+        bombs.push({ eid, depth: worst, fixes: (fixable && fixes.length) ? fixes : null });
     } catch (e) { /* prodotto illeggibile: resta allo streaming (e al recupero) */ }
   }
   return bombs;
+}
+
+/* Applica il piano di semplificazione delle bombe a catena: nella
+   ShapeRepresentation l'item oltre soglia viene ripuntato sul solido di base
+   (stesso WriteLine dei void, vedi neutralizeVoidBombs — e stessa regola: va
+   RIFATTO a ogni OpenModel, perché il recupero riapre il modello da zero).
+   Ritorna gli eid semplificati DAVVERO: chi fallisce anche un solo WriteLine
+   resta con la catena viva e va tenuto fuori dallo streaming. */
+function truncateBoolBombs(api, modelID, bombs) {
+  const done = new Set();
+  for (const b of bombs) {
+    if (!b.fixes) continue;
+    let okAll = true;
+    for (const fx of b.fixes) {
+      try {
+        const sr = api.GetLine(modelID, fx.sr);
+        for (const iRef of (sr.Items || []))
+          if (iRef && iRef.value === fx.from) iRef.value = fx.to;
+        api.WriteLine(modelID, sr);
+      } catch (e) { okAll = false; }
+    }
+    if (okAll) done.add(b.eid);
+  }
+  return done;
+}
+
+/* Seconda famiglia di bombe (v2.8.4, file reale NB43 FV02): host con corpo
+   IfcFacetedBrep grande e decine di aperture IfcRelVoidsElement. Qui le sottrazioni
+   non sono IfcBooleanResult nel file (le monta web-ifc internamente), quindi il
+   pre-scan delle catene non le vede; sul brep il CSG degenera in modo esponenziale.
+   Misurato sul pavimento #185133 (1216 facce × 63 fori): 20 fori = 0,2 s ·
+   32 = 3 s · 40 = 16 s con i triangoli che decuplicano → 63 = bloccato per ore.
+   I brep piccoli restano sani anche con più fori (224 facce × 61 fori = 87 ms):
+   il driver è facce × fori, non i fori da soli. Sopra soglia NON si esclude
+   l'elemento: si staccano le sue relazioni di void e il corpo resta, senza fori
+   ritagliati — un pavimento presente ma pieno vale più di un pavimento sparito. */
+const VOID_MIN = 16;           // sotto questo numero di fori mai visto un problema
+const VOID_COST_MAX = 32000;   // facce_shell × n_fori: sano ≤ 13.664, tossico ≥ 66.165
+function _brepItemFaces(api, modelID, itemId, depth) {
+  const ref = (x) => (x && x.value !== undefined ? x.value : null);
+  if (itemId === null || depth > 2) return 0;
+  let l;
+  try { l = api.GetLine(modelID, itemId); } catch (e) { return 0; }
+  if (l.type === WebIFC.IFCFACETEDBREP || l.type === WebIFC.IFCFACETEDBREPWITHVOIDS) {
+    try { return (api.GetLine(modelID, ref(l.Outer)).CfsFaces || []).length; }
+    catch (e) { return 0; }
+  }
+  if (l.type === WebIFC.IFCMAPPEDITEM) {
+    try {
+      const mr = api.GetLine(modelID, ref(api.GetLine(modelID, ref(l.MappingSource)).MappedRepresentation));
+      let f = 0;
+      for (const iRef of (mr.Items || [])) f += _brepItemFaces(api, modelID, ref(iRef), depth + 1);
+      return f;
+    } catch (e) { return 0; }
+  }
+  return 0;
+}
+function findVoidBombs(api, modelID) {
+  const ref = (x) => (x && x.value !== undefined ? x.value : null);
+  let it;
+  try { it = api.GetLineIDsWithType(modelID, WebIFC.IFCRELVOIDSELEMENT, true); }
+  catch (e) { return []; }
+  const byHost = new Map();   // host → [id delle IfcRelVoidsElement]
+  for (let i = 0; i < it.size(); i++) {
+    const id = it.get(i);
+    try {
+      const h = ref(api.GetLine(modelID, id).RelatingBuildingElement);
+      if (h === null) continue;
+      const arr = byHost.get(h);
+      if (arr) arr.push(id); else byHost.set(h, [id]);
+    } catch (e) { /* relazione illeggibile */ }
+  }
+  const bombs = [];
+  for (const [host, relIds] of byHost) {
+    if (relIds.length < VOID_MIN) continue;
+    try {
+      const p = api.GetLine(modelID, host);
+      if (!ref(p.Representation)) continue;
+      const pds = api.GetLine(modelID, ref(p.Representation));
+      let faces = 0;
+      for (const rRef of (pds.Representations || [])) {
+        const sr = api.GetLine(modelID, ref(rRef));
+        for (const iRef of (sr.Items || [])) faces += _brepItemFaces(api, modelID, ref(iRef), 0);
+      }
+      if (faces * relIds.length > VOID_COST_MAX)
+        bombs.push({ eid: host, nVoids: relIds.length, faces, relIds });
+    } catch (e) { /* host illeggibile: se ne occuperà il recupero reattivo */ }
+  }
+  return bombs;
+}
+/* Ripunta la RelatingBuildingElement di ogni relazione sul foro stesso: la voce
+   della mappa host→fori finisce su un id mai streammato e il ritaglio non parte.
+   Meglio di DeleteLine, che lascia riferimenti pendenti e riempie la console di
+   [GetRefArgument] a ogni apertura del modello. Va RIFATTO a ogni OpenModel:
+   il recupero fault-tolerant riapre il modello da zero (vedi reopen). */
+function neutralizeVoidBombs(api, modelID, bombs) {
+  const ref = (x) => (x && x.value !== undefined ? x.value : null);
+  for (const vb of bombs) {
+    for (const rid of vb.relIds) {
+      try {
+        const l = api.GetLine(modelID, rid);
+        const op = ref(l.RelatedOpeningElement);
+        l.RelatingBuildingElement = { type: 5, value: (op !== null ? op : rid) };
+        api.WriteLine(modelID, l);
+      } catch (e) { /* relazione illeggibile: al peggio interviene il recupero */ }
+    }
+  }
 }
 
 async function buildModel(data, name) {
@@ -3380,7 +3579,15 @@ async function buildModel(data, name) {
      come rete di sicurezza per gli abort non prevedibili. */
   let preBombs = [];
   try { preBombs = findBooleanBombs(curApi, curMid); } catch (ePre) { preBombs = []; }
-  const preExcluded = new Set(preBombs.map((b) => b.eid));
+  /* v2.8.4 — le catene con un piano sicuro si SEMPLIFICANO (solido di base al
+     posto della catena) e l'elemento si carica; escluso resta solo chi non ce l'ha */
+  let boolTrunc = new Set();
+  try { boolTrunc = truncateBoolBombs(curApi, curMid, preBombs); } catch (eTb) { boolTrunc = new Set(); }
+  const preExcluded = new Set(preBombs.filter((b) => !boolTrunc.has(b.eid)).map((b) => b.eid));
+  /* v2.8.4 — void bombs (brep × decine di fori): i fori si staccano, l'elemento resta */
+  let voidBombs = [];
+  try { voidBombs = findVoidBombs(curApi, curMid); } catch (eVb) { voidBombs = []; }
+  if (voidBombs.length) neutralizeVoidBombs(curApi, curMid, voidBombs);
   const streamedEids = new Set();
   const streamCb = (mesh) => {
     const eid = mesh.expressID;
@@ -3421,15 +3628,33 @@ async function buildModel(data, name) {
   const MAX_SKIP = 8;   // oltre: il problema non è il singolo elemento, inutile insistere
   let partial = false;
   try {
-    if (!preExcluded.size) curApi.StreamAllMeshes(curMid, streamCb);
-    /* con bombe da escludere: stream mirato di tutti gli altri prodotti */
-    else curApi.StreamMeshes(curMid, streamableProducts(curApi, curMid, streamedEids, preExcluded), streamCb);
+    /* v2.8.4 — streaming SEMPRE a blocchi (prima: StreamAllMeshes in un colpo solo,
+       thread bloccato per l'intera durata). Stessi prodotti e stesse callback
+       (StreamMeshes non emette i prodotti senza geometria, come StreamAllMeshes;
+       verificato sul file NB43 FV02: 277 callback identiche sulle due strade) e
+       overhead nullo (340 ms a blocchi vs 383 in un colpo). In cambio, tra un blocco
+       e l'altro il thread torna al browser: la percentuale avanza e la pagina non
+       resta "congelata" per tutto lo streaming dei modelli grandi. */
+    const queue = streamableProducts(curApi, curMid, streamedEids, preExcluded);
+    const STREAM_CHUNK = 256;
+    let lastYield = performance.now();
+    for (let pos = 0; pos < queue.length; pos += STREAM_CHUNK) {
+      curApi.StreamMeshes(curMid, queue.slice(pos, pos + STREAM_CHUNK), streamCb);
+      const nowY = performance.now();
+      if (nowY - lastYield > 1200) {
+        lastYield = nowY;
+        showLoading(tr("load.geomPct", { f: name, p: Math.min(99, Math.round(100 * (pos + STREAM_CHUNK) / queue.length)) }));
+        await loadYield();
+      }
+    }
   } catch (eAbort) {
     console.warn(`[APE Viewer] ${name}: abort del motore geometrico (${(eAbort && eAbort.message) || eAbort}) — recupero per elemento`);
     api = null; model.api = null;   // l'istanza morta (heap fino a 4 GB) deve poter essere garbage-collected
     showLoading(tr("load.recover", { f: name }));
     await tick();
-    const reopen = async () => { curApi = null; curApi = await takeIfcApi(); curMid = curApi.OpenModel(data, {}); };
+    const reopen = async () => { curApi = null; curApi = await takeIfcApi(); curMid = curApi.OpenModel(data, {});
+      try { truncateBoolBombs(curApi, curMid, preBombs); } catch (e) { /* stessi byte, stessi WriteLine: se è riuscita al primo giro riesce anche qui */ }
+      if (voidBombs.length) neutralizeVoidBombs(curApi, curMid, voidBombs); };
     await reopen();
     const queue = streamableProducts(curApi, curMid, streamedEids, preExcluded);
     /* A blocchi, NON in un colpo solo: StreamMeshes processa gli id nell'ordine interno
@@ -3473,12 +3698,20 @@ async function buildModel(data, name) {
       return `${(line && line.constructor && line.constructor.name) || "?"} · ${(line && line.Name && line.Name.value) || ""} · GUID ${(line && line.GlobalId && line.GlobalId.value) || "?"}`;
     } catch (e) { return "?"; }
   };
-  for (const b of preBombs)
-    console.warn(`[APE Viewer] ${name}: elemento #${b.eid} escluso preventivamente (catena booleana annidata ×${b.depth}, soglia ${BOOL_DEPTH_MAX}) — ${_elemInfo(b.eid)}`);
+  for (const b of preBombs) {
+    if (boolTrunc.has(b.eid))
+      console.warn(`[APE Viewer] ${name}: elemento #${b.eid} mostrato SEMPLIFICATO — catena booleana annidata ×${b.depth} sostituita dal solido di base (tagli shape-edit non applicati) — ${_elemInfo(b.eid)}`);
+    else
+      console.warn(`[APE Viewer] ${name}: elemento #${b.eid} escluso preventivamente (catena booleana annidata ×${b.depth}, soglia ${BOOL_DEPTH_MAX}, nessun piano di semplificazione sicuro) — ${_elemInfo(b.eid)}`);
+  }
+  for (const vb of voidBombs)
+    console.warn(`[APE Viewer] ${name}: elemento #${vb.eid} mostrato SENZA i suoi ${vb.nVoids} fori (corpo Brep da ${vb.faces} facce × ${vb.nVoids} sottrazioni: oltre soglia CSG) — ${_elemInfo(vb.eid)}`);
   for (const eid of skippedEids)
     console.warn(`[APE Viewer] ${name}: elemento #${eid} escluso dalla vista 3D (geometria non processabile) — ${_elemInfo(eid)}`);
-  const _nSkip = preBombs.length + skippedEids.length;
+  const _nSkip = preExcluded.size + skippedEids.length;
   if (_nSkip && !partial) toast(tr("toast.skippedElems", { f: name, n: _nSkip }));
+  if (boolTrunc.size && !partial) toast(tr("toast.boolTruncated", { f: name, n: boolTrunc.size }));
+  if (voidBombs.length && !partial) toast(tr("toast.voidBombs", { f: name, n: voidBombs.length }));
   if (bcfGeoMatrix === null) bcfGeoMatrix = A.clone();   // riferimento camere BCF: l'A definitiva del primo modello
 
   for (const b of buckets.values()) {
@@ -3536,6 +3769,7 @@ async function buildModel(data, name) {
     `[APE Viewer] ${name} · ${model.elemCount} elementi · ${model.geoInfo}` +
     (worldOriginMap ? ` · origine condivisa E=${worldOriginMap.x} N=${worldOriginMap.y} H=${worldOriginMap.z}` : "")
   );
+  return model;   // v2.8.4 — al chiamante, per il warmup GPU per-modello
 }
 
 /* v2.1.1 — accumulo dei bucket in typed array con crescita a raddoppio: rispetto agli
@@ -4892,7 +5126,14 @@ function _typeAddRel(model, typeOfElem, typePsetIds, relId) {
     if (!typePsetIds.has(tId)) {
       const ids = [];
       try {
-        const tLine = model.api.GetLine(model.modelID, tId, true);
+        /* v2.8.4 — NIENTE flatten qui: GetLine(…, true) su un IfcTypeProduct
+           appiattisce ricorsivamente TUTTO il tipo, RepresentationMaps e
+           geometrie comprese — misurato col profiler su federazione reale
+           NB43: 14-30 s di main thread BLOCCATO su un solo GetLine (il budget
+           a fette del prewarm non può interrompere una chiamata sola), più
+           montagne di garbage. Qui serve solo HasPropertySets, che senza
+           flatten è una lista di handle: ps.value basta e costa microsecondi. */
+        const tLine = model.api.GetLine(model.modelID, tId);
         for (const ps of tLine.HasPropertySets || []) {
           if (ps && ps.value !== undefined) ids.push(ps.value);
           else if (ps && ps.expressID) ids.push(ps.expressID);
@@ -8699,15 +8940,10 @@ $("btnRepExport").addEventListener("click", exportReportXlsx);
 $("fileIfc").addEventListener("change", (e) => { if (e.target.files.length) loadIfcFiles([...e.target.files]); e.target.value = ""; });
 $("fileBcf").addEventListener("change", async (e) => { for (const f of e.target.files) { if (/\.(xlsx|xlsm)$/i.test(f.name)) await loadReport(f); else await loadBcf(f); } e.target.value = ""; });
 
-let dragDepth = 0;
-window.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; $("dragVeil").classList.add("on"); });
-window.addEventListener("dragleave", (e) => { e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; $("dragVeil").classList.remove("on"); } });
-window.addEventListener("dragover", (e) => e.preventDefault());
-window.addEventListener("drop", async (e) => {
-  e.preventDefault();
-  dragDepth = 0;
-  $("dragVeil").classList.remove("on");
-  const files = [...e.dataTransfer.files];
+/* smistamento per estensione: un solo posto per i file trascinati nella
+   finestra e per quelli consegnati dalla home (vedi dropHandoff, sotto), così
+   i due ingressi non possono accettare cose diverse */
+async function dispatchDroppedFiles(files) {
   const ifcs = files.filter(f => /\.ifc$/i.test(f.name));
   const bcfs = files.filter(f => /\.(bcf|bcfzip|zip)$/i.test(f.name));
   const reps = files.filter(f => /\.(xlsx|xlsm)$/i.test(f.name));
@@ -8719,7 +8955,80 @@ window.addEventListener("drop", async (e) => {
   for (const p of pcs) await loadPointCloud(p);
   for (const d of idss) await loadIds(d);
   if (!ifcs.length && !bcfs.length && !reps.length && !pcs.length && !idss.length) toast(tr("toast.unknownFormat"));
+}
+
+let dragDepth = 0;
+window.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; $("dragVeil").classList.add("on"); });
+window.addEventListener("dragleave", (e) => { e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; $("dragVeil").classList.remove("on"); } });
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("drop", async (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  $("dragVeil").classList.remove("on");
+  await dispatchDroppedFiles([...e.dataTransfer.files]);
 });
+
+/* ==================== file consegnati dalla home (?drop=1) ==================
+   Chi trascina un IFC sulla landing non deve ritrascinarlo qui: la home lo
+   deposita in IndexedDB e apre questo viewer con ?drop=1 (il gemello di questo
+   blocco è initDropHandoff in /index.html — DB, STORE e KEY devono restare
+   uguali). Qui si ritira e si CANCELLA subito, nella stessa transazione della
+   lettura: la consegna vale una volta sola, così un F5 a metà caricamento non
+   ricarica tutto da capo e il file non resta a occupare spazio nel browser.
+   Anche il parametro sparisce dall'URL, per lo stesso motivo.
+   Un record più vecchio di HANDOFF_TTL è il resto di una navigazione persa per
+   strada: si butta senza aprirlo. Con ?drop=err la home dice che il deposito
+   non è riuscito (IndexedDB assente su file://, spazio finito, finestra
+   privata): meglio dirlo che lasciare l'utente davanti a un viewer vuoto.
+   ========================================================================= */
+(function dropHandoff() {
+  const DB = "viewifc_handoff", DBV = 1, STORE = "drop", KEY = "pending";
+  const HANDOFF_TTL = 5 * 60 * 1000;
+  /* il messaggio parte SEMPRE differito: toast() vive più in basso in questo
+     file e il suo toastTimer è ancora in zona morta mentre il modulo viene
+     valutato — chiamarlo qui e ora sarebbe un ReferenceError */
+  const fail = (why) => {
+    if (why) console.warn("consegna dalla home non riuscita:", why);
+    setTimeout(() => toast(tr("toast.handoffFail")), 0);
+  };
+  let q;
+  try { q = new URLSearchParams(location.search); } catch (e) { return; }
+  const flag = q.get("drop");
+  if (!flag || q.get("embed") === "diff") return;
+  /* via il parametro: un ricaricamento non deve ritentare il ritiro */
+  try {
+    q.delete("drop");
+    const rest = q.toString();
+    history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
+  } catch (e) {}
+  if (flag !== "1") { fail(); return; }
+
+  let rq;
+  try { rq = indexedDB.open(DB, DBV); } catch (e) { fail(e); return; }
+  rq.onupgradeneeded = () => {
+    const db = rq.result;
+    if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+  };
+  rq.onerror = () => fail(rq.error);
+  rq.onsuccess = () => {
+    const db = rq.result;
+    let tx;
+    try { tx = db.transaction(STORE, "readwrite"); }
+    catch (e) { db.close(); fail(e); return; }
+    const get = tx.objectStore(STORE).get(KEY);
+    tx.objectStore(STORE).delete(KEY);          /* uso singolo: si consuma leggendolo */
+    tx.oncomplete = async () => {
+      db.close();
+      const rec = get.result;
+      const files = (rec && rec.files) || [];
+      if (!files.length) { fail("deposito vuoto"); return; }
+      if (!rec.t || Date.now() - rec.t > HANDOFF_TTL) return;   /* consegna scaduta: silenzio */
+      try { await dispatchDroppedFiles([...files]); }
+      catch (e) { fail(e); }
+    };
+    tx.onerror = tx.onabort = () => { db.close(); fail(tx.error); };
+  };
+})(); /* fine dropHandoff */
 
 /* ===================== QTO — tab, render, run ===================== */
 function qtoColLabel(c) { return c.startsWith("c:") ? c.slice(2) : tr("qto.col." + c); }
@@ -9101,6 +9410,15 @@ function updateStats() {
 function showLoading(msg) { $("loadingMsg").textContent = msg; $("loading").classList.add("on"); }
 function hideLoading() { $("loading").classList.remove("on"); }
 function tick() { return new Promise(r => setTimeout(r, 40)); }
+/* v2.8.4 — yield del percorso di caricamento: con la finestra in secondo piano i
+   timer sono strozzati a ≥1 s l'uno (su una federazione da 8 file sono ~10 s
+   regalati); un MessageChannel non subisce throttling, e a finestra nascosta non
+   serve nemmeno il repaint. A finestra visibile resta tick(): 40 ms bastano a far
+   dipingere l'overlay aggiornato. */
+function loadYield() {
+  if (!document.hidden) return tick();
+  return new Promise((r) => { const ch = new MessageChannel(); ch.port1.onmessage = () => r(); ch.port2.postMessage(0); });
+}
 let toastTimer = null;
 /* Conferma in stile viewer al posto del confirm() nativo del browser.
    Promessa booleana; Escape e clic fuori = annulla; il focus parte sul
