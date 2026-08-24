@@ -1769,6 +1769,11 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
    propria modalità; le priorità incrociate sono esplicite nel codice:
    · OrbitControls (three)          orbita/pan/zoom; escluso da walk e dai drag
                                     di section box / section plane / sezione asse
+   · pivot d'orbita (btn 0)         raycast al pointerdown: se colpisce il modello
+                                    la rotazione avviene attorno al punto colpito
+                                    (stopPropagation verso OrbitControls); cede a
+                                    walk e ai drag di sezione; nel vuoto → orbita
+                                    classica attorno al target corrente
    · tasto centrale ×2              reset vista (sez. navigazione tastiera & walk)
    · walk mode (btn 0)              look-around quando walkMode è attivo
    · picking (btn 0, ≤ soglia px)   selezione elemento al pointerup se non era drag
@@ -1796,7 +1801,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.8.4";
+const APP_VERSION = "2.8.5";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2958,6 +2963,7 @@ resize();
 let flyAnim = null;
 function flyTo(pos, target, ms = 750) {
   if (walkMode) setWalkMode(false); /* le viste guidate (issue, zoom) riportano in orbita */
+  _pvCancel();                      /* un volo interrompe drag e inerzia del pivot d'orbita */
   const p0 = camera.position.clone(), t0 = controls.target.clone();
   const start = performance.now();
   flyAnim = (now) => {
@@ -2983,6 +2989,7 @@ renderer.setAnimationLoop((now) => {
     /* controls.update() sospeso durante le animazioni: lo smorzamento residuo
        dell'orbita combatterebbe l'inquadratura di arrivo */
     updateOrbitKeys(dt);
+    _pvApply(now);   /* pivot d'orbita sotto il cursore: PRIMA di update() (lookAt) */
     controls.update();
   }
   _pcUpdateLOD();   // LOD nuvole: decima durante il movimento, pieno dettaglio da fermo
@@ -4710,6 +4717,7 @@ function setWalkMode(on) {
   if (walkMode === on) return;
   walkMode = on;
   controls.enabled = !on;
+  _pvCancel();                      /* il cambio modalità interrompe drag/inerzia del pivot d'orbita */
   keysDown.clear();
   renderer.domElement.style.cursor = on ? "crosshair" : "";
   $("btnWalk").classList.toggle("primary", on);
@@ -4988,7 +4996,7 @@ window.addEventListener("keyup", (e) => {
   shiftDown = e.shiftKey;
   keysDown.delete(e.code);
 });
-window.addEventListener("blur", () => { keysDown.clear(); looking = false; });
+window.addEventListener("blur", () => { keysDown.clear(); looking = false; _pvCancel(); });
 
 function expressFromFace(mesh, faceIndex) {
   const ranges = mesh.userData.ranges;
@@ -11959,6 +11967,159 @@ renderer.domElement.addEventListener("pointermove", (e) => {
   if (_pickSbHandle(e.clientX, e.clientY) >= 0) return;
   if (_alnSecHit(e.clientX, e.clientY)) renderer.domElement.style.cursor = "grab";
 });
+
+/* ==================== pivot d'orbita sotto il cursore ==================== *
+ * Al pointerdown sinistro un raycast cerca il modello sotto il puntatore: se
+ * colpisce, la rotazione avviene attorno al punto colpito (stile Navisworks)
+ * invece che attorno a controls.target — su elementi lunghi il target dello
+ * "zoom elemento" può stare decine di metri fuori dall'inquadratura e l'orbita
+ * risulta sconnessa da ciò che si sta guardando.
+ * Il drag è gestito qui (stopPropagation verso OrbitControls) con la stessa
+ * cinematica: identico rapporto pixel→angolo e identico smorzamento; camera e
+ * direzione di vista ruotano RIGIDAMENTE attorno al pivot, così il punto
+ * colpito resta fermo sotto il cursore per tutta la rotazione. Il clic (≤4 px)
+ * resta selezione: downXY viene alimentato da qui perché lo stopPropagation
+ * blocca il listener originale. Nel vuoto: nessun hijack, orbita classica.
+ * NB: registrato DOPO gli altri capture (section box / plane / asse) — quando
+ * uno di loro ha già preso il drag, controls.enabled è false e qui si esce.  */
+let _pvDrag = null;                       /* {id, x, y, moved, dist} — drag attivo */
+const _pvPend = { t: 0, p: 0 };           /* angoli accumulati (yaw, pitch): stesso damping dei controls */
+const _pvPivot = new THREE.Vector3();
+const _pvV1 = new THREE.Vector3(), _pvV2 = new THREE.Vector3(), _pvV3 = new THREE.Vector3();
+const _pvQ = new THREE.Quaternion(), _pvQ2 = new THREE.Quaternion();
+const _PV_UP = new THREE.Vector3(0, 1, 0);
+const _PV_POLAR_MIN = 0.02;               /* la direzione di vista non attraversa mai i poli */
+let _pvDot = null, _pvDotUntil = 0;       /* indicatore del pivot + scadenza del fade-out */
+
+function _pvDotEnsure() {
+  if (_pvDot) return;
+  _pvDot = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 20, 14),
+    new THREE.MeshBasicMaterial({ color: 0xbfd730, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false })
+  );
+  _pvDot.renderOrder = 12;                /* sopra highlight e handle di sezione */
+  _pvDot.visible = false;
+  scene.add(_pvDot);
+}
+
+function _pvCancel() {
+  _pvPend.t = _pvPend.p = 0;
+  if (_pvDrag) { try { renderer.domElement.releasePointerCapture(_pvDrag.id); } catch (_) {} _pvDrag = null; }
+  if (_pvDot) _pvDot.visible = false;
+}
+
+renderer.domElement.addEventListener("pointerdown", (e) => {
+  if (_pvDrag) { e.stopPropagation(); return; }  /* drag pivot in corso: nessun'altra gesture sul canvas */
+  if (e.button !== 0) return;
+  if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;  /* touch: OrbitControls classico */
+  if (walkMode || flyAnim || !controls.enabled || !controls.enableRotate) return;
+  setNdcFromClient(mouseNdc, e.clientX, e.clientY);
+  raycaster.setFromCamera(mouseNdc, camera);
+  const hit = firstUnclippedHit(raycaster.intersectObjects(allBaseMeshes().filter(m => m.visible), false));
+  if (!hit) return;                       /* vuoto → orbita classica */
+  e.stopPropagation();                    /* OrbitControls non parte */
+  downXY = [e.clientX, e.clientY];        /* il picking al pointerup resta vivo (il suo pointerdown è bloccato) */
+  _pvPivot.copy(hit.point);
+  /* il target scivola alla PROFONDITÀ del punto colpito lungo l'asse di vista:
+     nessun salto (resta sull'asse) ma orbita/pan/zoom diventano locali alla
+     zona inquadrata invece che legati al target del vecchio "zoom elemento" */
+  const dir = camera.getWorldDirection(_pvV1);
+  const depth = _pvV2.subVectors(_pvPivot, camera.position).dot(dir);
+  controls.target.copy(camera.position).addScaledVector(dir, depth);
+  _pvPend.t = _pvPend.p = 0;
+  _pvDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, dist: 0 };
+  _pvDotEnsure();
+  _pvDot.position.copy(_pvPivot);        /* mostrato solo se il drag supera la soglia (un clic non fa lampeggiare nulla) */
+  try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {}
+}, { capture: true });
+
+renderer.domElement.addEventListener("pointermove", (e) => {
+  if (!_pvDrag || e.pointerId !== _pvDrag.id) return;
+  e.stopPropagation();                    /* niente hover concorrenti (handle box/asse) durante il drag */
+  const dx = e.clientX - _pvDrag.x, dy = e.clientY - _pvDrag.y;
+  _pvDrag.x = e.clientX; _pvDrag.y = e.clientY;
+  if (!_pvDrag.moved) {
+    _pvDrag.dist += Math.abs(dx) + Math.abs(dy);
+    if (_pvDrag.dist > 3) { _pvDrag.moved = true; _pvDot.material.opacity = 0.95; _pvDot.visible = true; }
+  }
+  const h = renderer.domElement.clientHeight || 1;
+  /* stessa scala pixel→angolo di OrbitControls (rotateLeft/rotateUp) */
+  _pvPend.t -= 2 * Math.PI * dx / h * controls.rotateSpeed;
+  _pvPend.p -= 2 * Math.PI * dy / h * controls.rotateSpeed;
+});
+
+function _pvEndPointer(e) {
+  if (!_pvDrag || e.pointerId !== _pvDrag.id) return;
+  try { renderer.domElement.releasePointerCapture(e.pointerId); } catch (_) {}
+  _pvDrag = null;                         /* _pvPend residuo → inerzia con lo stesso damping */
+  _pvDotUntil = performance.now() + 240;  /* fade-out dell'indicatore */
+}
+renderer.domElement.addEventListener("pointerup", _pvEndPointer);
+renderer.domElement.addEventListener("pointercancel", _pvEndPointer);
+
+/* chiamato dal loop PRIMA di controls.update(): applica gli angoli pendenti come
+   rotazione rigida (posizione camera + direzione di vista) attorno al pivot */
+function _pvApply(now) {
+  if (_pvDot && _pvDot.visible) {
+    /* dimensione costante a schermo (~9 px) + fade dopo il rilascio */
+    const d = camera.position.distanceTo(_pvDot.position);
+    const s = d * Math.tan(camera.fov * Math.PI / 360) * 9 / (renderer.domElement.clientHeight || 1);
+    _pvDot.scale.setScalar(Math.max(s, 1e-4));
+    if (!_pvDrag) {
+      const t = (_pvDotUntil - now) / 240;
+      if (t <= 0) _pvDot.visible = false;
+      else _pvDot.material.opacity = 0.95 * t;
+    }
+  }
+  if (!_pvDrag && Math.abs(_pvPend.t) < 1e-5 && Math.abs(_pvPend.p) < 1e-5) return;
+  const k = controls.enableDamping ? controls.dampingFactor : 1;
+  const st = _pvPend.t * k;
+  let sp = _pvPend.p * k;
+  _pvPend.t *= (1 - k); _pvPend.p *= (1 - k);
+  const dir = camera.getWorldDirection(_pvV1);
+  /* clamp del beccheggio: il polo (vista verticale) non si supera mai */
+  const polar = Math.acos(THREE.MathUtils.clamp(dir.y, -1, 1));
+  const spMax = polar - _PV_POLAR_MIN, spMin = polar - (Math.PI - _PV_POLAR_MIN);
+  if (sp > spMax) { sp = spMax; _pvPend.p = 0; }
+  else if (sp < spMin) { sp = spMin; _pvPend.p = 0; }
+  const right = _pvV2.crossVectors(dir, _PV_UP);
+  if (right.lengthSq() < 1e-12) right.set(1, 0, 0);
+  right.normalize();
+  _pvQ.setFromAxisAngle(_PV_UP, st).multiply(_pvQ2.setFromAxisAngle(right, sp));
+  const depth = camera.position.distanceTo(controls.target);   /* ricalcolata a ogni frame: si compone con lo zoom a rotella */
+  _pvV3.subVectors(camera.position, _pvPivot).applyQuaternion(_pvQ);
+  camera.position.copy(_pvPivot).add(_pvV3);
+  dir.applyQuaternion(_pvQ);
+  controls.target.copy(camera.position).addScaledVector(dir, depth);
+  camera.up.set(0, 1, 0);                 /* il lookAt lo fa controls.update() subito dopo */
+}
+
+/* Hook di sola lettura per la QA del pivot (console/automazione, come
+   __apeClashQA): NON è API pubblica, può cambiare senza preavviso. */
+window.__apePivotQA = {
+  models: () => models.length,
+  drag: () => !!_pvDrag,
+  pend: () => ({ t: _pvPend.t, p: _pvPend.p }),
+  pivot: () => _pvPivot.toArray(),
+  dot: () => _pvDot ? { visible: _pvDot.visible, pos: _pvDot.position.toArray() } : null,
+  /* proietta un punto mondo in pixel CSS del canvas (per verificare che il pivot resti sotto il cursore) */
+  project: (x, y, z) => {
+    camera.updateMatrixWorld(true);
+    const v = new THREE.Vector3(x, y, z).project(camera);
+    const r = renderer.domElement.getBoundingClientRect();
+    return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - (v.y + 1) / 2) * r.height, v.z];
+  },
+  flying: () => !!flyAnim,
+  /* un passo della cinematica senza aspettare il rAF (il loop è fermo a pannello nascosto):
+     replica il ramo orbita del render loop (volo → pivot → controls) */
+  step: () => {
+    const now = performance.now();
+    if (flyAnim) flyAnim(now);
+    else { _pvApply(now); controls.update(); }
+    camera.updateMatrixWorld(true);
+    scene.updateMatrixWorld(true);   /* nel loop vero lo fa renderer.render() */
+  }
+};
 
 function renderProfile(o) {
   const host = $("profileChart"); if (!host) return;
