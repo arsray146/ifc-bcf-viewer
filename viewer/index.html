@@ -1814,7 +1814,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.8.8";
+const APP_VERSION = "2.8.9";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -3403,41 +3403,81 @@ function streamableProducts(api, modelID, streamedEids, excluded) {
    i tagli dello shape editing, invece di sparire. Con unioni/intersezioni lungo la
    spina, cicli o operandi rotti il piano non è sicuro (mostrerebbe un pezzo solo o
    geometria fuorviante): fixes=null e l'elemento resta escluso come prima. */
-const BOOL_DEPTH_MAX = 12;
+/* v2.8.9 — si contano SOLO i tagli capaci di far esplodere la tassellatura.
+   Misurato su file reali (consegna NB43 FV02 del 2026-08-28, banco a fette):
+   troncando la slab bomba #10088 a profondità crescente, il costo resta piatto
+   fino a 24 tagli (38 ms, 1.090 triangoli) e al 26° salta a 24.265 ms con
+   19.446 triangoli — ×640 in tempo, ×18 in triangoli. Non è la PROFONDITÀ a
+   far male: è la FRAMMENTAZIONE, e a frammentare sono i tagli con un bordo,
+   cioè gli IfcPolygonalBoundedHalfSpace (e ogni altro solido sottratto).
+   Un IfcHalfSpaceSolid semplice è un semipiano INFINITO: tagliare con un piano
+   aggiunge qualche faccia e basta (misurato 0,35 ms e ~7,7 triangoli per taglio,
+   andamento lineare) e non può innescare l'esplosione.
+   Tutte e tre le bombe documentate (slab ×30 e ×20 di NB43, slab ×102 di
+   10-17041) tagliano con semipiani LIMITATI; il muro ARC_MUR_EPS di NB43 FV9,
+   14 tagli con piani infiniti, costa 4,9 ms e 108 triangoli — era un falso
+   positivo, e perdeva i suoi tagli per niente.
+   Se il build di web-ifc non espone la costante, `costoso` resta sempre vero e
+   il comportamento torna identico alla 2.8.8 (nessun rischio di regressione).
+   BOOL_NODES_MAX è solo una rete: nessuna catena reale osservata ci arriva
+   (il record è 102), ma tiene limitato il caso mai visto. */
+const BOOL_DEPTH_MAX = 12;    // tagli COSTOSI (bordati) annidati
+const BOOL_NODES_MAX = 96;    // nodi booleani totali, qualunque tipo di taglio
 function findBooleanBombs(api, modelID) {
   const ref = (x) => (x && x.value !== undefined ? x.value : null);
-  const ops = new Map();   // id booleano → [firstOp, secondOp, èDIFFERENCE]
+  const ops = new Map();   // id booleano → [firstOp, secondOp, èDIFFERENCE, tagliaCostoso]
   let it;
   try { it = api.GetLineIDsWithType(modelID, WebIFC.IFCBOOLEANRESULT, true); }
   catch (e) { return []; }
+  /* il TIPO del secondo operando basta a sé: GetLineType non costruisce l'oggetto
+     (GetLine su ogni taglio raddoppierebbe il pre-scan per niente) */
+  const HALF_PLAIN = WebIFC.IFCHALFSPACESOLID;
+  const typeOf = (id) => {
+    if (id === null) return 0;
+    try { return api.GetLineType(modelID, id); }
+    catch (e) {
+      try { return api.GetLine(modelID, id).type; } catch (e2) { return 0; }
+    }
+  };
   for (let i = 0; i < it.size(); i++) {
     const id = it.get(i);
     try {
       const l = api.GetLine(modelID, id);
       const op = String((l.Operator && l.Operator.value !== undefined ? l.Operator.value : l.Operator) || "").replace(/\./g, "").toUpperCase();
-      ops.set(id, [ref(l.FirstOperand), ref(l.SecondOperand), op === "DIFFERENCE"]);
+      const second = ref(l.SecondOperand);
+      /* costoso = tutto ciò che NON è un semipiano infinito: poligonali, boxed,
+         solidi, brep, altri booleani. In dubbio si conta (conservativo). */
+      ops.set(id, [ref(l.FirstOperand), second, op === "DIFFERENCE", typeOf(second) !== HALF_PLAIN]);
     } catch (e) { ops.set(id, []); }
   }
   if (!ops.size) return [];
-  /* profondità di annidamento per nodo, iterativa (le catene reali superano i 100
-     livelli: niente ricorsione). Un ciclo di riferimenti (file rotto) conta come 1. */
-  const depth = new Map();
+  /* Per nodo, iterativo (le catene reali superano i 100 livelli: niente ricorsione):
+     - depth = quanti TAGLI COSTOSI stanno sul ramo più profondo (è la soglia vera)
+     - nodes = quanti nodi booleani annidati, per la diagnostica e per la rete.
+     Un ciclo di riferimenti (file rotto) vale 0 tagli / 1 nodo. */
+  const depth = new Map(), nodes = new Map();
   for (const start of ops.keys()) {
     if (depth.has(start)) continue;
     const stack = [start];
     while (stack.length) {
       const id = stack[stack.length - 1];
-      const oo = (ops.get(id) || []).filter((o) => o !== null && ops.has(o) && o !== id);
-      const pend = oo.filter((o) => !depth.has(o) && stack.indexOf(o) === -1);
+      const o = ops.get(id) || [];
+      const oo = o.slice(0, 2).filter((x) => x !== null && ops.has(x) && x !== id);
+      const pend = oo.filter((x) => !depth.has(x) && stack.indexOf(x) === -1);
       if (pend.length) { for (const p of pend) stack.push(p); continue; }
-      let d = 1;
-      for (const o of oo) d = Math.max(d, 1 + (depth.get(o) || 1));
-      depth.set(id, d);
+      const w = o[3] ? 1 : 0;
+      let d = w, n = 1;
+      for (const x of oo) {
+        d = Math.max(d, w + (depth.get(x) || 0));
+        n = Math.max(n, 1 + (nodes.get(x) || 1));
+      }
+      depth.set(id, d); nodes.set(id, n);
       stack.pop();
     }
   }
+  const overThreshold = (d, n) => d > BOOL_DEPTH_MAX || n > BOOL_NODES_MAX;
   let anyDeep = false;
-  for (const d of depth.values()) if (d > BOOL_DEPTH_MAX) { anyDeep = true; break; }
+  for (const [id, d] of depth) if (overThreshold(d, nodes.get(id) || 1)) { anyDeep = true; break; }
   if (!anyDeep) return [];
   /* solido di base di un item oltre soglia: si scende lungo la spina dei
      FirstOperand finché si esce dalle entità booleane. Il piano è sicuro solo
@@ -3464,7 +3504,7 @@ function findBooleanBombs(api, modelID) {
       const p = api.GetLine(modelID, eid);
       if (!ref(p.Representation)) continue;
       const pds = api.GetLine(modelID, ref(p.Representation));
-      let worst = 0;
+      let worst = 0, worstNodes = 0;
       const fixes = [];
       let fixable = true;
       for (const rRef of (pds.Representations || [])) {
@@ -3473,16 +3513,20 @@ function findBooleanBombs(api, modelID) {
         for (const iRef of (sr.Items || [])) {
           const itemId = ref(iRef);
           const d = depth.get(itemId);
-          if (!d) continue;
+          /* `d === 0` è legittimo dalla 2.8.9 (catena di soli piani infiniti):
+             il salto va fatto solo sugli item NON booleani */
+          if (d === undefined) continue;
+          const n = nodes.get(itemId) || 1;
           if (d > worst) worst = d;
-          if (d <= BOOL_DEPTH_MAX) continue;
+          if (n > worstNodes) worstNodes = n;
+          if (!overThreshold(d, n)) continue;
           const base = baseOf(itemId);
           if (base === null) { fixable = false; continue; }
           fixes.push({ sr: srId, from: itemId, to: base });
         }
       }
-      if (worst > BOOL_DEPTH_MAX)
-        bombs.push({ eid, depth: worst, fixes: (fixable && fixes.length) ? fixes : null });
+      if (overThreshold(worst, worstNodes))
+        bombs.push({ eid, depth: worst, nodes: worstNodes, fixes: (fixable && fixes.length) ? fixes : null });
     } catch (e) { /* prodotto illeggibile: resta allo streaming (e al recupero) */ }
   }
   return bombs;
@@ -3783,10 +3827,12 @@ async function buildModel(data, name) {
     } catch (e) { return "?"; }
   };
   for (const b of preBombs) {
+    const _why = `${b.depth} tagli bordati su ${b.nodes} annidati` +
+      (b.depth > BOOL_DEPTH_MAX ? ` — soglia ${BOOL_DEPTH_MAX}` : ` — oltre la rete di ${BOOL_NODES_MAX} nodi`);
     if (boolTrunc.has(b.eid))
-      console.warn(`[APE Viewer] ${name}: elemento #${b.eid} mostrato SEMPLIFICATO — catena booleana annidata ×${b.depth} sostituita dal solido di base (tagli shape-edit non applicati) — ${_elemInfo(b.eid)}`);
+      console.warn(`[APE Viewer] ${name}: elemento #${b.eid} mostrato SEMPLIFICATO — catena booleana (${_why}) sostituita dal solido di base (tagli shape-edit non applicati) — ${_elemInfo(b.eid)}`);
     else
-      console.warn(`[APE Viewer] ${name}: elemento #${b.eid} escluso preventivamente (catena booleana annidata ×${b.depth}, soglia ${BOOL_DEPTH_MAX}, nessun piano di semplificazione sicuro) — ${_elemInfo(b.eid)}`);
+      console.warn(`[APE Viewer] ${name}: elemento #${b.eid} escluso preventivamente (catena booleana: ${_why}, nessun piano di semplificazione sicuro) — ${_elemInfo(b.eid)}`);
   }
   for (const vb of voidBombs)
     console.warn(`[APE Viewer] ${name}: elemento #${vb.eid} mostrato SENZA i suoi ${vb.nVoids} fori (corpo Brep da ${vb.faces} facce × ${vb.nVoids} sottrazioni: oltre soglia CSG) — ${_elemInfo(vb.eid)}`);
