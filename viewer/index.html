@@ -647,10 +647,21 @@ main:has(#profilePanel:not([hidden])) #navHelp{display:none}
 #dropHint .big{font-family:var(--disp);font-weight:700;font-size:23px;letter-spacing:.05em;color:var(--muted)}
 #dropHint .small{font-size:13px;max-width:460px;line-height:1.7;margin-top:10px;color:var(--muted)}
 #dropHint kbd{font-family:var(--mono);font-size:11.5px;background:var(--panel);border:1px solid var(--line-2);border-radius:3px;padding:1px 6px;color:var(--text)}
+/* Velo di VETRO (--glass + blur), scelta DELIBERATA (utente, 2.8.8) dopo aver
+   provato il velo opaco della 2.8.7: la federazione si vede comporsi dietro il
+   velo, un modello alla volta. Il costo non è la trasparenza: è UN present del
+   federato accumulato per FILE (warmupRender), col loop rAF spento (_loadingOn)
+   come dalla 2.8.6 — il quadratico vero era il ridisegno a ogni frame di yield. */
 #loading{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--glass);z-index:45;backdrop-filter:blur(2px)}
 #loading.on{display:flex}
 .spinner{width:36px;height:36px;border:3px solid var(--line-2);border-top-color:var(--lime-deep);border-radius:50%;animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* "scaldo i motori" nei pannelli QTO/clash mentre l'indice pset si costruisce
+   in background. Il display:flex vincerebbe su [hidden]: la regola esplicita
+   sotto lo ripristina (trappola nota, vedi pagine tool v3). */
+.qto-warmup{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.qto-warmup[hidden]{display:none}
+.mini-spin{width:13px;height:13px;flex:none;border:2px solid var(--line-2);border-top-color:var(--lime-deep);border-radius:50%;animation:spin .9s linear infinite}
 @media (prefers-reduced-motion:reduce){.spinner{animation-duration:2.5s}}
 #loadingMsg{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
 #snapOverlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:4;pointer-events:none}
@@ -1445,6 +1456,7 @@ body.diff-embed #railDiff{display:flex}
       </div>
       <div id="clashPane" style="display:none">
         <div id="clashControls">
+          <div id="clashWarmup" class="qto-warmup" hidden><span class="mini-spin"></span><span></span></div>
           <div class="clash-set" id="clashSetBoxA"></div>
           <div class="clash-set" id="clashSetBoxB"></div>
           <div class="clash-opts">
@@ -1476,6 +1488,7 @@ body.diff-embed #railDiff{display:flex}
     </div>
     <div id="qtoBlock" class="ltab-page" style="display:none">
       <div class="panel-head">
+        <div id="qtoWarmup" class="qto-warmup" hidden><span class="mini-spin"></span><span></span></div>
         <label class="qto-lbl" for="qtoGroupMode" data-i18n="qto.groupBy">Raggruppa per</label>
         <select id="qtoGroupMode">
           <option value="class" data-i18n="qto.groupClass">Classe IFC</option>
@@ -1801,7 +1814,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.8.5";
+const APP_VERSION = "2.8.8";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -1980,6 +1993,7 @@ const STRINGS = {
     "qto.groupParam": "Parametro",
     "qto.selPset": "— Pset —",
     "qto.selProp": "— Proprietà —",
+    "qto.warmup": "Scaldo i motori… leggo i parametri dei modelli ({i}/{n})",
     "qto.addCol": "Colonne personalizzate",
     "qto.addColT": "Somma un parametro numerico dei pset come colonna aggiuntiva",
     "qto.removeCol": "Rimuovi colonna",
@@ -2493,6 +2507,7 @@ const STRINGS = {
     "qto.groupParam": "Parameter",
     "qto.selPset": "— Pset —",
     "qto.selProp": "— Property —",
+    "qto.warmup": "Warming up… reading model parameters ({i}/{n})",
     "qto.addCol": "Custom columns",
     "qto.addColT": "Sum a numeric pset parameter as an extra column",
     "qto.removeCol": "Remove column",
@@ -2977,6 +2992,7 @@ function flyTo(pos, target, ms = 750) {
   };
 }
 let _lastFrameT = performance.now();
+let _loadingOn = false;   // overlay di caricamento attivo (showLoading/hideLoading)
 renderer.setAnimationLoop((now) => {
   const dt = Math.min((now - _lastFrameT) / 1000, 0.1);
   _lastFrameT = now;
@@ -2993,7 +3009,13 @@ renderer.setAnimationLoop((now) => {
     controls.update();
   }
   _pcUpdateLOD();   // LOD nuvole: decima durante il movimento, pieno dettaglio da fermo
-  renderer.render(scene, camera);
+  /* v2.8.6 — con l'overlay di caricamento su, il loop NON disegna la scena: dallo
+     streaming a blocchi (v2.8.4) ogni yield lascia passare un frame, e su una
+     federazione ogni frame ridisegna TUTTI i modelli già accumulati — su N modelli
+     è un costo quadratico che il one-shot di prima non pagava (thread bloccato =
+     zero frame). L'overlay copre comunque la vista; i warmup GPU chiamano
+     renderer.render direttamente e non passano da qui. */
+  if (!_loadingOn) renderer.render(scene, camera);
 });
 
 /* ============================ web-ifc ============================ */
@@ -3213,6 +3235,42 @@ async function readPickedFile(file) {
   }
 }
 
+/* v2.8.7 — cronometro di fase del caricamento. Ogni file produce una riga
+   { file, MB, read, wasm, open, prescan, stream, scene, edges, aln, warmup, tot }
+   in `__apePerf.rows` (ms); le fasi finiscono anche sulla User Timing API
+   (performance.measure "ifc:<fase>"), visibili nei trace DevTools. Con ?perf=1
+   nell'URL la tabella esce in console a fine caricamento — è il canale con cui
+   un utente può riportare DOVE va il tempo sulla sua macchina, senza strumenti.
+   Costo a spegnimento: un performance.now() per cambio fase, ~10 per file. */
+const _PERF = { rows: [], cur: null, t0: 0, tp: 0, ph: null, on: /[?&]perf=1/.test(location.search) };
+window.__apePerf = _PERF;
+function _perfPhase(ph) {
+  const now = performance.now();
+  if (_PERF.cur && _PERF.ph) {
+    _PERF.cur[_PERF.ph] = Math.round((_PERF.cur[_PERF.ph] || 0) + (now - _PERF.tp));
+    try { performance.measure("ifc:" + _PERF.ph + " " + _PERF.cur.file, { start: _PERF.tp, end: now }); } catch (e) {}
+  }
+  _PERF.ph = ph; _PERF.tp = now;
+}
+function _perfFile(name, size) {
+  _perfEnd(false);
+  _PERF.cur = { file: name, MB: +(size / 1048576).toFixed(1) };
+  if (performance.memory) _PERF.cur.heap0 = Math.round(performance.memory.usedJSHeapSize / 1048576);
+  _PERF.rows.push(_PERF.cur);
+  _PERF.t0 = performance.now();
+  _perfPhase("read");
+}
+function _perfEnd(final) {
+  _perfPhase(null);
+  if (_PERF.cur) { _PERF.cur.tot = Math.round(performance.now() - _PERF.t0); _PERF.cur = null; }
+  if (final && _PERF.on && _PERF.rows.length) {
+    console.table(_PERF.rows);
+    const tot = _PERF.rows.reduce((s, r) => s + (r.tot || 0), 0);
+    console.info("[APE Viewer] perf: totale " + (tot / 1000).toFixed(1) + " s su " + _PERF.rows.length + " voci" +
+      (performance.memory ? " · heap JS " + Math.round(performance.memory.usedJSHeapSize / 1048576) + " MB" : ""));
+  }
+}
+
 async function loadIfcFiles(files) {
   await ifcReady;
   const wasEmpty = models.length === 0;
@@ -3227,6 +3285,7 @@ async function loadIfcFiles(files) {
   for (let i = 0; i < list.length; i++) {
     const f = list[i];
     try {
+      _perfFile(f.name, f.size);
       showLoading(tr("load.reading", { f: f.name }));
       const data = await (ahead || readPickedFile(f));
       ahead = (i + 1 < list.length && list[i + 1].size <= PREFETCH_MAX)
@@ -3239,13 +3298,19 @@ async function loadIfcFiles(files) {
          si spalma file per file (e il trasferimento asincrono verso la GPU si
          sovrappone al parse del file successivo) invece di accumularsi tutto
          nella passata unica di fine coda, che sulle federazioni erano ~10 s di
-         "Preparazione scena 3D" in un colpo solo. */
-      if (m && m.meshes.length) { showLoading(tr("load.gpu")); await loadYield(); warmupRender(m); }
+         "Preparazione scena 3D" in un colpo solo.
+         v2.8.6 — senza label né yield: ora il warmup disegna il solo modello
+         nuovo (decine di ms) e il tick da 40 ms per file su una federazione
+         lunga costava più della fase stessa. */
+      _perfPhase("warmup");
+      if (m && m.meshes.length) warmupRender(m);
     } catch (e) {
       console.error(e);
       toast(tr("toast.ifcLoadErr", { f: f.name, e: (e.message || e) }));
     }
   }
+  _perfFile("(fine federazione)", 0);
+  _perfPhase("finish");
   $("dropHint").style.display = models.length ? "none" : "";
   if (models.length) dismissLanding();
   updateStats();
@@ -3269,8 +3334,10 @@ async function loadIfcFiles(files) {
   if (models.length) {
     showLoading(tr("load.gpu"));
     await tick();
+    _perfPhase("warmup");
     warmupRender();
   }
+  _perfEnd(true);
   hideLoading();
 }
 
@@ -3281,7 +3348,13 @@ async function loadIfcFiles(files) {
    resta dentro la fase di caricamento etichettata invece del primo frame utile. */
 function warmupRender(onlyModel) {
   /* v2.8.4 — con onlyModel: warmup del SOLO modello appena costruito (upload
-     spalmato file per file); senza argomento: passata totale di fine coda. */
+     spalmato file per file); senza argomento: passata totale di fine coda.
+     v2.8.8 — il present disegna il federato ACCUMULATO (la 2.8.6 nascondeva gli
+     altri modelli): dietro il velo di vetro la federazione si vede comporsi, e
+     il costo è UN draw completo per FILE — quello che pesava nella 2.8.5 era il
+     ridisegno a ogni frame lasciato passare dagli yield (decine per file), che
+     resta spento via _loadingOn. Il frustum culling si sospende SOLO per il
+     modello nuovo: è il suo upload che va forzato anche fuori inquadratura. */
   const touched = [];
   const uncull = (o) => { if (o.frustumCulled) { o.frustumCulled = false; touched.push(o); } };
   if (onlyModel) {
@@ -3529,9 +3602,12 @@ async function buildModel(data, name) {
      A è la georeferenziazione del modello (IfcMapConversion / TrueNorth, Z-up),
      O è l'origine condivisa (primo vertice, coordinate mappa) e F lo swizzle finale.
      Niente COORDINATE_TO_ORIGIN: ribasamento e flip li gestiamo noi, in doppia precisione. */
+  _perfPhase("wasm");
   let api = await takeIfcApi();   // v2.5.3 — istanza WASM dedicata al modello ("let": il
                                   // recupero fault-tolerant può doverla sostituire)
+  _perfPhase("open");
   const modelID = api.OpenModel(data, {});
+  _perfPhase("prescan");
   const geo = readGeoref(api, modelID);
   /* v1.4.1: s_eff = Scale / fattoreUnità — la geometria di web-ifc è già in metri.
      Caso reale: T21VI02 (Revit 25.4/ODA, file in mm, Scale=0.001) → s_eff = 1. */
@@ -3634,6 +3710,7 @@ async function buildModel(data, name) {
   const skippedEids = [];
   const MAX_SKIP = 8;   // oltre: il problema non è il singolo elemento, inutile insistere
   let partial = false;
+  _perfPhase("stream");
   try {
     /* v2.8.4 — streaming SEMPRE a blocchi (prima: StreamAllMeshes in un colpo solo,
        thread bloccato per l'intera durata). Stessi prodotti e stesse callback
@@ -3721,6 +3798,8 @@ async function buildModel(data, name) {
   if (voidBombs.length && !partial) toast(tr("toast.voidBombs", { f: name, n: voidBombs.length }));
   if (bcfGeoMatrix === null) bcfGeoMatrix = A.clone();   // riferimento camere BCF: l'A definitiva del primo modello
 
+  _perfPhase("scene");
+  const _tsg = performance.now();
   for (const b of buckets.values()) {
     const g = new THREE.BufferGeometry();
     /* slice: rilascia la capacità in eccesso della crescita a raddoppio */
@@ -3742,7 +3821,9 @@ async function buildModel(data, name) {
                       baseOpacity: b.opacity, baseTransparent: b.opacity < 0.999 };
     rootGroup.add(mesh);
     model.meshes.push(mesh);
+    const _te = performance.now();
     const edge = makeEdges(g);
+    if (_PERF.cur) _PERF.cur.edges = Math.round((_PERF.cur.edges || 0) + performance.now() - _te);
     if (edge) {
       edge.visible = edgesOn;
       rootGroup.add(edge);
@@ -3755,6 +3836,7 @@ async function buildModel(data, name) {
      dall'origine condivisa (primo vertice del primo modello) il fit iniziale inquadra il
      vuoto e il float32 quantizza i vertici (scatti di decimetri a migliaia di km):
      avvisare subito è l'unico indizio visibile del disallineamento. */
+  if (_PERF.cur) _PERF.cur.scnGeo = Math.round(performance.now() - _tsg);
   const mbox = new THREE.Box3();
   for (const ms of model.meshes) if (ms.geometry.boundingBox) mbox.union(ms.geometry.boundingBox);
   if (!mbox.isEmpty()) {
@@ -3763,12 +3845,15 @@ async function buildModel(data, name) {
     if (far > 1e5) toast(tr("toast.farOrigin", { f: name, km: (far / 1000).toFixed(0) }));
   }
   models.push(model);
+  const _tsi = performance.now();
   classeCache.clear();   // i nuovi GUID possono ora risolvere la Classe (v1.7.6)
   idsInvalidate();       // l'universo elementi è cambiato: l'esito IDS va ricalcolato
   qtoInvalidate();       // idem per il computo quantità (feature/qto)
   clashInvalidate();     // idem per la clash detection (feature/clash)
+  if (_PERF.cur) _PERF.cur.scnInv = Math.round(performance.now() - _tsi);
   prewarmModel(model);  // v1.9.4 — costruisce le mappe pset/type in background (idle),
                         // così la PRIMA selezione non paga la scansione del modello
+  _perfPhase("aln");
   try { extractAlignments(model, data); } catch (e) { console.warn("alignment:", e); } // v1.9.7
   try { _lxmlOnModelLoad(); } catch (e) { console.warn("landxml:", e); }  // v2.1.0 — origine cambiata? ricostruisci gli assi LandXML
   updateAlignUI();   // il bottone Asse ora compare anche senza IfcAlignment (per caricare un LandXML)
@@ -5053,6 +5138,14 @@ renderer.domElement.addEventListener("dblclick", (e) => {
    sincrono della prima selezione resta corretto anche se arriva a metà prewarm. */
 const PREWARM_SLICE_MS = 12;
 function _prewarmYield() {
+  /* v2.8.8 — a finestra nascosta i timer (compreso il timeout di rIC) sono
+     strozzati a ~1 al minuto: il prewarm restava di fatto CONGELATO in
+     background. Nascosta e senza caricamento in corso non c'è UI da tenere
+     reattiva: si cede con MessageChannel (nessun throttling) e la costruzione
+     corre a piena velocità. Durante il caricamento resta rIC anche da nascosti,
+     per non infilare fette nei buchi di yield del percorso di caricamento. */
+  if (document.hidden && !_loadingOn)
+    return new Promise(r => { const ch = new MessageChannel(); ch.port1.onmessage = () => r(); ch.port2.postMessage(0); });
   return new Promise(r => {
     if (typeof requestIdleCallback === "function") requestIdleCallback(() => r(), { timeout: 500 });
     else setTimeout(r, 0);
@@ -5065,8 +5158,49 @@ async function prewarmModel(model) {
     if (!models.includes(model)) return;   // modello rimosso prima di iniziare
     await _prewarmPsets(model);
     await _prewarmTypes(model);
+    await _qtoPropsAsync(model);
     model._prewarmed = true;
   } catch (e) { /* il lazy alla prima selezione resta comunque il fallback */ }
+}
+/* v2.8.8 — una sola costruzione in volo per modello: il prewarm e il warmup dei
+   pannelli (qtoIndexWarmup) la CONDIVIDONO invece di scandire due volte. */
+function _qtoPropsAsync(model) {
+  if (model._qtoPsetProps) return Promise.resolve();
+  if (!model._qtoPsetPropsP)
+    model._qtoPsetPropsP = _prewarmQtoProps(model).finally(() => { model._qtoPsetPropsP = null; });
+  return model._qtoPsetPropsP;
+}
+/* v2.8.7 — contributo del modello all'indice Pset→Proprietà (tendine QTO/clash/
+   nuvola), in fette idle come i pset: così la prima apertura di quei pannelli
+   trova il grosso già pronto invece di pagare la scansione dell'intera
+   federazione in un colpo solo. Commit solo a scansione completa: il costruttore
+   sincrono (_qtoModelPsetProps) resta corretto se arriva a metà prewarm. */
+async function _prewarmQtoProps(model) {
+  if (model._qtoPsetProps) return;
+  const mm = new Map();
+  let t0 = performance.now();
+  for (const type of [WebIFC.IFCPROPERTYSET, WebIFC.IFCELEMENTQUANTITY]) {
+    let ids;
+    try { ids = model.api.GetLineIDsWithType(model.modelID, type); }
+    catch (e) { continue; }   /* tipo assente nello schema del modello */
+    const n = ids.size();
+    for (let i = 0; i < n; i++) {
+      if (performance.now() - t0 > PREWARM_SLICE_MS) {
+        await _prewarmYield();
+        if (model._qtoPsetProps || !models.includes(model)) return;
+        t0 = performance.now();
+      }
+      try {
+        const ps = readPsetQto(model, ids.get(i));
+        if (!ps || !ps.name) continue;
+        let set = mm.get(ps.name);
+        if (!set) { set = new Set(); mm.set(ps.name, set); }
+        for (const k of ps.props.keys()) if (k) set.add(k);
+        for (const q of ps.qtys) if (q.name) set.add(q.name);
+      } catch (e) { /* pset illeggibile: si salta */ }
+    }
+  }
+  if (!model._qtoPsetProps) model._qtoPsetProps = mm;
 }
 async function _prewarmPsets(model) {
   if (model.psetMap) return;
@@ -5424,6 +5558,9 @@ const qtoOpenGroups = new Set();   // chiavi dei gruppi espansi (persistono tra 
 function qtoInvalidate() {
   qtoPropIndex = null; qtoResult = null; qtoOpenGroups.clear();
   if (typeof renderQtoSelects === "function") { renderQtoSelects(); renderQtoList(); updateQtoBadge(); updateQtoRunBtn(); }
+  /* tab QTO in vista: l'indice si ricostruisce in background (fusione + scan
+     dei soli modelli senza contributo), mai in modo sincrono nel load path */
+  if (typeof qtoIndexWarmup === "function" && $("qtoBlock").style.display !== "none") qtoIndexWarmup();
 }
 
 /* Come readPset (che alimenta il pannello proprietà e NON va toccato) ma
@@ -5551,23 +5688,41 @@ async function extractQtoRows(config) {
    scansiona SOLO le righe di definizione (poche), mai gli elementi.
    Lazy: invocato alla prima apertura della tab QTO, non al load.
    qtoPropIndex: Map<psetName, [propName,...]> — include anche i nomi
-   delle quantità (Qto_*), così sono selezionabili come parametri. */
+   delle quantità (Qto_*), così sono selezionabili come parametri.
+   v2.8.7 — il contributo di OGNI modello (m._qtoPsetProps) si calcola UNA volta
+   nella vita del modello e si fonde qui: i pset di un modello non cambiano mai
+   in sessione (l'editing avviene nei tool, non nel viewer), quindi invalidare
+   l'indice fuso non deve mai far ripagare i GetLine dei modelli già scanditi.
+   Prima questa funzione riscandiva TUTTA la federazione a ogni file aggiunto
+   (via clashInvalidate → renderClashUI): sul lotto reale da 25 file/815 MB
+   erano ~100 s dei ~134 s di caricamento totali, con crescita quadratica. */
+function _qtoModelPsetProps(m) {
+  if (m._qtoPsetProps) return m._qtoPsetProps;
+  const mm = new Map();   // psetName → Set<propName>
+  for (const type of [WebIFC.IFCPROPERTYSET, WebIFC.IFCELEMENTQUANTITY]) {
+    try {
+      const ids = m.api.GetLineIDsWithType(m.modelID, type);
+      for (let i = 0; i < ids.size(); i++) {
+        const ps = readPsetQto(m, ids.get(i));
+        if (!ps || !ps.name) continue;
+        let set = mm.get(ps.name);
+        if (!set) { set = new Set(); mm.set(ps.name, set); }
+        for (const k of ps.props.keys()) if (k) set.add(k);
+        for (const q of ps.qtys) if (q.name) set.add(q.name);
+      }
+    } catch (e) { /* tipo assente nello schema del modello */ }
+  }
+  m._qtoPsetProps = mm;
+  return mm;
+}
 function ensureQtoPropIndex() {
   if (qtoPropIndex) return qtoPropIndex;
   const map = new Map();
   for (const m of models) {
-    for (const type of [WebIFC.IFCPROPERTYSET, WebIFC.IFCELEMENTQUANTITY]) {
-      try {
-        const ids = m.api.GetLineIDsWithType(m.modelID, type);
-        for (let i = 0; i < ids.size(); i++) {
-          const ps = readPsetQto(m, ids.get(i));
-          if (!ps || !ps.name) continue;
-          let set = map.get(ps.name);
-          if (!set) { set = new Set(); map.set(ps.name, set); }
-          for (const k of ps.props.keys()) if (k) set.add(k);
-          for (const q of ps.qtys) if (q.name) set.add(q.name);
-        }
-      } catch (e) { /* tipo assente nello schema del modello */ }
+    for (const [name, props] of _qtoModelPsetProps(m)) {
+      let set = map.get(name);
+      if (!set) { set = new Set(); map.set(name, set); }
+      for (const p of props) set.add(p);
     }
   }
   const cmp = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
@@ -6006,7 +6161,7 @@ function setIssueMode(m) {
   $("idsPane").style.display = m === "ids" ? "" : "none";
   $("clashPane").style.display = m === "clash" ? "" : "none";
   if (m === "ids") renderIdsList();     // la verifica parte solo dal pulsante, mai in automatico
-  if (m === "clash") renderClashUI();   // aggiorna i set disponibili (modelli/classi caricati)
+  if (m === "clash") { renderClashUI(); qtoIndexWarmup(); }   // set disponibili + indice pset in background
 }
 document.querySelectorAll("#issueModeBar .tmode").forEach(b => b.addEventListener("click", () => setIssueMode(b.dataset.imode)));
 
@@ -6597,11 +6752,19 @@ function clashInvalidate() {
   CLASH.results = null; CLASH.lastRun = null;
   CLASH.selection.clear(); CLASH._anchor = null; CLASH._order = [];
   CLASH.isoOn = false;
-  for (const m of models) { m._clashClassSet = null; m._clashParamVals = null; }   // classi/pset possono cambiare
+  /* v2.8.7 — le cache PER-MODELLO (m._clashClassSet, m._clashParamVals,
+     m._qtoPsetProps) NON si azzerano più: classi e pset di un modello sono
+     immutabili in sessione (il viewer non li edita; i tool sono pagine a parte)
+     e un modello rimosso porta via le sue cache con l'oggetto. Azzerarle a ogni
+     file aggiunto le faceva ricostruire — GetLine su tutta la federazione — a
+     ogni passo del caricamento. Decadono solo gli AGGREGATI (indice, risultati). */
   /* CLASH.groups e CLASH.statuses SOPRAVVIVONO: chiavi su GUID, tornano validi al ricaricamento */
   if (CLASH.mtx) CLASH.mtx.runIssues = null;   // la matrice SOPRAVVIVE ai modelli (come LXML.sources)
   _clashMarkerHide();
-  if ($("clashControls")) { renderClashUI(); renderClashMtxInfo(); renderClashSummary(); renderClashResults(); updateIssuesBadge(); }
+  if ($("clashControls")) {
+    renderClashUI(); renderClashMtxInfo(); renderClashSummary(); renderClashResults(); updateIssuesBadge();
+    if ($("clashPane").style.display !== "none") qtoIndexWarmup();   // pannello in vista: indice in background
+  }
 }
 
 /* ---- indice geometrico per-elemento (AABB + riferimenti ai range) ---- */
@@ -7364,7 +7527,12 @@ function _clashSetBox(side) {
   const sp = document.createElement("select"); sp.className = "qto-sel";
   const o0 = document.createElement("option"); o0.value = ""; o0.textContent = tr("qto.selPset"); sp.appendChild(o0);
   try {
-    if (models.length) for (const ps of ensureQtoPropIndex().keys()) {
+    /* v2.8.8 — SOLO consumo: la costruzione (asincrona, con la scritta "scaldo
+       i motori" nel pannello) parte da qtoIndexWarmup all'apertura del pannello
+       clash o della tab QTO — mai da un render, che arriva anche da
+       clashInvalidate a OGNI file caricato: costruire qui riscandiva l'intera
+       federazione durante il caricamento. */
+    if (models.length && qtoPropIndex) for (const ps of qtoPropIndex.keys()) {
       const o = document.createElement("option"); o.value = ps; o.textContent = ps; sp.appendChild(o);
     }
   } catch (e) { /* indice pset non disponibile: il filtro parametro resta vuoto */ }
@@ -9063,8 +9231,10 @@ function fillPsetSelect(sel) {
   const o0 = document.createElement("option");
   o0.value = ""; o0.textContent = tr("qto.selPset");
   sel.appendChild(o0);
-  if (models.length && $("qtoBlock").style.display !== "none") {
-    for (const ps of ensureQtoPropIndex().keys()) {
+  /* v2.8.8 — SOLO consumo (la costruzione è di qtoIndexWarmup, in background):
+     un render non deve mai bloccare il thread scandendo la federazione */
+  if (models.length && qtoPropIndex) {
+    for (const ps of qtoPropIndex.keys()) {
       const o = document.createElement("option");
       o.value = ps; o.textContent = ps;
       sel.appendChild(o);
@@ -9090,6 +9260,41 @@ function fillPropSelect(sel, pset) {
 function renderQtoSelects() {
   fillPsetSelect($("qtoGroupPset")); fillPropSelect($("qtoGroupProp"), $("qtoGroupPset").value);
   fillPsetSelect($("qtoColPset")); fillPropSelect($("qtoColProp"), $("qtoColPset").value);
+}
+
+/* v2.8.8 — indice Pset→Proprietà costruito SENZA congelare la UI: all'apertura
+   di QTO o del pannello clash, se l'indice manca, i contributi per-modello si
+   preparano in fette idle (le stesse del prewarm, condivise via _qtoPropsAsync)
+   con la scritta "scaldo i motori" NEL pannello — il viewer resta usabile.
+   A contributi pronti la fusione è questione di millisecondi e le tendine si
+   riempiono da sole. Un solo run alla volta; se durante la costruzione arrivano
+   modelli nuovi (federazione in carico) il giro li raccoglie prima di fondere. */
+let _qtoWarmRun = null;
+function _qtoWarmupUI(on, i, n) {
+  for (const id of ["qtoWarmup", "clashWarmup"]) {
+    const el = $(id); if (!el) continue;
+    el.hidden = !on;
+    if (on) el.lastElementChild.textContent = tr("qto.warmup", { i, n });
+  }
+}
+function qtoIndexWarmup() {
+  if (qtoPropIndex || !models.length || _qtoWarmRun) return;
+  _qtoWarmRun = (async () => {
+    try {
+      for (;;) {
+        const todo = models.filter(m => !m._qtoPsetProps);
+        if (!todo.length) break;
+        let i = models.length - todo.length;
+        for (const m of todo) { _qtoWarmupUI(true, ++i, models.length); await _qtoPropsAsync(m); }
+      }
+      ensureQtoPropIndex();   // tutti i contributi pronti: solo fusione, millisecondi
+    } finally {
+      _qtoWarmRun = null;
+      _qtoWarmupUI(false);
+      renderQtoSelects();
+      if ($("clashPane").style.display !== "none") renderClashUI();
+    }
+  })();
 }
 
 /* chip delle colonne personalizzate (parametri numerici da sommare) */
@@ -9269,7 +9474,7 @@ function setLeftTab(which) {
   $("qtoBlock").style.display = which === "qto" ? "" : "none";
   $("cloudsBlock").style.display = which === "clouds" ? "" : "none";
   $("diffBlock").style.display = which === "diff" ? "" : "none";   /* pagina viva solo in ?embed=diff */
-  if (which === "qto") renderQtoSelects();   /* indice Pset→Proprietà lazy: costruito alla prima apertura */
+  if (which === "qto") { renderQtoSelects(); qtoIndexWarmup(); }   /* indice Pset→Proprietà: costruito in background alla prima apertura */
 }
 document.querySelectorAll(".ltab").forEach(b => b.addEventListener("click", () => setLeftTab(b.dataset.tab)));
 
@@ -9415,8 +9620,8 @@ function updateStats() {
   $("tabModelsCount").textContent = models.length;
   updateIssuesBadge();
 }
-function showLoading(msg) { $("loadingMsg").textContent = msg; $("loading").classList.add("on"); }
-function hideLoading() { $("loading").classList.remove("on"); }
+function showLoading(msg) { $("loadingMsg").textContent = msg; $("loading").classList.add("on"); _loadingOn = true; }
+function hideLoading() { $("loading").classList.remove("on"); _loadingOn = false; }
 function tick() { return new Promise(r => setTimeout(r, 40)); }
 /* v2.8.4 — yield del percorso di caricamento: con la finestra in secondo piano i
    timer sono strozzati a ≥1 s l'uno (su una federazione da 8 file sono ~10 s
@@ -10183,6 +10388,19 @@ function _alnEachChunk(data, fn) {
    per i comuni IFC architettonici senza alignment). */
 function _alnHasKw(data) {
   if (typeof data === "string") return data.indexOf("IFCALIGNMENT") !== -1;
+  /* v2.8.7 — sniff dell'header PRIMA della scansione byte per byte: IfcAlignment
+     esiste solo negli schemi IFC4X* — se FILE_SCHEMA dichiara IFC2X3 o IFC4
+     "liscio" la scansione completa e' inutile (centinaia di ms su un file da
+     >100 MB, per ogni file della federazione). Header assente o schema non
+     riconosciuto: si scandisce tutto come prima, nessun falso negativo. */
+  try {
+    const head = new TextDecoder("latin1").decode(data.subarray(0, 4096)).toUpperCase();
+    const fs = head.indexOf("FILE_SCHEMA");
+    if (fs !== -1) {
+      const seg = head.slice(fs, fs + 200);
+      if (!seg.includes("IFC4X") && (seg.includes("IFC2X3") || seg.includes("IFC4"))) return false;
+    }
+  } catch (e) { /* header illeggibile: si scandisce */ }
   const P = [73, 70, 67, 65, 76, 73, 71, 78, 77, 69, 78, 84]; // "IFCALIGNMENT"
   const n = data.length - P.length;
   for (let i = 0; i < n; i++) {
