@@ -349,9 +349,9 @@ main.left-off .left-resize{display:none}
 .tree-row .eye svg{width:13px;height:13px;stroke:var(--muted);fill:none;stroke-width:1.8}
 .tree-row .eye.off{background:var(--panel-2)}
 .tree-row .eye.off svg{stroke:var(--faint)}
-.tree-row .eye.eye-el{width:18px;height:18px;border:none;background:transparent}
-.tree-row .eye.eye-el svg{width:12px;height:12px}
-.tree-el.hidden-el .t-label{color:var(--faint);opacity:.6}
+.tree-row .eye.eye-el,.tree-row .eye.eye-grp{width:18px;height:18px;border:none;background:transparent}
+.tree-row .eye.eye-el svg,.tree-row .eye.eye-grp svg{width:12px;height:12px}
+.tree-row.hidden-el .t-label{color:var(--faint);opacity:.6}
 .tree-row .t-ico{flex:0 0 auto;width:15px;height:15px;display:inline-flex;color:var(--lime-deep)}
 .tree-row .t-ico svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
 .tree-node>.t-label{font-weight:600}
@@ -1814,7 +1814,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.8.9";
+const APP_VERSION = "2.8.10";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2182,6 +2182,10 @@ const STRINGS = {
     "ctx.isolate": "Isola elemento", "ctx.unisolate": "Rimuovi isolamento",
     "ctx.hideElem": "Nascondi elemento", "ctx.showHidden": "Mostra elementi nascosti ({n})",
     "elhide.hide": "Nascondi elemento", "elhide.show": "Mostra elemento",
+    "grphide.hide": "Nascondi tutti gli elementi", "grphide.show": "Mostra tutti gli elementi",
+    "ctx.hideSel": "Nascondi selezione ({n})", "ctx.hideRest": "Nascondi tutto il resto",
+    "toast.hiddenN": "{n} elementi nascosti — tasto destro: «Mostra elementi nascosti» per ripristinare",
+    "sel.multiLabel": "selezione multipla (Ctrl+clic)",
     "toast.elemHidden": "Elemento nascosto — tasto destro: «Mostra elementi nascosti» per ripristinare",
     "ctx.copyGuid": "Copia GUID", "ctx.selSameClasse": "Seleziona stessa Classe",
     "ctx.sbOnSel": "Section box su selezione", "ctx.properties": "Proprietà",
@@ -2307,9 +2311,9 @@ const STRINGS = {
     "confirm.removeModelDirty": "Rimuovere {name} dalla federazione?\n\nATTENZIONE: {n} modifiche non scaricate andranno perse.",
     "confirm.removeTitle": "Conferma rimozione", "confirm.remove": "Rimuovi",
     "confirm.ok": "OK", "confirm.no": "Annulla",
-    "tree.nodeTitle": "Clic: proprietà e selezione · Doppio clic: zoom · ▸: espandi",
-    "tree.nodeTitleNoGeo": "▸ o clic: espandi",
-    "tree.catTitle": "Clic: seleziona tutti gli elementi della categoria · Doppio clic: zoom · ▸: espandi",
+    "tree.nodeTitle": "Clic: proprietà e selezione · Ctrl+clic: aggiungi/togli dalla selezione · Doppio clic: zoom · ▸: espandi",
+    "tree.nodeTitleNoGeo": "▸ o clic: espandi · Ctrl+clic: aggiungi/togli dalla selezione",
+    "tree.catTitle": "Clic: seleziona tutti gli elementi della categoria · Ctrl+clic: aggiungi/togli dalla selezione · Doppio clic: zoom · ▸: espandi",
     "tree.more": "… mostra altri {n} di {tot}",
     "navHelp.walk": "WALK · W/A/S/D o frecce: muovi · Q/E: giù/su · Maiusc: corri · trascina: guarda · rotella: velocità ({v} m/s) · Esc: esci",
     "navHelp.orbit": "Orbita: tasto sx · Pan: rotella premuta · Zoom: scroll · Frecce: muovi (Maiusc+↑↓: alza/abbassa) · 2× clic rotella: zoom esteso",
@@ -2696,6 +2700,10 @@ const STRINGS = {
     "ctx.isolate": "Isolate element", "ctx.unisolate": "Remove isolation",
     "ctx.hideElem": "Hide element", "ctx.showHidden": "Show hidden elements ({n})",
     "elhide.hide": "Hide element", "elhide.show": "Show element",
+    "grphide.hide": "Hide all elements", "grphide.show": "Show all elements",
+    "ctx.hideSel": "Hide selection ({n})", "ctx.hideRest": "Hide everything else",
+    "toast.hiddenN": "{n} elements hidden — right-click: “Show hidden elements” to restore",
+    "sel.multiLabel": "multi-selection (Ctrl+click)",
     "toast.elemHidden": "Element hidden — right-click: “Show hidden elements” to restore",
     "ctx.copyGuid": "Copy GUID", "ctx.selSameClasse": "Select same Classe",
     "ctx.sbOnSel": "Section box on selection", "ctx.properties": "Properties",
@@ -2813,9 +2821,9 @@ const STRINGS = {
     "confirm.removeModelDirty": "Remove {name} from the federation?\n\nWARNING: {n} unsaved changes will be lost.",
     "confirm.removeTitle": "Confirm removal", "confirm.remove": "Remove",
     "confirm.ok": "OK", "confirm.no": "Cancel",
-    "tree.nodeTitle": "Click: properties and selection · Double-click: zoom · ▸: expand",
-    "tree.nodeTitleNoGeo": "▸ or click: expand",
-    "tree.catTitle": "Click: select all elements in the category · Double-click: zoom · ▸: expand",
+    "tree.nodeTitle": "Click: properties and selection · Ctrl+click: add/remove from selection · Double-click: zoom · ▸: expand",
+    "tree.nodeTitleNoGeo": "▸ or click: expand · Ctrl+click: add/remove from selection",
+    "tree.catTitle": "Click: select all elements in the category · Ctrl+click: add/remove from selection · Double-click: zoom · ▸: expand",
     "tree.more": "… show {n} more of {tot}",
     "navHelp.walk": "WALK · W/A/S/D or arrows: move · Q/E: down/up · Shift: run · drag: look · wheel: speed ({v} m/s) · Esc: exit",
     "navHelp.orbit": "Orbit: left button · Pan: press wheel · Zoom: scroll · Arrows: move (Shift+↑↓: raise/lower) · Wheel double-click: fit all",
@@ -3190,7 +3198,7 @@ const SPATIAL_TYPES = new Set([
   WebIFC.IFCFACILITY, WebIFC.IFCFACILITYPART, WebIFC.IFCBRIDGE, WebIFC.IFCROAD,
   WebIFC.IFCRAILWAY, WebIFC.IFCMARINEFACILITY, WebIFC.IFCSPATIALZONE
 ].filter(t => t !== undefined));
-let selTreeRow = null;
+let selTreeRows = new Set();   // righe .sel dell'albero (più d'una con la selezione additiva)
 let modelUidCounter = 0;
 
 /* Legge i byte di un file scelto dall'utente. Gli errori di ACCESSO al file sono
@@ -4102,8 +4110,9 @@ function toggleModelVisibility(m) {
   for (const mesh of m.meshes) mesh.visible = m.visible;
   for (const ed of m.edges) ed.visible = m.visible && edgesOn;
   if (_diffOnVisibility) _diffOnVisibility();   // confronto: niente colore su un modello spento
-  /* sincronizza tutti gli occhi di questo modello, in entrambe le viste */
-  document.querySelectorAll(`button.eye[data-muid="${m.uid}"]`).forEach(btn => {
+  /* sincronizza gli occhi-modello di questo modello, in entrambe le viste
+     (NON gli occhi per-elemento: hanno un loro stato, li gestisce _syncElemEyes) */
+  document.querySelectorAll(`button.eye[data-muid="${m.uid}"]:not(.eye-el)`).forEach(btn => {
     btn.innerHTML = m.visible ? EYE_ON : EYE_OFF;
     btn.classList.toggle("off", !m.visible);
     btn.title = tr(m.visible ? "model.hide" : "model.show");
@@ -4186,6 +4195,51 @@ function showAllHidden() {
       _syncElemEyes(m);
     }
   }
+  _syncGroupEyes();
+}
+
+/* nasconde gli elementi della selezione corrente (voce del menu contestuale) */
+function hideSelection() {
+  if (!hlItems || !hlItems.length) return;
+  const byModel = new Map();
+  for (const it of hlItems) {
+    if (!byModel.has(it.model)) byModel.set(it.model, []);
+    byModel.get(it.model).push(it.eid);
+  }
+  let n = 0;
+  for (const [m, ids] of byModel) {
+    n += ids.filter(id => !m.hiddenEids.has(id)).length;
+    setElementsHidden(m, ids, true);   // la prima chiamata azzera anche l'evidenza
+    _syncElemEyes(m);
+  }
+  _syncGroupEyes();
+  toast(tr("toast.hiddenN", { n }));
+}
+
+/* nasconde tutto TRANNE la selezione: l'isolamento che nasconde davvero, in
+   alternativa a "Isola selezione" che vela soltanto. L'universo è quello dei
+   range delle mesh (tutti gli elementi con geometria, di tutti i modelli). */
+function hideUnselected() {
+  if (!hlItems || !hlItems.length) return;
+  const selByModel = new Map();
+  for (const it of hlItems) {
+    if (!selByModel.has(it.model)) selByModel.set(it.model, new Set());
+    selByModel.get(it.model).add(it.eid);
+  }
+  let n = 0;
+  for (const m of models) {
+    const keep = selByModel.get(m);
+    const rest = new Set();
+    for (const mesh of m.meshes) for (const r of mesh.userData.fullRanges) {
+      if (!keep || !keep.has(r.expressID)) rest.add(r.expressID);
+    }
+    if (!rest.size) continue;
+    for (const id of rest) if (!m.hiddenEids.has(id)) n++;
+    setElementsHidden(m, [...rest], true);
+    _syncElemEyes(m);
+  }
+  _syncGroupEyes();
+  toast(tr("toast.hiddenN", { n }));
 }
 
 /* risincronizza gli occhi per-elemento dell'albero (entrambe le viste) di un modello */
@@ -4201,11 +4255,48 @@ function _syncElemEyes(model) {
   });
 }
 
+/* occhio di gruppo: accende/spegne tutti gli elementi di un nodo spaziale, di una
+   classe o di una categoria. pairs = [{model, geoIds}] — la categoria attraversa
+   più modelli, per questo non basta un solo model. Stessa semantica dell'occhio
+   per-elemento: "spento" = TUTTI i geoIds nascosti; su stato misto il clic nasconde. */
+function _grpHidden(pairs) {
+  return pairs.every(p => p.geoIds.every(g => p.model.hiddenEids.has(g)));
+}
+function _refreshGroupEye(btn) {
+  const hid = _grpHidden(btn._pairs);
+  btn.innerHTML = hid ? EYE_OFF : EYE_ON;
+  btn.classList.toggle("off", hid);
+  btn.title = tr(hid ? "grphide.show" : "grphide.hide");
+  const row = btn.closest(".tree-row");
+  if (row) row.classList.toggle("hidden-el", hid);
+}
+/* risincronizza gli occhi di gruppo renderizzati (le righe non ancora renderizzate
+   leggono hiddenEids al momento del render, come gli occhi per-elemento) */
+function _syncGroupEyes() {
+  document.querySelectorAll("button.eye-grp").forEach(_refreshGroupEye);
+}
+function attachGroupEye(head, pairs) {
+  pairs = pairs.filter(p => p.geoIds.length);
+  if (!pairs.length) return;   // niente occhio su gruppi senza geometria
+  const btn = document.createElement("button");
+  btn.className = "eye eye-grp";
+  btn._pairs = pairs;
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const toHide = !_grpHidden(pairs);
+    for (const p of pairs) setElementsHidden(p.model, p.geoIds, toHide);
+    for (const m of new Set(pairs.map(p => p.model))) _syncElemEyes(m);
+    _syncGroupEyes();
+  });
+  head.querySelector(".chev").after(btn);
+  _refreshGroupEye(btn);
+}
+
 /* ============================ elenco modelli — lista e righe ============================ */
 function renderModelList() {
   const list = $("modelList");
   list.innerHTML = "";
-  selTreeRow = null;
+  selTreeRows.clear();
   if (!models.length) {
     list.innerHTML = `<div class="empty-note">${tr("empty.noModels")}</div>`;
     renderC2mBlock(); renderC2dBlock();      // i blocchi spariscono con l'ultimo modello
@@ -4490,7 +4581,33 @@ function selectSpatialNode(model, node, row) {
   const ids = nodeGeoIds(node);
   buildHighlight(ids.map(id => ({ model, eid: id })));
   if (node.eid > 0) showElementDetail(model, node.eid); /* pset di IfcProject/IfcSite/Storey */
-  if (row) { row.classList.add("sel"); selTreeRow = row; }
+  if (row) { row.classList.add("sel"); selTreeRows.add(row); }
+}
+
+/* selezione additiva (Ctrl/Cmd+clic): aggiunge o toglie un blocco di elementi
+   [{model, eid}] (a livello geometria) dalla selezione corrente — se il blocco è
+   già tutto selezionato lo toglie, altrimenti lo unisce. La riga dell'albero
+   cliccata segue la sorte del suo blocco; le altre righe accese restano accese
+   (marcano gli ultimi blocchi cliccati, non l'insieme esatto). */
+function toggleSelection(items, row) {
+  const key = it => it.model.uid + ":" + it.eid;
+  const cur = hlItems ? hlItems.slice() : [];
+  const curKeys = new Set(cur.map(key));
+  const allIn = items.length > 0 && items.every(it => curKeys.has(key(it)));
+  let next;
+  if (allIn) {
+    const drop = new Set(items.map(key));
+    next = cur.filter(it => !drop.has(key(it)));
+  } else {
+    next = cur.concat(items.filter(it => !curKeys.has(key(it))));
+  }
+  const keepRows = [...selTreeRows].filter(r => r !== row);
+  buildHighlight(next);                       // spegne anche tutte le righe .sel
+  for (const r of keepRows) { r.classList.add("sel"); selTreeRows.add(r); }
+  if (row && !allIn) { row.classList.add("sel"); selTreeRows.add(row); }
+  $("ftHint").textContent = next.length
+    ? tr("sel.count", { n: next.length, label: tr("sel.multiLabel") })
+    : "";
 }
 
 /* icone dei nodi spaziali */
@@ -4537,13 +4654,15 @@ function treeNodeEl(model, node, depth) {
     }
   };
   head.querySelector(".chev").addEventListener("click", (e) => { e.stopPropagation(); toggle(); });
+  attachGroupEye(head, [{ model, geoIds: nodeGeoIds(node) }]);
   head.addEventListener("click", (e) => {
-    if (e.target.classList.contains("chev")) return;
+    if (e.target.classList.contains("chev") || e.target.closest("button")) return;
+    if (e.ctrlKey || e.metaKey) { toggleSelection(nodeGeoIds(node).map(id => ({ model, eid: id })), head); return; }
     if (node.eid > 0) selectSpatialNode(model, node, head);
     else toggle(); /* nodo "Fuori struttura spaziale": solo espansione */
   });
   head.addEventListener("dblclick", (e) => {
-    if (e.target.classList.contains("chev")) return;
+    if (e.target.classList.contains("chev") || e.target.closest("button")) return;
     if (node.eid > 0) { selectSpatialNode(model, node, head); zoomSelection(); }
   });
   wrap.appendChild(head);
@@ -4559,9 +4678,15 @@ function treeClassEl(model, cl, depth) {
   head.style.cursor = "pointer";
   head.innerHTML = `<span class="chev">▸</span><span class="t-label"></span><span class="t-count">${cl.items.length}</span>`;
   head.querySelector(".t-label").textContent = cl.typeName;
+  attachGroupEye(head, [{ model, geoIds: cl.items.flatMap(it => it.geoIds) }]);
   const box = document.createElement("div");
   box.style.display = "none";
-  head.addEventListener("click", () => {
+  head.addEventListener("click", (e) => {
+    if (e.target.closest("button")) return;
+    if (e.ctrlKey || e.metaKey) {
+      toggleSelection(cl.items.flatMap(it => it.geoIds).map(g => ({ model, eid: g })), head);
+      return;
+    }
     const open = box.style.display === "none";
     box.style.display = open ? "" : "none";
     head.querySelector(".chev").classList.toggle("open", open);
@@ -4597,8 +4722,13 @@ function appendTreeItems(model, cl, depth, box, start) {
         const toHide = !geoIds.every(g => model.hiddenEids.has(g));
         setElementsHidden(model, geoIds, toHide);
         _syncElemEyes(model);
+        _syncGroupEyes();
       });
-      row.addEventListener("click", (e) => { if (e.target.closest("button")) return; selectElement(model, it, row); });
+      row.addEventListener("click", (e) => {
+        if (e.target.closest("button")) return;
+        if (e.ctrlKey || e.metaKey) { toggleSelection(geoIds.map(g => ({ model, eid: g })), row); return; }
+        selectElement(model, it, row);
+      });
       row.addEventListener("dblclick", (e) => { if (e.target.closest("button")) return; selectElement(model, it, row); zoomSelection(); });
     }
     box.appendChild(row);
@@ -4617,7 +4747,7 @@ function selectElement(model, item, row) {
   const ids = item.geoIds && item.geoIds.length ? item.geoIds : [item.eid];
   buildHighlight(ids.map(id => ({ model, eid: id })));
   showElementDetail(model, item.eid); /* proprietà del contenitore (assembly), geometria delle parti */
-  if (row) { row.classList.add("sel"); selTreeRow = row; }
+  if (row) { row.classList.add("sel"); selTreeRows.add(row); }
 }
 
 function zoomSelection() {
@@ -4654,7 +4784,7 @@ function selectItems(pairs, row, label) {
     for (const g of it.geoIds) sel.push({ model: p.model, eid: g });
   }
   buildHighlight(sel);
-  if (row) { row.classList.add("sel"); selTreeRow = row; }
+  if (row) { row.classList.add("sel"); selTreeRows.add(row); }
   if (label) $("ftHint").textContent = tr("sel.count", { n: sel.length, label });
   if (items.length > 1) {
     bulkFormOpen = false;
@@ -4693,12 +4823,17 @@ function renderCategoryList(list) {
       if (open && !box.childNodes.length) fill();
     };
     head.querySelector(".chev").addEventListener("click", (e) => { e.stopPropagation(); toggle(); });
+    attachGroupEye(head, groups.map(g => ({ model: g.model, geoIds: g.items.flatMap(it => it.geoIds) })));
     head.addEventListener("click", (e) => {
-      if (e.target.classList.contains("chev")) return;
+      if (e.target.classList.contains("chev") || e.target.closest("button")) return;
+      if (e.ctrlKey || e.metaKey) {
+        toggleSelection(groups.flatMap(g => g.items.flatMap(it => it.geoIds.map(id => ({ model: g.model, eid: id })))), head);
+        return;
+      }
       selectItems(groups, head, tn);
     });
     head.addEventListener("dblclick", (e) => {
-      if (e.target.classList.contains("chev")) return;
+      if (e.target.classList.contains("chev") || e.target.closest("button")) return;
       selectItems(groups, head, tn);
       zoomSelection();
     });
@@ -4730,6 +4865,10 @@ function catModelEl(tn, g) {
   head.querySelector(".eye").addEventListener("click", (e) => { e.stopPropagation(); toggleModelVisibility(m); });
   head.addEventListener("click", (e) => {
     if (e.target.closest("button") || e.target.classList.contains("chev")) return;
+    if (e.ctrlKey || e.metaKey) {
+      toggleSelection(g.items.flatMap(it => it.geoIds.map(id => ({ model: m, eid: id }))), head);
+      return;
+    }
     selectItems([g], head, `${tn} · ${m.name}`);
   });
   head.addEventListener("dblclick", (e) => {
@@ -4949,7 +5088,8 @@ function clearHighlight() {
   }
   hlItems = null;
   currentSelectionBox = null;
-  if (selTreeRow) { selTreeRow.classList.remove("sel"); selTreeRow = null; }
+  for (const r of selTreeRows) r.classList.remove("sel");
+  selTreeRows.clear();
   /* evidenza per codice (feature nuvola↔modello): se sparisce l'evidenza 3D, la
      riga codice non deve restare accesa. C2M è dichiarato più avanti nel file ma
      esiste al momento della chiamata (guardia typeof come per C2D in applyIsolate). */
@@ -5077,6 +5217,7 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   const visible = allBaseMeshes().filter(m => m.visible);
   const hit = firstUnclippedHit(raycaster.intersectObjects(visible, false));
   if (!hit) {
+    if (e.ctrlKey || e.metaKey) return;   // Ctrl+clic nel vuoto: la selezione additiva resta
     /* clic nel vuoto (o solo su geometria ritagliata dalle sezioni): deseleziona.
        Se ci sono risultati clash il pannello destro NON si chiude (chiuderlo li
        renderebbe irraggiungibili senza rieseguire il run): si torna alla scheda Clash. */
@@ -5091,6 +5232,7 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   const eid = expressFromFace(hit.object, hit.faceIndex);
   if (eid === null) return;
   const model = hit.object.userData.model;
+  if (e.ctrlKey || e.metaKey) { toggleSelection([{ model, eid }], null); return; }
   buildHighlight([{ model, eid }]);
   showElementDetail(model, eid);
 });
@@ -9761,8 +9903,13 @@ renderer.domElement.addEventListener("pointerup", (e) => {
     const eid = expressFromFace(hit.object, hit.faceIndex);
     if (eid !== null) {
       const model = hit.object.userData.model;
-      buildHighlight([{ model, eid }]);
-      showElementDetail(model, eid);
+      /* tasto destro su elemento GIÀ selezionato: la selezione (anche multipla)
+         resta com'è, così il menu può agire su di essa. Altrimenti, come nella
+         lista clash, l'elemento cliccato diventa la selezione. */
+      if (!(hlItems && hlItems.some(it => it.model === model && it.eid === eid))) {
+        buildHighlight([{ model, eid }]);
+        showElementDetail(model, eid);
+      }
       const guid = model.guidByExpress.get(eid);
       let typeName = "";
       try {
@@ -9804,8 +9951,11 @@ function _openCtxMenu(px, py, hitData) {
     add(_ctxEl("⊘", tr("ctx.hideElem"), () => {
       setElementsHidden(hitData.model, [hitData.eid], true);
       _syncElemEyes(hitData.model);
+      _syncGroupEyes();
       toast(tr("toast.elemHidden"));
     }));
+    if (hlItems && hlItems.length > 1) add(_ctxEl("⊘", tr("ctx.hideSel", { n: hlItems.length }), hideSelection));
+    if (hlItems && hlItems.length) add(_ctxEl("▣", tr("ctx.hideRest"), hideUnselected));
     if (hiddenElemCount() > 0) add(_ctxEl("◉", tr("ctx.showHidden", { n: hiddenElemCount() }), showAllHidden));
     add(_ctxSep());
     add(_ctxEl("⎘", tr("ctx.copyGuid"), hitData.guid ? () => {
@@ -9843,6 +9993,10 @@ function _openCtxMenu(px, py, hitData) {
     if (hiddenElemCount() > 0) add(_ctxEl("◉", tr("ctx.showHidden", { n: hiddenElemCount() }), showAllHidden));
     if (hasSel) {
       add(_ctxEl("⊕", tr("ctx.zoomSel"), zoomSelection));
+      if (hlItems && hlItems.length) {
+        add(_ctxEl("⊘", tr("ctx.hideSel", { n: hlItems.length }), hideSelection));
+        add(_ctxEl("▣", tr("ctx.hideRest"), hideUnselected));
+      }
       add(_ctxEl("⬛", tr("ctx.sbOnSel"), () => {
         if (currentSelectionBox && !currentSelectionBox.isEmpty()) setSectionBoxToBox(currentSelectionBox);
       }));
