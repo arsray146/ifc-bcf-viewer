@@ -398,10 +398,17 @@ main.left-off .left-resize{display:none}
 .d-status-sel:focus{outline:2px solid var(--lime-deep);outline-offset:2px}
 .d-status-sel option{color:var(--text);background:var(--panel)}
 .d-statusrow .d-type{font-family:var(--mono);font-size:11px;color:var(--muted)}
-#issueList{flex:1;overflow-y:auto;padding:9px}
 #issueModeBar{display:flex;gap:2px;margin:8px 11px 0;padding:3px;border-radius:999px;background:var(--panel-2);flex:0 0 auto}
-#bcfPane,#reportPane,#idsPane,#clashPane{flex:1;display:flex;flex-direction:column;min-height:0}
-#reportList,#idsList{flex:1;overflow-y:auto;padding:9px}
+/* La colonna issues scorre TUTTA INSIEME: l'intestazione del pannello (ricerca,
+   pulsante di verifica, contatori, chip, barra di export) scorre via con
+   l'elenco, così scendendo tra le issues si guadagna la sua altezza. Fissa resta
+   solo la pillola BCF/Report/IDS/Clash, che sta FUORI dai pane. Il clash tiene
+   invece i suoi controlli fermi: lì sopra l'elenco non c'è un'intestazione ma il
+   modulo con cui si lancia il run. */
+#bcfPane,#reportPane,#idsPane{flex:1;display:flex;flex-direction:column;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+#clashPane{flex:1;display:flex;flex-direction:column;min-height:0}
+#bcfPane>.panel-head,#reportPane>.panel-head,#idsPane>.panel-head{flex:0 0 auto}
+#issueList,#reportList,#idsList{flex:0 0 auto;padding:9px}
 #repStats{font-family:var(--mono);font-size:10.5px;color:var(--faint);margin-top:6px}
 /* statistiche report (v1.7.6) */
 #reportActions{margin-top:9px}
@@ -486,7 +493,14 @@ main.left-off .left-resize{display:none}
 .ids-run:disabled{opacity:.55;cursor:not-allowed;background:var(--panel-2);color:var(--muted);border-color:var(--line)}
 .ids-run .spin{width:13px;height:13px;border:2px solid rgba(0,0,0,.28);border-top-color:#1a1f12;border-radius:50%;animation:idsspin .7s linear infinite}
 /* ===== QTO ===== */
-#qtoList{flex:1;overflow-y:auto;padding:9px}
+/* come la colonna issues: scorre tutto il pannello, intestazione compresa — qui
+   il contenitore è direttamente #qtoBlock (non c'è un pane intermedio), e
+   l'intestazione è alta (raggruppa per, colonne, calcola, riepilogo, ricerca),
+   quindi è dove si guadagna di più. NB: l'overflow va su #qtoBlock, non su
+   .ltab-page, che è condivisa con gli altri pannelli di sinistra. */
+#qtoBlock{overflow-y:auto;overscroll-behavior:contain}
+#qtoBlock>.panel-head{flex:0 0 auto}
+#qtoList{flex:0 0 auto;padding:9px}
 .qto-lbl{display:block;margin-top:9px;font-family:var(--disp);font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .qto-lbl:first-child{margin-top:0}
 .qto-add-row{display:flex;gap:6px;align-items:flex-end}
@@ -993,6 +1007,26 @@ input[type=file]{display:none}
 .ctx-icon{width:16px;text-align:center;font-size:13px;flex:none;color:var(--lime-deep);font-style:normal}
 .ctx-sep{height:1px;background:var(--line);margin:4px 0}
 
+/* ---------- tendine nostre: l'elenco a comparsa dei <select> ----------
+   L'elenco di un <select> lo disegna il sistema operativo: fondo bianco, riga
+   selezionata blu, font di sistema, angoli vivi. Dentro il vetro dell'app è un
+   corpo estraneo (e in tema scuro sembra proprio un altro programma): il CSS
+   non lo raggiunge, si può stilare solo il controllo chiuso. Quindi al clic
+   sopprimiamo l'elenco nativo e apriamo il nostro, con lo stesso linguaggio del
+   menu contestuale. Il <select> resta al suo posto e resta la fonte di verità. */
+#ddMenu{position:fixed;z-index:480;background:var(--panel);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);padding:5px 0;display:none;font-size:13px;user-select:none;max-height:min(340px,62vh);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+#ddMenu.on{display:block}
+.dd-grp{font-family:var(--mono);font-size:10px;color:var(--faint);letter-spacing:.08em;text-transform:uppercase;padding:6px 14px 2px}
+.dd-item{display:flex;align-items:center;gap:9px;padding:7px 14px;cursor:pointer;color:var(--text);line-height:1.3}
+.dd-item .dd-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dd-item .dd-dot{flex:none;width:8px;height:8px;border-radius:99px}
+.dd-item .dd-ck{flex:none;width:11px;height:11px;fill:none;stroke:var(--lime-deep);stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.dd-item.cur{background:var(--panel-2);font-weight:500}
+.dd-item.cur .dd-ck{opacity:1}
+.dd-item.on,.dd-item:hover{background:var(--lime-soft)}
+.dd-item.dis{opacity:.35;cursor:default}
+.dd-item.dis:hover{background:transparent}
+
 #btnSection.btn-ico,#btnSecDraw.btn-ico{display:inline-flex;align-items:center;gap:7px}
 .sp-ic{width:15px;height:15px;flex:none;fill:none;stroke:var(--lime-deep);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
 #btnSection.sp-on{background:var(--lime);border-color:var(--lime-deep);color:var(--lime-ink)}
@@ -1104,7 +1138,9 @@ main:has(#profilePanel:not([hidden])) #detailPanel{bottom:262px}
 #ctxMenu{backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-radius:14px;border-color:var(--line)}
 .pc-modal{backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-radius:var(--r)}
 .pc-modal-f{background:var(--panel-2)}
-/* le <option> native non ereditano il vetro: sfondo solido */
+/* Le <option> native non ereditano il vetro: sfondo solido. Rete di sicurezza —
+   l'elenco lo disegna #ddMenu (vedi «tendine nostre»), questa regola vale solo
+   se un browser aprisse comunque quello di sistema. */
 select option{background:var(--panel-solid);color:var(--text)}
 /* input di ricerca e select a pillola */
 #issueSearch,#reportSearch,#idsSearch,#qtoSearch{border-radius:999px;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line);border:none;padding:7px 13px}
@@ -1710,6 +1746,7 @@ body.diff-embed #railDiff{display:flex}
 <div id="loading"><div class="spinner"></div><div id="loadingMsg" data-i18n="loading.init">Inizializzazione…</div></div>
 <div id="lightbox"><img id="lightboxImg" alt="Snapshot"></div>
 <div id="ctxMenu"></div>
+<div id="ddMenu"></div>
 
 <script type="module">
 import * as THREE from "three";
@@ -1814,7 +1851,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.8.10";
+const APP_VERSION = "2.8.11";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -1868,7 +1905,7 @@ const STRINGS = {
     "ids.failList": "Elementi non conformi",
     "ids.allPass": "Tutti gli elementi applicabili sono conformi. ✓",
     "ids.notApplicable": "Nessun elemento applicabile nei modelli caricati.",
-    "ids.clickIsolate": "Clic: isola e inquadra l'elemento",
+    "ids.clickIsolate": "Clic: seleziona l'elemento, lo inquadra e ne mostra le proprietà",
     "ids.specHint": "IDS · {name}: {fail} non conformi su {appl} applicabili",
     "ids.rMissing": "Manca: {label}",
     "ids.rProhibited": "Presente ma vietato: {label}",
@@ -2386,7 +2423,7 @@ const STRINGS = {
     "ids.failList": "Non-conforming elements",
     "ids.allPass": "All applicable elements pass. ✓",
     "ids.notApplicable": "No applicable element in the loaded models.",
-    "ids.clickIsolate": "Click: isolate and frame the element",
+    "ids.clickIsolate": "Click: select the element, frame it and show its properties",
     "ids.specHint": "IDS · {name}: {fail} failing of {appl} applicable",
     "ids.rMissing": "Missing: {label}",
     "ids.rProhibited": "Present but prohibited: {label}",
@@ -5223,7 +5260,10 @@ renderer.domElement.addEventListener("pointerup", (e) => {
        renderebbe irraggiungibili senza rieseguire il run): si torna alla scheda Clash. */
     if (hlGroup.children.length) {
       clearHighlight();
-      if (activeTopic) { if ($("detailTitle").textContent === "Elemento") renderTopicDetail(activeTopic); }
+      /* con una issue aperta (BCF o IDS) si torna al suo dettaglio invece di chiudere:
+         il confronto è su tr("el.title"), non sulla stringa italiana (in EN non combaciava) */
+      if (activeTopic) { if ($("detailTitle").textContent === tr("el.title")) renderTopicDetail(activeTopic); }
+      else if (activeIdsSpec) { if ($("detailTitle").textContent === tr("el.title")) renderIdsDetail(activeIdsSpec); }
       else if (CLASH.results) _drawShowTab("clash");
       else closeDetail();
     }
@@ -6558,15 +6598,22 @@ function renderIdsList() {
   }
 }
 
-function openIdsSpec(r) {
-  activeIdsSpec = r;
-  activeTopic = null; activeReport = null;   // una sola issue attiva tra le modalità
-  renderIdsList();
+/* geometrie di TUTTI gli elementi non conformi di una specifica, deduplicate:
+   serve sia all'apertura della specifica sia al "torna alla issue" dal dettaglio elemento */
+function idsFailSelection(r) {
   const found = [], seen = new Set();
   for (const f of r.failed) {
     const m = f.view.model;
     for (const g of geoIdsOf(m, f.view.eid)) { const k = m.uid + ":" + g; if (!seen.has(k)) { seen.add(k); found.push({ model: m, eid: g }); } }
   }
+  return found;
+}
+
+function openIdsSpec(r) {
+  activeIdsSpec = r;
+  activeTopic = null; activeReport = null;   // una sola issue attiva tra le modalità
+  renderIdsList();
+  const found = idsFailSelection(r);
   if (found.length) { const box = buildHighlight(found); if (box) fitBox(box.clone().expandByScalar(box.getSize(new THREE.Vector3()).length() * 0.3 + 2)); }
   else clearHighlight();
   $("ftHint").textContent = tr("ids.specHint", { name: r.spec.name || r.spec.identifier || "IDS", fail: r.failed.length, appl: r.applicable.length });
@@ -6655,6 +6702,12 @@ function renderIdsDetail(r) {
     const f = r.failed[+el.dataset.i]; if (!f) return;
     const m = f.view.model, sel = geoIdsOf(m, f.view.eid).map(g => ({ model: m, eid: g }));
     if (sel.length) { const box = buildHighlight(sel); if (box) fitBox(box.clone().expandByScalar(box.getSize(new THREE.Vector3()).length() * 0.5 + 1)); }
+    /* come nei componenti BCF: l'elemento viene SELEZIONATO davvero, quindi la colonna
+       dettagli passa alla sua scheda proprietà (col bottone "torna alla issue").
+       Lo scroll dell'elenco si conserva: gli elenchi IDS sono lunghi migliaia di righe
+       e tornare indietro in cima costringerebbe a ricercare il punto ogni volta. */
+    r._detScroll = body.scrollTop;
+    showElementDetail(m, f.view.eid);
   }));
   body.querySelectorAll(".ids-rgrp-h").forEach(h => {
     const gi = +h.dataset.g;
@@ -9140,7 +9193,7 @@ function showElementDetail(model, eid) {
     <div class="d-actions">
       <button id="btnZoomElem">${tr("el.zoomElem")}</button>
       ${hasEditable ? `<button id="btnEditMode">${detailEditMode ? tr("el.cancelEdit") : tr("el.editMode")}</button>` : ""}
-      ${(activeTopic || activeReport) ? `<button id="btnBackTopic">${tr("el.backIssue")}</button>` : ""}
+      ${(activeTopic || activeReport || activeIdsSpec) ? `<button id="btnBackTopic">${tr("el.backIssue")}</button>` : ""}
     </div>`;
   detailFlash = "";
   /* ---- proprietà: tab Istanza | Type, ogni pset collassabile ---- */
@@ -9258,6 +9311,13 @@ function returnToActiveDetail() {
     if (found.length) buildHighlight(found); else clearHighlight();
     renderReportDetail(t, t.components.filter(c => !models.some(m => m.expressByGuid.get(c.guid) !== undefined)).length);
     openDetailPane();
+  } else if (activeIdsSpec) {
+    // ripristina l'evidenziazione di tutti i non conformi della specifica, camera ferma
+    const found = idsFailSelection(activeIdsSpec);
+    if (found.length) buildHighlight(found); else clearHighlight();
+    renderIdsDetail(activeIdsSpec);
+    if (activeIdsSpec._detScroll) $("detailBody").scrollTop = activeIdsSpec._detScroll;
+    openDetailPane();
   }
 }
 
@@ -9271,12 +9331,13 @@ function closeDetail() {
   $("main").classList.remove("with-detail");
   $("main").classList.remove("detail-collapsed");
   activeTopic = null;
-  statsOpen = false; activeReport = null;
+  statsOpen = false; activeReport = null; activeIdsSpec = null;
   const sb = $("btnReportStats"); if (sb) sb.classList.remove("on");
   detailEditMode = false;
   const db = $("detailBody"); db.oninput = null; db.onchange = null;
   renderIssueList();
   if (typeof renderReportList === "function") renderReportList();
+  if (typeof renderIdsList === "function") renderIdsList();
   resize();
 }
 /* collapse: nasconde la colonna dettaglio conservandone il contenuto */
@@ -9878,6 +9939,138 @@ renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
 
 /* Escape chiude il menu (in aggiunta all'handler esistente) */
 window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeCtxMenu(); });
+
+/* ==================== tendine nostre (elenco dei <select>) ====================
+   Vedi il commento nel CSS (#ddMenu): l'elenco a comparsa di un <select> lo
+   disegna il sistema operativo e il CSS non lo raggiunge — si può vestire solo
+   il controllo chiuso. Qui sopprimiamo quello nativo (preventDefault sul
+   mousedown) e disegniamo il nostro, con il linguaggio del menu contestuale.
+   Il <select> NON viene sostituito: resta nel DOM con le sue <option>, riceve
+   il value scelto ed emette input+change come farebbe da solo. Così vale per
+   TUTTE le tendine dell'app, comprese quelle costruite a runtime (stati BCF /
+   report / IDS, stati clash, pset e proprietà QTO, tipo di proprietà nel
+   dettaglio elemento) senza toccare un solo listener.                        */
+let _ddSel = null;             /* <select> a cui appartiene il menu aperto */
+let _ddItems = [], _ddIdx = -1;
+let _ddSkipOpen = false;       /* secondo clic sulla stessa tendina: chiude e basta */
+
+function closeDdMenu() {
+  if (!_ddSel) return;
+  _ddSel = null; _ddItems = []; _ddIdx = -1;
+  const m = $("ddMenu");
+  m.classList.remove("on"); m.innerHTML = "";
+  document.removeEventListener("pointerdown", _ddOutside, true);
+  window.removeEventListener("keydown", _ddKeys, true);
+}
+function _ddOutside(e) {
+  if ($("ddMenu").contains(e.target)) return;
+  const onOwner = e.target === _ddSel;
+  closeDdMenu();
+  if (onOwner) { _ddSkipOpen = true; setTimeout(() => { _ddSkipOpen = false; }, 0); }
+}
+function _ddHi(i) {
+  if (_ddItems[_ddIdx]) _ddItems[_ddIdx].classList.remove("on");
+  _ddIdx = i;
+  const el = _ddItems[i]; if (!el) return;
+  el.classList.add("on");
+  const m = $("ddMenu");
+  if (el.offsetTop < m.scrollTop) m.scrollTop = el.offsetTop - 5;
+  else if (el.offsetTop + el.offsetHeight > m.scrollTop + m.clientHeight) m.scrollTop = el.offsetTop + el.offsetHeight - m.clientHeight + 5;
+}
+function _ddKeys(e) {
+  if (!_ddSel) return;
+  const n = _ddItems.length;
+  if (e.key === "Escape" || e.key === "Tab") closeDdMenu();
+  else if (e.key === "ArrowDown") _ddHi(n ? (_ddIdx + 1) % n : -1);
+  else if (e.key === "ArrowUp") _ddHi(n ? (_ddIdx - 1 + n) % n : -1);
+  else if (e.key === "Home") _ddHi(0);
+  else if (e.key === "End") _ddHi(n - 1);
+  else if (e.key === "Enter" || e.key === " ") { if (_ddItems[_ddIdx]) _ddItems[_ddIdx].click(); else closeDdMenu(); }
+  else return;
+  e.preventDefault();
+  e.stopPropagation();   /* con la tendina aperta i tasti sono suoi, non scorciatoie del viewer */
+}
+/* pallino accanto alla voce: gli stati hanno già un colore nell'app (spina della
+   issue, pillola del dettaglio) e l'elenco lo mostra, invece di allineare
+   voci tutte uguali */
+function _ddDot(sel, opt) {
+  if (sel.classList.contains("d-status-sel")) return opt.value ? statusColor(opt.value) : "var(--st-other)";
+  return null;
+}
+function openDdMenu(sel) {
+  closeDdMenu();
+  const m = $("ddMenu");
+  m.innerHTML = ""; m.scrollTop = 0;
+  _ddItems = []; _ddIdx = -1;
+  let cur = null;
+  const addOpt = (o) => {
+    const it = document.createElement("div");
+    it.className = "dd-item" + (o.selected ? " cur" : "") + (o.disabled ? " dis" : "");
+    const dot = _ddDot(sel, o);
+    it.innerHTML = (dot ? `<span class="dd-dot" style="background:${dot}"></span>` : "") +
+      `<span class="dd-t"></span><svg class="dd-ck" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>`;
+    it.querySelector(".dd-t").textContent = (o.textContent || "").trim() || o.value || "—";
+    m.appendChild(it);
+    if (o.disabled) return;
+    const i = _ddItems.length;
+    _ddItems.push(it);
+    if (o.selected) { cur = it; _ddIdx = i; }
+    it.addEventListener("mouseenter", () => _ddHi(i));
+    it.addEventListener("click", () => {
+      closeDdMenu();
+      if (!sel.isConnected || sel.value === o.value) return;   /* stessa voce: nessun change a vuoto, come il nativo */
+      sel.value = o.value;
+      sel.dispatchEvent(new Event("input", { bubbles: true }));
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  };
+  for (const ch of sel.children) {
+    if (ch.tagName === "OPTGROUP") {
+      const g = document.createElement("div");
+      g.className = "dd-grp"; g.textContent = ch.label;
+      m.appendChild(g);
+      for (const o of ch.children) if (o.tagName === "OPTION") addOpt(o);
+    } else if (ch.tagName === "OPTION") addOpt(ch);
+  }
+  if (!_ddItems.length) { m.innerHTML = ""; return; }   /* tendina vuota (pset non ancora indicizzati): niente da aprire */
+  _ddSel = sel;
+  const r = sel.getBoundingClientRect();
+  m.style.minWidth = Math.max(r.width, 168) + "px";
+  m.style.maxWidth = Math.min(460, innerWidth - 20) + "px";
+  m.style.left = "0px"; m.style.top = "0px";
+  m.classList.add("on");
+  const mw = m.offsetWidth, mh = m.offsetHeight;
+  let x = r.left, y = r.bottom + 5;
+  if (x + mw > innerWidth - 10) x = Math.max(10, innerWidth - 10 - mw);
+  if (y + mh > innerHeight - 10) y = (r.top - 5 - mh >= 10) ? r.top - 5 - mh : Math.max(10, innerHeight - 10 - mh);
+  m.style.left = x + "px"; m.style.top = y + "px";
+  if (cur) m.scrollTop = Math.max(0, cur.offsetTop - (m.clientHeight - cur.offsetHeight) / 2);
+  if (_ddItems[_ddIdx]) _ddItems[_ddIdx].classList.add("on");
+  /* si aggancia SUBITO, non al giro dopo: il pointerdown di questo stesso clic è
+     già passato (precede sempre il mousedown che ci ha aperti), quindi non può
+     richiuderci, e un secondo clic velocissimo non trova la guardia scoperta */
+  document.addEventListener("pointerdown", _ddOutside, true);
+  window.addEventListener("keydown", _ddKeys, true);
+}
+const _ddEligible = (el) => el && el.tagName === "SELECT" && !el.disabled && !el.multiple && el.size <= 1;
+/* capture: bisogna arrivare prima che il browser apra il suo elenco */
+document.addEventListener("mousedown", (e) => {
+  if (e.button !== 0 || !_ddEligible(e.target)) return;   /* tasto destro: resta il menu del browser */
+  e.preventDefault();          /* niente elenco di sistema, nemmeno quando non apriamo il nostro */
+  if (_ddSkipOpen) return;
+  e.target.focus({ preventScroll: true });   /* il preventDefault ha tolto il fuoco automatico */
+  openDdMenu(e.target);
+}, true);
+document.addEventListener("keydown", (e) => {
+  if (_ddSel || !_ddEligible(e.target)) return;   /* se è già aperta ci pensa _ddKeys */
+  if (e.key === "Enter" || e.key === " " || e.key === "F4" || (e.altKey && (e.key === "ArrowDown" || e.key === "ArrowUp"))) {
+    e.preventDefault(); e.stopPropagation();
+    openDdMenu(e.target);
+  }
+}, true);
+window.addEventListener("resize", closeDdMenu);
+/* il menu è fixed: se il pannello sotto scorre, meglio chiuso che alla deriva */
+document.addEventListener("scroll", (e) => { if (_ddSel && !$("ddMenu").contains(e.target)) closeDdMenu(); }, true);
 
 /* Salva la posizione al pointerdown destro */
 renderer.domElement.addEventListener("pointerdown", (e) => {
