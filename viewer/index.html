@@ -263,6 +263,8 @@ main.left-off .left-resize{display:none}
 .pc-head{display:flex;align-items:center;justify-content:space-between;padding:2px 6px 4px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .pc-add{width:22px;height:22px;border:1px solid var(--line);border-radius:5px;background:var(--panel);color:var(--fg);cursor:pointer;font-size:14px;line-height:1;padding:0}
 .pc-add:hover{border-color:var(--lime-deep)}
+.pc-add:disabled{opacity:.42;cursor:default;border-color:var(--line)}
+.pc-add svg{width:13px;height:13px;display:block;margin:0 auto;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round;stroke-linecap:round}
 .pc-row{display:flex;align-items:center;gap:7px;padding:6px;border-radius:6px}
 .pc-row:hover{background:var(--panel-2)}
 .pc-row .eye{flex:0 0 auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:5px;background:var(--panel);cursor:pointer;padding:0}
@@ -1380,19 +1382,20 @@ body.diff-embed #railDiff{display:flex}
           <span data-i18n="c2d.title">Verifica nuvola ↔ modello</span>
           <span class="c2m-btns">
             <button id="btnC2dRun" class="pc-add" data-i18n-title="c2d.runT" title="Calcola la distanza di ogni punto dalla superficie del modello">▶</button>
+            <button id="btnC2dShot" class="pc-add" data-i18n-title="c2d.shotT" title="Salva l'immagine della verifica: il nome è «codice opera - % conformi primari»" disabled><svg viewBox="0 0 24 24"><path d="M3.2 8.6h4L8.8 6.3h6.4l1.6 2.3h4v10.9H3.2z"/><circle cx="12" cy="13.8" r="3.3"/></svg></button>
           </span>
         </div>
         <div class="c2d-opts">
-          <label id="c2dLblTol" data-i18n="c2d.tol" data-i18n-title="c2d.tolT" title="Soglia unica di verifica per tutti gli elementi">Soglia</label>
-          <span id="c2dRowTol"><input id="c2dTol" type="number" value="70" min="1" step="5"> mm</span>
-          <label id="c2dLblTolP" style="display:none" data-i18n="c2d.tolP" data-i18n-title="c2d.tolPT" title="Soglia contrattuale per gli elementi primari">Primari</label>
-          <span id="c2dRowTolP" style="display:none"><input id="c2dTolP" type="number" value="70" min="1" step="5"> mm</span>
-          <label id="c2dLblTolS" style="display:none" data-i18n="c2d.tolS" data-i18n-title="c2d.tolST" title="Soglia contrattuale per gli elementi secondari">Secondari</label>
-          <span id="c2dRowTolS" style="display:none"><input id="c2dTolS" type="number" value="100" min="1" step="5"> mm</span>
+          <label id="c2dLblTol" style="display:none" data-i18n="c2d.tol" data-i18n-title="c2d.tolT" title="Soglia unica di verifica per tutti gli elementi">Soglia</label>
+          <span id="c2dRowTol" style="display:none"><input id="c2dTol" type="number" value="70" min="1" step="5"> mm</span>
+          <label id="c2dLblTolP" data-i18n="c2d.tolP" data-i18n-title="c2d.tolPT" title="Soglia contrattuale per gli elementi primari">Primari</label>
+          <span id="c2dRowTolP"><input id="c2dTolP" type="number" value="70" min="1" step="5"> mm</span>
+          <label id="c2dLblTolS" data-i18n="c2d.tolS" data-i18n-title="c2d.tolST" title="Soglia contrattuale per gli elementi secondari">Secondari</label>
+          <span id="c2dRowTolS"><input id="c2dTolS" type="number" value="100" min="1" step="5"> mm</span>
           <label data-i18n="c2d.max" data-i18n-title="c2d.maxT" title="Oltre questa distanza il punto è considerato fuori tema (vegetazione, terreno, veicoli) e non entra nelle statistiche">Distanza max</label>
-          <span><input id="c2dMax" type="number" value="1" min="0.05" step="0.5"> m</span>
+          <span><input id="c2dMax" type="number" value="0.35" min="0.05" step="0.05"> m</span>
         </div>
-        <label class="c2d-prev"><input id="c2dDual" type="checkbox"> <span data-i18n="c2d.dual" data-i18n-title="c2d.dualT" title="Mappa gli elementi in primari e secondari (codici o classi IFC) con due soglie distinte; i non classificati sono trattati come primari">Due soglie (primari / secondari)</span></label>
+        <label class="c2d-prev"><input id="c2dDual" type="checkbox" checked> <span data-i18n="c2d.dual" data-i18n-title="c2d.dualT" title="Mappa gli elementi in primari e secondari (codici o classi IFC) con due soglie distinte; i non classificati sono trattati come primari">Due soglie (primari / secondari)</span></label>
         <label class="c2d-prev"><input id="c2dPreview" type="checkbox" checked> <span data-i18n="c2d.preview">Anteprima su campione uniforme</span></label>
         <div id="c2dInfo"></div>
       </div>
@@ -1738,7 +1741,7 @@ body.diff-embed #railDiff{display:flex}
   <span class="lime-dot"></span>
   <span id="ftHint" data-i18n="ft.loadingLibs">Pronto — librerie in caricamento…</span>
   <div class="spacer"></div>
-  <span id="ftVersion">web-ifc · © Alessandro Perugini</span>
+  <span id="ftVersion">web-ifc</span>
 </footer>
 
 <div id="toast"></div>
@@ -1851,7 +1854,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.8.11";
+const APP_VERSION = "2.9.0";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2156,6 +2159,8 @@ const STRINGS = {
     "c2d.title": "Verifica nuvola ↔ modello",
     "c2d.runT": "Calcola la distanza di ogni punto dalla superficie del modello",
     "c2d.stopT": "Interrompi il calcolo",
+    "c2d.shotT": "Salva l'immagine della verifica: il nome è «codice opera - % conformi primari»",
+    "c2d.shotPrimary": "Opere primarie", "c2d.shotSecondary": "Opere secondarie",
     "c2d.tolP": "Primari", "c2d.tolPT": "Soglia contrattuale per gli elementi primari",
     "c2d.tolS": "Secondari", "c2d.tolST": "Soglia contrattuale per gli elementi secondari",
     "c2d.max": "Distanza max", "c2d.maxT": "Oltre questa distanza il punto è considerato fuori tema (vegetazione, terreno, veicoli) e non entra nelle statistiche",
@@ -2186,6 +2191,8 @@ const STRINGS = {
     "c2d.ghost": "Modello", "c2d.reset": "Colori originali",
     "toast.c2dNeed": "Servono almeno un modello IFC e una nuvola di punti",
     "toast.c2dDone": "{n} punti misurati in {s}s",
+    "toast.c2dShot": "Immagine salvata: {f}",
+    "toast.c2dShotNeed": "Esegui prima la verifica: l'immagine riporta i suoi numeri",
     "profile.close": "Chiudi il profilo", "profile.nodata": "Profilo altimetrico non disponibile",
     "alnsec.btn": "Sezione asse",
     "alnsec.toggle": "Sezione ortogonale all'asse: nasconde il modello da un lato del piano per vedere il resto del tracciato. Trascina la sezione in 3D o lungo il profilo per spostarla.",
@@ -2674,6 +2681,8 @@ const STRINGS = {
     "c2d.title": "Cloud ↔ model check",
     "c2d.runT": "Compute each point's distance from the model surface",
     "c2d.stopT": "Stop the computation",
+    "c2d.shotT": "Save the check as an image: the file name is «work code - % compliant primary»",
+    "c2d.shotPrimary": "Primary works", "c2d.shotSecondary": "Secondary works",
     "c2d.tolP": "Primary", "c2d.tolPT": "Contractual threshold for primary elements",
     "c2d.tolS": "Secondary", "c2d.tolST": "Contractual threshold for secondary elements",
     "c2d.max": "Max distance", "c2d.maxT": "Beyond this distance a point is off-topic (vegetation, ground, vehicles) and is left out of the statistics",
@@ -2704,6 +2713,8 @@ const STRINGS = {
     "c2d.ghost": "Model", "c2d.reset": "Original colours",
     "toast.c2dNeed": "You need at least one IFC model and one point cloud",
     "toast.c2dDone": "{n} points measured in {s}s",
+    "toast.c2dShot": "Image saved: {f}",
+    "toast.c2dShotNeed": "Run the check first: the image carries its numbers",
     "profile.close": "Close profile", "profile.nodata": "Vertical profile unavailable",
     "alnsec.btn": "Axis section",
     "alnsec.toggle": "Cross-section orthogonal to the axis: hides the model on one side of the plane so you can see the rest of the route. Drag the section in 3D or along the profile to move it.",
@@ -11573,21 +11584,42 @@ async function runC2mScan() {
 
 /* Catalogo da CSV: le righe scartate NON fermano il caricamento (un catalogo di
    contratto ha spesso righe di commento o colonne extra) ma vanno dette. */
-async function loadC2mBook(file) {
-  let text; try { text = await file.text(); } catch (e) { toast(tr("toast.c2mBookErr", { f: file.name })); return; }
+function applyC2mBookCsv(text, name, silent) {
   const p = parseCodebookCsv(text);
   const book = c2mRebuildBook(p.rows);
   const bad = p.errors.length + book.errors.length;
   if (!book.rows.length) {
     if (bad) console.warn("[APE Viewer] catalogo codici:", p.errors, book.errors);
-    toast(tr("toast.c2mBookErr", { f: file.name }));
-    return;
+    if (!silent) toast(tr("toast.c2mBookErr", { f: name }));
+    return false;
   }
   if (bad) console.warn("[APE Viewer] catalogo codici — righe scartate:", p.errors, book.errors);
-  C2M.book = book; C2M.bookName = file.name; C2M.bookSeq++;
+  C2M.book = book; C2M.bookName = name; C2M.bookSeq++;
   if (C2M.summary) c2mScan();                       // riclassifica la ricognizione col nuovo catalogo
   renderC2mBlock();
-  toast(tr("toast.c2mBook", { f: file.name, n: book.rows.length, e: bad ? tr("toast.c2mBookWarn", { n: bad }) : "" }));
+  if (!silent) toast(tr("toast.c2mBook", { f: name, n: book.rows.length, e: bad ? tr("toast.c2mBookWarn", { n: bad }) : "" }));
+  return true;
+}
+
+async function loadC2mBook(file) {
+  let text; try { text = await file.text(); } catch (e) { toast(tr("toast.c2mBookErr", { f: file.name })); return; }
+  applyC2mBookCsv(text, file.name);
+}
+
+/* Catalogo di serie (ANAS ponti e viadotti): la verifica parte già mappata —
+   primari 70 mm / secondari 100 mm per tipologia — senza ricaricare lo stesso
+   CSV a ogni opera. È un DEFAULT, non un vincolo: ＋ ne carica un altro e
+   l'ultimo vince. Se il file non c'è (copia locale parziale, file://) la
+   verifica resta quella di prima: categorie dedotte, nessun blocco. */
+const C2M_STOCK_BOOK = "cataloghi/anas_ponti_viadotti.csv";
+async function loadStockC2mBook() {
+  try {
+    const res = await fetch(new URL(C2M_STOCK_BOOK, location.href));
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    applyC2mBookCsv(await res.text(), C2M_STOCK_BOOK.split("/").pop(), true);
+  } catch (e) {
+    console.warn("[APE Viewer] catalogo di serie non caricato:", e && e.message || e);
+  }
 }
 
 function downloadC2mStub() {
@@ -11714,10 +11746,11 @@ function c2mSelectCode(code, rowEl) {
    Worker imporrebbe di serializzare la geometria (i buffer stanno nelle mesh
    three.js) raddoppiando la memoria di picco. Si misura, e si sposta solo se
    la fluidità non regge (vedi PIANO_Cloud_Model_Check.md §5). */
+const C2D_MAX_DEF = 0.35;       // distanza max di serie (m): oltre, il punto è fuori tema (dev'essere dichiarata PRIMA di C2D, che la legge)
 const C2D = {
   tolP: 70, tolS: 100,          // soglie di contratto (mm) — in modalità singola coincidono
-  dual: false,                  // default: UNA soglia per tutti (lo standard); due soglie = opzione contrattuale
-  maxDist: 1.0,                 // oltre questa distanza (m) il punto è fuori tema, non fuori tolleranza
+  dual: true,                   // default: DUE soglie (primari/secondari) — è la verifica di contratto, e il catalogo di serie la mappa già
+  maxDist: C2D_MAX_DEF,         // oltre questa distanza (m) il punto è fuori tema, non fuori tolleranza
   preview: true,                // calcola sul campione uniforme invece che su tutti i punti
   running: false, cancel: false,
   bvh: null, triElem: null, elems: null, geomSig: "",
@@ -11839,7 +11872,7 @@ async function runC2dCheck() {
        collassano da sole (tolWide = tolStrict = soglia) */
     C2D.tolP = C2D.tolS = Math.max(1, +$("c2dTol").value || 70);
   }
-  C2D.maxDist = Math.max(0.05, +$("c2dMax").value || 1);
+  C2D.maxDist = Math.max(0.05, +$("c2dMax").value || C2D_MAX_DEF);
   C2D.preview = $("c2dPreview").checked;
   C2D.running = true; C2D.cancel = false;
   updateC2dRunBtn();
@@ -11987,6 +12020,8 @@ function renderC2dBlock() {
   if (!block || !box) return;
   const on = models.length > 0 && PCLOUD.sources.length > 0;
   block.style.display = on ? "" : "none";
+  const shot = $("btnC2dShot");
+  if (shot) shot.disabled = !(on && C2D.res);       // l'immagine porta i numeri: senza verifica non c'è nulla da scattare
   if (!on) { C2D.res = null; return; }
   const r = C2D.res;
   if (!r) { box.innerHTML = `<div class="c2m-note">${tr("c2d.hint")}</div>`; return; }
@@ -12045,7 +12080,151 @@ function renderC2dBlock() {
   $("btnC2dReset").addEventListener("click", restoreCloudColors);
 }
 
+/* ================== immagine della verifica ==================
+   Un PNG per opera, per la verifica massiva: la vista 3D com'è a schermo con
+   sopra una scheda che ripete i numeri del pannello — chi riceve l'immagine non
+   ha il viewer e deve capirla lo stesso. Il NOME è già il risultato:
+   «<codice opera> - <% conformi primari>.png», col codice preso dalle cifre
+   iniziali dei modelli (i file di una stessa opera condividono la testa del nome).
+   NB: non è la cattura della finestra del browser — una pagina non può
+   fotografare se stessa senza il permesso di condivisione schermo, che su
+   decine di opere chiederebbe una conferma a ogni scatto. È la stessa vista,
+   ridisegnata con un render esplicito (preserveDrawingBuffer è già acceso per
+   gli snapshot BCF). */
+function _shotWorkCode() {
+  const base = models.map(m => String(m.name || "").replace(/\.[^.]*$/, "")).filter(Boolean);
+  if (!base.length) return "verifica";
+  /* cifre iniziali: è il codice dell'opera nella codifica ANAS (9001004900…).
+     Se i modelli caricati non concordano non si inventa una fusione: vince il
+     primo, che è quello su cui è stata federata la verifica. */
+  const digits = base.map(n => (n.match(/^\d+/) || [""])[0]).filter(Boolean);
+  const uniq = [...new Set(digits)];
+  const code = (uniq.length === 1 ? uniq[0] : (digits[0] || base[0]))
+    .replace(/[\\/:*?"<>|]+/g, "_").replace(/[.\s]+$/, "").trim();
+  return code || "verifica";
+}
+/* Conformità dei PRIMARI: è il numero che va nel nome del file. Con la soglia
+   unica i primari sono tutti gli elementi e il numero resta quello della
+   verifica. Punto decimale (non virgola): è un nome di file. */
+function _shotPrimaryPct(r) {
+  const st = r.cats.primary;
+  const v = st && st.n ? 100 * (st.n - st.over) / st.n : (r.nMeas ? 100 * r.nOk / r.nMeas : 0);
+  return v.toFixed(1);
+}
+const _shotTxt = t => String(t).replace(/<[^>]+>/g, "");   // le stringhe i18n hanno <b>: sul canvas no
+
+/* Scheda dei numeri stampata sull'immagine: stesse cifre del pannello. */
+function _c2dShotCard(ctx, W, H, r) {
+  const F = Math.max(12, Math.min(20, Math.round(W / 100)));
+  const SANS = "'IBM Plex Sans',system-ui,sans-serif";
+  const DISP = "'Barlow Semi Condensed',system-ui,sans-serif";
+  const MONO = "'IBM Plex Mono',ui-monospace,monospace";
+  const INK = "#1d231a", MUT = "#5f6a55";
+  const pc = (v, t) => t ? (100 * v / t).toFixed(1).replace(".", ",") : "0";
+  const rows = [];
+  const add = (t, o) => { o = o || {}; const sz = o.sz || F;
+    rows.push({ t: _shotTxt(t), sz, font: `${o.w || 400} ${sz}px ${o.fam || SANS}`,
+                col: o.col || INK, gap: o.gap || 0, sw: o.sw || null }); };
+  const sm = Math.round(F * 0.92);
+
+  add(tr("c2d.title"), { w: 700, sz: Math.round(F * 1.55), fam: DISP, gap: Math.round(F * 0.1) });
+  add(_shotWorkCode() + " · " + new Date().toLocaleString(LANG === "en" ? "en-GB" : "it-IT"),
+      { w: 600, sz: sm, fam: MONO, col: MUT, gap: Math.round(F * 0.55) });
+  if (models.length) add(tr("tab.models") + ": " + models.map(m => m.name).join(" · "), { sz: sm, col: MUT });
+  if (PCLOUD.sources.length) add(tr("pc.title") + ": " + PCLOUD.sources.map(p => p.name).join(" · "), { sz: sm, col: MUT });
+  if (r.dual && C2M.bookName) add(tr("c2m.book", { f: C2M.bookName, n: C2M.book.rows.length }), { sz: sm, col: MUT });
+  add(tr("c2d.max") + ": " + _c2dFmt(C2D.maxDist) + (C2D.preview ? " · " + tr("c2d.preview") : ""), { sz: sm, col: MUT });
+  add(tr("c2d.done", { n: r.nMeas.toLocaleString("it-IT"), s: r.secs.toFixed(1) }) +
+      (r.nOut ? " · " + tr("c2d.far", { n: r.nOut.toLocaleString("it-IT"), d: _c2dFmt(C2D.maxDist) }) : ""),
+      { sz: sm, col: MUT, gap: Math.round(F * 0.5) });
+
+  /* legenda coi colori veri dei punti: l'immagine si legge senza didascalia */
+  add(`${tr("c2d.lgOk")} ${pc(r.nOk, r.nMeas)}%`, { sz: sm, sw: C2D_COL.ok });
+  if (r.dual) add(`${tr("c2d.lgWarn", { d: _c2dFmt(r.tolWide) })} ${pc(r.nWarn, r.nMeas)}%`, { sz: sm, sw: C2D_COL.warn });
+  add(`${tr("c2d.lgBad")} ${pc(r.nBad, r.nMeas)}%`, { sz: sm, sw: C2D_COL.bad, gap: Math.round(F * 0.5) });
+
+  for (const key of ["primary", "secondary"]) {
+    const st = r.cats[key];
+    if (!st.n) continue;
+    const tol = key === "primary" ? C2D.tolP : C2D.tolS;
+    add((r.dual ? tr(key === "primary" ? "c2d.shotPrimary" : "c2d.shotSecondary") : tr("c2d.allElems")) + " — " + tol + " mm",
+        { w: 700, sz: Math.round(F * 1.1), fam: DISP });
+    add(tr("c2d.conf", { p: pc(st.n - st.over, st.n), n: st.n.toLocaleString("it-IT") }),
+        { w: 600, sz: Math.round(F * 1.15), fam: MONO });
+    add(tr("c2d.stats", { avg: _c2dFmt(st.sum / st.n), p95: _c2dFmt(_c2dPct(st.hist, st.n, 0.95, st.max)), max: _c2dFmt(st.max) }),
+        { sz: sm, fam: MONO, col: MUT, gap: Math.round(F * 0.45) });
+  }
+  add(r.dual ? tr("c2d.cov", { c: r.nElClass, u: r.nElUnc, x: r.excl ? r.excl.n : 0 })
+             : tr("c2d.covSingle", { n: (r.nElClass + r.nElUnc).toLocaleString("it-IT"), d: C2D.tolP }),
+      { sz: sm, col: MUT, gap: Math.round(F * 0.35) });
+  add(`viewifc.com · v${APP_VERSION}`, { sz: Math.round(F * 0.8), fam: MONO, col: MUT });
+
+  /* misura, tronca a filo scheda, disegna */
+  const pad = Math.round(F * 1.15), maxW = Math.min(W * 0.5, 760);
+  const clip = (t, font, w) => {
+    ctx.font = font;
+    if (ctx.measureText(t).width <= w) return t;
+    let lo = 0, hi = t.length;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (ctx.measureText(t.slice(0, mid) + "…").width <= w) lo = mid; else hi = mid - 1; }
+    return t.slice(0, lo) + "…";
+  };
+  let boxW = 0, boxH = pad * 2;
+  for (const row of rows) {
+    const ind = row.sw ? Math.round(row.sz * 1.6) : 0;
+    row.t = clip(row.t, row.font, maxW - ind);
+    boxW = Math.max(boxW, ctx.measureText(row.t).width + ind);
+    row.h = Math.round(row.sz * 1.45) + row.gap;
+    boxH += row.h;
+  }
+  const x = Math.round(F * 1.5), y = Math.round(F * 1.5), w = Math.round(boxW + pad * 2);
+  ctx.save();
+  ctx.fillStyle = "rgba(252,253,248,.94)";
+  ctx.strokeStyle = "rgba(168,195,32,.95)";
+  ctx.lineWidth = Math.max(1, Math.round(F / 9));
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, boxH, Math.round(F * 0.8));
+  else ctx.rect(x, y, w, boxH);
+  ctx.fill(); ctx.stroke();
+  ctx.textBaseline = "top";
+  let ty = y + pad;
+  for (const row of rows) {
+    ctx.font = row.font;
+    let tx = x + pad;
+    if (row.sw) {
+      ctx.fillStyle = `rgb(${row.sw})`;
+      const q = Math.round(row.sz * 0.9);
+      ctx.fillRect(tx, ty + Math.round(row.sz * 0.15), q, q);
+      tx += Math.round(row.sz * 1.6);
+    }
+    ctx.fillStyle = row.col;
+    ctx.fillText(row.t, tx, ty);
+    ty += row.h;
+  }
+  ctx.restore();
+}
+
+async function c2dSaveShot() {
+  const r = C2D.res;
+  if (!r) { toast(tr("toast.c2dShotNeed")); return; }
+  /* piena densità: il LOD di movimento può aver lasciato la nuvola al campione */
+  for (const src of PCLOUD.sources) src.points.geometry.setDrawRange(0, src.c2dLimit || src.count);
+  renderer.render(scene, camera);
+  const gl = renderer.domElement;
+  const c = document.createElement("canvas");
+  c.width = gl.width; c.height = gl.height;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(gl, 0, 0);
+  try { _c2dShotCard(ctx, c.width, c.height, r); }
+  catch (e) { console.warn("[APE Viewer] scheda dell'immagine:", e); }   // la vista si salva lo stesso
+  const name = `${_shotWorkCode()} - ${_shotPrimaryPct(r)}.png`;
+  const blob = await new Promise(res => c.toBlob(res, "image/png"));
+  if (!blob) { toast(tr("c2d.err", { e: "PNG" })); return; }
+  triggerDownload(blob, name);
+  toast(tr("toast.c2dShot", { f: name }));
+}
+
 $("btnC2dRun") && $("btnC2dRun").addEventListener("click", runC2dCheck);
+$("btnC2dShot") && $("btnC2dShot").addEventListener("click", c2dSaveShot);
 /* due soglie: scambia gli input e fa comparire il pannello di mappatura codici
    (la geometria si invalida da sé: la modalità è nella firma _c2dSig) */
 $("c2dDual") && $("c2dDual").addEventListener("change", () => {
@@ -12062,6 +12241,8 @@ $("c2mUseClassMap") && $("c2mUseClassMap").addEventListener("change", () => {
   if (C2M.summary) c2mScan();
   renderC2mBlock();
 });
+
+loadStockC2mBook();   // catalogo di serie all'apertura (non blocca: è una fetch a parte)
 
 $("btnC2mScan") && $("btnC2mScan").addEventListener("click", runC2mScan);
 $("btnC2mBook") && $("btnC2mBook").addEventListener("click", () => $("fileC2mBook").click());
@@ -13356,7 +13537,7 @@ applyTheme(document.documentElement.getAttribute("data-theme") === "light" ? "li
 $("thmBtn").addEventListener("click", () => applyTheme(document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light"));
 
 /* ---- nota versione ---- */
-$("ftVersion").textContent = `v${APP_VERSION} · web-ifc · © Alessandro Perugini`;
+$("ftVersion").textContent = `v${APP_VERSION} · web-ifc`;
 console.info(`[APE Viewer] versione ${APP_VERSION} · lingua ${LANG}`);
 
 /* ---- i18n: applicazione iniziale e toggle lingua (v1.8.0) ---- */
