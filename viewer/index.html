@@ -1382,7 +1382,7 @@ body.diff-embed #railDiff{display:flex}
           <span data-i18n="c2d.title">Verifica nuvola ↔ modello</span>
           <span class="c2m-btns">
             <button id="btnC2dRun" class="pc-add" data-i18n-title="c2d.runT" title="Calcola la distanza di ogni punto dalla superficie del modello">▶</button>
-            <button id="btnC2dShot" class="pc-add" data-i18n-title="c2d.shotT" title="Salva l'immagine della verifica: il nome è «codice opera - % conformi primari»" disabled><svg viewBox="0 0 24 24"><path d="M3.2 8.6h4L8.8 6.3h6.4l1.6 2.3h4v10.9H3.2z"/><circle cx="12" cy="13.8" r="3.3"/></svg></button>
+            <button id="btnC2dShot" class="pc-add" data-i18n-title="c2d.shotT" title="Salva l'immagine della verifica: il nome è «codice opera - % entro soglia»" disabled><svg viewBox="0 0 24 24"><path d="M3.2 8.6h4L8.8 6.3h6.4l1.6 2.3h4v10.9H3.2z"/><circle cx="12" cy="13.8" r="3.3"/></svg></button>
           </span>
         </div>
         <div class="c2d-opts">
@@ -2159,7 +2159,7 @@ const STRINGS = {
     "c2d.title": "Verifica nuvola ↔ modello",
     "c2d.runT": "Calcola la distanza di ogni punto dalla superficie del modello",
     "c2d.stopT": "Interrompi il calcolo",
-    "c2d.shotT": "Salva l'immagine della verifica: il nome è «codice opera - % conformi primari»",
+    "c2d.shotT": "Salva l'immagine della verifica: il nome è «codice opera - % entro soglia»",
     "c2d.shotPrimary": "Opere primarie", "c2d.shotSecondary": "Opere secondarie",
     "c2d.tolP": "Primari", "c2d.tolPT": "Soglia contrattuale per gli elementi primari",
     "c2d.tolS": "Secondari", "c2d.tolST": "Soglia contrattuale per gli elementi secondari",
@@ -2681,7 +2681,7 @@ const STRINGS = {
     "c2d.title": "Cloud ↔ model check",
     "c2d.runT": "Compute each point's distance from the model surface",
     "c2d.stopT": "Stop the computation",
-    "c2d.shotT": "Save the check as an image: the file name is «work code - % compliant primary»",
+    "c2d.shotT": "Save the check as an image: the file name is «work code - % within threshold»",
     "c2d.shotPrimary": "Primary works", "c2d.shotSecondary": "Secondary works",
     "c2d.tolP": "Primary", "c2d.tolPT": "Contractual threshold for primary elements",
     "c2d.tolS": "Secondary", "c2d.tolST": "Contractual threshold for secondary elements",
@@ -12084,8 +12084,9 @@ function renderC2dBlock() {
    Un PNG per opera, per la verifica massiva: la vista 3D com'è a schermo con
    sopra una scheda che ripete i numeri del pannello — chi riceve l'immagine non
    ha il viewer e deve capirla lo stesso. Il NOME è già il risultato:
-   «<codice opera> - <% conformi primari>.png», col codice preso dalle cifre
-   iniziali dei modelli (i file di una stessa opera condividono la testa del nome).
+   «<codice opera> - <% entro soglia>.png», col codice preso dalle cifre iniziali
+   dei modelli (i file di una stessa opera condividono la testa del nome) e la
+   percentuale presa dalla legenda verde (punti entro la soglia del proprio elemento).
    NB: non è la cattura della finestra del browser — una pagina non può
    fotografare se stessa senza il permesso di condivisione schermo, che su
    decine di opere chiederebbe una conferma a ogni scatto. È la stessa vista,
@@ -12103,13 +12104,13 @@ function _shotWorkCode() {
     .replace(/[\\/:*?"<>|]+/g, "_").replace(/[.\s]+$/, "").trim();
   return code || "verifica";
 }
-/* Conformità dei PRIMARI: è il numero che va nel nome del file. Con la soglia
-   unica i primari sono tutti gli elementi e il numero resta quello della
-   verifica. Punto decimale (non virgola): è un nome di file. */
-function _shotPrimaryPct(r) {
-  const st = r.cats.primary;
-  const v = st && st.n ? 100 * (st.n - st.over) / st.n : (r.nMeas ? 100 * r.nOk / r.nMeas : 0);
-  return v.toFixed(1);
+/* Il numero che va nel nome del file: la percentuale di punti ENTRO SOGLIA —
+   la voce verde della legenda, cioè ogni punto misurato entro la soglia del
+   PROPRIO elemento, primari e secondari insieme (scelta dell'utente 2026-09-18:
+   è il dato di sintesi dell'opera, non quello di una sola categoria).
+   Punto decimale (non virgola): è un nome di file. */
+function _shotOkPct(r) {
+  return (r.nMeas ? 100 * r.nOk / r.nMeas : 0).toFixed(1);
 }
 const _shotTxt = t => String(t).replace(/<[^>]+>/g, "");   // le stringhe i18n hanno <b>: sul canvas no
 
@@ -12216,7 +12217,7 @@ async function c2dSaveShot() {
   ctx.drawImage(gl, 0, 0);
   try { _c2dShotCard(ctx, c.width, c.height, r); }
   catch (e) { console.warn("[APE Viewer] scheda dell'immagine:", e); }   // la vista si salva lo stesso
-  const name = `${_shotWorkCode()} - ${_shotPrimaryPct(r)}.png`;
+  const name = `${_shotWorkCode()} - ${_shotOkPct(r)}.png`;
   const blob = await new Promise(res => c.toBlob(res, "image/png"));
   if (!blob) { toast(tr("c2d.err", { e: "PNG" })); return; }
   triggerDownload(blob, name);
