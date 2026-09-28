@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  viewifc.com — IFC Site Context: cosa garantisce OGNI file generato dal tool.
+  What EVERY file produced by the tool guarantees.
+  Verificato dai test del repo (test/test_site_context.js) su tutti gli schemi e le modalità.
+-->
+<ids:ids xmlns:ids="http://standards.buildingsmart.org/IDS" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+  <ids:info>
+    <ids:title>viewifc.com IFC Site Context — output guarantees</ids:title>
+    <ids:copyright>viewifc.com — AGPL-3.0 (tool). Data under the source licences written in each file.</ids:copyright>
+    <ids:version>1.0.0</ids:version>
+    <ids:description>Context terrain and buildings generated from open data (AWS Terrain Tiles, Overture Maps). Every element carries its provenance; the site carries CRS, attribution and disclaimer.</ids:description>
+    <ids:author>info@viewifc.com</ids:author>
+    <ids:date>2026-09-25</ids:date>
+    <ids:purpose>Context model for federation with design models</ids:purpose>
+  </ids:info>
+  <ids:specifications>
+
+    <ids:specification name="Site: generator, CRS, attribution, disclaimer" ifcVersion="IFC2X3 IFC4 IFC4X3_ADD2" description="The IfcSite declares how and from what the file was made.">
+      <ids:applicability minOccurs="1" maxOccurs="1">
+        <ids:entity><ids:name><ids:simpleValue>IFCSITE</ids:simpleValue></ids:name></ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>Generator</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>CRS</ids:simpleValue></ids:baseName>
+          <ids:value><xs:restriction base="xs:string"><xs:pattern value="EPSG:[0-9]+"/></xs:restriction></ids:value>
+        </ids:property>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>GeoreferencingMode</ids:simpleValue></ids:baseName>
+          <ids:value><xs:restriction base="xs:string"><xs:enumeration value="A_MAPCONVERSION_LOCAL"/><xs:enumeration value="B_MAP_COORDINATES"/></xs:restriction></ids:value>
+        </ids:property>
+        <ids:property dataType="IFCAREAMEASURE">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>ExtractedArea</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCTEXT">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>Attribution</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCTEXT">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>Disclaimer</ids:simpleValue></ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+
+    <ids:specification name="Site IFC2x3: georeferencing ePSets" ifcVersion="IFC2X3" description="IFC2x3 has no IfcMapConversion: buildingSMART georeferencing guide, ePSet_MapConversion and ePSet_ProjectedCRS on the site.">
+      <ids:applicability minOccurs="1" maxOccurs="1">
+        <ids:entity><ids:name><ids:simpleValue>IFCSITE</ids:simpleValue></ids:name></ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLENGTHMEASURE">
+          <ids:propertySet><ids:simpleValue>ePSet_MapConversion</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>Eastings</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLENGTHMEASURE">
+          <ids:propertySet><ids:simpleValue>ePSet_MapConversion</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>Northings</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ePSet_ProjectedCRS</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>Name</ids:simpleValue></ids:baseName>
+          <ids:value><xs:restriction base="xs:string"><xs:pattern value="EPSG:[0-9]+"/></xs:restriction></ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+
+    <ids:specification name="Terrain (IFC4 and later)" ifcVersion="IFC4 IFC4X3_ADD2" description="At most one terrain, as IfcGeographicElement TERRAIN, with its provenance.">
+      <ids:applicability minOccurs="0" maxOccurs="1">
+        <ids:entity>
+          <ids:name><ids:simpleValue>IFCGEOGRAPHICELEMENT</ids:simpleValue></ids:name>
+          <ids:predefinedType><ids:simpleValue>TERRAIN</ids:simpleValue></ids:predefinedType>
+        </ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>Source</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>VerticalDatum</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>IsSurfaceModel</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLENGTHMEASURE">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>SimplificationTolerance</ids:simpleValue></ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+
+    <ids:specification name="Terrain (IFC2x3)" ifcVersion="IFC2X3" description="IFC2x3 has no IfcGeographicElement: the terrain is a proxy with ObjectType TERRAIN.">
+      <ids:applicability minOccurs="0" maxOccurs="1">
+        <ids:entity><ids:name><ids:simpleValue>IFCBUILDINGELEMENTPROXY</ids:simpleValue></ids:name></ids:entity>
+        <ids:attribute><ids:name><ids:simpleValue>ObjectType</ids:simpleValue></ids:name><ids:value><ids:simpleValue>TERRAIN</ids:simpleValue></ids:value></ids:attribute>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>Source</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCBOOLEAN">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>IsSurfaceModel</ids:simpleValue></ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+
+    <ids:specification name="Context buildings: provenance and height method" ifcVersion="IFC2X3 IFC4 IFC4X3_ADD2" description="Every context building says where its footprint and its height come from.">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity><ids:name><ids:simpleValue>IFCBUILDINGELEMENTPROXY</ids:simpleValue></ids:name></ids:entity>
+        <ids:attribute><ids:name><ids:simpleValue>ObjectType</ids:simpleValue></ids:name><ids:value><ids:simpleValue>CONTEXT_BUILDING</ids:simpleValue></ids:value></ids:attribute>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:attribute><ids:name><ids:simpleValue>Name</ids:simpleValue></ids:name></ids:attribute>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>Source</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCIDENTIFIER">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>SourceId</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>SourceRelease</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>License</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLENGTHMEASURE">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>HeightValue</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>HeightMethod</ids:simpleValue></ids:baseName>
+          <ids:value><xs:restriction base="xs:string"><xs:enumeration value="SOURCE"/><xs:enumeration value="FROM_LEVELS"/><xs:enumeration value="AREA_MEDIAN"/><xs:enumeration value="DEFAULT"/></xs:restriction></ids:value>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+
+    <ids:specification name="Context buildings: user-defined proxy" ifcVersion="IFC4 IFC4X3_ADD2" description="Context buildings are proxies, never IfcBuilding: they must not pollute the spatial structure of the federated project.">
+      <ids:applicability minOccurs="0" maxOccurs="unbounded">
+        <ids:entity><ids:name><ids:simpleValue>IFCBUILDINGELEMENTPROXY</ids:simpleValue></ids:name></ids:entity>
+        <ids:attribute><ids:name><ids:simpleValue>ObjectType</ids:simpleValue></ids:name><ids:value><ids:simpleValue>CONTEXT_BUILDING</ids:simpleValue></ids:value></ids:attribute>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:entity>
+          <ids:name><ids:simpleValue>IFCBUILDINGELEMENTPROXY</ids:simpleValue></ids:name>
+          <ids:predefinedType><ids:simpleValue>USERDEFINED</ids:simpleValue></ids:predefinedType>
+        </ids:entity>
+      </ids:requirements>
+    </ids:specification>
+
+    <ids:specification name="No IfcBuilding in the context file" ifcVersion="IFC2X3 IFC4 IFC4X3_ADD2" description="Prohibited: the context must not add buildings to the spatial structure.">
+      <ids:applicability minOccurs="0" maxOccurs="0">
+        <ids:entity><ids:name><ids:simpleValue>IFCBUILDING</ids:simpleValue></ids:name></ids:entity>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:attribute><ids:name><ids:simpleValue>Name</ids:simpleValue></ids:name></ids:attribute>
+      </ids:requirements>
+    </ids:specification>
+
+  </ids:specifications>
+</ids:ids>
