@@ -163,6 +163,59 @@
       </ids:requirements>
     </ids:specification>
 
+    <ids:specification name="Roads, railways and water (IFC4 and later)" ifcVersion="IFC4 IFC4X3_ADD2" description="At most one surface per family (roads, paths, railways, water), as user-defined IfcGeographicElement, with source, release, licence, feature count and lift above the terrain.">
+      <ids:applicability minOccurs="0" maxOccurs="4">
+        <ids:entity><ids:name><ids:simpleValue>IFCGEOGRAPHICELEMENT</ids:simpleValue></ids:name></ids:entity>
+        <ids:attribute><ids:name><ids:simpleValue>ObjectType</ids:simpleValue></ids:name><ids:value><xs:restriction base="xs:string"><xs:pattern value="CONTEXT_(ROAD|PATH|RAIL|WATER)"/></xs:restriction></ids:value></ids:attribute>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:attribute><ids:name><ids:simpleValue>Name</ids:simpleValue></ids:name></ids:attribute>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>Source</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>SourceRelease</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>License</ids:simpleValue></ids:baseName>
+          <ids:value><ids:simpleValue>ODbL-1.0</ids:simpleValue></ids:value>
+        </ids:property>
+        <ids:property dataType="IFCINTEGER">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>FeatureCount</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLENGTHMEASURE">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>LiftAboveTerrain</ids:simpleValue></ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+
+    <ids:specification name="Roads, railways and water (IFC2x3)" ifcVersion="IFC2X3" description="IFC2x3 has no IfcGeographicElement: one proxy per family, same provenance.">
+      <ids:applicability minOccurs="0" maxOccurs="4">
+        <ids:entity><ids:name><ids:simpleValue>IFCBUILDINGELEMENTPROXY</ids:simpleValue></ids:name></ids:entity>
+        <ids:attribute><ids:name><ids:simpleValue>ObjectType</ids:simpleValue></ids:name><ids:value><xs:restriction base="xs:string"><xs:pattern value="CONTEXT_(ROAD|PATH|RAIL|WATER)"/></xs:restriction></ids:value></ids:attribute>
+      </ids:applicability>
+      <ids:requirements>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>Source</ids:simpleValue></ids:baseName>
+        </ids:property>
+        <ids:property dataType="IFCLABEL">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>License</ids:simpleValue></ids:baseName>
+          <ids:value><ids:simpleValue>ODbL-1.0</ids:simpleValue></ids:value>
+        </ids:property>
+        <ids:property dataType="IFCINTEGER">
+          <ids:propertySet><ids:simpleValue>ViewIFC_Provenance</ids:simpleValue></ids:propertySet>
+          <ids:baseName><ids:simpleValue>FeatureCount</ids:simpleValue></ids:baseName>
+        </ids:property>
+      </ids:requirements>
+    </ids:specification>
+
     <ids:specification name="No IfcBuilding in the context file" ifcVersion="IFC2X3 IFC4 IFC4X3_ADD2" description="Prohibited: the context must not add buildings to the spatial structure.">
       <ids:applicability minOccurs="0" maxOccurs="0">
         <ids:entity><ids:name><ids:simpleValue>IFCBUILDING</ids:simpleValue></ids:name></ids:entity>

@@ -29,7 +29,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IFC Site Context — contesto 3D georeferenziato da fonti aperte · viewifc.com</title>
 
-<meta name="description" content="Disegna un'area sulla mappa, o parti dal tuo IFC di progetto, e scarica un IFC di contesto georeferenziato: terreno ed edifici da fonti aperte (Overture Maps, AWS Terrain Tiles), con provenienza per elemento. Gratis, senza account, tutto nel browser.">
+<meta name="description" content="Disegna un'area sulla mappa, o parti dal tuo IFC di progetto, e scarica un IFC di contesto georeferenziato: terreno, edifici, strade e acqua da fonti aperte (Overture Maps, OpenStreetMap, DTM nazionali, AWS Terrain Tiles), con provenienza per elemento. Gratis, senza account, tutto nel browser.">
 <meta name="author" content="Alessandro Perugini">
 <meta name="theme-color" content="#f1f3ee">
 <link rel="canonical" href="https://viewifc.com/tools/ifc-site-context/">
@@ -432,12 +432,12 @@ html[data-theme="light"] .seg button.on{background:#fff}
         <span class="tag line" data-i18n="head.beta">Prima versione</span>
       </div>
       <h1 class="h1">IFC Site Context</h1>
-      <p class="lead" data-i18n="head.lead">Disegna un'area o un tracciato sulla mappa, o parti dall'IFC del tuo progetto: terreno (il DTM nazionale, dove c'è) ed edifici da fonti aperte diventano un IFC di contesto georeferenziato che si sovrappone al progetto. Ogni elemento dice da dove viene.</p>
+      <p class="lead" data-i18n="head.lead">Disegna un'area o un tracciato sulla mappa, o parti dall'IFC del tuo progetto: terreno (il DTM nazionale, dove c'è), edifici, strade e acqua da fonti aperte diventano un IFC di contesto georeferenziato che si sovrappone al progetto. Ogni elemento dice da dove viene.</p>
     </div>
     <div class="spec">
       <div class="spec-row"><span class="spec-k" data-i18n="spec.in">Ingresso</span><span class="spec-v" data-i18n="spec.inV">area, tracciato o IFC · 10 km²</span></div>
       <div class="spec-row"><span class="spec-k" data-i18n="spec.out">Uscita</span><span class="spec-v" data-i18n="spec.outV">1 .ifc georeferenziato + LandXML</span></div>
-      <div class="spec-row"><span class="spec-k" data-i18n="spec.data">Dati</span><span class="spec-v">Overture · DTM nazionali · Terrain Tiles</span></div>
+      <div class="spec-row"><span class="spec-k" data-i18n="spec.data">Dati</span><span class="spec-v">Overture · OpenStreetMap · DTM nazionali · Terrain Tiles</span></div>
     </div>
   </section>
 
@@ -497,6 +497,7 @@ html[data-theme="light"] .seg button.on{background:#fff}
           <span class="lg"><i style="background:var(--m-lev)"></i><span data-i18n="m.FROM_LEVELS">da n. di piani</span></span>
           <span class="lg"><i style="background:var(--m-med)"></i><span data-i18n="m.AREA_MEDIAN">mediana dell'area</span></span>
           <span class="lg"><i style="background:var(--m-def)"></i><span data-i18n="m.DEFAULT">valore di default</span></span>
+          <span class="lg" id="lgWays" hidden><i style="background:#8c8f95"></i><span data-i18n="lg.ways">strade</span><i style="background:#6b9ed1;margin-left:6px"></i><span data-i18n="lg.water">acqua</span></span>
         </div>
         <div class="ov ov-area" id="ovArea" hidden>
           <span class="v" id="areaV"></span><span class="l" id="areaL"></span>
@@ -569,7 +570,7 @@ html[data-theme="light"] .seg button.on{background:#fff}
 
       <div class="l-foot">
         <svg viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.4 3.4 8.3 8 9 4.6-.7 8-4.6 8-9V6z"/></svg>
-        <span data-i18n="privacy">Privacy: l'area che guardi e quella che scegli arrivano solo ai fornitori dei dati — mappa (OpenFreeMap), terreno (AWS Terrain Tiles, oppure il DTM nazionale: swisstopo, PDOK, INGV, IGN, USGS), edifici (Overture Maps su AWS) e ricerca (Nominatim, solo se la usi). Mai a viewifc.com, mai alle statistiche. L'IFC di progetto che carichi non esce dal browser.</span>
+        <span data-i18n="privacy">Privacy: l'area che guardi e quella che scegli arrivano solo ai fornitori dei dati — mappa, strade e acqua (OpenFreeMap), terreno (AWS Terrain Tiles, oppure il DTM nazionale: swisstopo, PDOK, INGV, IGN, USGS), edifici (Overture Maps su AWS) e ricerca (Nominatim, solo se la usi). Mai a viewifc.com, mai alle statistiche. L'IFC di progetto che carichi non esce dal browser.</span>
       </div>
     </div>
 
@@ -650,6 +651,17 @@ html[data-theme="light"] .seg button.on{background:#fff}
           <label class="chk" id="partsRow"><input type="checkbox" id="partsChk" checked><span><b data-i18n="parts.t">Parti degli edifici</b> <span data-i18n="parts.s">— dove Overture le ha (torri, guglie, gradoni) il volume segue le parti invece dell'impronta: un po' più da scaricare.</span></span></label>
         </div>
 
+        <div class="orow">
+          <span class="k"><span data-i18n="o.ways">Strade e acqua</span></span>
+          <div class="seg" id="waysSeg">
+            <button data-w="roads" class="on" data-i18n="ways.roads">Strade</button>
+            <button data-w="paths" class="on" data-i18n="ways.paths">Percorsi e piazze</button>
+            <button data-w="rail" class="on" data-i18n="ways.rail">Ferrovie</button>
+            <button data-w="water" class="on" data-i18n="ways.water">Acqua</button>
+          </div>
+          <p class="onote" style="color:var(--faint)" data-i18n="ways.note">Da OpenStreetMap, con i tile della mappa: superfici stese sul terreno, larghezze di default per classe, ponti da spalla a spalla, gallerie escluse. Si accende e si spegne ognuna.</p>
+        </div>
+
         <div class="disc">
           <svg viewBox="0 0 24 24"><path d="M12 9v5M12 17.5v.01"/><path d="M10.3 3.9 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
           <span data-i18n="disclaimer">Dati indicativi da fonti aperte: non sostituiscono un rilievo. Il disclaimer e le licenze vengono scritti anche dentro il file.</span>
@@ -661,6 +673,7 @@ html[data-theme="light"] .seg button.on{background:#fff}
           <span class="stp" data-s="terrain" data-i18n="st.terrain">terreno</span>
           <span class="stp" data-s="buildings" data-i18n="st.buildings">edifici</span>
           <span class="stp" data-s="tin" data-i18n="st.tin">TIN</span>
+          <span class="stp" data-s="ways" data-i18n="st.ways">strade</span>
           <span class="stp" data-s="ifc" data-i18n="st.ifc">IFC</span>
         </div>
         <div class="prog" id="prog" hidden><i id="progBar"></i></div>
@@ -1484,8 +1497,12 @@ function ctxClipConvex(subj, clip) {
    bordo resta chiudibile in un solido. La quota dei vertici nuovi sta sul
    piano del triangolo d'origine: il ritaglio non cambia la superficie.
    V = [E,N,Z]*, T = terne antiorarie; ring antiorario [[E,N],…]
+   ctxClipPrep fa una volta sola orecchie e tagli dell'area (strade e acqua
+   ritagliano migliaia di pezzi sulla stessa area); key3d tiene distinti i
+   vertici con la stessa pianta e quote diverse (un pezzo che si sovrappone
+   a se stesso), che il terreno — 2,5D — non ha.
    --------------------------------------------------------------------------- */
-function ctxClipTin(V, T, ring) {
+function ctxClipPrep(ring) {
   const ec = ctxEarcut(ring);
   if (!ec) throw new Error("poligono dell'area non valido (si interseca?)");
   const ears = [], cuts = [], seen = new Set();
@@ -1495,10 +1512,14 @@ function ctxClipTin(V, T, ring) {
     const e = [ring[ec[i]], ring[ec[i + 1]], ring[ec[i + 2]]]; ears.push({ e, bb: ctxBBox(e) });
     seg(ec[i], ec[i + 1]); seg(ec[i + 1], ec[i + 2]); seg(ec[i + 2], ec[i]);    // + diagonali interne
   }
-  const bbR = ctxBBox(ring);
+  return { ring, ears, cuts, bb: ctxBBox(ring) };
+}
+function ctxClipTin(V, T, ring) { return ctxClipMesh(V, T, ctxClipPrep(ring), false); }
+function ctxClipMesh(V, T, prep, key3d) {
+  const { ring, ears, cuts } = prep, bbR = prep.bb;
   const outV = [], outT = [], key = new Map();
   const vid = (x, y, z) => {
-    const k = Math.round(x * 1000) + "," + Math.round(y * 1000);
+    const k = Math.round(x * 1000) + "," + Math.round(y * 1000) + (key3d ? "," + Math.round(z * 1000) : "");
     let i = key.get(k);
     if (i === undefined) { i = outV.length / 3; outV.push(x, y, z); key.set(k, i); }
     return i;
@@ -2573,6 +2594,672 @@ function ctxBuildings(rows, fwd, areaRing, opt, parts) {
 }
 
 /* ---------------------------------------------------------------------------
+   Strade, ferrovie e acqua — vector tile OpenFreeMap (schema OpenMapTiles,
+   dati OpenStreetMap), z14: 4096 unità per tile, ~0,5 m.
+   Perché non Overture (spike 2026-09-29, Napoli ~11 km²): transportation
+   costava 12 row group e 46 MB di sole colonne utili per 6 300 righe — i
+   blocchi coprono 3° di latitudine (traghetti, segmenti lunghi) e i file non
+   hanno l'indice per pagina; i tile z14 sono 9 e pesano 2 MB. È la stessa
+   fonte della mappa del tool: nessun fornitore nuovo.
+   --------------------------------------------------------------------------- */
+const CTX_OFM = "https://tiles.openfreemap.org/planet";
+const CTX_WAYS_Z = 14;
+
+/** decoder MVT (protobuf a mano): { layer: { extent, features: [{ id, type, props, geom }] } }, solo i layer in want */
+function ctxMvtDecode(u8, want) {
+  const td = new TextDecoder();
+  let p = 0;
+  const varint = () => { let r = 0, s = 1, b; do { b = u8[p++]; r += (b & 0x7f) * s; s *= 128; } while (b & 0x80); return r; };
+  const skip = (wt) => { if (wt === 0) varint(); else if (wt === 1) p += 8; else if (wt === 2) { const l = varint(); p += l; } else if (wt === 5) p += 4; else throw new Error("tile vettoriale non valida (wire type " + wt + ")"); };
+  const zz = (v) => (v % 2 ? -(v + 1) / 2 : v / 2);
+  const out = {};
+  while (p < u8.length) {
+    const tag = varint(), f = Math.floor(tag / 8), wt = tag & 7;
+    if (f !== 3 || wt !== 2) { skip(wt); continue; }
+    const len = varint(), lend = p + len, start = p;
+    let name = null;
+    while (p < lend) { const t = varint(), w = t & 7; if (Math.floor(t / 8) === 1 && w === 2) { const l = varint(); name = td.decode(u8.subarray(p, p + l)); break; } skip(w); }
+    if (want && !want.includes(name)) { p = lend; continue; }
+    p = start;
+    const L = { extent: 4096, keys: [], values: [], raw: [] };
+    while (p < lend) {
+      const t = varint(), ff = Math.floor(t / 8), w = t & 7;
+      if (ff === 2 && w === 2) { const l = varint(); L.raw.push([p, p + l]); p += l; }
+      else if (ff === 3 && w === 2) { const l = varint(); L.keys.push(td.decode(u8.subarray(p, p + l))); p += l; }
+      else if (ff === 4 && w === 2) {
+        const l = varint(), ve = p + l; let v = null;
+        while (p < ve) {
+          const t2 = varint(), f2 = Math.floor(t2 / 8), w2 = t2 & 7;
+          if (f2 === 1 && w2 === 2) { const l2 = varint(); v = td.decode(u8.subarray(p, p + l2)); p += l2; }
+          else if (f2 === 2 && w2 === 5) { v = new DataView(u8.buffer, u8.byteOffset + p, 4).getFloat32(0, true); p += 4; }
+          else if (f2 === 3 && w2 === 1) { v = new DataView(u8.buffer, u8.byteOffset + p, 8).getFloat64(0, true); p += 8; }
+          else if ((f2 === 4 || f2 === 5) && w2 === 0) v = varint();
+          else if (f2 === 6 && w2 === 0) v = zz(varint());
+          else if (f2 === 7 && w2 === 0) v = !!varint();
+          else skip(w2);
+        }
+        L.values.push(v);
+      } else if (ff === 5 && w === 0) L.extent = varint();
+      else skip(w);
+    }
+    L.features = L.raw.map(([a, b]) => {
+      p = a;
+      const ft = { id: null, type: 0, props: {}, geom: [] }, tags = [], cmds = [];
+      while (p < b) {
+        const t = varint(), ff = Math.floor(t / 8), w = t & 7;
+        if (ff === 1 && w === 0) ft.id = varint();
+        else if (ff === 2 && w === 2) { const l = varint(), e = p + l; while (p < e) tags.push(varint()); }
+        else if (ff === 3 && w === 0) ft.type = varint();
+        else if (ff === 4 && w === 2) { const l = varint(), e = p + l; while (p < e) cmds.push(varint()); }
+        else skip(w);
+      }
+      for (let i = 0; i + 1 < tags.length; i += 2) ft.props[L.keys[tags[i]]] = L.values[tags[i + 1]];
+      let cur = null, x = 0, y = 0;
+      for (let i = 0; i < cmds.length;) {
+        const c = cmds[i++], id = c & 7, n = c >> 3;
+        if (id === 1 || id === 2) {
+          for (let k = 0; k < n; k++) {
+            x += zz(cmds[i++]); y += zz(cmds[i++]);
+            if (id === 1) { cur = [[x, y]]; ft.geom.push(cur); } else if (cur) cur.push([x, y]);
+          }
+        } else if (id === 7 && cur && cur.length) cur.push(cur[0].slice());
+      }
+      return ft;
+    });
+    delete L.raw;
+    out[name] = L;
+    p = lend;
+  }
+  return out;
+}
+
+/** polilinea ritagliata dal rettangolo [x0,x1]×[y0,y1] (Liang–Barsky): i pezzi dentro */
+function ctxClipLineRect(pts, x0, y0, x1, y1) {
+  const out = []; let cur = null;
+  for (let i = 1; i < pts.length; i++) {
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i], dx = bx - ax, dy = by - ay;
+    let t0 = 0, t1 = 1;
+    const cl = (p, q) => { if (p === 0) return q >= 0; const r = q / p; if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; } else { if (r < t0) return false; if (r < t1) t1 = r; } return true; };
+    if (!(cl(-dx, ax - x0) && cl(dx, x1 - ax) && cl(-dy, ay - y0) && cl(dy, y1 - ay)) || t1 - t0 < 1e-12) { cur = null; continue; }
+    if (!cur || t0 > 0) { cur = [[ax + t0 * dx, ay + t0 * dy]]; out.push(cur); }
+    cur.push([ax + t1 * dx, ay + t1 * dy]);
+    if (t1 < 1) cur = null;
+  }
+  return out.filter((l) => l.length >= 2);
+}
+
+/**
+ * Feature di un layer di tile → lon/lat, ritagliate sul bordo ESATTO della
+ * tile (il buffer attorno sono doppioni della tile vicina). Poligoni: con la
+ * formula del geometra in coordinate di tile l'anello esterno ha area > 0
+ * (spec MVT 2.1), i buchi < 0 e seguono il loro esterno.
+ */
+function ctxTileFeatures(L, name, tx, ty, z, out) {
+  const ext = L.extent || 4096, n = 2 ** z, rect = [[0, 0], [ext, 0], [ext, ext], [0, ext]];
+  const ll = ([px, py]) => { const X = (tx + px / ext) / n, Y = (ty + py / ext) / n; return [X * 360 - 180, (Math.atan(Math.sinh(Math.PI * (1 - 2 * Y))) * 180) / Math.PI]; };
+  for (const f of L.features) {
+    if (f.type === 2) {
+      const lines = f.geom.flatMap((l) => ctxClipLineRect(l, 0, 0, ext, ext)).map((l) => l.map(ll));
+      if (lines.length) out.push({ layer: name, kind: "line", props: f.props, lines });
+    } else if (f.type === 3) {
+      const polys = [];
+      for (const r of f.geom) {
+        const a = ctxRingArea(r);
+        if (Math.abs(a) < 1e-9) continue;
+        const c = ctxCleanRing(ctxClipConvex(ctxCleanRing(r, 1e-9), rect), 1e-9);
+        const ok = c.length >= 3 && Math.abs(ctxRingArea(c)) > 1e-6;
+        if (a > 0) polys.push(ok ? [c.map(ll)] : null);   // null: un esterno fuori dalla tile si porta via i suoi buchi
+        else if (ok && polys.length && polys[polys.length - 1]) polys[polys.length - 1].push(c.map(ll));
+      }
+      const ps = polys.filter(Boolean);
+      if (ps.length) out.push({ layer: name, kind: "poly", props: f.props, polys: ps });
+    }
+  }
+}
+
+async function ctxGunzip(u8) {
+  return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer());
+}
+
+/**
+ * Tile z14 che toccano l'area (hit) → feature di transportation, water e
+ * waterway in lon/lat, nell'ordine delle tile (lo stesso input dà lo stesso
+ * file). La versione dei tile (nell'URL del TileJSON) va nel pset.
+ */
+async function ctxWaysFetch(io, bb, hit, progress) {
+  const tj = await (await ctxFetch(io, CTX_OFM, undefined, "OpenFreeMap")).json();
+  const tpl = tj && tj.tiles && tj.tiles[0];
+  if (!tpl) throw new Error("OpenFreeMap: TileJSON senza indirizzo delle tile");
+  const version = (/\/planet\/([^/]+)\//.exec(tpl) || [])[1] || "";
+  const z = CTX_WAYS_Z, n = 2 ** z;
+  const x0 = Math.floor(ctxTx(bb[0], z)), x1 = Math.floor(ctxTx(bb[2], z)), y0 = Math.floor(ctxTy(bb[3], z)), y1 = Math.floor(ctxTy(bb[1], z));
+  const lonOf = (x) => (x / n) * 360 - 180, latOf = (y) => (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n))) * 180) / Math.PI;
+  const jobs = [];
+  for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) if (!hit || hit([lonOf(x), latOf(y + 1), lonOf(x + 1), latOf(y)])) jobs.push({ x, y, feats: [] });
+  let done = 0, next = 0;
+  progress && progress({ done, total: jobs.length });
+  const worker = async () => {
+    while (next < jobs.length) {
+      const j = jobs[next++];
+      let r = null;
+      try { r = await ctxFetch(io, tpl.replace("{z}", z).replace("{x}", j.x).replace("{y}", j.y), undefined, "OpenFreeMap"); }
+      catch (e) { if (!(e && (e.status === 404 || e.status === 204))) throw e; }   // tile che non esiste: niente lì
+      if (r && r.status !== 204) {
+        let u8 = new Uint8Array(await r.arrayBuffer());
+        io.bytes && io.bytes("ways", u8.length);
+        if (u8[0] === 0x1f && u8[1] === 0x8b) u8 = await ctxGunzip(u8);   // se il server non ha dichiarato il gzip
+        const t = ctxMvtDecode(u8, ["transportation", "water", "waterway"]);
+        for (const k of ["transportation", "water", "waterway"]) if (t[k]) ctxTileFeatures(t[k], k, j.x, j.y, z, j.feats);
+      }
+      progress && progress({ done: ++done, total: jobs.length });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(6, jobs.length) }, worker));
+  return { version, tiles: jobs.length, feats: jobs.flatMap((j) => j.feats) };
+}
+
+/* classi OpenMapTiles → famiglia (un elemento IFC ciascuna) e larghezza piena
+   di DEFAULT in metri: le larghezze vere in OSM ci sono di rado (in Overture 26
+   segmenti su 6 294 a Napoli) e nei tile non arrivano */
+const CTX_WAY_ROAD = { motorway: 12, trunk: 11, primary: 10, secondary: 9, tertiary: 8, minor: 6.5, busway: 7, raceway: 8, service: 4.5, track: 3 };
+const CTX_WAY_PATH = { pedestrian: 6, footway: 2.5, steps: 2.5, cycleway: 2.2, path: 1.6, bridleway: 2, platform: 3, pier: 3 };
+const CTX_WAY_RAIL = { rail: 3.5, narrow_gauge: 3, preserved: 3, funicular: 2.5, light_rail: 3.2, subway: 3.2, tram: 2.8, monorail: 1.6 };
+const CTX_WAY_WATER = { river: 12, canal: 8, stream: 3, ditch: 1.5, drain: 1.5 };
+/* quanto si sta sopra il terreno (m): niente lotta di profondità col TIN; strade sopra i marciapiedi, binari del tram sopra la strada */
+const CTX_WAY_LIFT = { roads: 0.2, paths: 0.17, rail: 0.24, water: 0.15 };
+/* una superficie per famiglia: strade di classi diverse in elementi diversi rimetterebbero i contorni agli incroci */
+const CTX_WAY_GROUPS = ["roads", "paths", "rail", "water"];
+const CTX_WAY_STYLE = { roads: [0.55, 0.56, 0.58], paths: [0.80, 0.77, 0.71], rail: [0.48, 0.42, 0.38], water: [0.42, 0.62, 0.82] };
+const CTX_WAY_OBJ = { roads: "CONTEXT_ROAD", paths: "CONTEXT_PATH", rail: "CONTEXT_RAIL", water: "CONTEXT_WATER" };
+
+/** famiglia, classe e larghezza di una feature; null = non si vede o non si vuole (gallerie, interni, cantieri, traghetti, piscine) */
+function ctxWayClass(f) {
+  const p = f.props || {}, c = String(p.class || "");
+  if (p.brunnel === "tunnel") return null;
+  if (f.layer === "transportation") {
+    if (p.indoor === 1 || p.indoor === true || /_construction$/.test(c) || c === "ferry" || c === "bus_guideway" || c === "aerialway") return null;
+    if (c === "bridge") return null;   // l'area del ponte: il piano stradale c'è già come linea, e sotto c'è la valle
+    if (CTX_WAY_ROAD[c]) { const w = CTX_WAY_ROAD[c]; return { group: "roads", cls: c, w: p.ramp ? Math.min(w, 7) : w }; }
+    if (c === "path" || c === "pier") {
+      const s = c === "pier" ? "pier" : String(p.subclass || "path");
+      if (s === "corridor" || s === "elevator") return null;
+      return { group: "paths", cls: s, w: CTX_WAY_PATH[s] || 2 };
+    }
+    if (c === "rail" || c === "transit") { const s = String(p.subclass || "rail"); return { group: "rail", cls: s, w: CTX_WAY_RAIL[s] || 3 }; }
+    return null;
+  }
+  if (f.layer === "water") return c === "swimming_pool" ? null : { group: "water", cls: c || "water", w: 0 };
+  if (f.layer === "waterway") return { group: "water", cls: c || "stream", w: CTX_WAY_WATER[c] || 2 };
+  return null;
+}
+
+/** relazione fra un rettangolo e il poligono dell'area: "in", "out" o "cross" */
+function ctxRectRelRing(b, ring) {
+  const cs = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]];
+  for (const [x, y] of ring) if (x > b[0] && x < b[2] && y > b[1] && y < b[3]) return "cross";
+  for (let i = 0; i < ring.length; i++) { const p = ring[i], q = ring[(i + 1) % ring.length]; for (let k = 0; k < 4; k++) if (ctxSegX(p, q, cs[k], cs[(k + 1) % 4])) return "cross"; }
+  const ins = cs.filter(([x, y]) => ctxPointInRing(x, y, ring)).length;
+  return ins === 4 ? "in" : ins === 0 ? "out" : "cross";
+}
+/** lunghezza di una polilinea dentro il poligono */
+function ctxLineLenIn(pts, ring) {
+  let L = 0;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const a = pts[i], b = pts[i + 1], ex = b[0] - a[0], ey = b[1] - a[1], ts = [0, 1];
+    for (let k = 0; k < ring.length; k++) {
+      const p = ring[k], q = ring[(k + 1) % ring.length], fx = q[0] - p[0], fy = q[1] - p[1], den = ex * fy - ey * fx;
+      if (Math.abs(den) < 1e-12) continue;
+      const t = ((p[0] - a[0]) * fy - (p[1] - a[1]) * fx) / den, u = ((p[0] - a[0]) * ey - (p[1] - a[1]) * ex) / den;
+      if (t > 0 && t < 1 && u >= 0 && u <= 1) ts.push(t);
+    }
+    ts.sort((u, v) => u - v);
+    const len = Math.hypot(ex, ey);
+    for (let k = 0; k + 1 < ts.length; k++) { const tm = (ts[k] + ts[k + 1]) / 2; if (ctxPointInRing(a[0] + ex * tm, a[1] + ey * tm, ring)) L += (ts[k + 1] - ts[k]) * len; }
+  }
+  return L;
+}
+function ctxSegDist(x, y, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+  const t = L2 ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / L2)) : 0;
+  return Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy);
+}
+/** i pezzi di un ponte spezzati dai bordi delle tile si ricuciono (stessa chiave, estremi entro tol): la quota va da spalla a spalla */
+function ctxJoinLines(items, tol) {
+  const out = items.map((it) => ({ ...it, pts: it.pts.slice() }));
+  const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  for (let again = true; again;) {
+    again = false;
+    scan: for (let i = 0; i < out.length; i++) for (let j = i + 1; j < out.length; j++) {
+      const A = out[i], B = out[j];
+      if (A.key !== B.key) continue;
+      const a0 = A.pts[0], a1 = A.pts[A.pts.length - 1], b0 = B.pts[0], b1 = B.pts[B.pts.length - 1];
+      let pts = null;
+      if (d(a1, b0) <= tol) pts = [...A.pts, ...B.pts.slice(1)];
+      else if (d(b1, a0) <= tol) pts = [...B.pts, ...A.pts.slice(1)];
+      else if (d(a1, b1) <= tol) pts = [...A.pts, ...B.pts.slice(0, -1).reverse()];
+      else if (d(a0, b0) <= tol) pts = [...A.pts.slice().reverse(), ...B.pts.slice(1)];
+      if (!pts) continue;
+      A.pts = pts; out.splice(j, 1); again = true; break scan;
+    }
+  }
+  return out;
+}
+
+/**
+ * Nastro largo 2·hw lungo pts (nel CRS), con giunti e terminali arrotondati
+ * (niente tacche dove due tratti si incontrano ad angolo). zf(x, y, s) è la
+ * quota finale di un punto, s la progressiva sull'asse. Sezioni ai vertici e
+ * ogni ≤ 4 m in mezzo per seguire il terreno; quelle intermedie che non
+ * servono (scarto < 8 cm dalla retta fra le vicine) si tolgono, e così la
+ * mezzeria se il profilo trasversale è piano. Triangoli antiorari visti
+ * dall'alto (normale in su).
+ */
+function ctxRibbon(pts0, hw, zf, caps = true) {
+  const STEP = 4, TOL = 0.08, MITER = Math.cos((35 * Math.PI) / 180);
+  const pts = [];
+  for (const p of pts0) { const q = pts[pts.length - 1]; if (!q || Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.05) pts.push(p); }
+  if (pts.length < 2 || !(hw > 0)) return null;
+  const n = pts.length, dir = [], S = [0];
+  for (let i = 0; i + 1 < n; i++) { const dx = pts[i + 1][0] - pts[i][0], dy = pts[i + 1][1] - pts[i][1], L = Math.hypot(dx, dy); dir.push([dx / L, dy / L, L]); S.push(S[i] + L); }
+  const nor = (d, k) => [-d[1] * k, d[0] * k];
+  const sec = [], fans = [];
+  const add = (x, y, o, s, orig, brk) => { sec.push({ x, y, ox: o[0], oy: o[1], s, orig, brk }); return sec.length - 1; };
+  add(pts[0][0], pts[0][1], nor(dir[0], hw), 0, true, false);
+  for (let i = 0; i + 1 < n; i++) {
+    const d = dir[i], nn = nor(d, hw), m = Math.max(1, Math.ceil(d[2] / STEP));
+    for (let k = 1; k < m; k++) add(pts[i][0] + (d[0] * d[2] * k) / m, pts[i][1] + (d[1] * d[2] * k) / m, nn, S[i] + (d[2] * k) / m, false, false);
+    const v = pts[i + 1];
+    if (i + 2 === n) { add(v[0], v[1], nn, S[i + 1], true, false); break; }
+    const d2 = dir[i + 1], c = d[0] * d2[0] + d[1] * d2[1];
+    if (c >= MITER) {   // curva dolce: un solo giunto a spigolo vivo (al più 2·hw)
+      const n1 = nor(d, 1), n2 = nor(d2, 1), mx = n1[0] + n2[0], my = n1[1] + n2[1], ml = Math.hypot(mx, my);
+      const k = hw / Math.max(0.5, (mx * n2[0] + my * n2[1]) / ml);
+      add(v[0], v[1], [(mx / ml) * k, (my / ml) * k], S[i + 1], true, false);
+    } else {            // svolta stretta: il nastro si ferma e riparte, un ventaglio chiude l'esterno
+      const a = add(v[0], v[1], nn, S[i + 1], true, false), b = add(v[0], v[1], nor(d2, hw), S[i + 1], true, true);
+      fans.push({ a, b, right: d[0] * d2[1] - d[1] * d2[0] > 0 });   // svolta a sinistra: l'esterno è a destra
+    }
+  }
+  for (const q of sec) { q.zl = zf(q.x + q.ox, q.y + q.oy, q.s); q.zc = zf(q.x, q.y, q.s); q.zr = zf(q.x - q.ox, q.y - q.oy, q.s); }
+  /* sezioni intermedie: si tengono solo quelle che servono alla quota */
+  const keep = sec.map((q) => q.orig);
+  const fits = (k, j) => {
+    for (let m = k + 1; m < j; m++) {
+      const t = (sec[m].s - sec[k].s) / (sec[j].s - sec[k].s);
+      for (const f of ["zl", "zc", "zr"]) if (Math.abs(sec[m][f] - (sec[k][f] + (sec[j][f] - sec[k][f]) * t)) > TOL) return false;
+    }
+    return true;
+  };
+  for (let a = 0; a < sec.length - 1;) {
+    let b = a + 1; while (!sec[b].orig) b++;
+    for (let k = a; k < b;) { let j = k + 1; while (j < b && fits(k, j + 1)) j++; keep[j] = true; k = j; }
+    a = b;
+  }
+  const K = sec.filter((q, i) => keep[i]);
+  const needC = K.some((q) => Math.abs(q.zc - (q.zl + q.zr) / 2) > TOL);
+  const pos = [], tri = [];
+  const V = (x, y, z) => { pos.push(x, y, z); return pos.length / 3 - 1; };
+  const T = (a, b, c) => {
+    const ar = (pos[3 * b] - pos[3 * a]) * (pos[3 * c + 1] - pos[3 * a + 1]) - (pos[3 * c] - pos[3 * a]) * (pos[3 * b + 1] - pos[3 * a + 1]);
+    if (ar > 1e-9) tri.push(a, b, c); else if (ar < -1e-9) tri.push(a, c, b);
+  };
+  let prev = null;
+  for (const q of K) {
+    q.L = V(q.x + q.ox, q.y + q.oy, q.zl); q.R = V(q.x - q.ox, q.y - q.oy, q.zr); q.C = needC ? V(q.x, q.y, q.zc) : -1;
+    if (prev && !q.brk) {
+      if (needC) { T(prev.R, q.R, q.C); T(prev.R, q.C, prev.C); T(prev.C, q.C, q.L); T(prev.C, q.L, prev.L); }
+      else { T(prev.R, q.R, q.L); T(prev.R, q.L, prev.L); }
+    }
+    prev = q;
+  }
+  /* ventaglio attorno a (q.x, q.y): da u0 ruotando di da, estremi già fatti i0/i1 */
+  const arc = (q, u0, da, i0, i1) => {
+    const a0 = Math.atan2(u0[1], u0[0]), m = Math.max(2, Math.ceil(Math.abs(da) / (Math.PI / 6)));
+    const c = q.C >= 0 ? q.C : V(q.x, q.y, q.zc);
+    let last = i0;
+    for (let k = 1; k <= m; k++) {
+      const a = a0 + (da * k) / m, x = q.x + hw * Math.cos(a), y = q.y + hw * Math.sin(a);
+      const cur = k === m ? i1 : V(x, y, zf(x, y, q.s));
+      T(c, last, cur); last = cur;
+    }
+  };
+  const q0 = K[0], q1 = K[K.length - 1];
+  if (caps) {   // i ponti no: finiscono sulla strada che continua a terra
+    arc(q0, [q0.ox, q0.oy], Math.PI, q0.L, q0.R);        // testa: da sinistra, all'indietro, a destra
+    arc(q1, [-q1.ox, -q1.oy], Math.PI, q1.R, q1.L);      // coda: da destra, in avanti, a sinistra
+  }
+  for (const f of fans) {
+    const A = sec[f.a], B = sec[f.b];
+    const uA = f.right ? [-A.ox, -A.oy] : [A.ox, A.oy], uB = f.right ? [-B.ox, -B.oy] : [B.ox, B.oy];
+    let da = Math.atan2(uB[1], uB[0]) - Math.atan2(uA[1], uA[0]);
+    while (da > Math.PI) da -= 2 * Math.PI;
+    while (da < -Math.PI) da += 2 * Math.PI;
+    arc(A, uA, da, f.right ? A.R : A.L, f.right ? B.R : B.L);
+  }
+  return { pos, tri };
+}
+
+/**
+ * Unione di nastri e aree (una superficie sola: nel viewer, e nei programmi
+ * che disegnano i bordi delle maglie, nastri sovrapposti erano una matassa di
+ * contorni e cerchi agli incroci — provato a Napoli 2026-09-29).
+ * Campo con segno su una griglia (≤ 0 dentro): per i nastri distanza − hw,
+ * per le aree distanza col segno; poi max con la distanza dall'area, così
+ * l'unione esce già ritagliata. Esatto vicino ai bordi, interpolato lungo i
+ * lati delle celle (errore ≪ cella), come i corridoi.
+ * La maglia si fa a RIQUADRI di ~48 m: marching squares nelle celle del
+ * riquadro + i suoi lati dove si è dentro, percorsi in senso antiorario →
+ * anelli (esterni antiorari, buchi orari) → earcut. Due riquadri vicini hanno
+ * sul lato comune gli STESSI punti (angoli di cella e attraversamenti, tolti
+ * allo stesso modo quelli allineati), e i lati si infittiscono per bisezione
+ * solo dove il terreno non è lineare (simmetrica): niente crepe né T.
+ * items: { pts, hw } (linee) o { rings: [esterno, …buchi] } (aree), nel CRS.
+ */
+function ctxUnionMesh(earcut, items, ring, zf, cellHint) {
+  const bbA = ctxBBox(ring);
+  const c = Math.max(cellHint || 0.6, Math.sqrt(((bbA[2] - bbA[0]) * (bbA[3] - bbA[1])) / 8e6));
+  const x0 = bbA[0] - 2 * c, y0 = bbA[1] - 2 * c;
+  const W = Math.ceil((bbA[2] - bbA[0]) / c) + 5, H = Math.ceil((bbA[3] - bbA[1]) / c) + 5;
+  const F = new Float32Array(W * H).fill(1e6);
+  const BAND = 2 * c;
+  /* distanza dai lati di un insieme di anelli nelle celle vicine + segno per righe (dentro < 0), dentro il loro bbox */
+  const signedRings = (rings, apply) => {
+    const bb = ctxBBox(rings[0]);
+    const i0 = Math.max(0, Math.floor((bb[0] - BAND - x0) / c)), i1 = Math.min(W - 1, Math.ceil((bb[2] + BAND - x0) / c));
+    const j0 = Math.max(0, Math.floor((bb[1] - BAND - y0) / c)), j1 = Math.min(H - 1, Math.ceil((bb[3] + BAND - y0) / c));
+    if (i0 > i1 || j0 > j1) return;
+    const w = i1 - i0 + 1, h = j1 - j0 + 1, D = new Float32Array(w * h).fill(BAND * 1.5);
+    const edges = [];
+    for (const r of rings) for (let k = 0; k < r.length; k++) edges.push([r[k], r[(k + 1) % r.length]]);
+    for (const [A, B] of edges) {
+      const dx = B[0] - A[0], dy = B[1] - A[1], L2 = dx * dx + dy * dy;
+      const a0 = Math.max(i0, Math.floor((Math.min(A[0], B[0]) - BAND - x0) / c)), a1 = Math.min(i1, Math.ceil((Math.max(A[0], B[0]) + BAND - x0) / c));
+      const b0 = Math.max(j0, Math.floor((Math.min(A[1], B[1]) - BAND - y0) / c)), b1 = Math.min(j1, Math.ceil((Math.max(A[1], B[1]) + BAND - y0) / c));
+      for (let j = b0; j <= b1; j++) for (let i = a0; i <= a1; i++) {
+        const px = x0 + i * c, py = y0 + j * c, t = L2 ? Math.max(0, Math.min(1, ((px - A[0]) * dx + (py - A[1]) * dy) / L2)) : 0;
+        const d = Math.hypot(px - A[0] - t * dx, py - A[1] - t * dy), o = (j - j0) * w + (i - i0);
+        if (d < D[o]) D[o] = d;
+      }
+    }
+    for (let j = j0; j <= j1; j++) {
+      const py = y0 + j * c, xs = [];
+      for (const [A, B] of edges) if ((A[1] > py) !== (B[1] > py)) xs.push(A[0] + ((py - A[1]) * (B[0] - A[0])) / (B[1] - A[1]));
+      xs.sort((u, v) => u - v);
+      let k = 0;
+      for (let i = i0; i <= i1; i++) {
+        const px = x0 + i * c;
+        while (k < xs.length && xs[k] <= px) k++;
+        const d = D[(j - j0) * w + (i - i0)];
+        apply(j * W + i, k % 2 ? -d : d);
+      }
+    }
+  };
+  for (const it of items) {
+    if (it.rings) { signedRings(it.rings, (o, g) => { if (g < F[o]) F[o] = g; }); continue; }
+    const hw = Math.max(it.hw, 0.7 * c), reach = hw + BAND, p = it.pts;
+    for (let k = 0; k + 1 < p.length; k++) {
+      const A = p[k], B = p[k + 1], dx = B[0] - A[0], dy = B[1] - A[1], L2 = dx * dx + dy * dy;
+      const i0 = Math.max(0, Math.floor((Math.min(A[0], B[0]) - reach - x0) / c)), i1 = Math.min(W - 1, Math.ceil((Math.max(A[0], B[0]) + reach - x0) / c));
+      const j0 = Math.max(0, Math.floor((Math.min(A[1], B[1]) - reach - y0) / c)), j1 = Math.min(H - 1, Math.ceil((Math.max(A[1], B[1]) + reach - y0) / c));
+      for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+        const px = x0 + i * c, py = y0 + j * c, t = L2 ? Math.max(0, Math.min(1, ((px - A[0]) * dx + (py - A[1]) * dy) / L2)) : 0;
+        const g = Math.hypot(px - A[0] - t * dx, py - A[1] - t * dy) - hw, o = j * W + i;
+        if (g < F[o]) F[o] = g;
+      }
+    }
+  }
+  /* ∩ area: fuori dall'area il campo è positivo (il bordo dell'area resta esatto sui lati dritti) */
+  const inA = new Uint8Array(W * H);
+  signedRings([ring], (o, g) => { inA[o] = 1; if (g > F[o]) F[o] = g; });
+  for (let o = 0; o < W * H; o++) if (!inA[o]) F[o] = Math.max(F[o], BAND);
+  /* maglia a riquadri */
+  const TILE = Math.max(8, Math.round(48 / c));
+  const TAB = { 1: [[0, 3]], 2: [[1, 0]], 3: [[1, 3]], 4: [[2, 1]], 5: [[2, 3], [0, 1]], 6: [[2, 0]], 7: [[2, 3]], 8: [[3, 2]], 9: [[0, 2]], 10: [[3, 0], [1, 2]], 11: [[1, 2]], 12: [[3, 1]], 13: [[0, 1]], 14: [[3, 0]] };
+  const f = (i, j) => F[j * W + i];
+  /* chiavi: 3·(j·W+i) + 0 lato orizzontale (i,j)–(i+1,j), +1 lato verticale (i,j)–(i,j+1), +2 angolo (i,j) */
+  const HK = (i, j) => 3 * (j * W + i), VK = (i, j) => 3 * (j * W + i) + 1, CK = (i, j) => 3 * (j * W + i) + 2;
+  const ptOf = (k) => {
+    const t3 = k % 3, o = (k - t3) / 3, i = o % W, j = (o - i) / W;
+    if (t3 === 2) return [x0 + i * c, y0 + j * c];
+    const a = f(i, j), b = t3 === 0 ? f(i + 1, j) : f(i, j + 1), t = Math.min(1, Math.max(0, a / (a - b)));
+    return t3 === 0 ? [x0 + (i + t) * c, y0 + j * c] : [x0 + i * c, y0 + (j + t) * c];
+  };
+  const edgeKey = (i, j, e) => (e === 0 ? HK(i, j) : e === 2 ? HK(i, j + 1) : e === 3 ? VK(i, j) : VK(i + 1, j));
+  const TOL = 0.08, pos = [], tri = [];
+  for (let tj = 0; tj < H - 1; tj += TILE) for (let ti = 0; ti < W - 1; ti += TILE) {
+    const i1 = Math.min(W - 2, ti + TILE - 1), j1 = Math.min(H - 2, tj + TILE - 1);
+    let any = false;
+    for (let j = tj; j <= j1 + 1 && !any; j++) for (let i = ti; i <= i1 + 1; i++) if (f(i, j) <= 0) { any = true; break; }
+    if (!any) continue;
+    const next = new Map();
+    for (let j = tj; j <= j1; j++) for (let i = ti; i <= i1; i++) {
+      const m = (f(i, j) <= 0 ? 1 : 0) | (f(i + 1, j) <= 0 ? 2 : 0) | (f(i + 1, j + 1) <= 0 ? 4 : 0) | (f(i, j + 1) <= 0 ? 8 : 0);
+      const sg = TAB[m]; if (!sg) continue;
+      for (const [ea, eb] of sg) next.set(edgeKey(i, j, ea), edgeKey(i, j, eb));
+    }
+    /* lati del riquadro, antiorari: dove si è dentro fanno da bordo */
+    const walk = (ia, ja, ib, jb, X) => {
+      const inA = f(ia, ja) <= 0, inB = f(ib, jb) <= 0;
+      if (inA && inB) next.set(CK(ia, ja), CK(ib, jb)); else if (inA) next.set(CK(ia, ja), X); else if (inB) next.set(X, CK(ib, jb));
+    };
+    for (let i = ti; i <= i1; i++) walk(i, tj, i + 1, tj, HK(i, tj));
+    for (let j = tj; j <= j1; j++) walk(i1 + 1, j, i1 + 1, j + 1, VK(i1 + 1, j));
+    for (let i = i1; i >= ti; i--) walk(i + 1, j1 + 1, i, j1 + 1, HK(i, j1 + 1));
+    for (let j = j1; j >= tj; j--) walk(ti, j + 1, ti, j, VK(ti, j));
+    /* sul bordo del riquadro? (angoli sì; attraversamenti solo sulle sue quattro linee) */
+    const onB = (k) => {
+      const t3 = k % 3, o = (k - t3) / 3, i = o % W, j = (o - i) / W;
+      return t3 === 2 || (t3 === 0 && (j === tj || j === j1 + 1)) || (t3 === 1 && (i === ti || i === i1 + 1));
+    };
+    const used = new Set(), rings = [];
+    for (const s of next.keys()) {
+      if (used.has(s)) continue;
+      const ks = []; let k = s, guard = 0;
+      while (k !== undefined && !used.has(k) && guard++ < 1e6) { used.add(k); ks.push(k); k = next.get(k); }
+      if (ks.length < 3 || k !== s) continue;
+      /* semplificazione: le catene di contorno con Douglas-Peucker fra punti fissi (quelli sul bordo del
+         riquadro); sul bordo si tolgono solo gli angoli di cella allineati, come farà il riquadro vicino */
+      const P = ks.map(ptOf), fix = ks.map(onB), n = ks.length, keep = new Uint8Array(n);
+      for (let a = 0; a < n; a++) if (fix[a]) {
+        const pa = P[(a + n - 1) % n], pb = P[(a + 1) % n], q = P[a];
+        const corner = ks[a] % 3 === 2, prevB = fix[(a + n - 1) % n], nextB = fix[(a + 1) % n];
+        const coll = (pa[0] === q[0] && pb[0] === q[0]) || (pa[1] === q[1] && pb[1] === q[1]);
+        keep[a] = !(corner && prevB && nextB && coll) ? 1 : 0;
+      }
+      const f0 = fix.indexOf(true);
+      if (f0 < 0) {   // anello tutto dentro il riquadro: si fissano i due punti più lontani
+        let far = 0, fd = -1; for (let i = 1; i < n; i++) { const d = Math.hypot(P[i][0] - P[0][0], P[i][1] - P[0][1]); if (d > fd) { fd = d; far = i; } }
+        keep[0] = keep[far] = 1; fix[0] = fix[far] = true;
+      }
+      const start = fix.indexOf(true);
+      for (let a = start, cnt = 0; cnt < n;) {
+        let b = (a + 1) % n, len = 1; while (!fix[b]) { b = (b + 1) % n; len++; }
+        if (len > 1) {
+          const chain = []; for (let m = 0; m <= len; m++) chain.push((a + m) % n);
+          const sub = ctxDouglasPeucker(chain.map((m) => P[m].concat(m)), Math.min(0.12, c * 0.25));
+          for (const s2 of sub) keep[s2[2]] = 1;
+        }
+        cnt += len; a = b;
+      }
+      let r = []; for (let a = 0; a < n; a++) if (keep[a]) r.push(P[a]);
+      r = ctxCleanRing(r, 1e-6);
+      if (r.length >= 3 && Math.abs(ctxRingArea(r)) > 1e-4) rings.push(r);
+    }
+    /* infittimento dove il terreno non è lineare (bisezione simmetrica: il lato comune si divide uguale nei due riquadri) */
+    const dens = (r) => {
+      const o = [];
+      const split = (a, za, b, zb, depth) => {
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (depth > 7 || L < 2) return;
+        const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], zm = zf(m[0], m[1]);
+        if (Math.abs(zm - (za + zb) / 2) <= TOL && L < 60) return;
+        split(a, za, m, zm, depth + 1); o.push(m); split(m, zm, b, zb, depth + 1);
+      };
+      for (let k = 0; k < r.length; k++) { const a = r[k], b = r[(k + 1) % r.length]; o.push(a); split(a, zf(a[0], a[1]), b, zf(b[0], b[1]), 0); }
+      return o;
+    };
+    const outers = rings.filter((r) => ctxRingArea(r) > 0).map((r) => ({ r, a: ctxRingArea(r), holes: [] }));
+    for (const h of rings.filter((r) => ctxRingArea(r) < 0)) {
+      let best = null;
+      for (const O of outers) if ((!best || O.a < best.a) && ctxPointInRing((h[0][0] + h[1][0]) / 2, (h[0][1] + h[1][1]) / 2, O.r)) best = O;
+      if (best) best.holes.push(h);
+    }
+    for (const O of outers) {
+      const rs = [dens(O.r), ...O.holes.map(dens)], flat = [], hi = [];
+      rs.forEach((r, k) => { if (k) hi.push(flat.length / 2); for (const p of r) flat.push(p[0], p[1]); });
+      const t = earcut(flat, hi.length ? hi : null, 2), base = pos.length / 3;
+      for (let k = 0; k < flat.length; k += 2) pos.push(flat[k], flat[k + 1], zf(flat[k], flat[k + 1]));
+      for (let k = 0; k < t.length; k += 3) {
+        const a = t[k], b = t[k + 1], d = t[k + 2];
+        const ar = (flat[2 * b] - flat[2 * a]) * (flat[2 * d + 1] - flat[2 * a + 1]) - (flat[2 * d] - flat[2 * a]) * (flat[2 * b + 1] - flat[2 * a + 1]);
+        if (ar > 1e-9) tri.push(base + a, base + b, base + d); else if (ar < -1e-9) tri.push(base + a, base + d, base + b);
+      }
+    }
+  }
+  return { pos, tri, cell: c };
+}
+
+/** acqua ferma: poligono (esterno antiorario, buchi orari) piatto alla quota z */
+function ctxFlatMesh(earcut, outer, holes, z) {
+  const flat = [], hi = [];
+  [outer, ...holes].forEach((r, i) => { if (i) hi.push(flat.length / 2); for (const p of r) flat.push(p[0], p[1]); });
+  const t = earcut(flat, hi.length ? hi : null, 2), nV = flat.length / 2, pos = new Array(nV * 3), tri = [];
+  for (let i = 0; i < nV; i++) { pos[3 * i] = flat[2 * i]; pos[3 * i + 1] = flat[2 * i + 1]; pos[3 * i + 2] = z; }
+  for (let k = 0; k < t.length; k += 3) {
+    const a = t[k], b = t[k + 1], c = t[k + 2];
+    const ar = (flat[2 * b] - flat[2 * a]) * (flat[2 * c + 1] - flat[2 * a + 1]) - (flat[2 * c] - flat[2 * a]) * (flat[2 * b + 1] - flat[2 * a + 1]);
+    if (ar > 1e-9) tri.push(a, b, c); else if (ar < -1e-9) tri.push(a, c, b);
+  }
+  return { pos, tri };
+}
+
+/**
+ * Feature dei tile → una maglia per famiglia, sul terreno SCRITTO.
+ * gz(E, N): quota del TIN ovunque (anche appena fuori dall'area);
+ * gzIn(E, N): solo dove la griglia ha un dato (NaN altrove).
+ * - strade, percorsi (linee e piazze), binari, fiumi e canali: UNA superficie
+ *   per famiglia (ctxUnionMesh), stesa sul terreno e già ritagliata sull'area;
+ * - ponti: nastri a parte (sono sopra il resto), impalcato lineare fra le
+ *   quote delle due spalle e mai sotto il terreno; gallerie e interni: fuori;
+ * - mare a quota 0; laghi, stagni, darsene piatti alla quota dell'acqua (la
+ *   mediana del DEM dentro, che sull'acqua è piatto; se sta 5 m sotto la riva
+ *   è batimetria, e vale la riva).
+ */
+function ctxWays(earcut, feats, fwd, ring, gz, gzIn, opt) {
+  const on = { roads: !!opt.roads, paths: !!opt.paths, rail: !!opt.rail, water: !!opt.water };
+  const prep = ctxClipPrep(ring), grp = new Map(), union = new Map();
+  const G = (k) => { let g = grp.get(k); if (!g) { g = { key: k, pos: [], tri: [], features: 0, lines: 0, areas: 0, length: 0, bridges: 0, classes: new Map() }; grp.set(k, g); } return g; };
+  const U = (k) => { let u = union.get(k); if (!u) { u = []; union.set(k, u); } return u; };
+  const st = { tunnels: 0, clipped: 0, outside: 0, flat: 0, draped: 0, ocean: 0, cell: 0 };
+  const append = (g, m) => { const o = g.pos.length / 3; for (const v of m.pos) g.pos.push(v); for (const t of m.tri) g.tri.push(t + o); };
+  /* maglia già fatta (ponti, acqua ferma) → ritagliata sull'area → nel gruppo */
+  const put = (g, mesh) => {
+    if (!mesh || !mesh.tri.length) return null;
+    const p = mesh.pos;
+    const bb = [Infinity, Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < p.length; i += 3) { if (p[i] < bb[0]) bb[0] = p[i]; if (p[i + 1] < bb[1]) bb[1] = p[i + 1]; if (p[i] > bb[2]) bb[2] = p[i]; if (p[i + 1] > bb[3]) bb[3] = p[i + 1]; }
+    const rel = ctxRectRelRing(bb, ring);
+    if (rel === "out") { st.outside++; return null; }
+    let m = mesh;
+    if (rel === "cross") { m = ctxClipMesh(p, mesh.tri, prep, true); st.clipped++; if (!m.tri.length) return null; }
+    append(g, m);
+    return rel;
+  };
+  const lines = [], polys = [], preview = { lines: [], polys: [] };
+  for (const f of feats) {
+    const c = ctxWayClass(f);
+    if (!c) { if (f.props && f.props.brunnel === "tunnel") st.tunnels++; continue; }
+    if (!on[c.group]) continue;
+    const p = f.props || {};
+    if (f.kind === "line") {
+      if (!(c.w > 0)) continue;
+      for (const l of f.lines) lines.push({ c, bridge: p.brunnel === "bridge", key: [c.group, c.cls, p.brunnel || "", p.layer || 0, p.ramp || 0].join("|"), pts: l.map(([lo, la]) => fwd(lo, la)) });
+    } else {
+      for (const pl of f.polys) {
+        const rs = pl.map((r) => ctxCleanRing(r.map(([lo, la]) => fwd(lo, la))));
+        if (rs[0].length >= 3) polys.push({ c, rings: [rs[0], ...rs.slice(1).filter((r) => r.length >= 3)] });
+      }
+    }
+  }
+  /* linee a terra → nell'unione della loro famiglia (quelle tutte fuori dall'area si saltano) */
+  for (const l of lines) {
+    if (l.bridge) continue;
+    const len = ctxLineLenIn(l.pts, ring);
+    if (!(len > 0)) continue;
+    const g = G(l.c.group);
+    g.features++; g.lines++; g.length += len; g.classes.set(l.c.cls, l.c.w);
+    U(l.c.group).push({ pts: l.pts, hw: l.c.w / 2 });
+    preview.lines.push({ g: l.c.group, w: l.c.w, pts: l.pts });
+  }
+  /* ponti: nastri a parte, ricuciti fra una tile e l'altra */
+  for (const l of ctxJoinLines(lines.filter((x) => x.bridge), 1)) {
+    const lift = CTX_WAY_LIFT[l.c.group];
+    let S = 0; for (let i = 1; i < l.pts.length; i++) S += Math.hypot(l.pts[i][0] - l.pts[i - 1][0], l.pts[i][1] - l.pts[i - 1][1]);
+    const A = l.pts[0], B = l.pts[l.pts.length - 1];
+    let z0 = gzIn(A[0], A[1]), z1 = gzIn(B[0], B[1]);
+    if (!(z0 === z0)) z0 = z1;
+    if (!(z1 === z1)) z1 = z0;
+    if (!(z0 === z0)) { z0 = gz(A[0], A[1]); z1 = gz(B[0], B[1]); }
+    const zf = (x, y, s) => Math.max(z0 + (z1 - z0) * (S > 0 ? s / S : 0), gz(x, y)) + lift;
+    const g = G(l.c.group), rel = put(g, ctxRibbon(l.pts, l.c.w / 2, zf, false));
+    if (!rel) continue;
+    g.features++; g.lines++; g.bridges++;
+    g.length += ctxLineLenIn(l.pts, ring);
+    g.classes.set(l.c.cls, l.c.w);
+    preview.lines.push({ g: l.c.group, w: l.c.w, pts: l.pts });
+  }
+  /* aree: acqua ferma piatta; piazze, fiumi, aree stradali nell'unione */
+  for (const pl of polys) {
+    const outer = ctxRingArea(pl.rings[0]) < 0 ? pl.rings[0].slice().reverse() : pl.rings[0];
+    const holes = pl.rings.slice(1).map((h) => (ctxRingArea(h) > 0 ? h.slice().reverse() : h));
+    const A = Math.abs(ctxRingArea(outer));
+    if (A < 1 || ctxRectRelRing(ctxBBox(outer), ring) === "out") continue;
+    const g = G(pl.c.group);
+    if (pl.c.group === "water" && pl.c.cls !== "river") {
+      let level;
+      if (pl.c.cls === "ocean") { level = 0; st.ocean++; }
+      else {
+        const inside = (x, y) => ctxPointInRing(x, y, outer) && !holes.some((h) => ctxPointInRing(x, y, h));
+        const bb = ctxBBox(outer), sp = Math.max(5, Math.sqrt(A / 400)), inner = [], edge = [];
+        for (let y = bb[1] + sp / 2; y < bb[3]; y += sp) for (let x = bb[0] + sp / 2; x < bb[2]; x += sp) if (inside(x, y)) { const z = gzIn(x, y); if (z === z) inner.push(z); }
+        for (let i = 0; i < outer.length; i++) {
+          const a = outer[i], b = outer[(i + 1) % outer.length], k = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / sp));
+          for (let j = 0; j < k; j++) { const z = gzIn(a[0] + ((b[0] - a[0]) * j) / k, a[1] + ((b[1] - a[1]) * j) / k); if (z === z) edge.push(z); }
+        }
+        const q = (arr, fr) => { arr.sort((u, v) => u - v); return arr[Math.min(arr.length - 1, Math.floor(fr * (arr.length - 1)))]; };
+        const pe = edge.length ? q(edge, 0.1) : NaN;
+        level = inner.length >= 5 ? q(inner, 0.5) : pe;
+        if (pe === pe && level === level && level < pe - 5) level = pe;
+        if (!(level === level)) continue;   // nessun dato dentro l'area
+      }
+      if (!put(g, ctxFlatMesh(earcut, outer, holes, level + CTX_WAY_LIFT.water))) continue;
+      st.flat++;
+    } else {
+      U(pl.c.group).push({ rings: [outer, ...holes] });
+      st.draped++;
+    }
+    g.features++; g.areas++;
+    g.classes.set(pl.c.cls, 0);
+    preview.polys.push({ g: pl.c.group, rings: [outer, ...holes] });
+  }
+  /* fiumi e canali: la quota è quella dell'ACQUA, non della riva. Steso sul terreno, il bordo
+     prendeva il muro del lungofiume (Parigi, banchine 8 m sopra la Senna) e il fiume si
+     riempiva di triangoli a punta: qui il 20° percentile del terreno in un intorno di 25 m */
+  const DISK = [[0, 0]];
+  for (const r of [8, 16, 25]) for (let k = 0; k < 8; k++) DISK.push([r * Math.cos((k * Math.PI) / 4), r * Math.sin((k * Math.PI) / 4)]);
+  const wz = (x, y) => { const v = DISK.map(([dx, dy]) => gz(x + dx, y + dy)).sort((a, b) => a - b); return v[Math.floor(0.2 * (v.length - 1))]; };
+  /* le unioni: una superficie stesa per famiglia */
+  for (const [k, items] of union) {
+    const lift = CTX_WAY_LIFT[k], zb = k === "water" ? wz : gz;
+    const m = ctxUnionMesh(earcut, items, ring, (x, y) => zb(x, y) + lift);
+    st.cell = m.cell;
+    append(G(k), m);
+  }
+  const groups = CTX_WAY_GROUPS.filter((k) => grp.has(k) && grp.get(k).tri.length).map((k) => grp.get(k));
+  return { groups, stats: st, preview };
+}
+
+/* ---------------------------------------------------------------------------
    Scrittore IFC (STEP) — IFC4 · IFC4X3_ADD2 · IFC2X3, modalità A/B.
    A: IfcMapConversion + IfcProjectedCRS, coordinate locali rispetto a
       un'origine arrotondata vicina al centro (numeri piccoli nel file).
@@ -2651,10 +3338,9 @@ function ctxWriteIfc(M) {
     e(`IFCRELDEFINESBYPROPERTIES(${G("rdp|" + key + "|" + name)},${oh},$,$,(${target}),${p})`);
   };
 
-  const elems = [];
-  // --- terreno
-  if (M.terrain) {
-    const T = M.terrain, nv = T.pos.length / 3;
+  /* maglia di triangoli (coordinate di mappa) → IfcTriangulatedFaceSet, in IFC2X3 superficie a facce o brep */
+  const meshShape = (T, closed, st) => {
+    const nv = T.pos.length / 3;
     let item, repType;
     const lp = (i) => { const q = loc(T.pos[3 * i], T.pos[3 * i + 1], T.pos[3 * i + 2]); return `(${R(q[0])},${R(q[1])},${R(q[2])})`; };
     if (!X3) {
@@ -2663,7 +3349,7 @@ function ctxWriteIfc(M) {
       const idx = new Array(T.tri.length / 3);
       for (let t = 0; t < T.tri.length; t += 3) idx[t / 3] = `(${T.tri[t] + 1},${T.tri[t + 1] + 1},${T.tri[t + 2] + 1})`;
       const pl = e(`IFCCARTESIANPOINTLIST3D((${pts.join(",")})${X43 ? ",$" : ""})`);
-      item = e(`IFCTRIANGULATEDFACESET(${pl},$,${T.closed ? ".T." : ".F."},(${idx.join(",")}),$)`);
+      item = e(`IFCTRIANGULATEDFACESET(${pl},$,${closed ? ".T." : ".F."},(${idx.join(",")}),$)`);
       repType = "Tessellation";
     } else {
       const P = new Array(nv);
@@ -2673,18 +3359,36 @@ function ctxWriteIfc(M) {
         const loop = e(`IFCPOLYLOOP((${P[T.tri[t]]},${P[T.tri[t + 1]]},${P[T.tri[t + 2]]}))`);
         faces.push(e(`IFCFACE((${e(`IFCFACEOUTERBOUND(${loop},.T.)`)}))`));
       }
-      if (T.closed) { item = e(`IFCFACETEDBREP(${e(`IFCCLOSEDSHELL((${faces.join(",")}))`)})`); repType = "Brep"; }
+      if (closed) { item = e(`IFCFACETEDBREP(${e(`IFCCLOSEDSHELL((${faces.join(",")}))`)})`); repType = "Brep"; }
       else { item = e(`IFCFACEBASEDSURFACEMODEL((${e(`IFCCONNECTEDFACESET((${faces.join(",")}))`)}))`); repType = "SurfaceModel"; }
     }
-    styled(item, stT);
+    styled(item, st);
     const rep = e(`IFCSHAPEREPRESENTATION(${body},'Body',${S(repType)},(${item}))`);
-    const pds = e(`IFCPRODUCTDEFINITIONSHAPE($,$,(${rep}))`);
+    return e(`IFCPRODUCTDEFINITIONSHAPE($,$,(${rep}))`);
+  };
+
+  const elems = [];
+  // --- terreno
+  if (M.terrain) {
+    const T = M.terrain;
+    const pds = meshShape(T, T.closed, stT);
     const tpl = e(`IFCLOCALPLACEMENT(${sitePl},${wcs})`);
     const el = X3
       ? e(`IFCBUILDINGELEMENTPROXY(${G("terrain")},${oh},${S(M.names.terrain)},$,'TERRAIN',${tpl},${pds},$,$)`)
       : e(`IFCGEOGRAPHICELEMENT(${G("terrain")},${oh},${S(M.names.terrain)},$,$,${tpl},${pds},$,.TERRAIN.)`);
     elems.push(el);
     pset("terrain", el, "ViewIFC_Provenance", T.props);
+  }
+  // --- strade, ferrovie, acqua: un elemento per famiglia (IfcGeographicElement USERDEFINED; in IFC2X3 proxy)
+  for (const w of M.ways || []) {
+    const pds = meshShape(w, false, style(CTX_WAY_STYLE[w.key], w.name));
+    const tpl = e(`IFCLOCALPLACEMENT(${sitePl},${wcs})`);
+    const ot = CTX_WAY_OBJ[w.key];
+    const el = X3
+      ? e(`IFCBUILDINGELEMENTPROXY(${G("way|" + w.key)},${oh},${S(w.name)},$,${S(ot)},${tpl},${pds},$,$)`)
+      : e(`IFCGEOGRAPHICELEMENT(${G("way|" + w.key)},${oh},${S(w.name)},$,${S(ot)},${tpl},${pds},$,.USERDEFINED.)`);
+    elems.push(el);
+    pset("way|" + w.key, el, "ViewIFC_Provenance", w.props);
   }
   // --- edifici
   for (const b of M.buildings) {
@@ -2769,18 +3473,22 @@ function ctxWriteLandXml(M) {
    Testi che finiscono DENTRO il file (bilingui: il file viaggia)
    --------------------------------------------------------------------------- */
 const CTX_TXT = {
-  it: { project: "Contesto 3D", projectDesc: "Terreno ed edifici di contesto da fonti aperte", site: "Contesto", terrain: "Terreno", building: "Edificio",
-    terrainStyle: "Terreno", buildingStyle: "Edificio di contesto" },
-  en: { project: "3D context", projectDesc: "Terrain and context buildings from open data", site: "Context", terrain: "Terrain", building: "Building",
-    terrainStyle: "Terrain", buildingStyle: "Context building" },
+  it: { project: "Contesto 3D", projectDesc: "Terreno, edifici, strade e acqua di contesto da fonti aperte", site: "Contesto", terrain: "Terreno", building: "Edificio",
+    terrainStyle: "Terreno", buildingStyle: "Edificio di contesto",
+    ways: { roads: "Strade", paths: "Percorsi e aree pedonali", rail: "Ferrovie e tranvie", water: "Acqua" } },
+  en: { project: "3D context", projectDesc: "Context terrain, buildings, roads and water from open data", site: "Context", terrain: "Terrain", building: "Building",
+    terrainStyle: "Terrain", buildingStyle: "Context building",
+    ways: { roads: "Roads", paths: "Paths and pedestrian areas", rail: "Railways and tramways", water: "Water" } },
 };
 const CTX_DISCLAIMER = "IT: Dati indicativi da fonti aperte, non sostituiscono un rilievo. EN: Indicative data from open sources; not a substitute for a survey.";
 const CTX_ODBL = "Building footprints: © OpenStreetMap contributors and Overture Maps Foundation, ODbL 1.0 (https://opendatacommons.org/licenses/odbl/). This IFC contains a derivative database: if you publish it, ODbL share-alike applies to the building data.";
+const CTX_ODBL_WAYS = "Roads, railways and water: © OpenStreetMap contributors, ODbL 1.0 (https://opendatacommons.org/licenses/odbl/), via OpenMapTiles and OpenFreeMap vector tiles; widths are defaults by class, not surveyed. If you publish this IFC, ODbL share-alike applies to these data too.";
 
 /* ---------------------------------------------------------------------------
    Pipeline completa.
    opt = { ring:[[lon,lat],…], crs:{epsg,name,proj4,geodetic}, schema, mode,
            terrain:{on, solid, base, tol, ground}, buildings:{on, storey, defaultH},
+           ways:{roads, paths, rail, water}   ← strade, percorsi, ferrovie, acqua (tile OpenFreeMap)
            lang, fileName,
            frame, trueNorth, model }   ← «dal modello»: sistema locale del progetto
            (frame = { E, N, H, xa, xo, s }, vedi ctxModelAlign), il suo TrueNorth e
@@ -2794,11 +3502,12 @@ async function ctxRun(deps, io, opt) {
   const conv = deps.proj4(CTX_WGS84, opt.crs.proj4);
   const fwd = (lon, lat) => conv.forward([lon, lat]);
   const inv = (E, N) => conv.inverse([E, N]);
-  const bytes = { terrain: 0, buildings: 0 };
+  const bytes = { terrain: 0, buildings: 0, ways: 0 };
   const io2 = { ...io, bytes: (k, n) => { bytes[k] += n; io.bytes && io.bytes(k, n); } };
   const prog = (stage, info) => io.progress && io.progress(stage, info || {});
+  const wo = opt.ways || {}, waysOn = !!(wo.roads || wo.paths || wo.rail || wo.water);
 
-  if (!opt.terrain.on && !opt.buildings.on) { const err = new Error("niente da generare"); err.code = "empty"; throw err; }
+  if (!opt.terrain.on && !opt.buildings.on && !waysOn) { const err = new Error("niente da generare"); err.code = "empty"; throw err; }
 
   // --- area nel CRS
   const ringLL = ctxCleanRing(opt.ring, 1e-9);
@@ -2868,7 +3577,14 @@ async function ctxRun(deps, io, opt) {
   const buildingsP = opt.buildings.on
     ? ovReadBuildings(io2, deps, bbLL(0), (p) => prog("buildings", p), hitLL(5), !!opt.buildings.parts).then((r) => { lap("buildingsDl", tB); return r; })
     : Promise.resolve(null);
-  let [ter, ov, nat] = await Promise.all([terrainP, buildingsP, natP]);
+  /* strade e acqua: se i tile non arrivano il contesto esce lo stesso, e il report lo dice */
+  let waysErr = null;
+  const tW = Date.now();
+  const waysP = waysOn
+    ? ctxWaysFetch(io2, bbLL(30), hitLL(30), (p) => prog("ways", p)).then((r) => { lap("waysDl", tW); return r; })
+      .catch((e) => { if (e && e.name === "AbortError") throw e; waysErr = String((e && e.message) || e); return null; })
+    : Promise.resolve(null);
+  let [ter, ov, nat, wt] = await Promise.all([terrainP, buildingsP, natP, waysP]);
   if (prov) lap("terrainDl", tTer);
 
   // --- edifici (prima della griglia: le impronte servono all'opzione "abbassa sotto gli edifici")
@@ -2982,6 +3698,18 @@ async function ctxRun(deps, io, opt) {
     b.base = zb === zb ? zb : gSum / gN;
   }
   if (!isFinite(hmin)) { for (const b of blds.list) { hmin = Math.min(hmin, b.base); hmax = Math.max(hmax, b.base); } }
+
+  // --- strade, ferrovie e acqua sul TIN scritto (anche col terreno spento: la quota è quella)
+  let ways = null;
+  if (wt) {
+    prog("waysGeom", {});
+    const tWg = Date.now();
+    const gMean = gSum / gN;
+    const gz = (E, N) => { const [gx, gy] = toGrid(E, N), v = sampler(gx, gy); return v === v ? v : gMean; };
+    ways = ctxWays(deps.earcut, wt.feats, fwd, ring, gz, zAt, wo);
+    lap("waysGeom", tWg);
+    if (!isFinite(hmin)) for (const g of ways.groups) for (let i = 2; i < g.pos.length; i += 3) { hmin = Math.min(hmin, g.pos[i]); hmax = Math.max(hmax, g.pos[i]); }
+  }
   lap("geom", tG);
 
   // --- origine: quella del progetto («dal modello»), altrimenti arrotondata a 100 m in pianta e al metro sotto il minimo in quota
@@ -2996,7 +3724,8 @@ async function ctxRun(deps, io, opt) {
   const T = CTX_TXT[lang];
   const terTxt = terItems.length ? "AWS Terrain Tiles (Terrarium, Mapzen/Tilezen) — " + terItems.map((x) => `${x.name}: ${x.attr}`).join(" | ") : "";
   const attrTerrain = [natItem ? `${natItem.name}: ${natItem.attr}` : "", terTxt].filter(Boolean).join(" | ");
-  const attribution = `Terrain: ${attrTerrain}.` + (opt.buildings.on ? ` Buildings: © OpenStreetMap contributors, Overture Maps Foundation (release ${ov ? ov.release : "n/a"}). ${CTX_ODBL}` : "");
+  const attribution = `Terrain: ${attrTerrain}.` + (opt.buildings.on ? ` Buildings: © OpenStreetMap contributors, Overture Maps Foundation (release ${ov ? ov.release : "n/a"}). ${CTX_ODBL}` : "") +
+    (ways && ways.groups.length ? ` ${CTX_ODBL_WAYS} Tiles: ${wt.version}.` : "");
   const terSource = [natItem ? natItem.name : "", terItems.length ? "AWS Terrain Tiles (Terrarium) — " + terItems.map((x) => x.name).join(" + ") : ""].filter(Boolean).join(" + ");
   if (terrain) terrain.props = [
     { n: "Source", t: "IFCLABEL", v: terSource },
@@ -3025,6 +3754,31 @@ async function ctxRun(deps, io, opt) {
     { n: "PartsCount", t: "IFCINTEGER", v: b.parts ? b.parts.length : null },
     { n: "RetrievalDate", t: "IFCDATE", v: day },
   ];
+  /* strade e acqua: un pset per famiglia, con le larghezze usate (sono di default, non misurate) */
+  const wayOut = ways ? ways.groups.map((g) => {
+    const cls = [...g.classes.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+    const widths = cls.filter(([, w]) => w > 0).map(([c, w]) => `${c} ${w} m`).join(" · ");
+    return {
+      key: g.key, name: T.ways[g.key], pos: g.pos, tri: g.tri,
+      props: [
+        { n: "Source", t: "IFCLABEL", v: "OpenFreeMap vector tiles (OpenMapTiles schema) — OpenStreetMap" },
+        { n: "SourceRelease", t: "IFCLABEL", v: wt.version },
+        { n: "License", t: "IFCLABEL", v: "ODbL-1.0" },
+        { n: "Classes", t: "IFCTEXT", v: cls.map(([c]) => c).join(", ") },
+        { n: "FeatureCount", t: "IFCINTEGER", v: g.features },
+        { n: "CenterlineLength", t: "IFCLENGTHMEASURE", v: g.lines ? g.length : null },
+        { n: "AreaFeatures", t: "IFCINTEGER", v: g.areas || null },
+        { n: "WidthMethod", t: "IFCLABEL", v: widths ? "DEFAULT_BY_CLASS" : "" },
+        { n: "Widths", t: "IFCTEXT", v: widths },
+        { n: "LiftAboveTerrain", t: "IFCLENGTHMEASURE", v: CTX_WAY_LIFT[g.key] },
+        { n: "Bridges", t: "IFCINTEGER", v: g.bridges || null },
+        { n: "BridgeDeckMethod", t: "IFCLABEL", v: g.bridges ? "LINEAR_BETWEEN_ENDS_NOT_BELOW_TERRAIN" : "" },
+        { n: "WaterLevelMethod", t: "IFCLABEL", v: g.key === "water" ? "OCEAN_0 · STILL_WATER_FLAT_AT_DEM_MEDIAN · RIVER_DRAPED" : "" },
+        { n: "Excluded", t: "IFCLABEL", v: "tunnels, indoor, under construction" + (g.key === "water" ? ", swimming pools" : "") },
+        { n: "RetrievalDate", t: "IFCDATE", v: day },
+      ],
+    };
+  }) : [];
   const siteProps = [
     { n: "Generator", t: "IFCLABEL", v: `${CTX_APP.name} ${CTX_APP.version}` },
     { n: "GenerationDate", t: "IFCDATE", v: day },
@@ -3047,7 +3801,7 @@ async function ctxRun(deps, io, opt) {
     schema: opt.schema, mode: opt.mode, origin, frame, trueNorth: opt.trueNorth || null, seed, date, fileName: opt.fileName || "context.ifc",
     crs: { label: "EPSG:" + opt.crs.epsg, name: opt.crs.name, geodetic: opt.crs.geodetic || "", vertical: dem.datum },
     site: { lat: olat, lon: olon, elev: opt.mode === "A" ? origin.H : 0 },
-    names: T, terrain, buildings: blds.list, siteProps,
+    names: T, terrain, buildings: blds.list, ways: wayOut, siteProps,
   });
   lap("ifc", tI);
 
@@ -3077,7 +3831,12 @@ async function ctxRun(deps, io, opt) {
       underground: blds.stats.underground || 0, degenerate: blds.stats.degenerate || 0, hasParts: blds.stats.hasParts || 0,
       partsOn: !!opt.buildings.parts, partsUsed: blds.stats.partsUsed || 0, partsTotal: blds.stats.partsTotal || 0,
     },
-    net: { terrain: bytes.terrain, buildings: bytes.buildings },
+    ways: {
+      on: waysOn, err: waysErr, version: wt ? wt.version : null, tiles: wt ? wt.tiles : 0, features: wt ? wt.feats.length : 0,
+      groups: ways ? ways.groups.map((g) => ({ key: g.key, features: g.features, lines: g.lines, areas: g.areas, length: g.length, bridges: g.bridges, triangles: g.tri.length / 3 })) : [],
+      tunnels: ways ? ways.stats.tunnels : 0, clipped: ways ? ways.stats.clipped : 0, flat: ways ? ways.stats.flat : 0, draped: ways ? ways.stats.draped : 0, ocean: ways ? ways.stats.ocean : 0,
+    },
+    net: { terrain: bytes.terrain, buildings: bytes.buildings, ways: bytes.ways },
     ms: { ...ms, total: Date.now() - t0 },
     size: out.text.length, entities: out.entities, attribution,
   };
@@ -3089,7 +3848,10 @@ async function ctxRun(deps, io, opt) {
   const landxml = terrain ? ctxWriteLandXml({ surface: terrain.surface, crs: { epsg: opt.crs.epsg, name: opt.crs.name }, vertical: dem.datum, date,
     name: T.terrain, desc: `${terSource} · ${CTX_APP.name} ${CTX_APP.version}` }) : null;
   report.landxmlSize = landxml ? landxml.length : 0;
-  return { ifc: out.text, landxml, report, preview };
+  /* anteprima di strade e acqua: assi (con la larghezza) e aree, in lon/lat */
+  const toLL = (pts) => pts.map(([E, N]) => inv(E, N));
+  const previewWays = ways ? { lines: ways.preview.lines.map((l) => ({ g: l.g, w: l.w, pts: toLL(l.pts) })), polys: ways.preview.polys.map((p) => ({ g: p.g, rings: p.rings.map(toLL) })) } : null;
+  return { ifc: out.text, landxml, report, preview, previewWays };
 }
 </script>
 
@@ -3102,7 +3864,7 @@ const I18N = {
   it: {
     "nav.home": "Vai a viewifc.com", "nav.tools": "Strumenti", "nav.here": "Contesto 3D", "cta.open": "Apri il viewer",
     "head.kicker": "Strumento 15", "head.tag": "Client-side", "head.beta": "Prima versione",
-    "head.lead": "Disegna un'area o un tracciato sulla mappa, o parti dall'IFC del tuo progetto: terreno (il DTM nazionale, dove c'è) ed edifici da fonti aperte diventano un IFC di contesto georeferenziato che si sovrappone al progetto. Ogni elemento dice da dove viene.",
+    "head.lead": "Disegna un'area o un tracciato sulla mappa, o parti dall'IFC del tuo progetto: terreno (il DTM nazionale, dove c'è), edifici, strade e acqua da fonti aperte diventano un IFC di contesto georeferenziato che si sovrappone al progetto. Ogni elemento dice da dove viene.",
     "spec.in": "Ingresso", "spec.inV": "area, tracciato o IFC · 10 km²", "spec.out": "Uscita", "spec.outV": "1 .ifc georeferenziato + LandXML", "spec.data": "Dati",
     "left.t": "L'area", "tab.map": "Sulla mappa", "tab.coords": "Da coordinate",
     "map.failT": "La mappa non si è caricata", "map.failS": "Puoi definire l'area anche dalla scheda «Da coordinate».",
@@ -3161,7 +3923,7 @@ const I18N = {
     "m.note.manyMapConv": "Il modello ha più di una IfcMapConversion: si usa la prima, come fa il viewer.",
     "m.note.degenerateAxis": "La MapConversion ha una direzione dell'asse X nulla: presa senza rotazione, come fa il viewer.",
     "m.note.vertical": "Quote: il progetto dichiara il datum «{p}», il terreno è in «{d}». Fra i due possono esserci alcuni decimetri.",
-    "privacy": "Privacy: l'area che guardi e quella che scegli arrivano solo ai fornitori dei dati — mappa (OpenFreeMap), terreno (AWS Terrain Tiles, oppure il DTM nazionale: swisstopo, PDOK, INGV, IGN, USGS), edifici (Overture Maps su AWS) e ricerca (Nominatim, solo se la usi). Mai a viewifc.com, mai alle statistiche. L'IFC di progetto che carichi non esce dal browser.",
+    "privacy": "Privacy: l'area che guardi e quella che scegli arrivano solo ai fornitori dei dati — mappa, strade e acqua (OpenFreeMap), terreno (AWS Terrain Tiles, oppure il DTM nazionale: swisstopo, PDOK, INGV, IGN, USGS), edifici (Overture Maps su AWS) e ricerca (Nominatim, solo se la usi). Mai a viewifc.com, mai alle statistiche. L'IFC di progetto che carichi non esce dal browser.",
     "out.t": "Cosa esce", "o.crs": "Sistema di riferimento", "crs.none": "disegna un'area: la zona UTM si sceglie da sola",
     "crs.ph": "altro EPSG…", "crs.use": "Usa", "crs.auto": "Torna ad automatico",
     "crs.subAuto": "automatico: zona UTM del centro · k = {k}", "crs.subCustom": "scelto a mano · k = {k}",
@@ -3182,14 +3944,22 @@ const I18N = {
     "tsrc.off": "terreno globale (AWS Terrain Tiles), anche dove esiste un DTM nazionale",
     "ter.base": "Quota del fondo (m)", "ter.baseAuto": "auto", "tol.auto": "tolleranza auto", "tol.lbl": "errore verticale massimo del TIN",
     "parts.t": "Parti degli edifici", "parts.s": "— dove Overture le ha (torri, guglie, gradoni) il volume segue le parti invece dell'impronta: un po' più da scaricare.",
+    "o.ways": "Strade e acqua", "ways.roads": "Strade", "ways.paths": "Percorsi e piazze", "ways.rail": "Ferrovie", "ways.water": "Acqua",
+    "ways.note": "Da OpenStreetMap, con i tile della mappa: superfici stese sul terreno, larghezze di default per classe, ponti da spalla a spalla, gallerie escluse. Si accende e si spegne ognuna.",
+    "lg.ways": "strade", "lg.water": "acqua",
+    "prog.ways": "Strade e acqua: tile {d} di {t}…", "prog.waysGeom": "Strade e acqua sul terreno…",
+    "rp.ways": "Strade e acqua", "rp.waysOff": "non richieste", "rp.waysErr": "Strade e acqua non disponibili ({e}): il resto del contesto è completo.",
+    "rp.waysKm": "km di assi", "rp.waysV": "{n} elementi · {km} km · {t} triangoli", "rp.bridges": "ponti: {n}", "rp.waysA": "{n} elementi · {t} triangoli", "rp.tunnels": "gallerie escluse",
+    "rp.waysSrc": "tile", "rp.waysNone": "nessuna strada o acqua nell'area",
+    "rp.licWays": "Strade, ferrovie e acqua: © contributori OpenStreetMap — ODbL 1.0, dai tile OpenMapTiles di OpenFreeMap; le larghezze sono di default per classe, non rilevate.",
     "rp.partsUsed": "{n} edifici modellati con le loro parti ({p} parti, building_part): il volume segue le parti, non l'impronta.",
     "ground.t": "Abbassa il terreno sotto gli edifici", "ground.s": "— sperimentale: in molti paesi il terreno globale è un modello di superficie che include gli edifici.",
     "o.bld": "Edifici", "bld.on": "Sì, LoD1", "bld.off": "No", "bld.storey": "Interpiano (m)", "bld.defH": "Altezza di default (m)",
     "disclaimer": "Dati indicativi da fonti aperte: non sostituiscono un rilievo. Il disclaimer e le licenze vengono scritti anche dentro il file.",
-    "st.terrain": "terreno", "st.buildings": "edifici", "st.tin": "TIN", "st.ifc": "IFC",
+    "st.terrain": "terreno", "st.buildings": "edifici", "st.tin": "TIN", "st.ways": "strade", "st.ifc": "IFC",
     "exec.hint": "Disegna un'area sulla mappa per cominciare.", "exec.ready": "Pronto: {a} km² in {crs}.",
     "exec.over": "L'area supera il limite di {l} km²: riducila.", "exec.bad": "Il poligono non è valido: i lati si incrociano.",
-    "exec.noData": "Scegli almeno il terreno o gli edifici.", "exec.crsBad": "Il sistema di riferimento scelto non è utilizzabile.",
+    "exec.noData": "Scegli almeno una cosa da generare: terreno, edifici, strade o acqua.", "exec.crsBad": "Il sistema di riferimento scelto non è utilizzabile.",
     "exec.modelCrs": "Porta la mappa sulla zona del progetto, o scrivi il codice EPSG del modello in «Sistema di riferimento».", "exec.modelBusy": "Aspetta la lettura del modello.",
     "exec.modelNo": "Il modello non è georeferenziato: scollegalo, oppure georeferenzialo e ricaricalo.",
     "crs.subModel": "dal modello · k = {k}", "rp.aligned": "allineato a", "rp.rot": "rotazione del locale",
@@ -3224,7 +3994,7 @@ const I18N = {
   en: {
     "nav.home": "Go to viewifc.com", "nav.tools": "Tools", "nav.here": "3D context", "cta.open": "Open the viewer",
     "head.kicker": "Tool 15", "head.tag": "Client-side", "head.beta": "First release",
-    "head.lead": "Draw an area or a route on the map, or start from your project IFC: terrain (the national DTM, where there is one) and buildings from open data become a georeferenced IFC context model that overlaps your project. Every element says where it comes from.",
+    "head.lead": "Draw an area or a route on the map, or start from your project IFC: terrain (the national DTM, where there is one), buildings, roads and water from open data become a georeferenced IFC context model that overlaps your project. Every element says where it comes from.",
     "spec.in": "Input", "spec.inV": "area, route or IFC · 10 km²", "spec.out": "Output", "spec.outV": "1 georeferenced .ifc + LandXML", "spec.data": "Data",
     "left.t": "The area", "tab.map": "On the map", "tab.coords": "From coordinates",
     "map.failT": "The map did not load", "map.failS": "You can still define the area from the «From coordinates» tab.",
@@ -3283,7 +4053,7 @@ const I18N = {
     "m.note.manyMapConv": "The model has more than one IfcMapConversion: the first is used, as the viewer does.",
     "m.note.degenerateAxis": "The MapConversion has a null X-axis direction: taken with no rotation, as the viewer does.",
     "m.note.vertical": "Elevations: the project declares the «{p}» datum, the terrain is in «{d}». They can differ by a few decimetres.",
-    "privacy": "Privacy: the area you look at and the one you pick only reach the data providers — map (OpenFreeMap), terrain (AWS Terrain Tiles, or the national DTM: swisstopo, PDOK, INGV, IGN, USGS), buildings (Overture Maps on AWS) and search (Nominatim, only if you use it). Never viewifc.com, never the statistics. The project IFC you load never leaves the browser.",
+    "privacy": "Privacy: the area you look at and the one you pick only reach the data providers — map, roads and water (OpenFreeMap), terrain (AWS Terrain Tiles, or the national DTM: swisstopo, PDOK, INGV, IGN, USGS), buildings (Overture Maps on AWS) and search (Nominatim, only if you use it). Never viewifc.com, never the statistics. The project IFC you load never leaves the browser.",
     "out.t": "What comes out", "o.crs": "Reference system", "crs.none": "draw an area: the UTM zone is picked automatically",
     "crs.ph": "other EPSG…", "crs.use": "Use", "crs.auto": "Back to automatic",
     "crs.subAuto": "automatic: UTM zone of the centre · k = {k}", "crs.subCustom": "picked by hand · k = {k}",
@@ -3304,14 +4074,22 @@ const I18N = {
     "tsrc.off": "global terrain (AWS Terrain Tiles), even where a national DTM exists",
     "ter.base": "Bottom elevation (m)", "ter.baseAuto": "auto", "tol.auto": "auto tolerance", "tol.lbl": "maximum vertical error of the TIN",
     "parts.t": "Building parts", "parts.s": "— where Overture has them (towers, spires, setbacks) the volume follows the parts instead of the footprint: a little more to download.",
+    "o.ways": "Roads and water", "ways.roads": "Roads", "ways.paths": "Paths and squares", "ways.rail": "Railways", "ways.water": "Water",
+    "ways.note": "From OpenStreetMap, with the map's own tiles: surfaces laid on the terrain, default widths by class, bridges from abutment to abutment, tunnels left out. Each one switches on and off.",
+    "lg.ways": "roads", "lg.water": "water",
+    "prog.ways": "Roads and water: tile {d} of {t}…", "prog.waysGeom": "Laying roads and water on the terrain…",
+    "rp.ways": "Roads and water", "rp.waysOff": "not requested", "rp.waysErr": "Roads and water not available ({e}): the rest of the context is complete.",
+    "rp.waysKm": "km of centrelines", "rp.waysV": "{n} features · {km} km · {t} triangles", "rp.bridges": "bridges: {n}", "rp.waysA": "{n} features · {t} triangles", "rp.tunnels": "tunnels left out",
+    "rp.waysSrc": "tiles", "rp.waysNone": "no roads or water in the area",
+    "rp.licWays": "Roads, railways and water: © OpenStreetMap contributors — ODbL 1.0, from OpenFreeMap's OpenMapTiles tiles; widths are defaults by class, not surveyed.",
     "rp.partsUsed": "{n} buildings modelled with their parts ({p} parts, building_part): the volume follows the parts, not the footprint.",
     "ground.t": "Lower the terrain under buildings", "ground.s": "— experimental: in many countries the global terrain is a surface model that includes buildings.",
     "o.bld": "Buildings", "bld.on": "Yes, LoD1", "bld.off": "No", "bld.storey": "Storey height (m)", "bld.defH": "Default height (m)",
     "disclaimer": "Indicative data from open sources: not a substitute for a survey. The disclaimer and the licences are also written inside the file.",
-    "st.terrain": "terrain", "st.buildings": "buildings", "st.tin": "TIN", "st.ifc": "IFC",
+    "st.terrain": "terrain", "st.buildings": "buildings", "st.tin": "TIN", "st.ways": "roads", "st.ifc": "IFC",
     "exec.hint": "Draw an area on the map to start.", "exec.ready": "Ready: {a} km² in {crs}.",
     "exec.over": "The area exceeds the {l} km² limit: make it smaller.", "exec.bad": "The polygon is not valid: edges cross.",
-    "exec.noData": "Pick at least terrain or buildings.", "exec.crsBad": "The chosen reference system cannot be used.",
+    "exec.noData": "Pick at least one thing to generate: terrain, buildings, roads or water.", "exec.crsBad": "The chosen reference system cannot be used.",
     "exec.modelCrs": "Bring the map to the project area, or write the model's EPSG code in «Reference system».", "exec.modelBusy": "Wait for the model to be read.",
     "exec.modelNo": "The model is not georeferenced: unlink it, or georeference it and load it again.",
     "crs.subModel": "from the model · k = {k}", "rp.aligned": "aligned to", "rp.rot": "local rotation",
@@ -3377,6 +4155,7 @@ const DB = "viewifc_handoff", DBV = 1, STORE = "drop", KEY = "pending";
 const VIEWER_URL = "../../viewer/";
 const OFM_ATTR = '<a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 const M_COL = { SOURCE: "#bfd730", FROM_LEVELS: "#5fb7a0", AREA_MEDIAN: "#e0a63a", DEFAULT: "#9aa39a" };
+const WAY_COL = { roads: "#8c8f95", paths: "#cdbf9f", rail: "#8a6f5c", water: "#6b9ed1" };
 
 const S = {
   tab: "map", ring: null, areaM2: 0, ringOk: false,
@@ -3437,6 +4216,11 @@ function ensureLayers() {
   if (!map.getSource("bld")) map.addSource("bld", { type: "geojson", data: empty });
   if (!map.getSource("model")) map.addSource("model", { type: "geojson", data: empty });
   if (!map.getSource("axis")) map.addSource("axis", { type: "geojson", data: empty });
+  if (!map.getSource("ways")) map.addSource("ways", { type: "geojson", data: empty });
+  /* strade e acqua sotto gli edifici: aree, poi assi larghi quanto la strada (metri → pixel col livello di zoom) */
+  const wcol = ["match", ["get", "g"], "water", WAY_COL.water, "paths", WAY_COL.paths, "rail", WAY_COL.rail, WAY_COL.roads];
+  if (!map.getLayer("ways-fill")) map.addLayer({ id: "ways-fill", type: "fill", source: "ways", filter: ["==", "$type", "Polygon"], paint: { "fill-color": wcol, "fill-opacity": 0.85 } });
+  if (!map.getLayer("ways-line")) map.addLayer({ id: "ways-line", type: "line", source: "ways", filter: ["==", "$type", "LineString"], layout: { "line-cap": "round", "line-join": "round" }, paint: { "line-color": wcol, "line-opacity": 0.9 } });
   if (!map.getLayer("bld-ext")) map.addLayer({ id: "bld-ext", type: "fill-extrusion", source: "bld", paint: {
     "fill-extrusion-color": ["match", ["get", "m"], "SOURCE", M_COL.SOURCE, "FROM_LEVELS", M_COL.FROM_LEVELS, "AREA_MEDIAN", M_COL.AREA_MEDIAN, M_COL.DEFAULT],
     "fill-extrusion-height": ["get", "h"], "fill-extrusion-base": ["coalesce", ["get", "b"], 0], "fill-extrusion-opacity": 0.82 } });
@@ -3467,7 +4251,17 @@ function pushPreview() {
   if (!map || !mapReady || !map.getSource("bld")) return;
   const pv = S.result && S.result.preview;
   map.getSource("bld").setData({ type: "FeatureCollection", features: pv ? pv.map((b) => ({ type: "Feature", properties: { h: b.h, b: b.b || 0, m: b.m }, geometry: { type: "Polygon", coordinates: [[...b.ring, b.ring[0]]] } })) : [] });
-  $("ovLegend").hidden = !pv || !pv.length;
+  const pw = S.result && S.result.previewWays, fw = [];
+  if (pw) {
+    for (const l of pw.lines) fw.push({ type: "Feature", properties: { g: l.g, w: l.w }, geometry: { type: "LineString", coordinates: l.pts } });
+    for (const p of pw.polys) fw.push({ type: "Feature", properties: { g: p.g }, geometry: { type: "Polygon", coordinates: p.rings.map((r) => [...r, r[0]]) } });
+    /* larghezza vera: un metro vale 512·2^z / (circonferenza · cos lat) pixel */
+    const lat = S.ring ? ctxRingCentroid(S.ring)[1] : 45, k = (z) => (512 * 2 ** z) / (40075016.686 * Math.cos((lat * Math.PI) / 180));
+    if (map.getLayer("ways-line")) map.setPaintProperty("ways-line", "line-width", ["interpolate", ["exponential", 2], ["zoom"], 8, ["max", 0.5, ["*", ["get", "w"], k(8)]], 22, ["*", ["get", "w"], k(22)]]);
+  }
+  if (map.getSource("ways")) map.getSource("ways").setData({ type: "FeatureCollection", features: fw });
+  $("ovLegend").hidden = !(pv && pv.length) && !fw.length;
+  $("lgWays").hidden = !fw.length;
 }
 const rectRing = (a, b) => [[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1]]];
 
@@ -4156,6 +4950,10 @@ function refreshModeNote() {
   if (!n.hidden) n.textContent = tr("mode.note2x3A");
 }
 ["storeyIn", "defHIn", "baseIn", "groundChk", "partsChk"].forEach((id) => $(id).addEventListener("change", () => { resetOutputs(); refreshExec(); }));
+/* strade e acqua: quattro interruttori indipendenti (non un segmentato a scelta unica) */
+const waysOpt = () => Object.fromEntries([...$("waysSeg").querySelectorAll("button")].map((b) => [b.dataset.w, b.classList.contains("on")]));
+const waysAny = () => Object.values(waysOpt()).some(Boolean);
+$("waysSeg").querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { b.classList.toggle("on"); resetOutputs(); refreshExec(); }));
 
 /* =========================================================================
    Stato del bottone e della barra
@@ -4169,7 +4967,7 @@ function blocker() {
   if (!S.ring) return "exec.hint";
   if (!S.ringOk) return "exec.bad";
   if (S.areaM2 > CTX_LIMIT_M2 * 1.005) return "exec.over";
-  if (S.terrain === "off" && S.bld !== "on") return "exec.noData";
+  if (S.terrain === "off" && S.bld !== "on" && !waysAny()) return "exec.noData";
   if (S.crsErr || !S.crsCheck || !S.crsCheck.ok) return "exec.crsBad";
   return null;
 }
@@ -4195,14 +4993,14 @@ function resetOutputs() {
    Worker: motore + librerie vendorizzate in un modulo costruito al volo.
    ========================================================================= */
 function workerMain() {   // gira DENTRO il worker (serializzata con toString)
-  const deps = { parquetMetadataAsync: HP.parquetMetadataAsync, parquetReadObjects: HP.parquetReadObjects, zstd: decompress, Delatin, proj4: globalThis.proj4 };
+  const deps = { parquetMetadataAsync: HP.parquetMetadataAsync, parquetReadObjects: HP.parquetReadObjects, zstd: decompress, Delatin, earcut, proj4: globalThis.proj4 };
   const CACHE = "viewifc-site-context-v1";
   const cache = {
     async get(url) { try { const c = await caches.open(CACHE); const r = await c.match(url); return r ? await r.arrayBuffer() : null; } catch (e) { return null; } },
     async put(url, ab) { try { const c = await caches.open(CACHE); await c.put(url, new Response(ab.slice(0))); } catch (e) {} },
   };
   self.onmessage = async (ev) => {
-    const bytes = { terrain: 0, buildings: 0 }; let lastB = 0;
+    const bytes = { terrain: 0, buildings: 0, ways: 0 }; let lastB = 0;
     const io = {
       fetch: (u, i) => fetch(u, i), cache, now: () => new Date(),
       progress: (stage, info) => postMessage({ type: "progress", stage, info, bytes }),
@@ -4211,7 +5009,7 @@ function workerMain() {   // gira DENTRO il worker (serializzata con toString)
     try {
       const r = await ctxRun(deps, io, ev.data);
       const buf = new TextEncoder().encode(r.ifc).buffer, lx = r.landxml ? new TextEncoder().encode(r.landxml).buffer : null;
-      postMessage({ type: "done", buf, lx, report: r.report, preview: r.preview }, lx ? [buf, lx] : [buf]);
+      postMessage({ type: "done", buf, lx, report: r.report, preview: r.preview, previewWays: r.previewWays }, lx ? [buf, lx] : [buf]);
     } catch (e) {
       postMessage({ type: "error", code: (e && e.code) || (e && e.status) || null, msg: String((e && e.message) || e) });
     }
@@ -4223,6 +5021,7 @@ function makeWorker() {
     `import * as HP from "${base}hyparquet/index.js";\n` +
     `import { decompress } from "${base}fzstd.js";\n` +
     `import Delatin from "${base}delatin.js";\n` +
+    `import earcut from "${base}earcut.js";\n` +
     `import "${base}proj4.js";\n` +
     document.getElementById("ctxEngine").textContent +
     `\n;(${workerMain.toString()})();\n`;
@@ -4231,20 +5030,20 @@ function makeWorker() {
 
 let lastStage = null;
 function setStage(stage) {
-  const order = ["terrain", "buildings", "tin", "ifc"];
+  const order = ["terrain", "buildings", "tin", "ways", "ifc"];
   lastStage = stage;
   document.querySelectorAll(".stp").forEach((el) => {
     const i = order.indexOf(el.dataset.s), c = order.indexOf(stage);
     el.classList.toggle("on", el.dataset.s === stage);
-    el.classList.toggle("done", i < c && (el.dataset.s !== "buildings" || S.bld === "on"));
+    el.classList.toggle("done", i < c && (el.dataset.s !== "buildings" || S.bld === "on") && (el.dataset.s !== "ways" || S.waysRun));
   });
 }
 /* terreno ed edifici si scaricano in parallelo: la riga di stato li mostra
    insieme (un messaggio per flusso), altrimenti si rubano la scena a vicenda */
-const P = { t: "", b: "", mb: 0 };
+const P = { t: "", b: "", w: "", mb: 0 };
 function progress(msg) {
   const bar = $("progBar"), pg = $("prog");
-  P.mb = (msg.bytes.terrain + msg.bytes.buildings) / 1048576;
+  P.mb = (msg.bytes.terrain + msg.bytes.buildings + (msg.bytes.ways || 0)) / 1048576;
   if (msg.type === "progress") {
     const i = msg.info || {};
     /* la barra segue il terreno finché gli edifici non partono, poi i BYTE dei
@@ -4264,10 +5063,13 @@ function progress(msg) {
         : i.groups ? tr("prog.buildings", { d: i.groupsDone, n: i.groups })
         : tr("prog.bldNone");
     }
-    if (msg.stage === "tin") { setStage("tin"); pg.classList.add("ind"); P.t = tr("prog.tin"); P.b = ""; }
+    /* i tile di strade e acqua sono pochi e veloci: solo una voce, la barra resta a chi scarica di più */
+    if (msg.stage === "ways" && lastStage !== "tin" && lastStage !== "ways") P.w = i.total && i.done === i.total ? "" : tr("prog.ways", { d: i.done, t: i.total });
+    if (msg.stage === "tin") { setStage("tin"); pg.classList.add("ind"); P.t = tr("prog.tin"); P.b = ""; P.w = ""; }
+    if (msg.stage === "waysGeom") { setStage("ways"); pg.classList.add("ind"); P.t = tr("prog.waysGeom"); P.b = ""; P.w = ""; }
     if (msg.stage === "ifc") { setStage("ifc"); pg.classList.add("ind"); P.t = tr("prog.ifc"); P.b = ""; }
   }
-  $("execSt").textContent = [P.t, P.b, P.mb ? tr("prog.mb", { mb: nf(P.mb, 1) }) : ""].filter(Boolean).join(" · ");
+  $("execSt").textContent = [P.t, P.b, P.w, P.mb ? tr("prog.mb", { mb: nf(P.mb, 1) }) : ""].filter(Boolean).join(" · ");
 }
 function setBusy(on) {
   S.busy = on;
@@ -4287,11 +5089,13 @@ $("runBtn").addEventListener("click", () => {
     schema: S.schema, mode: S.mode, lang: LANG, fileName: S.fileName,
     terrain: { source: S.tsrc, on: S.terrain !== "off", solid: S.terrain === "solid", base: $("baseIn").value.trim() === "" ? null : num($("baseIn").value), tol: S.tol === "auto" ? "auto" : +S.tol, ground: $("groundChk").checked },
     buildings: { on: S.bld === "on", parts: $("partsChk").checked, storey: Math.max(1, num($("storeyIn").value) || 3), defaultH: Math.max(1, num($("defHIn").value) || 9) },
+    ways: waysOpt(),
   };
+  S.waysRun = waysAny();
   if (modelOk()) { const a = S.model.align; opt.frame = { ...a.frame }; opt.trueNorth = a.tn || null; opt.model = S.model.name; opt.modelVertical = a.vertical || ""; }
   if (S.line && S.line.corr) opt.corridor = { width: S.line.corr.width, length: S.line.corr.length, source: S.line.src, name: S.line.name };
   resetOutputs(); setBusy(true);
-  P.t = ""; P.b = ""; P.mb = 0; $("execSt").textContent = "…";
+  P.t = ""; P.b = ""; P.w = ""; P.mb = 0; $("execSt").textContent = "…";
   $("progBar").style.width = "0%"; lastStage = null; setStage("terrain");
   S.t0 = Date.now();
   let w;
@@ -4305,7 +5109,7 @@ $("runBtn").addEventListener("click", () => {
       const txt = m.code === "limit" ? tr("exec.errLimit") : m.code === 429 ? tr("exec.err429") : /HTTP|fetch|network|Failed/i.test(m.msg) ? tr("exec.errNet", { e: m.msg }) : tr("exec.err", { e: m.msg });
       refreshExec(txt, "err"); return;
     }
-    S.result = { blob: new Blob([m.buf], { type: "application/x-step" }), lx: m.lx ? new Blob([m.lx], { type: "application/xml" }) : null, report: m.report, preview: m.preview };
+    S.result = { blob: new Blob([m.buf], { type: "application/x-step" }), lx: m.lx ? new Blob([m.lx], { type: "application/xml" }) : null, report: m.report, preview: m.preview, previewWays: m.previewWays };
     $("dlBtn").hidden = false; $("viewBtn").hidden = false; $("lxBtn").hidden = !S.result.lx;
     $("runBtn").querySelector("span").textContent = tr("btn.again");
     pushPreview(); renderReport(m.report);
@@ -4416,6 +5220,17 @@ function renderReport(r) {
     if (t.ground && t.ground.applied) th += warn(tr("rp.dsmApplied", { mean: nf(t.ground.mean, 1), max: nf(t.ground.max, 1) }));
     if (r.verticalMismatch) th += warn(tr("m.note.vertical", { p: r.verticalMismatch.project, d: r.verticalMismatch.terrain }));
   }
+  const w = r.ways || { on: false, groups: [] };
+  let wh = "";
+  if (!w.on) wh = kv(tr("rp.ways"), esc(tr("rp.waysOff")));
+  else if (w.err) wh = warn(tr("rp.waysErr", { e: w.err }));
+  else {
+    wh += `<div class="big">${nf(w.groups.reduce((s, g) => s + g.length, 0) / 1000, 1)}<small>${esc(tr("rp.waysKm"))}</small></div>`;
+    for (const g of w.groups) wh += kv(tr("ways." + g.key), esc(tr(g.lines ? "rp.waysV" : "rp.waysA", { n: nf(g.features), km: nf(g.length / 1000, 1), t: nf(g.triangles) })) + (g.bridges ? " · " + esc(tr("rp.bridges", { n: nf(g.bridges) })) : ""));
+    if (!w.groups.length) wh += `<div class="kv"><span>${esc(tr("rp.waysNone"))}</span></div>`;
+    if (w.tunnels) wh += kv(tr("rp.tunnels"), nf(w.tunnels));
+    wh += kv(tr("rp.src"), esc(`OpenFreeMap · ${w.version || "—"} · ${nf(w.tiles)} ${tr("rp.waysSrc")}`));
+  }
   let fh = `<div class="big">${nf(r.size / 1048576, 2)}<small>MB</small></div>`;
   fh += kv(tr("rp.crs"), esc(`EPSG:${r.crs.epsg} · ${r.crs.name}`));
   fh += kv(tr("rp.k"), r.crs.k.toFixed(6));
@@ -4425,12 +5240,13 @@ function renderReport(r) {
   if (r.frame && Math.abs(r.frame.rot) > 1e-9) fh += kv(tr("rp.rot"), nf(r.frame.rot, 4) + "°");
   if (r.corridor) fh += kv(tr("rp.corr"), esc(tr("rp.corrV", { w: nf(r.corridor.width), km: nf(r.corridor.length / 1000, 2) })));
   fh += kv(tr("rp.ent"), nf(r.entities));
-  fh += kv(tr("rp.net"), nf((r.net.terrain + r.net.buildings) / 1048576, 1) + " MB");
+  fh += kv(tr("rp.net"), nf((r.net.terrain + r.net.buildings + (r.net.ways || 0)) / 1048576, 1) + " MB");
   fh += kv(tr("rp.time"), nf(r.ms.total / 1000, 1) + " s");
   const lic = [
     `<li>${esc(tr("rp.licMap"))}</li>`,
     t.on || b.on ? `<li>${esc(tr("rp.licTer"))} ${t.sources.map((s) => `<b>${esc(s.name)}</b>: ${esc(s.attr)}${s.lic ? " (" + esc(s.lic) + ")" : ""}`).join(" · ")}</li>` : "",
     b.on ? `<li>${esc(tr("rp.licBld"))}</li>` : "",
+    w.groups.length ? `<li>${esc(tr("rp.licWays"))}</li>` : "",
     `<li>${esc(tr("rp.licCode"))}</li>`,
   ].join("");
   el.innerHTML =
@@ -4438,6 +5254,7 @@ function renderReport(r) {
     `<div class="rgrid">` +
     `<div class="rcard"><span class="k">${esc(tr("rp.bld"))}</span>${bh}</div>` +
     `<div class="rcard"><span class="k">${esc(tr("rp.ter"))}</span>${th}</div>` +
+    `<div class="rcard"><span class="k">${esc(tr("rp.ways"))}</span>${wh}</div>` +
     `<div class="rcard"><span class="k">${esc(tr("rp.file"))}</span>${fh}</div>` +
     `<div class="rcard lic"><span class="k">${esc(tr("rp.lic"))}</span><ul>${lic}</ul></div>` +
     `</div>`;
