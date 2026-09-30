@@ -1754,14 +1754,22 @@ body.diff-embed #railDiff{display:flex}
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { parseLASHeader, parseLASPoints } from "./las.js";   // studio import PointCloud (LAS)
-import { parseE57, e57PointCount } from "./e57.js";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js";  // feature QTO (v2.5.0)
+/* v2.9.2 — moduli VERSIONATI (?v= = APP_VERSION, lo controlla
+   test/test_module_versions.js). Il sito manda l'HTML con cache di 10 minuti
+   e i .js con cache di 4 ORE (Cloudflare): dopo il deploy della 2.9.1 chi
+   aveva già aperto il viewer riceveva l'index.html nuovo col clash.js vecchio,
+   senza nearestBlock → l'import falliva, lo script non partiva e nessun
+   bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
+   ogni release il .js vecchio in cache non viene più usato. vendor/ resta
+   senza versione: cambia solo quando si aggiornano three o web-ifc. */
+import { readLASHeader, parseLAS } from "./las.js?v=2.9.2";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.9.2";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.9.2";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.9.2";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.9.2";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js";  // studio verifica nuvola ↔ modello
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.9.2";  // studio verifica nuvola ↔ modello
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -1854,7 +1862,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.9.1";
+const APP_VERSION = "2.9.2";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2115,7 +2123,7 @@ const STRINGS = {
     "toast.pcLaz": "{f}: LAZ compresso non ancora supportato in questo studio — esporta in LAS non compresso",
     "toast.pcErr": "Errore lettura nuvola {f}: {e}",
     "toast.fileUnreadable": "«{f}» non è leggibile dal browser. Succede con i file che non stanno su disco locale: dischi di rete e cartelle sincronizzate (ACC Desktop Connector, OneDrive) li sostituiscono durante la lettura. Copia il file in una cartella locale e riprova.",
-    "toast.fileTooBig": "«{f}» ({gb} GB) supera quello che un browser riesce a tenere in memoria in un solo blocco (limite pratico ~2 GB), indipendentemente da dove sta il file. Ri-esportalo da ReCap/CloudCompare sottocampionato o diviso in più file sotto i 2 GB.",
+    "toast.fileTooBig": "«{f}» ({gb} GB) supera quello che un browser riesce a tenere in memoria in un solo blocco (limite pratico ~2 GB), indipendentemente da dove sta il file. Esporta il modello diviso in più file sotto i 2 GB (per disciplina o per opera) e caricali insieme: il viewer li federa.",
     "toast.fileReadErr": "Errore di lettura di «{f}»: {e}",
     "toast.pcRemoved": "{f}: nuvola rimossa",
     "pc.modalTitle": "Nuvola di punti molto grande",
@@ -2637,7 +2645,7 @@ const STRINGS = {
     "toast.pcLaz": "{f}: compressed LAZ not yet supported in this study — export to uncompressed LAS",
     "toast.pcErr": "Error reading cloud {f}: {e}",
     "toast.fileUnreadable": "\"{f}\" cannot be read by the browser. This happens with files that are not on a local disk: network drives and sync folders (ACC Desktop Connector, OneDrive) replace them while they are being read. Copy the file to a local folder and try again.",
-    "toast.fileTooBig": "\"{f}\" ({gb} GB) exceeds what a browser can hold in memory in a single block (practical limit ~2 GB), wherever the file is stored. Re-export it from ReCap/CloudCompare subsampled or split into files under 2 GB.",
+    "toast.fileTooBig": "\"{f}\" ({gb} GB) exceeds what a browser can hold in memory in a single block (practical limit ~2 GB), wherever the file is stored. Export the model split into several files under 2 GB (by discipline or by structure) and load them together: the viewer federates them.",
     "toast.fileReadErr": "Error reading \"{f}\": {e}",
     "toast.pcRemoved": "{f}: cloud removed",
     "pc.modalTitle": "Very large point cloud",
@@ -3259,7 +3267,8 @@ let modelUidCounter = 0;
      mentre la lettura è in corso. Non c'è niente da correggere nel parser: i
      byte non arrivano proprio.
    - RangeError/allocation: file oltre quanto il browser riesce a tenere in un
-     solo ArrayBuffer (limite pratico ~2 GB), tipico degli E57 di viadotto.
+     solo ArrayBuffer (limite pratico ~2 GB). Dalla 2.9.2 qui passano solo gli IFC:
+     le nuvole (E57, LAS) si leggono a fette e non hanno questo limite.
    Ritorna null col toast già mostrato. */
 const FILE_GB = 1073741824;
 const FILE_HARD_MAX = 4 * FILE_GB;   // oltre: nessun browser ce la fa, inutile tentare per minuti
@@ -11285,13 +11294,10 @@ async function loadPointCloud(file) {
     if (lower.endsWith(".laz")) { toast(tr("toast.pcLaz", { f: name })); return; }   // LAZ: tappa futura (WASM)
     showLoading(tr("pc.loading", { f: name }));
     await new Promise(r => setTimeout(r));               // lascia dipingere l'indicatore prima della lettura pesante
-    /* E57: si passa il FILE, non i byte. Il parser legge a fette (viewer/e57.js)
-       e decodifica in modo incrementale: un E57 da 6 GB non entrerebbe in un
-       ArrayBuffer, e non serve — se ne tiene in memoria solo il risultato. */
-    const isE57 = lower.endsWith(".e57");
-    const src = isE57 ? file : await readPickedFile(file);
-    if (!src) return;                         // errore di accesso: messaggio già dato, non è un problema di formato
-    const res = isE57 ? await _pcParseE57(src, name) : await _pcParseLAS(src, name);
+    /* Si passa il FILE, non i byte: E57 (viewer/e57.js) e, dalla 2.9.2, LAS
+       (viewer/las.js) si leggono a fette. Un file da molti GB non entrerebbe in
+       un ArrayBuffer, e non serve — se ne tiene in memoria solo il risultato. */
+    const res = lower.endsWith(".e57") ? await _pcParseE57(file, name) : await _pcParseLAS(file, name);
     if (res) _pcBuild(name, res);
   } catch (e) {
     console.error("[APE Viewer] point cloud:", e);
@@ -11338,10 +11344,24 @@ async function _pcSizeGuard(name, total) {
   return Infinity;
 }
 
-async function _pcParseLAS(buf, name) {
+/* Errore di lettura di una nuvola. Le nuvole non passano da readPickedFile (si
+   leggono a fette), ma gli errori di ACCESSO sono gli stessi: file su disco di
+   rete o client di sincronizzazione che lo ri-scarica a metà lettura. Lì il
+   messaggio giusto è "file non leggibile", non un errore di formato. */
+function _pcErrToast(name, e) {
+  const n = String((e && e.name) || "");
+  if (n === "NotReadableError" || n === "NotFoundError" || n === "SecurityError")
+    toast(tr("toast.fileUnreadable", { f: name }), 12000);
+  else toast(tr("toast.pcErr", { f: name, e: (e && e.message) || e }));
+}
+
+/* LAS a fette (v2.9.2): prima il file intero passava da readPickedFile in un
+   solo ArrayBuffer — oltre ~2 GB il browser non lo alloca — e si decodificava
+   in un colpo solo, a schermo fermo e senza percentuale. */
+async function _pcParseLAS(file, name) {
   let header;
-  try { header = parseLASHeader(buf); }
-  catch (e) { toast(tr("toast.pcErr", { f: name, e: e.message })); return null; }
+  try { header = await readLASHeader(file); }
+  catch (e) { _pcErrToast(name, e); return null; }
   if (header.compressed) { toast(tr("toast.pcLaz", { f: name })); return null; }
   const maxPoints = await _pcSizeGuard(name, header.pointCount);
   /* origine condivisa dal centro bbox (coord. mappa E,N,H arrotondate) se è la 1ª geometria */
@@ -11352,7 +11372,16 @@ async function _pcParseLAS(buf, name) {
       Math.round((header.mapMin[2] + header.mapMax[2]) / 2));
   }
   const O = worldOriginMap;
-  const res = parseLASPoints(buf, header, { origin: { x: O.x, y: O.y, z: O.z }, swizzle: true, maxPoints });
+  let res, lastPct = -1;
+  try {
+    res = await parseLAS(file, {
+      header, origin: { x: O.x, y: O.y, z: O.z }, swizzle: true, maxPoints,
+      onProgress: (done, tot) => {
+        const pct = Math.floor(100 * done / tot);
+        if (pct !== lastPct) { lastPct = pct; showLoading(tr("pc.loadingPct", { f: name, pct })); }
+      }
+    });
+  } catch (e) { _pcErrToast(name, e); return null; }
   res.pointCount = header.pointCount;
   res.label = `LAS 1.${header.versionMinor} · fmt ${header.pointFormat}`;
   return res;
@@ -11361,7 +11390,7 @@ async function _pcParseLAS(buf, name) {
 async function _pcParseE57(src, name) {
   let total;
   try { total = await e57PointCount(src); }
-  catch (e) { toast(tr("toast.pcErr", { f: name, e: e.message })); return null; }
+  catch (e) { _pcErrToast(name, e); return null; }
   const maxPoints = await _pcSizeGuard(name, total);
   /* E57: se worldOriginMap è già fissata (es. IFC caricato prima) la passo; altrimenti il
      parser la deriva dal 1° punto e la restituisco → la fisso qui, catena invariante intatta */
@@ -11377,7 +11406,7 @@ async function _pcParseE57(src, name) {
         if (pct !== lastPct) { lastPct = pct; showLoading(tr("pc.loadingPct", { f: name, pct })); }
       }
     });
-  } catch (e) { toast(tr("toast.pcErr", { f: name, e: e.message })); return null; }
+  } catch (e) { _pcErrToast(name, e); return null; }
   if (worldOriginMap === null) worldOriginMap = new THREE.Vector3(res.origin.x, res.origin.y, res.origin.z);
   res.label = `E57 · ${res.scanCount} scan`;
   return res;
@@ -11895,7 +11924,7 @@ async function _c2dStartPool(k) {
   const b = C2D.bvh.bvh, c = b.count;
   const geom = { type: "geom", tris: C2D.bvh.tris,
     bvh: { nMin: b.nMin.slice(0, 3 * c), nMax: b.nMax.slice(0, 3 * c), na: b.na.slice(0, c), nb: b.nb.slice(0, c), order: b.order, count: c } };
-  const url = new URL("./c2d-worker.js", import.meta.url);
+  const url = new URL(`./c2d-worker.js?v=${APP_VERSION}`, import.meta.url);   // versionato come gli import (v. APP_VERSION)
   const starts = [];
   for (let i = 0; i < k; i++) {
     let w;

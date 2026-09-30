@@ -80,18 +80,25 @@ function makeSource(x, chunkSize) {
    di pause ne fa un migliaio, non finiva più. Un messaggio su un MessageChannel
    non è un timer e non viene rallentato. A finestra visibile resta setTimeout,
    come loadYield del viewer: lì non costa nulla (misurato) e l'indicatore di
-   avanzamento si ridipinge come prima. In Node (niente document) sempre il
-   canale, con la porta sganciata (unref): se no terrebbe vivo il processo. */
-const _mcTick = (() => {
-  if (typeof MessageChannel !== "function") return () => new Promise(r => setTimeout(r, 0));
-  const ch = new MessageChannel(), waiting = [];
-  ch.port1.onmessage = () => { const r = waiting.shift(); if (r) r(); };
-  if (ch.port1.unref) ch.port1.unref();
-  if (ch.port2.unref) ch.port2.unref();
-  return () => new Promise(r => { waiting.push(r); ch.port2.postMessage(0); });
-})();
-const _tick = () => (typeof document !== "undefined" && !document.hidden)
-  ? new Promise(r => setTimeout(r, 0)) : _mcTick();
+   avanzamento si ridipinge come prima. Senza document (Node, test)
+   setImmediate. v2.9.2: in 2.9.1 lì c'era il canale con la porta sganciata
+   (unref), che NON tiene vivo il processo: con yieldEvery Node usciva in
+   silenzio, codice 0, a metà lettura (visto sul gemello in las.js). Il canale
+   si crea solo al primo uso, nel browser. */
+let _mc = null;
+function _mcTick() {
+  if (!_mc) {
+    const ch = new MessageChannel(), waiting = [];
+    ch.port1.onmessage = () => { const r = waiting.shift(); if (r) r(); };
+    _mc = r => { waiting.push(r); ch.port2.postMessage(0); };
+  }
+  return new Promise(r => _mc(r));
+}
+const _tick = () => {
+  if (typeof document === "undefined")
+    return new Promise(r => (typeof setImmediate === "function" ? setImmediate : setTimeout)(r));
+  return (document.hidden && typeof MessageChannel === "function") ? _mcTick() : new Promise(r => setTimeout(r, 0));
+};
 
 /* ---- lettore che salta i 4 byte di CRC a ogni pagina ----
    Tiene una FINESTRA logica: legge dalla sorgente `winPages` pagine alla volta,
