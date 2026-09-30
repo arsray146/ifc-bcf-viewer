@@ -74,35 +74,68 @@ function makeSource(x, chunkSize) {
   return new BufferSource(x);
 }
 
-const _tick = () => new Promise(r => setTimeout(r, 0));
+/* Restituisce il thread fra un blocco di lavoro e l'altro. A finestra coperta o
+   ridotta a icona NON con setTimeout: Chrome ed Edge fanno ripartire i timer al
+   più una volta al secondo (dopo 5 minuti una al minuto), e un E57 da 6 GB, che
+   di pause ne fa un migliaio, non finiva più. Un messaggio su un MessageChannel
+   non è un timer e non viene rallentato. A finestra visibile resta setTimeout,
+   come loadYield del viewer: lì non costa nulla (misurato) e l'indicatore di
+   avanzamento si ridipinge come prima. In Node (niente document) sempre il
+   canale, con la porta sganciata (unref): se no terrebbe vivo il processo. */
+const _mcTick = (() => {
+  if (typeof MessageChannel !== "function") return () => new Promise(r => setTimeout(r, 0));
+  const ch = new MessageChannel(), waiting = [];
+  ch.port1.onmessage = () => { const r = waiting.shift(); if (r) r(); };
+  if (ch.port1.unref) ch.port1.unref();
+  if (ch.port2.unref) ch.port2.unref();
+  return () => new Promise(r => { waiting.push(r); ch.port2.postMessage(0); });
+})();
+const _tick = () => (typeof document !== "undefined" && !document.hidden)
+  ? new Promise(r => setTimeout(r, 0)) : _mcTick();
 
-/* ---- lettore che salta i 4 byte di CRC a ogni pagina ---- */
+/* ---- lettore che salta i 4 byte di CRC a ogni pagina ----
+   Tiene una FINESTRA logica: legge dalla sorgente `winPages` pagine alla volta,
+   toglie i CRC una volta sola compattando in place (copyWithin: nessuna
+   allocazione per pagina) e serve le letture successive come viste sulla
+   finestra, senza copiarle. Prima ogni lettura allocava e ricopiava pagina per
+   pagina: un terzo del tempo di lettura se ne andava lì. Le viste restituite
+   restano valide anche dopo il cambio di finestra: ogni finestra è un buffer
+   nuovo, quella vecchia non viene mai riscritta. */
 class PagedReader {
-  constructor(src, pageSize) {
+  constructor(src, pageSize, windowBytes) {
     this.src = src;
     this.pageSize = pageSize || 1024;
     this.dpp = this.pageSize - 4;   // data-per-page (byte utili prima del CRC)
+    this.winPages = Math.max(1, Math.floor((windowBytes || (8 << 20)) / this.pageSize));
+    this.win = null; this.ws = 0; this.we = 0;   // finestra logica [ws, we)
   }
   physicalToLogical(p) { const page = Math.floor(p / this.pageSize); return page * this.dpp + (p % this.pageSize); }
   logicalToPhysical(l) { const page = Math.floor(l / this.dpp); return page * this.pageSize + (l % this.dpp); }
-  /* copia `len` byte LOGICI a partire dall'offset logico dato, saltando i CRC.
-     Lo span FISICO viene chiesto alla sorgente in una volta sola: con una
-     sorgente a fette una lettura per chiamata, non una per pagina. */
+  /* `len` byte LOGICI a partire dall'offset logico dato, CRC esclusi. Una vista:
+     chi la riceve non deve modificarla. */
   async readLogical(logicalStart, len) {
     if (len <= 0) return new Uint8Array(0);
-    const pFrom = this.logicalToPhysical(logicalStart);
-    const pTo = this.logicalToPhysical(logicalStart + len - 1) + 1;
-    const raw = await this.src.read(pFrom, pTo - pFrom);
-    const out = new Uint8Array(len);
-    let done = 0, l = logicalStart;
-    while (done < len) {
-      const page = Math.floor(l / this.dpp), off = l % this.dpp;
-      const phys = page * this.pageSize + off - pFrom;
-      const run = Math.min(this.dpp - off, len - done);
-      out.set(raw.subarray(phys, phys + run), done);
-      done += run; l += run;
+    const end = logicalStart + len;
+    if (!(this.win && logicalStart >= this.ws && end <= this.we)) {
+      const PS = this.pageSize, D = this.dpp;
+      const p0 = Math.floor(logicalStart / D);
+      const p1 = Math.max(Math.ceil(end / D), p0 + this.winPages);
+      const physStart = p0 * PS, physEnd = Math.min(this.src.size, p1 * PS);
+      const raw = await this.src.read(physStart, physEnd - physStart);
+      /* copia propria: la sorgente può restituire una vista sulla sua cache
+         (o sul buffer del chiamante), e qui la si riscrive */
+      const buf = new Uint8Array(raw.length);
+      buf.set(raw);
+      let L = 0;
+      for (let a = 0; a < buf.length; a += PS) {
+        const dl = Math.min(D, buf.length - a);
+        if (a) buf.copyWithin(L, a, a + dl);
+        L += dl;
+      }
+      this.win = buf.subarray(0, L); this.ws = p0 * D; this.we = this.ws + L;
+      if (end > this.we) throw new Error("E57 troncato: si chiedono byte oltre la fine del file.");
     }
-    return out;
+    return this.win.subarray(logicalStart - this.ws, end - this.ws);
   }
   readLogicalFromPhysical(physicalStart, len) { return this.readLogical(this.physicalToLogical(physicalStart), len); }
 }
@@ -199,24 +232,53 @@ function _readPrototype(protoNode) {
 /* ---- decodifica di un intero bit-packed (LSB-first), bits fino a ~53 ----
    startBit: bit di partenza dentro `bytes` (default 0). Serve alla decodifica
    incrementale: i record non finiscono su un confine di byte, quindi il resto
-   non ancora consumato resta con un disallineamento di 0-7 bit. */
-function _decodeIntField(bytes, count, bits, out, startBit) {
-  const s = startBit || 0;
-  if (bits === 0) { for (let i = 0; i < count; i++) out[i] = 0; return; }
+   non ancora consumato resta con un disallineamento di 0-7 bit.
+   first/step (default 0/1): scrive in out[j] il record first + j·step — col
+   sottocampionamento si decodificano SOLO i punti tenuti. Con larghezza fissa
+   il record i sta al bit startBit + i·bits: l'accesso è diretto.
+   Fino a 32 bit si legge una parola di 4-5 byte e si maschera; oltre (raro) si
+   va bit per bit. Prima si andava sempre bit per bit: le coordinate
+   ScaledInteger a ~20 bit costavano venti giri di ciclo l'una. */
+const _POW2 = [];
+for (let k = 0; k <= 53; k++) _POW2.push(2 ** k);
+function _decodeIntField(bytes, count, bits, out, startBit, first, step) {
+  const s = startBit || 0, f0 = first || 0, st = step || 1;
+  if (bits === 0) { for (let j = 0; j < count; j++) out[j] = 0; return; }
   if ((s & 7) === 0) {
     const b0 = s >> 3;
-    if (bits === 8) { for (let i = 0; i < count; i++) out[i] = bytes[b0 + i]; return; }
-    if (bits === 16) { for (let i = 0; i < count; i++) out[i] = bytes[b0 + i * 2] | (bytes[b0 + i * 2 + 1] << 8); return; }
+    if (bits === 8) { for (let j = 0, i = f0; j < count; j++, i += st) out[j] = bytes[b0 + i]; return; }
+    if (bits === 16) {
+      for (let j = 0, i = f0; j < count; j++, i += st) { const o = b0 + i * 2; out[j] = bytes[o] | (bytes[o + 1] << 8); }
+      return;
+    }
   }
-  let bitPos = s;
-  for (let i = 0; i < count; i++) {
-    let v = 0, mult = 1;
+  /* i byte oltre la fine del buffer si leggono come 0: stanno comunque sopra
+     i bit del valore, che la maschera butta */
+  if (bits <= 25) {                       // bit utili + disallineamento ≤ 32: basta una parola
+    const mask = (1 << bits) - 1;
+    for (let j = 0, i = f0; j < count; j++, i += st) {
+      const bp = s + i * bits, o = bp >> 3;
+      const w = (bytes[o] | 0) | ((bytes[o + 1] | 0) << 8) | ((bytes[o + 2] | 0) << 16) | ((bytes[o + 3] | 0) << 24);
+      out[j] = (w >>> (bp & 7)) & mask;
+    }
+    return;
+  }
+  if (bits <= 32) {                       // fino a 39 bit da leggere: parola + un byte, in double
+    const m = _POW2[bits];
+    for (let j = 0, i = f0; j < count; j++, i += st) {
+      const bp = s + i * bits, o = bp >> 3, sh = bp & 7;
+      const lo = ((bytes[o] | 0) | ((bytes[o + 1] | 0) << 8) | ((bytes[o + 2] | 0) << 16) | ((bytes[o + 3] | 0) << 24)) >>> 0;
+      out[j] = ((lo >>> sh) + (bytes[o + 4] | 0) * _POW2[32 - sh]) % m;
+    }
+    return;
+  }
+  for (let j = 0, i = f0; j < count; j++, i += st) {
+    let bitPos = s + i * bits, v = 0, mult = 1;
     for (let b = 0; b < bits; b++) {
-      const bytePos = bitPos >> 3, bit = bitPos & 7;
-      v += ((bytes[bytePos] >> bit) & 1) * mult;
+      v += ((bytes[bitPos >> 3] >> (bitPos & 7)) & 1) * mult;
       mult *= 2; bitPos++;
     }
-    out[i] = v;
+    out[j] = v;
   }
 }
 
@@ -224,27 +286,32 @@ function _decodeIntField(bytes, count, bits, out, startBit) {
    Terminazione deterministica: per ogni campo sappiamo quanti byte servono a contenere
    recordCount valori (float → rc×bytes, intero → ceil(rc×bits/8)); leggiamo pacchetti dati
    finché OGNI campo è coperto, restando dentro la lunghezza logica della sezione. */
-/* Decodifica ed emette `n` record dai buffer pendenti, poi butta i byte
-   consumati. `scratch` è riusato fra una chiamata e l'altra: su decine di
+/* Decodifica `n` record dai buffer pendenti, poi butta i byte consumati.
+   Col sottocampionamento si decodificano solo i record tenuti — first,
+   first+step, … — e onRecords riceve n (quanti ne sono passati) e m (quanti
+   ne ha in mano): con un passo 16 prima si decodificava tutto per poi buttare
+   15 punti su 16. `scratch` è riusato fra una chiamata e l'altra: su decine di
    milioni di punti allocare a ogni pacchetto sarebbe il collo di bottiglia. */
-function _emitRecords(fields, pend, perRec, scratch, n, onRecords) {
+function _emitRecords(fields, pend, perRec, scratch, n, onRecords, first, step) {
+  const m = first < n ? Math.floor((n - 1 - first) / step) + 1 : 0;
   const decoded = [];
   for (let k = 0; k < fields.length; k++) {
     const f = fields[k], p = pend[k];
-    if (!scratch[k] || scratch[k].length < n) scratch[k] = new Float64Array(Math.max(n, 8192));
+    if (!scratch[k] || scratch[k].length < m) scratch[k] = new Float64Array(Math.max(m, 8192));
     const arr = scratch[k];
     if (f.type === "Float") {
       const b0 = p.bit >> 3;                       // per i Float il disallineamento è sempre 0
       const dv = new DataView(p.buf.buffer, p.buf.byteOffset + b0, n * f.bytes);
-      for (let i = 0; i < n; i++) arr[i] = f.bytes === 4 ? dv.getFloat32(i * 4, true) : dv.getFloat64(i * 8, true);
+      if (f.bytes === 4) { for (let j = 0, i = first; j < m; j++, i += step) arr[j] = dv.getFloat32(i * 4, true); }
+      else { for (let j = 0, i = first; j < m; j++, i += step) arr[j] = dv.getFloat64(i * 8, true); }
     } else {
-      _decodeIntField(p.buf, n, f.bits, arr, p.bit);
-      if (f.type === "ScaledInteger") { for (let i = 0; i < n; i++) arr[i] = (arr[i] + f.min) * f.scale + f.offset; }
-      else { for (let i = 0; i < n; i++) arr[i] = arr[i] + f.min; }
+      _decodeIntField(p.buf, m, f.bits, arr, p.bit, first, step);
+      if (f.type === "ScaledInteger") { for (let j = 0; j < m; j++) arr[j] = (arr[j] + f.min) * f.scale + f.offset; }
+      else { for (let j = 0; j < m; j++) arr[j] = arr[j] + f.min; }
     }
     decoded.push(arr);
   }
-  onRecords(n, decoded);
+  onRecords(n, decoded, m);
   for (let k = 0; k < fields.length; k++) {
     if (!perRec[k]) continue;                      // campo costante: non consuma byte
     const p = pend[k];
@@ -259,8 +326,12 @@ function _emitRecords(fields, pend, perRec, scratch, n, onRecords) {
    può portare 500 valori di X e 480 di Y. Quindi dopo ogni pacchetto si calcola
    quanti record COMPLETI sono disponibili su TUTTI i campi, si emettono quelli e
    si tiene il resto. Così la memoria non cresce con la scansione e un file da
-   molti GB si legge senza mai tenerlo in RAM. */
-async function _streamCompressedVector(reader, fileOffset, fields, recordCount, onRecords, yieldEvery) {
+   molti GB si legge senza mai tenerlo in RAM.
+   giStart/step: indice globale del primo record della scansione e passo di
+   sottocampionamento — il sottocampionamento è sull'indice GLOBALE, a cavallo
+   delle scansioni, quindi il primo record tenuto di ogni blocco si calcola da lì. */
+async function _streamCompressedVector(reader, fileOffset, fields, recordCount, onRecords, yieldEvery, giStart, step) {
+  giStart = giStart || 0; step = step || 1;
   const fieldCount = fields.length;
   const sh = await reader.readLogicalFromPhysical(fileOffset, 32);
   const shdv = new DataView(sh.buffer, sh.byteOffset, sh.byteLength);
@@ -314,7 +385,11 @@ async function _streamCompressedVector(reader, fileOffset, fields, recordCount, 
       const can = Math.floor((pend[k].len * 8 - pend[k].bit) / perRec[k]);
       if (can < n) n = can;
     }
-    if (n > 0) { _emitRecords(fields, pend, perRec, scratch, n, onRecords); emitted += n; }
+    if (n > 0) {
+      const g = giStart + emitted;
+      _emitRecords(fields, pend, perRec, scratch, n, onRecords, (step - g % step) % step, step);
+      emitted += n;
+    }
     if (yieldEvery && packets % yieldEvery === 0) await _tick();
   }
   return emitted;
@@ -328,7 +403,7 @@ async function parseE57(input, opts) {
 
   const src = makeSource(input, opts.chunkSize);
   const header = parseE57Header(await src.read(0, 48));
-  const reader = new PagedReader(src, header.pageSize);
+  const reader = new PagedReader(src, header.pageSize, opts.chunkSize);
   const xmlBytes = await reader.readLogicalFromPhysical(header.xmlOffset, header.xmlLength);
   const xmlStr = new TextDecoder("utf-8").decode(xmlBytes);
   const root = parseXML(xmlStr);
@@ -389,16 +464,16 @@ async function parseE57(input, opts) {
 
   for (const sc of plan) {
     const p = sc.pose;
-    /* chiamata a ogni blocco di record decodificati: scrive nell'output solo i
-       punti che il sottocampionamento tiene, così l'unica memoria che cresce è
-       quella del risultato (già limitata da maxPoints). */
-    const onRecords = (n, decoded) => {
+    /* chiamata a ogni blocco di record: `n` record passati, di cui `m` tenuti
+       dal sottocampionamento e già decodificati — solo quelli arrivano qui, così
+       l'unica memoria che cresce è quella del risultato (limitata da maxPoints). */
+    const onRecords = (n, decoded, m) => {
       const X = decoded[sc.idx.x], Y = decoded[sc.idx.y], Z = decoded[sc.idx.z];
       const R = sc.idx.r >= 0 ? decoded[sc.idx.r] : null;
       const G = sc.idx.g >= 0 ? decoded[sc.idx.g] : null;
       const B = sc.idx.b >= 0 ? decoded[sc.idx.b] : null;
-      for (let i = 0; i < n; i++, gi++) {
-        if (gi % step !== 0) continue;
+      gi += n;
+      for (let i = 0; i < m; i++) {
         if (w >= outCap) continue;
         let vx = X[i], vy = Y[i], vz = Z[i];
         if (p) {   // ruota per quaternione poi trasla: v' = R·v + T
@@ -422,7 +497,7 @@ async function parseE57(input, opts) {
       }
       if (opts.onProgress) opts.onProgress(gi, totalPoints);
     };
-    await _streamCompressedVector(reader, sc.fileOffset, sc.fields, sc.recordCount, onRecords, opts.yieldEvery);
+    await _streamCompressedVector(reader, sc.fileOffset, sc.fields, sc.recordCount, onRecords, opts.yieldEvery, gi, step);
   }
 
   return {
@@ -444,7 +519,7 @@ async function parseE57(input, opts) {
 async function e57PointCount(input, opts) {
   const src = makeSource(input, opts && opts.chunkSize);
   const header = parseE57Header(await src.read(0, 48));
-  const reader = new PagedReader(src, header.pageSize);
+  const reader = new PagedReader(src, header.pageSize, opts && opts.chunkSize);
   const xmlStr = new TextDecoder("utf-8").decode(await reader.readLogicalFromPhysical(header.xmlOffset, header.xmlLength));
   const root = parseXML(xmlStr);
   const data3D = xmlChild(root, "data3D");

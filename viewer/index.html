@@ -1759,7 +1759,7 @@ import { parseE57, e57PointCount } from "./e57.js";           // studio import P
 import { parseIds, evaluateIds } from "./ids.js";             // feature Controlli IDS
 import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestPoint } from "./clash.js";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
          parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js";  // studio verifica nuvola ↔ modello
 import * as WebIFC from "./vendor/web-ifc-api.js";
@@ -1854,7 +1854,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.9.0";
+const APP_VERSION = "2.9.1";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -11742,22 +11742,22 @@ function c2mSelectCode(code, rowEl) {
    entrano nel BVH: non hanno superficie rilevabile, e lasciarli dentro
    attribuirebbe a un tondino punti che appartengono al calcestruzzo attorno.
 
-   Main thread a fette con progress e stop, come _clashRun: mettere il motore in
-   Worker imporrebbe di serializzare la geometria (i buffer stanno nelle mesh
-   three.js) raddoppiando la memoria di picco. Si misura, e si sposta solo se
-   la fluidità non regge (vedi PIANO_Cloud_Model_Check.md §5). */
+   v2.9.1 — le distanze si misurano in Web Worker (viewer/c2d-worker.js), a
+   blocchi, su più core: vedi _c2dMeasure. Il prezzo è una copia della geometria
+   per worker, per questo il numero di worker scende coi modelli grandi; se non
+   partono si torna al thread principale a fette (vedi PIANO_Cloud_Model_Check.md §5). */
 const C2D_MAX_DEF = 0.35;       // distanza max di serie (m): oltre, il punto è fuori tema (dev'essere dichiarata PRIMA di C2D, che la legge)
 const C2D = {
   tolP: 70, tolS: 100,          // soglie di contratto (mm) — in modalità singola coincidono
   dual: true,                   // default: DUE soglie (primari/secondari) — è la verifica di contratto, e il catalogo di serie la mappa già
   maxDist: C2D_MAX_DEF,         // oltre questa distanza (m) il punto è fuori tema, non fuori tolleranza
   preview: true,                // calcola sul campione uniforme invece che su tutti i punti
-  running: false, cancel: false,
+  running: false, cancel: false, wake: null,   // wake: sveglia l'attesa dei worker quando si ferma la verifica
   bvh: null, triElem: null, elems: null, geomSig: "",
   res: null, colored: false
 };
 const C2D_TRI_CAP = 4000000;    // tetto triangoli del BVH globale (~340 MB)
-const C2D_CHUNK = 40000;        // punti per fetta di lavoro
+const C2D_CHUNK = 40000;        // punti per fetta di lavoro (ripiego sul thread principale, poi adattiva)
 const C2D_BIN_MM = 5;           // ampiezza bin dell'istogramma (mm) per mediana/p95/p99
 /* conforme · oltre la propria soglia ma entro quella larga · fuori · non misurato
    (oltre maxDist o elemento escluso). Gli elementi non classificati NON hanno un
@@ -11853,6 +11853,165 @@ function _c2dBuildGeom() {
   return null;
 }
 
+/* ---- v2.9.1: distanze su più core ----
+   La nuvola si divide in blocchi da C2D_BLOCK punti; ogni Web Worker
+   (viewer/c2d-worker.js) ha una copia della geometria e restituisce, per ogni
+   punto del blocco, distanza e triangolo più vicino — con nearestBlock di
+   clash.js, la stessa funzione del ripiego sul thread principale. Statistiche
+   e colori restano qui e i blocchi si accumulano IN ORDINE anche quando
+   arrivano in disordine: il risultato è lo stesso, bit per bit, del calcolo
+   su un core solo. Misurato su un viadotto sintetico (172k triangoli, 15 M
+   punti): 9,5 s su un core, 2,8 s con 4 worker, 2,0 s con 8.
+   Costo: una copia della geometria per worker (~80 byte a triangolo) finché
+   dura la verifica — per questo i worker sono al più metà dei core, al più 8,
+   e meno quando il modello è grande (tetto C2D_WORKER_MEM). */
+const C2D_BLOCK = 65536;             // punti per blocco inviato a un worker
+const C2D_WORKER_MEM = 1e9;          // byte al più per le copie della geometria nei worker, tutte insieme
+const C2D_WORKER_MIN_PTS = 300000;   // sotto, avviare i worker costa più di quanto rende
+/* pausa del ripiego sul thread principale, come loadYield: a finestra coperta
+   MessageChannel, perché setTimeout lì viene rallentato a un giro al secondo;
+   a finestra visibile setTimeout, che lascia ridipingere l'avanzamento */
+function _c2dYield() {
+  if (!document.hidden) return new Promise(r => setTimeout(r, 0));
+  return new Promise(r => { const ch = new MessageChannel(); ch.port1.onmessage = () => r(); ch.port2.postMessage(0); });
+}
+
+/* Byte della geometria da copiare in ogni worker: triangoli + nodi del BVH
+   effettivamente usati (gli array dei nodi sono allocati per 2n, se ne
+   spediscono solo `count`). */
+function _c2dGeomBytes() {
+  const b = C2D.bvh.bvh, c = b.count;
+  return C2D.bvh.tris.byteLength + c * 3 * 8 * 2 + c * 4 * 2 + b.order.byteLength;
+}
+function _c2dWorkerCount(nPts) {
+  if (typeof Worker !== "function" || nPts < C2D_WORKER_MIN_PTS) return 0;
+  const cores = navigator.hardwareConcurrency || 4;
+  return Math.max(0, Math.min(8, Math.floor(cores / 2), Math.floor(C2D_WORKER_MEM / Math.max(1, _c2dGeomBytes()))));
+}
+/* Avvia k worker e manda a ciascuno la geometria. Ritorna quelli pronti: un
+   worker che non parte (file mancante, memoria) resta fuori, e se non ne
+   parte nessuno la verifica gira sul thread principale come prima. */
+async function _c2dStartPool(k) {
+  const b = C2D.bvh.bvh, c = b.count;
+  const geom = { type: "geom", tris: C2D.bvh.tris,
+    bvh: { nMin: b.nMin.slice(0, 3 * c), nMax: b.nMax.slice(0, 3 * c), na: b.na.slice(0, c), nb: b.nb.slice(0, c), order: b.order, count: c } };
+  const url = new URL("./c2d-worker.js", import.meta.url);
+  const starts = [];
+  for (let i = 0; i < k; i++) {
+    let w;
+    try { w = new Worker(url, { type: "module" }); }
+    catch (e) { console.warn("[APE Viewer] verifica nuvola: worker non avviabile, calcolo sul thread principale", e); break; }
+    starts.push(new Promise(res => {
+      const done = ok => {
+        clearTimeout(to);
+        w.onmessage = w.onerror = w.onmessageerror = null;
+        if (!ok) w.terminate();
+        res(ok ? w : null);
+      };
+      const to = setTimeout(() => done(false), 30000);
+      w.onmessage = e => done(!!(e.data && e.data.type === "ready"));
+      w.onerror = w.onmessageerror = ev => { if (ev && ev.preventDefault) ev.preventDefault(); done(false); };
+      w.postMessage(geom);
+    }));
+  }
+  const pool = (await Promise.all(starts)).filter(Boolean);
+  if (pool.length < k) console.warn(`[APE Viewer] verifica nuvola: pronti ${pool.length} worker su ${k}`);
+  return pool;
+}
+
+/* Misura i punti [0, lim) di una nuvola e li consegna IN ORDINE a
+   onBlock(start, end, dist, tri). Coi worker del pool, due blocchi in volo per
+   worker (mentre qui si accumula, il worker calcola già il successivo); un
+   worker che cade passa i suoi blocchi agli altri, e quello che resta — o
+   tutto, senza pool — si calcola qui, a fette di ~30 ms. Ritorna false se la
+   verifica è stata fermata. */
+async function _c2dMeasure(pos, lim, pool, box, onBlock, onProgress) {
+  const maxD = C2D.maxDist, A = C2D.bvh;
+  const nB = Math.ceil(lim / C2D_BLOCK);
+  const queue = [];
+  for (let b = 0; b < nB; b++) queue.push(b);
+  const ready = new Map();                     // blocchi arrivati fuori ordine, in attesa del loro turno
+  let next = 0;                                // prossimo blocco da accumulare
+  const flush = () => {
+    while (ready.has(next)) {
+      const r = ready.get(next); ready.delete(next);
+      const s = next * C2D_BLOCK;
+      onBlock(s, Math.min(lim, s + C2D_BLOCK), r.dist, r.tri);
+      next++;
+    }
+  };
+  const live = pool.filter(w => !w._c2dDead);
+  if (live.length && nB) {
+    await new Promise(resolve => {
+      C2D.wake = resolve;
+      const inflight = new Map(live.map(w => [w, new Set()]));
+      let alive = live.length;
+      const send = w => {
+        while (!C2D.cancel && queue.length && inflight.get(w).size < 2) {
+          const b = queue.shift();
+          const s = b * C2D_BLOCK, e = Math.min(lim, s + C2D_BLOCK);
+          const p = pos.slice(3 * s, 3 * e);
+          inflight.get(w).add(b);
+          w.postMessage({ type: "block", id: b, pos: p, maxDist: maxD, box }, [p.buffer]);
+        }
+      };
+      const check = () => { if (C2D.cancel || next >= nB || !alive) resolve(); };
+      for (const w of live) {
+        w.onmessage = ev => {
+          const m = ev.data;
+          if (!m || m.type !== "block") return;
+          inflight.get(w).delete(m.id);
+          ready.set(m.id, m);
+          flush();
+          onProgress();
+          send(w);
+          check();
+        };
+        w.onerror = w.onmessageerror = ev => {
+          if (ev && ev.preventDefault) ev.preventDefault();
+          console.warn("[APE Viewer] verifica nuvola: un worker si è fermato, i suoi blocchi passano agli altri", ev && ev.message);
+          for (const b of inflight.get(w)) queue.unshift(b);
+          inflight.delete(w);
+          w.onmessage = w.onerror = w.onmessageerror = null;
+          w.terminate(); w._c2dDead = true;
+          alive--;
+          for (const w2 of inflight.keys()) send(w2);   // chi era già fermo riprende i blocchi rimessi in coda
+          check();
+        };
+        send(w);
+      }
+      check();
+    });
+    C2D.wake = null;
+    for (const w of live) if (!w._c2dDead) w.onmessage = w.onerror = w.onmessageerror = null;
+  }
+  if (C2D.cancel) return false;
+  /* thread principale: tutto senza pool, altrimenti i blocchi rimasti ai worker caduti */
+  queue.sort((a, b) => a - b);
+  let chunk = C2D_CHUNK;
+  for (const b of queue) {
+    if (ready.has(b)) continue;
+    const s = b * C2D_BLOCK, e = Math.min(lim, s + C2D_BLOCK);
+    const dist = new Float64Array(e - s), tri = new Int32Array(e - s);
+    /* fetta adattiva: ~30 ms di lavoro per giro, l'interfaccia resta viva sia
+       sulle nuvole piccole sia su quelle da decine di milioni di punti */
+    for (let s2 = s; s2 < e; ) {
+      if (C2D.cancel) return false;
+      const t = performance.now();
+      const e2 = Math.min(e, s2 + chunk);
+      nearestBlock(A, pos, s2, e2, maxD, box, dist.subarray(s2 - s), tri.subarray(s2 - s));
+      s2 = e2;
+      const ms = performance.now() - t;
+      chunk = Math.max(4000, Math.min(400000, Math.round(chunk * (ms > 1 ? 30 / ms : 4))));
+      onProgress(e2 - s);
+      await _c2dYield();
+    }
+    ready.set(b, { dist, tri });
+    flush();
+  }
+  return true;
+}
+
 /* Quanti punti misurare su una nuvola: in anteprima il campione uniforme che il
    LOD ha già portato in testa all'array (_pcShuffle), altrimenti tutti. */
 function _c2dLimit(src) {
@@ -11860,7 +12019,7 @@ function _c2dLimit(src) {
 }
 
 async function runC2dCheck() {
-  if (C2D.running) { C2D.cancel = true; return; }
+  if (C2D.running) { C2D.cancel = true; if (C2D.wake) C2D.wake(); return; }
   if (!models.length || !PCLOUD.sources.length) { toast(tr("toast.c2dNeed")); return; }
   C2D.dual = !!($("c2dDual") && $("c2dDual").checked);
   if (C2D.dual) {
@@ -11878,6 +12037,7 @@ async function runC2dCheck() {
   updateC2dRunBtn();
   const t0 = performance.now();
   const prog = (msg) => { $("c2dInfo").innerHTML = `<div class="c2m-note">${msg}</div>`; };
+  let pool = [];
   try {
     prog(esc(tr("c2d.prep")));
     await new Promise(r => setTimeout(r, 30));
@@ -11899,16 +12059,52 @@ async function runC2dCheck() {
     const cats = { primary: _c2dNewStat(nBins), secondary: _c2dNewStat(nBins), unknown: _c2dNewStat(nBins) };
     let nPts = 0, nMeas = 0, nOut = 0, nUnc = 0, nOk = 0, nWarn = 0, nBad = 0;
 
-    const hit = new Float64Array(4);
     const bvh = C2D.bvh, triElem = C2D.triElem, elems = C2D.elems, maxD = C2D.maxDist;
     /* scarto rapido: il bbox del modello gonfiato di maxDist. Su una scansione
        vera la maggior parte dei punti è terreno e vegetazione intorno all'opera
-       — così non pagano nemmeno la discesa nel BVH. */
+       — così non pagano nemmeno la discesa nel BVH (lo fa nearestBlock). */
     const ab = bvh.aabb || [0, 0, 0, 0, 0, 0];
-    const bx0 = ab[0] - maxD, by0 = ab[1] - maxD, bz0 = ab[2] - maxD;
-    const bx1 = ab[3] + maxD, by1 = ab[4] + maxD, bz1 = ab[5] + maxD;
+    const box = [ab[0] - maxD, ab[1] - maxD, ab[2] - maxD, ab[3] + maxD, ab[4] + maxD, ab[5] + maxD];
     const totalToDo = PCLOUD.sources.reduce((s, src) => s + _c2dLimit(src), 0);
-    let done = 0;
+    let done = 0, lastProg = 0;
+    const showProg = (partial) => {
+      const now = performance.now();
+      if (now - lastProg < 100) return;
+      lastProg = now;
+      const d = done + (partial || 0);
+      prog(tr("c2d.running", { pct: Math.round(100 * d / totalToDo), n: d.toLocaleString("it-IT") }));
+    };
+
+    /* un blocco misurato → statistiche e colori, punto per punto nell'ordine
+       della nuvola. dist[j]/tri[j] sono del punto start+j. */
+    let col = null;
+    const accumulate = (start, end, dist, tri) => {
+      for (let i = start, j = 0; i < end; i++, j++) {
+        const d = dist[j], p = 3 * i;
+        nPts++;
+        let c;
+        if (d < 0) { nOut++; c = C2D_COL.none; }
+        else {
+          const el = elems[triElem[tri[j]]];
+          const st = cats[el.cat] || cats.unknown;
+          nMeas++;
+          st.n++; st.sum += d; if (d > st.max) st.max = d;
+          st.hist[Math.min(st.hist.length - 1, (d * 1000 / C2D_BIN_MM) | 0)]++;
+          el.n++; if (d > el.max) el.max = d;
+          if (el.cat === "unknown") nUnc++;   // giudicato lo stesso (soglia restrittiva), ma contato a parte
+          if (d <= el.tolM) { nOk++; c = C2D_COL.ok; }
+          else {
+            st.over++; el.over++;
+            if (d <= tolWide) { nWarn++; c = C2D_COL.warn; } else { nBad++; c = C2D_COL.bad; }
+          }
+        }
+        col[p] = c[0]; col[p + 1] = c[1]; col[p + 2] = c[2];
+      }
+      done += end - start;
+    };
+
+    const nWorkers = _c2dWorkerCount(totalToDo);
+    if (nWorkers) pool = await _c2dStartPool(nWorkers);
 
     for (const src of PCLOUD.sources) {
       const g = src.points.geometry;
@@ -11921,47 +12117,10 @@ async function runC2dCheck() {
                                           vertexColors: src.points.material.vertexColors,
                                           tint: src.points.material.color.getHex() };
       src.points.material.color.setHex(0xffffff);
-      const col = new Uint8Array(src.count * 3);       // i punti non misurati restano neutri
+      col = new Uint8Array(src.count * 3);             // i punti non misurati restano neutri
       for (let i = 0; i < src.count; i++) { col[3 * i] = C2D_COL.none[0]; col[3 * i + 1] = C2D_COL.none[1]; col[3 * i + 2] = C2D_COL.none[2]; }
 
-      /* fetta adattiva: si punta a ~30 ms di lavoro per tick, così l'interfaccia
-         resta viva sia sulle nuvole piccole sia su quelle da decine di milioni
-         di punti, senza dover indovinare una costante */
-      let chunk = C2D_CHUNK;
-      for (let start = 0; start < lim; start += chunk) {
-        if (C2D.cancel) { prog(esc(tr("c2d.stopped"))); return; }
-        const tChunk = performance.now();
-        const end = Math.min(start + chunk, lim);
-        for (let i = start; i < end; i++) {
-          const p = 3 * i;
-          const px = pos[p], py = pos[p + 1], pz = pos[p + 2];
-          const d = (px < bx0 || px > bx1 || py < by0 || py > by1 || pz < bz0 || pz > bz1)
-            ? -1 : nearestPoint(bvh, px, py, pz, maxD, hit);
-          nPts++;
-          let c;
-          if (d < 0) { nOut++; c = C2D_COL.none; }
-          else {
-            const el = elems[triElem[hit[0]]];
-            const st = cats[el.cat] || cats.unknown;
-            nMeas++;
-            st.n++; st.sum += d; if (d > st.max) st.max = d;
-            st.hist[Math.min(st.hist.length - 1, (d * 1000 / C2D_BIN_MM) | 0)]++;
-            el.n++; if (d > el.max) el.max = d;
-            if (el.cat === "unknown") nUnc++;   // giudicato lo stesso (soglia restrittiva), ma contato a parte
-            if (d <= el.tolM) { nOk++; c = C2D_COL.ok; }
-            else {
-              st.over++; el.over++;
-              if (d <= tolWide) { nWarn++; c = C2D_COL.warn; } else { nBad++; c = C2D_COL.bad; }
-            }
-          }
-          col[p] = c[0]; col[p + 1] = c[1]; col[p + 2] = c[2];
-        }
-        done += end - start;
-        const ms = performance.now() - tChunk;
-        chunk = Math.max(4000, Math.min(400000, Math.round(chunk * (ms > 1 ? 30 / ms : 4))));
-        prog(tr("c2d.running", { pct: Math.round(100 * done / totalToDo), n: done.toLocaleString("it-IT") }));
-        await new Promise(r => setTimeout(r, 0));
-      }
+      if (!(await _c2dMeasure(pos, lim, pool, box, accumulate, showProg))) { prog(esc(tr("c2d.stopped"))); return; }
 
       g.setAttribute("color", new THREE.BufferAttribute(col, 3, true));
       src.points.material.vertexColors = true;
@@ -11980,11 +12139,15 @@ async function runC2dCheck() {
     if (modelGhost === 1) { modelGhost = 0.25; applyIsolate(); }   // alla prima verifica il modello si fa da parte
     renderC2dBlock();
     toast(tr("toast.c2dDone", { n: nMeas.toLocaleString("it-IT"), s: C2D.res.secs.toFixed(1) }));
+    const nLive = pool.filter(w => !w._c2dDead).length;
+    console.info(`[APE Viewer] verifica nuvola: ${nPts.toLocaleString("it-IT")} punti in ${C2D.res.secs.toFixed(2)} s · ` +
+      (nLive ? `${nLive} worker` : "thread principale") + ` · ${bvh.n.toLocaleString("it-IT")} triangoli`);
   } catch (e) {
     console.error("[APE Viewer] verifica nuvola:", e);
     prog(esc(tr("c2d.err", { e: e.message || e })));
   } finally {
-    C2D.running = false; C2D.cancel = false;
+    for (const w of pool) w.terminate();   // la copia della geometria nei worker vive solo quanto la verifica
+    C2D.running = false; C2D.cancel = false; C2D.wake = null;
     updateC2dRunBtn();
   }
 }

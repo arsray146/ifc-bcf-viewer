@@ -993,6 +993,33 @@ function nearestPoint(A, x, y, z, maxDist, out) {
   return Math.sqrt(best2);
 }
 
+/* Distanze di un BLOCCO di punti — la stessa nearestPoint, punto per punto.
+   pos: xyz consecutivi (Float32Array); si misurano i punti [start, end) e il
+   punto start+j scrive dist[j] (distanza, -1 se nulla entro maxDist) e tri[j]
+   (triangolo più vicino, -1 se nessuno). box [6] = AABB già gonfiato di
+   maxDist: fuori, il punto è scartato senza scendere nel BVH (terreno e
+   vegetazione intorno all'opera); null per non scartare nulla.
+   È il pezzo che gira nei Web Worker della verifica nuvola ↔ modello
+   (viewer/c2d-worker.js) e, se i worker non partono, sul thread principale:
+   una funzione sola, così i due percorsi non possono dare numeri diversi.
+   A basta che abbia { tris, bvh:{nMin,nMax,na,nb,order,count} }: nel worker
+   arrivano i soli array, non un TriBvh ricostruito. */
+const _nbHit = new Float64Array(4);
+function nearestBlock(A, pos, start, end, maxDist, box, dist, tri) {
+  let nMeas = 0;
+  for (let i = start, j = 0; i < end; i++, j++) {
+    const px = pos[3 * i], py = pos[3 * i + 1], pz = pos[3 * i + 2];
+    if (box && (px < box[0] || px > box[3] || py < box[1] || py > box[4] || pz < box[2] || pz > box[5])) {
+      dist[j] = -1; tri[j] = -1; continue;
+    }
+    const d = nearestPoint(A, px, py, pz, maxDist, _nbHit);
+    dist[j] = d;
+    tri[j] = d < 0 ? -1 : _nbHit[0];
+    if (d >= 0) nMeas++;
+  }
+  return nMeas;
+}
+
 /* ========================================================================== */
 /* 5. BROAD PHASE — coppie candidate tra due liste di elementi                */
 /* ========================================================================== */
@@ -1239,7 +1266,7 @@ function clashKey(guidA, guidB, ruleId) {
 export {
   EPS_PLANE,
   triTriIntersect, triTriDistance,
-  TriBvh, hardPair, clearancePair, nearestPoint,
+  TriBvh, hardPair, clearancePair, nearestPoint, nearestBlock,
   penetrationPair, pointInMesh,
   broadPhase,
   KNOWN_SUBCLASSES, expandClassName,
