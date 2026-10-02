@@ -1,0 +1,2255 @@
+<!DOCTYPE html>
+<!--
+  Terrain Sculptor — strumento accessorio di viewifc.com
+  Autore: Alessandro Perugini — BIM Coordinator. Licenza AGPL-3.0.
+
+  Cosa fa: modella una topografia a pennelli (alza, abbassa, liscia,
+  appiattisci) e con i numeri — piattaforme a quota e rampe a pendenza, le cui
+  scarpate trovano il terreno da sole — e la esporta per Revit (CSV di punti
+  per la toposolid, budget 10k/20k/50k scelto con Delatin) e per Rhino (.3dm
+  con superficie NURBS, curve di livello, mesh con UV, volume chiuso; OBJ).
+
+  Tutto statico e tutto nel browser: i file non escono, il lavoro si salva da
+  solo in IndexedDB di questo browser. Il motore è in terrain-core.js
+  (documento a tre strati base → ground → final, opere modificabili) e
+  l'import in terrain-io.js; qui c'è l'interfaccia (UI v3 del viewer: rail a
+  sinistra, pannello a destra, vetro) e la scena three.js.
+
+  Scelte (fase 1, 2026-10-01, con l'utente):
+  - piattaforme e rampe restano OGGETTI modificabili (vertici, quota,
+    scarpata, raccordo), la rampa segue la quota della piattaforma da cui
+    parte; il pennello scolpisce il terreno sotto le opere;
+  - fino a ~4 milioni di nodi (1×1 km a 0,5 m): la scena è a riquadri da
+    128 celle, si ricarica solo la parte toccata;
+  - DTM reale da file (LandXML, GeoTIFF, ASC, punti) o dal bottone
+    «Scolpisci il terreno» del tool Contesto 3D;
+  - coordinate: esportazione attorno a un'origine dichiarata (Revit legge il
+    CSV rispetto all'origine interna).
+  Fase 2 (2026-10-02, «da Revit e ritorno»): la toposolid di Revit si apre
+  dall'IFC (web-ifc del viewer in un Worker) nelle coordinate INTERNE del
+  progetto, con la georeferenziazione accanto: il CSV torna a Revit e cade
+  sopra la toposolid di partenza.
+-->
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terrain Sculptor — topografie a pennelli e piattaforme per Revit e Rhino · viewifc.com</title>
+
+<meta name="description" content="Scolpisci una topografia nel browser: pennelli per alzare, abbassare, lisciare e appiattire, piattaforme a quota e rampe le cui scarpate trovano il terreno da sole, bilancio di sterri e riporti. Esporta il CSV di punti per la toposolid di Revit e il .3dm per Rhino (NURBS, curve di livello, mesh). Gratis, senza account, i file non escono dal browser.">
+<meta name="author" content="Alessandro Perugini">
+<meta name="theme-color" content="#f1f3ee">
+<link rel="canonical" href="https://viewifc.com/tools/terrain-sculptor/">
+<link rel="icon" type="image/png" href="../../favicon-32.png">
+<script>/* Tema chiaro di default (chiave viewer_landing_theme, condivisa da tutto il sito): l'attributo
+   si applica subito e si toglie SOLO su scelta esplicita "dark".
+   Migrazione una tantum (viewifc_theme_migr_light): vedi gli altri strumenti. */
+document.documentElement.setAttribute("data-theme","light");
+try{
+  if(localStorage.getItem("viewifc_theme_migr_light")!=="1"){
+    localStorage.setItem("viewifc_theme_migr_light","1");
+    localStorage.setItem("viewer_landing_theme","light");
+  }
+  if(localStorage.getItem("viewer_landing_theme")==="dark") document.documentElement.removeAttribute("data-theme");
+}catch(e){}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* =========================================================================
+   Sistema di vetro della UI v3 del viewer (rail + pod): stessi token, stessi
+   nomi. Il 3D riempie la finestra, le lastre ci stanno sopra.
+   ========================================================================= */
+:root{
+  --lime:#bfd730; --lime-deep:#a8c320; --lime-soft:rgba(191,215,48,.13); --lime-ink:#23310a;
+  --lime-line:rgba(191,215,48,.34);
+  --acc:#bfd730;
+  --bg:#0d120b; --panel:rgba(15,20,13,.82); --panel-2:rgba(237,242,226,.05); --panel-solid:#141b10;
+  --line:rgba(237,242,226,.09); --line-2:rgba(237,242,226,.15);
+  --text:#edf2e2; --muted:#a9b59b; --faint:#79856c;
+  --canvas:#262b24; --red:#e0523f; --amber:#e0a63a;
+  --shadow:0 1px 3px rgba(0,0,0,.30),0 6px 18px rgba(0,0,0,.26);
+  --shadow-lg:0 2px 8px rgba(0,0,0,.28),0 18px 44px rgba(0,0,0,.42);
+  --r:16px; --r-sm:11px; --r-xs:8px;
+  --blur:blur(18px) saturate(1.25);
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --disp:'Barlow Semi Condensed',var(--sans);
+  --pod-w:336px;
+  color-scheme:dark;
+}
+html[data-theme="light"]{
+  --lime-deep:#8aa310; --lime-soft:rgba(154,179,19,.16); --lime-line:rgba(154,179,19,.38);
+  --acc:var(--lime-deep);
+  --bg:#f1f3ee; --panel:rgba(255,255,255,.86); --panel-2:rgba(33,42,35,.055); --panel-solid:#ffffff;
+  --line:rgba(33,42,35,.11); --line-2:rgba(33,42,35,.17);
+  --text:#212a23; --muted:#68756a; --faint:#9aa69c;
+  --canvas:#dde2d5; --red:#b03a2a; --amber:#8f6008;
+  --shadow:0 1px 2px rgba(30,40,28,.10),0 6px 16px rgba(30,40,28,.12);
+  --shadow-lg:0 1px 3px rgba(30,40,28,.10),0 14px 40px rgba(30,40,28,.18);
+  color-scheme:light;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--canvas);color:var(--text);font-family:var(--sans);font-size:14px;overflow:hidden;
+  -webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+a{color:inherit}
+button{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.02em;color:var(--text);
+  background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;
+  transition:border-color .15s,background .15s,color .15s,box-shadow .15s}
+button:hover{border-color:var(--line-2)}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button:disabled{opacity:.4;cursor:default}
+button.primary{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+button.primary:hover:not(:disabled){background:#cae23f;border-color:var(--lime-deep)}
+.glass{background:var(--panel);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--line);box-shadow:var(--shadow)}
+
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+#cv.c-cross{cursor:crosshair}
+#cv.c-grab{cursor:grab}
+#cv.c-move{cursor:move}
+#cv.c-point{cursor:pointer}
+
+/* ---------- testata: pillole flottanti ---------- */
+header{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;gap:8px;padding:14px;pointer-events:none}
+header>*{pointer-events:auto}
+.pill{border-radius:999px}
+.brand{display:flex;align-items:center;gap:9px;padding:7px 14px 7px 8px;text-decoration:none;min-width:0;transition:border-color .15s}
+.brand:hover{border-color:var(--line-2)}
+.hdr-logo{width:26px;height:26px;border-radius:8px;display:block;flex:none}
+.appname{font:600 13.5px/1 var(--disp);letter-spacing:.03em;color:var(--text);white-space:nowrap}
+.crumbs{display:flex;align-items:center;gap:8px;padding:11px 15px;font:400 12px/1 var(--sans);color:var(--muted);white-space:nowrap}
+.crumbs a{text-decoration:none;display:flex;align-items:center;gap:6px;transition:color .15s}
+.crumbs a:hover{color:var(--text)}
+.crumbs svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round}
+.crumbs .sep{color:var(--faint)}
+.crumbs .here{font:600 13.5px/1 var(--disp);letter-spacing:.03em;color:var(--text)}
+.spacer{flex:1;pointer-events:none}
+.stats{display:flex;align-items:center;gap:12px;padding:9px 15px;font:400 11px/1 var(--mono);color:var(--muted);white-space:nowrap}
+.stats b{color:var(--text);font-weight:500}
+.stats .sv{display:flex;align-items:center;gap:6px}
+.stats .dot{width:6px;height:6px;border-radius:50%;background:var(--lime);flex:none}
+.stats .dot.wait{background:var(--amber)}
+.langsw{display:inline-flex;align-items:center;gap:3px;padding:4px}
+.langsw button{border:none;border-radius:999px;background:none;color:var(--faint);font:500 10.5px var(--mono);letter-spacing:.06em;padding:5px 9px;min-width:32px}
+.langsw button:hover{color:var(--text);background:var(--panel-2)}
+.langsw button.on{background:var(--lime-soft);color:var(--text)}
+.thm{width:34px;height:34px;flex:none;border-radius:999px;padding:0;display:inline-flex;align-items:center;justify-content:center;color:var(--muted);background:var(--panel)}
+.thm:hover{color:var(--text)}
+.thm svg{width:15px;height:15px}
+html[data-theme="light"] .thm .moon{display:none}
+html:not([data-theme="light"]) .thm .sun{display:none}
+#btnOpen{border-radius:999px;padding:9px 16px;box-shadow:var(--shadow)}
+
+/* ---------- rail degli strumenti (sinistra) ---------- */
+#rail{position:absolute;left:14px;top:66px;bottom:14px;width:58px;z-index:6;display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:8px 0;border-radius:20px;box-shadow:var(--shadow-lg);overflow-y:auto;scrollbar-width:none}
+#rail::-webkit-scrollbar{display:none}
+.rail-btn{position:relative;width:40px;height:40px;flex:none;border:none;border-radius:13px;background:none;display:flex;align-items:center;justify-content:center;color:var(--muted);padding:0}
+.rail-btn:hover{background:var(--panel-2);color:var(--text)}
+.rail-btn.on{background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line);color:var(--text)}
+.rail-btn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.rail-btn .k{position:absolute;right:3px;bottom:2px;font:500 8.5px/1 var(--mono);color:var(--faint)}
+.rail-btn.on .k{color:var(--acc)}
+.rail-sep{width:26px;height:1px;background:var(--line);margin:4px 0;flex:none}
+.rail-sp{flex:1;min-height:8px}
+
+/* ---------- pannello di controllo (destra) ---------- */
+#pod{position:absolute;right:14px;top:66px;bottom:14px;width:var(--pod-w);z-index:6;border-radius:var(--r);box-shadow:var(--shadow-lg);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden}
+body.pod-off #pod{display:none}
+#pod,#rail,header{user-select:none;-webkit-user-select:none}
+#pod input{user-select:text;-webkit-user-select:text}
+#podScroll{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;padding:4px 0 10px;scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+.sec{padding:0 16px;border-bottom:1px solid var(--line)}
+.sec:last-child{border-bottom:none}
+.sec-h{display:flex;align-items:center;gap:8px;padding:13px 0 9px;cursor:pointer;user-select:none}
+.sec-h h2{font:600 14px/1 var(--disp);letter-spacing:.06em;text-transform:uppercase;color:var(--text)}
+.sec-h .cnt{font:400 11px/1 var(--mono);color:var(--faint)}
+.sec-h .kbd{font:500 10px/1 var(--mono);color:var(--acc);padding:3px 6px;border-radius:6px;background:var(--lime-soft)}
+.sec-h .chev{margin-left:auto;width:14px;height:14px;fill:none;stroke:var(--faint);stroke-width:2;transition:transform .15s}
+.sec.closed .chev{transform:rotate(-90deg)}
+.sec.closed .sec-b{display:none}
+.sec-b{padding:0 0 14px}
+.sec.tool .sec-h{cursor:default}
+.row{display:grid;grid-template-columns:92px 1fr 64px;align-items:center;gap:8px;margin:7px 0}
+.row.two{grid-template-columns:92px 1fr}
+.row>label,.row>.lbl{font:400 12.5px/1.3 var(--sans);color:var(--muted)}
+.row output,.row .ro{font:400 11.5px/1 var(--mono);color:var(--text);text-align:right;white-space:nowrap}
+input[type=range]{width:100%;accent-color:var(--lime-deep);cursor:pointer}
+.numbox{display:flex;align-items:center;gap:6px;min-width:0}
+.numbox input{flex:1 1 0;width:0;min-width:0;font:400 12.5px/1 var(--mono);color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
+.numbox input:focus{outline:none;border-color:var(--lime-deep)}
+.numbox input:disabled{opacity:.6}
+.numbox span{font:400 11px/1 var(--mono);color:var(--faint);min-width:12px}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font:500 11px/1 var(--mono);padding:6px 8px;border-radius:999px;border:1px solid var(--line-2);background:none;color:var(--muted);letter-spacing:0}
+.chip:hover:not(:disabled){color:var(--text);border-color:var(--lime-line)}
+.chip.on{background:var(--lime-soft);border-color:var(--lime-line);color:var(--text)}
+.note{font:400 12px/1.5 var(--sans);color:var(--muted);margin:6px 0}
+.note b{color:var(--text);font-weight:500}
+.note.warn{color:var(--amber)}
+.help{font:400 12px/1.55 var(--sans);color:var(--muted)}
+.help kbd{font:500 10.5px/1 var(--mono);color:var(--text);padding:2px 5px;border-radius:5px;border:1px solid var(--line-2)}
+.kv{display:flex;justify-content:space-between;gap:12px;margin:5px 0;font:400 12.5px/1.35 var(--sans);color:var(--muted)}
+.kv b{font:400 12px/1.35 var(--mono);color:var(--text);text-align:right;font-weight:400;word-break:break-word}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}
+.btns button{flex:1 1 auto}
+.btn-sm{padding:6px 10px;font-size:12px}
+.link{background:none;border:none;padding:0;color:var(--acc);font:500 12px/1 var(--sans);letter-spacing:0;text-decoration:underline;text-underline-offset:2px}
+.check{display:flex;align-items:center;gap:8px;margin:6px 0;font:400 12.5px/1.3 var(--sans);color:var(--text);cursor:pointer}
+.check input{accent-color:var(--lime-deep);width:15px;height:15px}
+.check .dim{color:var(--muted);font-size:11.5px}
+.sub{font:600 11px/1 var(--disp);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px}
+.linked{display:flex;align-items:center;gap:6px;font:400 11.5px/1.3 var(--sans);color:var(--acc);margin:-2px 0 6px 100px}
+
+/* elenco delle opere */
+.oplist{display:flex;flex-direction:column;gap:2px}
+.oprow{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:9px;cursor:pointer;border:1px solid transparent}
+.oprow:hover{background:var(--panel-2)}
+.oprow.sel{background:var(--lime-soft);border-color:var(--lime-line)}
+.oprow.off .op-name,.oprow.off .op-v{opacity:.45}
+.oprow .op-ic{width:16px;height:16px;flex:none;fill:none;stroke:var(--muted);stroke-width:1.6;stroke-linejoin:round;stroke-linecap:round}
+.oprow .op-name{flex:1;min-width:0;font:500 12.5px/1.2 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oprow .op-v{font:400 11px/1 var(--mono);color:var(--muted);white-space:nowrap}
+.oprow button{border:none;background:none;padding:3px;border-radius:6px;color:var(--faint);display:flex}
+.oprow button:hover{color:var(--text);background:var(--panel-2)}
+.oprow button svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.oprow .acts{display:none;align-items:center;gap:1px}
+.oprow:hover .acts,.oprow:focus-within .acts{display:flex}
+.oprow:hover .op-v,.oprow:focus-within .op-v{display:none}
+
+.expblk{padding:10px 0 4px}
+.expblk+.expblk{border-top:1px dashed var(--line)}
+.exph{display:flex;align-items:baseline;gap:8px;margin-bottom:6px}
+.exph b{font:600 13.5px/1 var(--disp);letter-spacing:.03em}
+.exph span{font:400 11px/1 var(--mono);color:var(--faint)}
+.privacy{font:400 11px/1.5 var(--sans);color:var(--faint);padding:12px 16px 4px}
+
+/* ---------- stato, avvisi, lavoro in corso ---------- */
+#status{position:absolute;left:96px;right:calc(var(--pod-w) + 42px);bottom:14px;z-index:5;display:flex;justify-content:center;pointer-events:none}
+body.pod-off #status{right:28px}
+#status span{max-width:100%;padding:7px 14px;border-radius:999px;font:400 11px/1.2 var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:60;max-width:min(560px,80vw);padding:10px 18px;border-radius:12px;font:400 13px/1.45 var(--sans);display:none;
+  border-color:var(--lime-deep);box-shadow:var(--shadow-lg)}
+#toast.on{display:block}
+#toast.warn{border-color:var(--amber)}
+#busy{position:fixed;left:50%;top:70px;transform:translateX(-50%);z-index:60;display:none;align-items:center;gap:10px;padding:9px 16px;border-radius:999px;font:400 12.5px/1 var(--sans)}
+#busy.on{display:flex}
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line-2);border-top-color:var(--lime);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#noGl{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:40px;text-align:center;font:400 14px/1.6 var(--sans);color:var(--muted)}
+
+/* ---------- velo del trascina-e-rilascia (copiato dal viewer: #dragVeil) ---------- */
+#dragVeil{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:40;background:#bfd730d1;border:3px dashed var(--lime-deep);font-family:var(--disp);font-weight:700;font-size:21px;letter-spacing:.08em;text-transform:uppercase;color:var(--lime-ink)}
+#dragVeil.on{display:flex}
+
+/* ---------- foglio centrale: benvenuto, nuovo terreno, import ---------- */
+#sheet{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(10,14,9,.35)}
+html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
+.card{width:min(640px,100%);max-height:calc(100vh - 48px);overflow-y:auto;border-radius:22px;padding:28px 30px 22px;box-shadow:var(--shadow-lg)}
+.kicker{font:500 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.card h1{font:600 clamp(26px,3.2vw,34px)/1.05 var(--disp);letter-spacing:-.005em;margin:10px 0 10px}
+.card h3{font:600 20px/1.1 var(--disp);margin:0 0 12px}
+.lead{font:400 13.5px/1.65 var(--sans);color:var(--muted);margin-bottom:16px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:13px 16px;border-radius:14px;background:var(--panel-2);border:1px solid var(--line);text-decoration:none;color:var(--text)}
+.opt:hover{border-color:var(--lime-line)}
+.opt svg{width:22px;height:22px;flex:none;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.opt b{display:block;font:600 15px/1.2 var(--disp);letter-spacing:.02em}
+.opt span{display:block;font:400 12px/1.4 var(--sans);color:var(--muted);margin-top:3px}
+.card-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}
+.card-foot .privacy{padding:0}
+.form{display:flex;flex-direction:column;gap:2px}
+.form .row{grid-template-columns:150px 1fr 70px}
+.sheet-acts{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+
+@media (max-width:1100px){:root{--pod-w:300px}}
+@media (max-width:980px){ .appname,.stats{display:none} }
+@media (max-width:760px){
+  .crumbs .sep,.crumbs a span{display:none}
+  :root{--pod-w:calc(100vw - 100px)}
+}
+</style>
+
+<script type="importmap">
+{ "imports": { "three": "../../viewer/vendor/three.module.js", "three/addons/": "../../viewer/vendor/three-addons/" } }
+</script>
+
+<!-- Statistiche di visita anonime e senza cookie (GoatCounter) — vedi /analytics.js.
+     Questa pagina non manda eventi: niente quote, coordinate o nomi di file alle statistiche. -->
+<script src="/analytics.js" defer></script>
+</head>
+<body>
+
+<canvas id="cv" tabindex="-1" aria-label="Terreno 3D"></canvas>
+<div id="noGl" hidden></div>
+
+<!-- ================= TESTATA ================= -->
+<header>
+  <a class="brand glass pill" href="../../" data-i18n-title="nav.home" title="Vai a viewifc.com">
+    <img class="hdr-logo" src="../../favicon-32.png" alt="APE" width="26" height="26">
+    <span class="appname">Viewer IFC · BCF</span>
+  </a>
+  <nav class="crumbs glass pill" aria-label="breadcrumb">
+    <a href="../"><svg viewBox="0 0 24 24"><path d="M19 12H6M11 18l-6-6 6-6"/></svg><span data-i18n="nav.tools">Strumenti</span></a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span class="here" aria-current="page">Terrain Sculptor</span>
+  </nav>
+  <span class="spacer"></span>
+  <div class="stats glass pill" id="stats">
+    <span class="sv"><i class="dot" id="saveDot"></i><span id="statGrid">—</span></span>
+  </div>
+  <div class="langsw glass pill" role="group" aria-label="Language">
+    <button data-lang="it" class="on">IT</button>
+    <button data-lang="en">EN</button>
+  </div>
+  <button class="thm glass" id="thmBtn" aria-label="Light / dark" title="Light / dark">
+    <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+  </button>
+  <button class="primary" id="btnOpen"><span data-i18n="nav.open">Terreno</span></button>
+</header>
+
+<!-- ================= RAIL ================= -->
+<nav id="rail" class="glass" aria-label="Strumenti">
+  <button class="rail-btn" data-mode="nav" data-i18n-title="rail.nav" title="Naviga (N)">
+    <svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg><span class="k">N</span></button>
+  <button class="rail-btn" data-mode="select" data-i18n-title="rail.select" title="Seleziona e modifica le opere (V)">
+    <svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.6L10.5 19z"/></svg><span class="k">V</span></button>
+  <span class="rail-sep"></span>
+  <button class="rail-btn" data-mode="raise" data-i18n-title="rail.raise" title="Alza (1)">
+    <svg viewBox="0 0 24 24"><path d="M3 19c3-1 4-6 9-6s6 5 9 6"/><path d="M12 10V3M9 6l3-3 3 3"/></svg><span class="k">1</span></button>
+  <button class="rail-btn" data-mode="lower" data-i18n-title="rail.lower" title="Abbassa (2)">
+    <svg viewBox="0 0 24 24"><path d="M3 13c3 1 4 6 9 6s6-5 9-6"/><path d="M12 3v7M9 7l3 3 3-3"/></svg><span class="k">2</span></button>
+  <button class="rail-btn" data-mode="smooth" data-i18n-title="rail.smooth" title="Liscia (3)">
+    <svg viewBox="0 0 24 24"><path d="M3 9c2-2 3 2 5 0s3 2 5 0 3 2 5 0 3 2 3 2"/><path d="M3 16c3-1.5 6-1.5 9 0s6 1.5 9 0"/></svg><span class="k">3</span></button>
+  <button class="rail-btn" data-mode="flatten" data-i18n-title="rail.flatten" title="Appiattisci (4)">
+    <svg viewBox="0 0 24 24"><path d="M3 18c2-4 4-6 6-6h6c2 0 4 2 6 6"/><path d="M9 12h6M12 4v5M10 7l2 2 2-2"/></svg><span class="k">4</span></button>
+  <span class="rail-sep"></span>
+  <button class="rail-btn" data-mode="pad" data-i18n-title="rail.pad" title="Piattaforma (P)">
+    <svg viewBox="0 0 24 24"><path d="M2 18l5-3h10l5 3"/><path d="M7 15l2-5h6l2 5"/><path d="M9 10h6"/></svg><span class="k">P</span></button>
+  <button class="rail-btn" data-mode="ramp" data-i18n-title="rail.ramp" title="Rampa (R)">
+    <svg viewBox="0 0 24 24"><path d="M3 19h4l10-10h4"/><path d="M3 15h2l10-10"/></svg><span class="k">R</span></button>
+  <span class="rail-sp"></span>
+  <button class="rail-btn" id="bUndo" data-i18n-title="rail.undo" title="Annulla (Ctrl+Z)">
+    <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg></button>
+  <button class="rail-btn" id="bRedo" data-i18n-title="rail.redo" title="Ripristina (Ctrl+Y)">
+    <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg></button>
+  <button class="rail-btn" id="bFrame" data-i18n-title="rail.frame" title="Inquadra tutto (F)">
+    <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="k">F</span></button>
+  <button class="rail-btn" id="bPod" data-i18n-title="rail.pod" title="Mostra / nascondi il pannello">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></svg></button>
+</nav>
+
+<!-- ================= PANNELLO ================= -->
+<aside id="pod" class="glass" aria-label="Pannello">
+  <div id="podScroll">
+    <section class="sec tool" id="secTool">
+      <div class="sec-h"><h2 id="toolTitle">—</h2><span class="kbd" id="toolKey"></span></div>
+      <div class="sec-b" id="toolBody"></div>
+    </section>
+    <section class="sec" data-sec="ops">
+      <div class="sec-h"><h2 data-i18n="ops.title">Opere</h2><span class="cnt" id="opsCount"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div class="sec-b" id="opsBody"></div>
+    </section>
+    <section class="sec" data-sec="terrain">
+      <div class="sec-h"><h2 data-i18n="ter.title">Terreno</h2><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div class="sec-b" id="terBody"></div>
+    </section>
+    <section class="sec" data-sec="balance">
+      <div class="sec-h"><h2 data-i18n="bal.title">Bilancio rispetto alla partenza</h2><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div class="sec-b">
+        <div class="kv"><span data-i18n="bal.cut">Sterri</span><b id="vCut">—</b></div>
+        <div class="kv"><span data-i18n="bal.fill">Riporti</span><b id="vFill">—</b></div>
+        <div class="kv"><span data-i18n="bal.net">Saldo</span><b id="vNet">—</b></div>
+        <div class="kv"><span data-i18n="bal.range">Quote</span><b id="vRange">—</b></div>
+      </div>
+    </section>
+    <section class="sec" data-sec="export">
+      <div class="sec-h"><h2 data-i18n="exp.title">Esporta</h2><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div class="sec-b" id="expBody"></div>
+    </section>
+    <p class="privacy" data-i18n="privacy">I file non escono dal browser: niente upload. Il lavoro si salva da solo in questo browser (IndexedDB).</p>
+  </div>
+</aside>
+
+<div id="status"><span class="glass" id="statusText"></span></div>
+<div id="toast" class="glass" role="status" aria-live="polite"></div>
+<div id="busy" class="glass" role="status" aria-live="polite"><i class="spin"></i><span id="busyText"></span></div>
+<div id="dragVeil" data-i18n="drop.veil">Rilascia per aprire il terreno</div>
+<input type="file" id="fileIn" accept=".xml,.landxml,.asc,.tif,.tiff,.csv,.txt,.xyz,.pts,.ifc" hidden>
+
+<!-- ================= FOGLIO CENTRALE ================= -->
+<div id="sheet" hidden>
+  <div class="card glass" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <!-- benvenuto -->
+    <div data-panel="welcome">
+      <div class="kicker" data-i18n="w.kicker">Strumento 16 · prima versione</div>
+      <h1 id="sheetTitle" data-i18n="w.title">Scolpisci la topografia, esportala per Revit e Rhino</h1>
+      <p class="lead" data-i18n="w.lead">Pennelli per alzare, abbassare, lisciare e appiattire; piattaforme a quota e rampe a pendenza le cui scarpate trovano il terreno da sole; bilancio di sterri e riporti. Esce un CSV di punti per la toposolid di Revit e un .3dm per Rhino.</p>
+      <div class="opts">
+        <button class="opt" id="wNew"><svg viewBox="0 0 24 24"><path d="M3 18l6-8 4 5 3-3 5 6z"/><path d="M12 3v4M10 5h4"/></svg><span><b data-i18n="w.new">Nuovo terreno</b><span data-i18n="w.newS">piano, pendio o ondulato, fino a ~4 milioni di nodi</span></span></button>
+        <button class="opt" id="wOpen"><svg viewBox="0 0 24 24"><path d="M4 20h16M12 4v12M7 11l5 5 5-5"/></svg><span><b data-i18n="w.open">Apri un file</b><span data-i18n="w.openS">IFC (toposolid di Revit), LandXML, GeoTIFF, ESRI ASCII (.asc), punti x,y,z (.csv · .txt · .xyz) — o trascinalo qui</span></span></button>
+        <a class="opt" href="../ifc-site-context/"><svg viewBox="0 0 24 24"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span><b data-i18n="w.ctx">DTM reale dal tool Contesto 3D</b><span data-i18n="w.ctxS">disegna l'area sulla mappa, genera, poi «Scolpisci il terreno»</span></span></a>
+      </div>
+      <div class="card-foot">
+        <p class="privacy" data-i18n="w.privacy">I file non escono dal browser. Il lavoro si salva da solo in questo browser.</p>
+        <button id="wClose" data-i18n="w.example">Continua con l'esempio</button>
+      </div>
+    </div>
+    <!-- nuovo terreno -->
+    <div data-panel="new" hidden>
+      <h3 data-i18n="n.title">Nuovo terreno</h3>
+      <div class="form">
+        <div class="row"><label for="nW" data-i18n="n.w">Larghezza (est)</label><div class="numbox"><input id="nW" type="number" min="5" step="5" value="200"><span>m</span></div><span></span></div>
+        <div class="row"><label for="nH" data-i18n="n.h">Profondità (nord)</label><div class="numbox"><input id="nH" type="number" min="5" step="5" value="150"><span>m</span></div><span></span></div>
+        <div class="row two"><span class="lbl" data-i18n="n.cell">Passo</span><div class="chips" id="nCell"></div></div>
+        <div class="row two"><span class="lbl" data-i18n="n.shape">Forma</span><div class="chips" id="nShape"></div></div>
+        <div class="row"><label for="nZ" data-i18n="n.z">Quota</label><div class="numbox"><input id="nZ" type="number" step="0.5" value="20"><span>m</span></div><span></span></div>
+        <div class="row" id="nGradeRow"><label for="nGrade" data-i18n="n.grade">Pendenza verso nord</label><div class="numbox"><input id="nGrade" type="number" step="0.5" value="8"><span>%</span></div><span></span></div>
+      </div>
+      <p class="note" id="nNote"></p>
+      <div class="sheet-acts"><button id="nCancel" data-i18n="n.cancel">Annulla</button><button class="primary" id="nGo" data-i18n="n.create">Crea</button></div>
+    </div>
+    <!-- import -->
+    <div data-panel="import" hidden>
+      <h3 id="iTitle" data-i18n="i.title">Apri un terreno</h3>
+      <div id="iBody"></div>
+      <div class="sheet-acts"><button id="iCancel" data-i18n="n.cancel">Annulla</button><button class="primary" id="iGo" data-i18n="i.go" disabled>Importa</button></div>
+    </div>
+  </div>
+</div>
+
+<script id="tsI18n">
+/* Dizionari IT/EN: parità stretta delle chiavi (test/test_terrain_page.js) */
+const I18N = {
+  it: {
+    "nav.home": "Vai a viewifc.com", "nav.tools": "Strumenti", "nav.open": "Terreno",
+    "rail.nav": "Naviga (N)", "rail.select": "Seleziona e modifica le opere (V)",
+    "rail.raise": "Alza (1)", "rail.lower": "Abbassa (2)", "rail.smooth": "Liscia (3)", "rail.flatten": "Appiattisci (4)",
+    "rail.pad": "Piattaforma (P)", "rail.ramp": "Rampa (R)",
+    "rail.undo": "Annulla (Ctrl+Z)", "rail.redo": "Ripristina (Ctrl+Y)", "rail.frame": "Inquadra tutto (F)", "rail.pod": "Mostra / nascondi il pannello",
+    "mode.nav": "Naviga", "mode.select": "Seleziona", "mode.raise": "Alza", "mode.lower": "Abbassa", "mode.smooth": "Liscia",
+    "mode.flatten": "Appiattisci", "mode.pad": "Piattaforma", "mode.ramp": "Rampa",
+    "br.radius": "Raggio", "br.strength": "Intensità", "br.hardness": "Durezza",
+    "br.help": "Tieni premuto il tasto sinistro sul terreno. <kbd>Shift</kbd> inverte alza/abbassa, <kbd>[</kbd> e <kbd>]</kbd> cambiano il raggio.",
+    "br.flatHelp": "La quota è quella del punto dove premi: tieni premuto e passa sopra.",
+    "br.underOps": "Qui comanda l'opera: il pennello lavora il terreno sotto. Consolidala per scolpirla.",
+    "nav.help": "<b>Sinistro</b> ruota · <b>Destro</b> o <b>centrale</b> sposta · <b>Rotella</b> zoom. Negli altri strumenti il sinistro lavora e il <b>destro</b> ruota.",
+    "pad.help": "Clicca i vertici sul terreno; <kbd>Invio</kbd> o doppio clic chiude. <kbd>Shift</kbd> allinea a 15°, <kbd>Backspace</kbd> toglie l'ultimo, <kbd>Esc</kbd> annulla.",
+    "pad.defaults": "Per le prossime piattaforme", "pad.after": "La quota proposta è la media del terreno dentro il poligono: la cambi dopo.",
+    "ramp.help": "Clicca i punti dell'asse; <kbd>Invio</kbd> o doppio clic chiude. Parti da dentro una piattaforma: la rampa si aggancia al ciglio e ne segue la quota.",
+    "ramp.defaults": "Per le prossime rampe",
+    "op.pad": "Piattaforma {n}", "op.ramp": "Rampa {n}",
+    "op.elev": "Quota", "op.slope": "Scarpata", "op.slopePct": "Scarpata V/H", "op.round": "Raccordo", "op.area": "Area",
+    "op.width": "Larghezza", "op.zStart": "Quota inizio", "op.zEnd": "Quota fine", "op.grade": "Pendenza", "op.length": "Lunghezza",
+    "op.linked": "agganciata a {name}", "op.unlink": "sgancia",
+    "op.bake": "Consolida nel terreno", "op.bakeN": "Consolida (con le {n} opere sopra)", "op.delete": "Elimina",
+    "op.hint": "Trascina i vertici, o l'opera per spostarla. Doppio clic su un vertice lo toglie; i pallini a metà lato ne aggiungono uno.",
+    "op.none": "Clicca un'opera sul terreno o nell'elenco qui sotto.",
+    "op.bakeTip": "L'opera diventa terreno scolpito (quello che vedi non cambia) e ci puoi ripassare col pennello.",
+    "op.bothLinked": "Entrambe le quote sono agganciate: la pendenza viene da lì.",
+    "ops.title": "Opere", "ops.empty": "Nessuna opera. Disegna una piattaforma (P) o una rampa (R).",
+    "ops.on": "Accesa / spenta", "ops.up": "Su (prima)", "ops.down": "Giù (dopo: vince sulle precedenti)", "ops.del": "Elimina",
+    "ops.order": "Si applicano dall'alto in basso: dove si sovrappongono vince l'ultima.",
+    "ter.title": "Terreno", "ter.attr": "Dati del terreno: {a}", "ter.extent": "Estensione", "ter.cell": "Passo", "ter.nodes": "Nodi", "ter.source": "Fonte", "ter.crs": "Sistema",
+    "ter.contours": "Curve di livello", "ter.cNone": "no", "ter.revitPts": "Mostra i punti per Revit ({n})",
+    "ter.new": "Nuovo…", "ter.open": "Apri un file…",
+    "ter.saved": "Salvato in questo browser alle {t}", "ter.noSave": "Salvataggio automatico non disponibile in questo browser.",
+    "ter.mask": "{p} % dei nodi è fuori dal rilievo (riempito): tratteggiato, escluso da CSV e mesh.",
+    "ter.big": "Griglia grande: il pennello resta fluido, le esportazioni chiedono qualche secondo.",
+    "src.example": "Esempio", "src.new": "Nuovo terreno", "src.ctx": "Contesto 3D · {s}",
+    "bal.title": "Bilancio rispetto alla partenza", "bal.cut": "Sterri", "bal.fill": "Riporti", "bal.net": "Saldo", "bal.range": "Quote",
+    "exp.title": "Esporta", "exp.origin": "Origine", "exp.originLocal": "quelle del terreno",
+    "exp.originNote": "Revit legge il CSV rispetto alla sua origine interna: le coordinate escono attorno a questo punto.",
+    "exp.coords": "Coordinate", "exp.coordsIfc": "interne del progetto, come {f}",
+    "exp.coordsIfcNote": "Revit legge il CSV rispetto all'origine interna: la toposolid nuova cade sopra quella di partenza.",
+    "exp.revitS": "toposolid", "exp.b10": "10k · tutte le versioni", "exp.b20": "20k · 2026", "exp.b50": "50k · 2026 + Revit.ini",
+    "exp.csv": "Scarica il CSV", "exp.rhinoS": "Rhino 7 e 8", "exp.nurbsStep": "Passo NURBS", "exp.nurbsCV": "{u} × {v} punti di controllo",
+    "exp.pNurbs": "Superficie NURBS", "exp.pContours": "Curve di livello", "exp.pMesh": "Mesh con UV", "exp.pVolume": "Volume chiuso", "exp.pPoints": "Punti Revit",
+    "exp.3dm": "Scarica il .3dm", "exp.obj": "Scarica OBJ", "exp.objS": "quad con UV, Z in alto",
+    "exp.csvDone": "<b>{n} punti</b>, errore massimo <b>{e} cm</b> qualunque diagonale scelga Revit quando ritriangola. In Revit: <i>Toposolido › Crea da importazione › Specifica file di punti</i>, unità metri.",
+    "exp.3dmDone": "<b>.3dm</b> per Rhino 7/8, metri — {parts}. {mb} MB.",
+    "exp.d.nurbs": "NURBS {u}×{v} entro {d} cm", "exp.d.contours": "{c} curve", "exp.d.mesh": "mesh {m} punti entro {e} cm",
+    "exp.d.volume": "volume chiuso", "exp.d.points": "{p} punti Revit",
+    "exp.objDone": "<b>OBJ</b> a quadrilateri con UV, Z in alto, metri — {mb} MB.",
+    "exp.step.tin": "Scelgo i punti per Revit…", "exp.step.lib": "Carico rhino3dm…", "exp.step.nurbs": "Superficie NURBS…",
+    "exp.step.contours": "Curve di livello…", "exp.step.mesh": "Mesh…", "exp.step.volume": "Volume chiuso…", "exp.step.write": "Scrivo il .3dm…",
+    "exp.step.obj": "Scrivo l'OBJ…", "exp.fail": "Esportazione non riuscita: {m}",
+    "lay.nurbs": "Terreno - superficie NURBS", "lay.mesh": "Terreno - mesh", "lay.volume": "Volume chiuso", "lay.minor": "Curve di livello",
+    "lay.major": "Curve di livello maestre", "lay.points": "Punti Revit", "lay.nurbsObj": "Terreno NURBS", "lay.meshObj": "Terreno mesh",
+    "lay.volumeObj": "Volume terreno", "lay.level": "quota",
+    "w.kicker": "Strumento 16 · prima versione", "w.title": "Scolpisci la topografia, esportala per Revit e Rhino",
+    "w.lead": "Pennelli per alzare, abbassare, lisciare e appiattire; piattaforme a quota e rampe a pendenza le cui scarpate trovano il terreno da sole; bilancio di sterri e riporti. Esce un CSV di punti per la toposolid di Revit e un .3dm per Rhino.",
+    "w.new": "Nuovo terreno", "w.newS": "piano, pendio o ondulato, fino a ~4 milioni di nodi",
+    "w.open": "Apri un file", "w.openS": "IFC (toposolid di Revit), LandXML, GeoTIFF, ESRI ASCII (.asc), punti x,y,z (.csv · .txt · .xyz) — o trascinalo qui",
+    "w.ctx": "DTM reale dal tool Contesto 3D", "w.ctxS": "disegna l'area sulla mappa, genera, poi «Scolpisci il terreno»",
+    "w.example": "Continua con l'esempio", "w.resume": "Torna al lavoro",
+    "w.privacy": "I file non escono dal browser. Il lavoro si salva da solo in questo browser.",
+    "n.title": "Nuovo terreno", "n.w": "Larghezza (est)", "n.h": "Profondità (nord)", "n.cell": "Passo", "n.shape": "Forma",
+    "n.flat": "Piano", "n.slope": "Pendio", "n.rolling": "Ondulato", "n.example": "Esempio", "n.z": "Quota", "n.grade": "Pendenza verso nord",
+    "n.nodes": "{w} × {h} nodi = <b>{n}</b>.", "n.tooMany": "{n} nodi: oltre il tetto di {max}. Allarga il passo o riduci l'area.",
+    "n.exampleNote": "L'esempio della fase 0: 200 × 150 m a 0,5 m, con una piattaforma e una rampa da modificare.",
+    "n.replace": "Sostituisce il terreno attuale ({ops} opere): il lavoro salvato viene sovrascritto (Annulla non lo riporta).",
+    "n.create": "Crea", "n.cancel": "Annulla",
+    "i.title": "Apri un terreno", "i.reading": "Leggo {f}…", "i.go": "Importa",
+    "i.kind.landxml": "LandXML · TIN", "i.kind.asc": "ESRI ASCII Grid", "i.kind.tif": "GeoTIFF", "i.kind.pts": "Punti x,y,z", "i.kind.ctx": "Tool Contesto 3D",
+    "i.file": "File", "i.type": "Tipo", "i.extent": "Estensione", "i.data": "Dati", "i.crs": "Sistema", "i.crsUnknown": "non dichiarato",
+    "i.dataTin": "{p} punti, {f} triangoli", "i.dataRaster": "{w} × {h} pixel da {c} m", "i.dataPts": "{p} punti",
+    "i.skip": "{n} righe senza tre numeri saltate", "i.idcol": "prima colonna = numero di punto",
+    "i.kind.ifc": "IFC · toposolid", "i.ifcRead": "Leggo {f} con web-ifc…", "i.ifcEls": "Elementi di terreno", "i.ifcTris": "{n} triangoli",
+    "i.ifcNone": "nel modello non c'è un terreno: cerco IfcGeographicElement (la toposolid di Revit), un IfcSite con geometria ed elementi che si chiamano «toposolid», «terreno» o «terrain».",
+    "i.ifcPickOne": "Spunta almeno un elemento.", "i.dataIfc": "{f} facce di terreno ({v} fianchi verticali scartati)",
+    "i.coords": "Coordinate", "i.coordsSite": "interne del progetto (origine interna di Revit)", "i.georef": "Georeferenziazione",
+    "i.geoVal": "{crs} · E {e} · N {n} · H {h} · rotazione {r}°", "i.geoNone": "non georeferenziato",
+    "i.geoHow.map": "da IfcMapConversion", "i.geoHow.site": "dal placement dell'IfcSite (Revit: coordinate condivise)", "i.geoHow.context": "dal contesto e dal TrueNorth (Revit: origine interna)",
+    "i.note.pbp": "IFC esportato rispetto al Punto base di progetto: il CSV cade spostato se il punto base non coincide con l'origine interna. Riesportalo con la base «Internal Origin» o «Shared Coordinates».",
+    "i.note.northOnly": "Nel modello c'è solo il nord (TrueNorth), non la posizione: niente coordinate di mappa.",
+    "i.note.tilted": "Il sito dell'IFC è inclinato: le quote seguono il suo asse Z.",
+    "i.note.doubleOffset": "Coordinate grandi anche nel placement del sito, oltre alla MapConversion: sommate, come fa il viewer.",
+    "i.cell": "Passo della griglia", "i.native": "nativo", "i.nodesOf": "{n} nodi",
+    "i.fail": "Non riesco a leggere {f}: {m}",
+    "i.unknown": "Formato non riconosciuto: IFC (.ifc), LandXML (.xml), GeoTIFF (.tif), ESRI ASCII (.asc) o punti (.csv, .txt, .xyz).",
+    "i.tooBig": "Il file supera i 512 MB che il browser legge come testo: esporta un'area più piccola o un GeoTIFF.",
+    "i.ctxWait": "Arriva il terreno dal tool Contesto 3D…",
+    "i.ctxGone": "Il terreno dal tool Contesto 3D non è arrivato (scaduto o già aperto): rigeneralo e premi di nuovo «Scolpisci il terreno».",
+    "i.done": "Terreno aperto: {n} nodi a {c} m.",
+    "t.padAdded": "Piattaforma a {z} m: cambiala qui a destra o trascinane i vertici.",
+    "t.rampAdded": "Rampa di {l} m al {g} %{hook}.", "t.hook": ", agganciata a {name}",
+    "t.undo": "Annullato", "t.redo": "Ripristinato", "t.nothing": "Niente da annullare",
+    "t.baked": "Consolidate nel terreno: {n}", "t.restored": "Ripreso il lavoro salvato il {d}.",
+    "t.saveFail": "Salvataggio automatico non riuscito: {m}", "t.webgl": "Serve WebGL: questo browser non lo offre, o è disattivato.",
+    "t.deleted": "{name} eliminata — Ctrl+Z per riaverla.", "t.minVerts": "Ne servono almeno {n}.",
+    "st.xy": "x {x} · y {y} · z {z} m · pendenza {s} %", "st.en": "E {x} · N {y} · z {z} m · pendenza {s} %",
+    "st.draw": " · lato {a} m · totale {b} m", "st.idle": "Muovi il mouse sul terreno",
+    "drop.veil": "Rilascia per aprire il terreno",
+    "privacy": "I file non escono dal browser: niente upload. Il lavoro si salva da solo in questo browser (IndexedDB).",
+  },
+  en: {
+    "nav.home": "Go to viewifc.com", "nav.tools": "Tools", "nav.open": "Terrain",
+    "rail.nav": "Navigate (N)", "rail.select": "Select and edit the works (V)",
+    "rail.raise": "Raise (1)", "rail.lower": "Lower (2)", "rail.smooth": "Smooth (3)", "rail.flatten": "Flatten (4)",
+    "rail.pad": "Pad (P)", "rail.ramp": "Ramp (R)",
+    "rail.undo": "Undo (Ctrl+Z)", "rail.redo": "Redo (Ctrl+Y)", "rail.frame": "Frame all (F)", "rail.pod": "Show / hide the panel",
+    "mode.nav": "Navigate", "mode.select": "Select", "mode.raise": "Raise", "mode.lower": "Lower", "mode.smooth": "Smooth",
+    "mode.flatten": "Flatten", "mode.pad": "Pad", "mode.ramp": "Ramp",
+    "br.radius": "Radius", "br.strength": "Strength", "br.hardness": "Hardness",
+    "br.help": "Hold the left button on the terrain. <kbd>Shift</kbd> swaps raise/lower, <kbd>[</kbd> and <kbd>]</kbd> change the radius.",
+    "br.flatHelp": "The level is the one where you press: hold and sweep over.",
+    "br.underOps": "A work governs here: the brush shapes the ground beneath it. Consolidate it to sculpt it.",
+    "nav.help": "<b>Left</b> orbits · <b>Right</b> or <b>middle</b> pans · <b>Wheel</b> zooms. In the other tools the left button works and the <b>right</b> one orbits.",
+    "pad.help": "Click the vertices on the terrain; <kbd>Enter</kbd> or double-click closes. <kbd>Shift</kbd> snaps to 15°, <kbd>Backspace</kbd> removes the last, <kbd>Esc</kbd> cancels.",
+    "pad.defaults": "For the next pads", "pad.after": "The proposed level is the mean of the ground inside the polygon: change it afterwards.",
+    "ramp.help": "Click the axis points; <kbd>Enter</kbd> or double-click finishes. Start inside a pad: the ramp hooks onto its edge and follows its level.",
+    "ramp.defaults": "For the next ramps",
+    "op.pad": "Pad {n}", "op.ramp": "Ramp {n}",
+    "op.elev": "Level", "op.slope": "Side slope", "op.slopePct": "Side slope V/H", "op.round": "Blend", "op.area": "Area",
+    "op.width": "Width", "op.zStart": "Start level", "op.zEnd": "End level", "op.grade": "Grade", "op.length": "Length",
+    "op.linked": "hooked to {name}", "op.unlink": "unhook",
+    "op.bake": "Consolidate into the ground", "op.bakeN": "Consolidate (with the {n} works above)", "op.delete": "Delete",
+    "op.hint": "Drag the vertices, or the work to move it. Double-click a vertex to remove it; the mid-side dots add one.",
+    "op.none": "Click a work on the terrain or in the list below.",
+    "op.bakeTip": "The work becomes sculpted ground (what you see does not change) and you can brush over it.",
+    "op.bothLinked": "Both levels are hooked: the grade comes from them.",
+    "ops.title": "Works", "ops.empty": "No works yet. Draw a pad (P) or a ramp (R).",
+    "ops.on": "On / off", "ops.up": "Up (earlier)", "ops.down": "Down (later: wins over the earlier ones)", "ops.del": "Delete",
+    "ops.order": "They apply top to bottom: where they overlap, the last one wins.",
+    "ter.title": "Terrain", "ter.attr": "Terrain data: {a}", "ter.extent": "Extent", "ter.cell": "Grid step", "ter.nodes": "Nodes", "ter.source": "Source", "ter.crs": "CRS",
+    "ter.contours": "Contours", "ter.cNone": "off", "ter.revitPts": "Show the Revit points ({n})",
+    "ter.new": "New…", "ter.open": "Open a file…",
+    "ter.saved": "Saved in this browser at {t}", "ter.noSave": "Autosave is not available in this browser.",
+    "ter.mask": "{p}% of the nodes lie outside the survey (filled): hatched, left out of the CSV and the mesh.",
+    "ter.big": "Large grid: the brush stays fluid, exports take a few seconds.",
+    "src.example": "Example", "src.new": "New terrain", "src.ctx": "3D Context · {s}",
+    "bal.title": "Balance against the start", "bal.cut": "Cut", "bal.fill": "Fill", "bal.net": "Net", "bal.range": "Levels",
+    "exp.title": "Export", "exp.origin": "Origin", "exp.originLocal": "the terrain's own",
+    "exp.originNote": "Revit reads the CSV relative to its internal origin: coordinates are written around this point.",
+    "exp.coords": "Coordinates", "exp.coordsIfc": "project internal, as {f}",
+    "exp.coordsIfcNote": "Revit reads the CSV relative to its internal origin: the new toposolid lands on top of the original one.",
+    "exp.revitS": "toposolid", "exp.b10": "10k · all versions", "exp.b20": "20k · 2026", "exp.b50": "50k · 2026 + Revit.ini",
+    "exp.csv": "Download the CSV", "exp.rhinoS": "Rhino 7 and 8", "exp.nurbsStep": "NURBS step", "exp.nurbsCV": "{u} × {v} control points",
+    "exp.pNurbs": "NURBS surface", "exp.pContours": "Contours", "exp.pMesh": "Mesh with UVs", "exp.pVolume": "Closed volume", "exp.pPoints": "Revit points",
+    "exp.3dm": "Download the .3dm", "exp.obj": "Download OBJ", "exp.objS": "quads with UVs, Z up",
+    "exp.csvDone": "<b>{n} points</b>, max error <b>{e} cm</b> whichever diagonals Revit picks when it re-triangulates. In Revit: <i>Toposolid › Create from Import › Specify Points File</i>, meters.",
+    "exp.3dmDone": "<b>.3dm</b> for Rhino 7/8, meters — {parts}. {mb} MB.",
+    "exp.d.nurbs": "NURBS {u}×{v} within {d} cm", "exp.d.contours": "{c} contours", "exp.d.mesh": "mesh of {m} points within {e} cm",
+    "exp.d.volume": "closed volume", "exp.d.points": "{p} Revit points",
+    "exp.objDone": "<b>OBJ</b> with quads and UVs, Z up, meters — {mb} MB.",
+    "exp.step.tin": "Choosing the Revit points…", "exp.step.lib": "Loading rhino3dm…", "exp.step.nurbs": "NURBS surface…",
+    "exp.step.contours": "Contours…", "exp.step.mesh": "Mesh…", "exp.step.volume": "Closed volume…", "exp.step.write": "Writing the .3dm…",
+    "exp.step.obj": "Writing the OBJ…", "exp.fail": "Export failed: {m}",
+    "lay.nurbs": "Terrain - NURBS surface", "lay.mesh": "Terrain - mesh", "lay.volume": "Closed volume", "lay.minor": "Contours",
+    "lay.major": "Index contours", "lay.points": "Revit points", "lay.nurbsObj": "Terrain NURBS", "lay.meshObj": "Terrain mesh",
+    "lay.volumeObj": "Terrain volume", "lay.level": "level",
+    "w.kicker": "Tool 16 · first release", "w.title": "Sculpt the topography, export it for Revit and Rhino",
+    "w.lead": "Brushes to raise, lower, smooth and flatten; pads at a level and ramps at a grade whose side slopes find the ground by themselves; cut and fill balance. Out comes a points CSV for the Revit toposolid and a .3dm for Rhino.",
+    "w.new": "New terrain", "w.newS": "flat, slope or rolling, up to ~4 million nodes",
+    "w.open": "Open a file", "w.openS": "IFC (Revit toposolid), LandXML, GeoTIFF, ESRI ASCII (.asc), x,y,z points (.csv · .txt · .xyz) — or drop it here",
+    "w.ctx": "Real DTM from the 3D Context tool", "w.ctxS": "draw the area on the map, generate, then «Sculpt the terrain»",
+    "w.example": "Go on with the example", "w.resume": "Back to work",
+    "w.privacy": "Files never leave the browser. Your work saves itself in this browser.",
+    "n.title": "New terrain", "n.w": "Width (east)", "n.h": "Depth (north)", "n.cell": "Grid step", "n.shape": "Shape",
+    "n.flat": "Flat", "n.slope": "Slope", "n.rolling": "Rolling", "n.example": "Example", "n.z": "Level", "n.grade": "Grade towards north",
+    "n.nodes": "{w} × {h} nodes = <b>{n}</b>.", "n.tooMany": "{n} nodes: over the {max} cap. Widen the step or shrink the area.",
+    "n.exampleNote": "The phase-0 example: 200 × 150 m at 0.5 m, with a pad and a ramp to edit.",
+    "n.replace": "Replaces the current terrain ({ops} works): the saved work gets overwritten (Undo does not bring it back).",
+    "n.create": "Create", "n.cancel": "Cancel",
+    "i.title": "Open a terrain", "i.reading": "Reading {f}…", "i.go": "Import",
+    "i.kind.landxml": "LandXML · TIN", "i.kind.asc": "ESRI ASCII Grid", "i.kind.tif": "GeoTIFF", "i.kind.pts": "x,y,z points", "i.kind.ctx": "3D Context tool",
+    "i.file": "File", "i.type": "Type", "i.extent": "Extent", "i.data": "Data", "i.crs": "CRS", "i.crsUnknown": "not declared",
+    "i.dataTin": "{p} points, {f} triangles", "i.dataRaster": "{w} × {h} pixels of {c} m", "i.dataPts": "{p} points",
+    "i.skip": "{n} rows without three numbers skipped", "i.idcol": "first column = point number",
+    "i.kind.ifc": "IFC · toposolid", "i.ifcRead": "Reading {f} with web-ifc…", "i.ifcEls": "Terrain elements", "i.ifcTris": "{n} triangles",
+    "i.ifcNone": "the model has no terrain: looking for IfcGeographicElement (the Revit toposolid), an IfcSite with geometry and elements named «toposolid», «terrain» or «terreno».",
+    "i.ifcPickOne": "Tick at least one element.", "i.dataIfc": "{f} terrain faces ({v} vertical sides dropped)",
+    "i.coords": "Coordinates", "i.coordsSite": "project internal (Revit internal origin)", "i.georef": "Georeferencing",
+    "i.geoVal": "{crs} · E {e} · N {n} · H {h} · rotation {r}°", "i.geoNone": "not georeferenced",
+    "i.geoHow.map": "from IfcMapConversion", "i.geoHow.site": "from the IfcSite placement (Revit: shared coordinates)", "i.geoHow.context": "from the context and TrueNorth (Revit: internal origin)",
+    "i.note.pbp": "IFC exported relative to the Project Base Point: the CSV lands shifted unless the base point sits on the internal origin. Export it again with base «Internal Origin» or «Shared Coordinates».",
+    "i.note.northOnly": "The model only has north (TrueNorth), not a position: no map coordinates.",
+    "i.note.tilted": "The IFC site is tilted: elevations follow its Z axis.",
+    "i.note.doubleOffset": "Large coordinates in the site placement too, on top of the MapConversion: added up, as the viewer does.",
+    "i.cell": "Grid step", "i.native": "native", "i.nodesOf": "{n} nodes",
+    "i.fail": "Cannot read {f}: {m}",
+    "i.unknown": "Unknown format: IFC (.ifc), LandXML (.xml), GeoTIFF (.tif), ESRI ASCII (.asc) or points (.csv, .txt, .xyz).",
+    "i.tooBig": "The file is over the 512 MB the browser reads as text: export a smaller area or a GeoTIFF.",
+    "i.ctxWait": "Receiving the terrain from the 3D Context tool…",
+    "i.ctxGone": "The terrain from the 3D Context tool did not arrive (expired or already opened): generate it again and press «Sculpt the terrain» once more.",
+    "i.done": "Terrain opened: {n} nodes at {c} m.",
+    "t.padAdded": "Pad at {z} m: change it here on the right or drag its vertices.",
+    "t.rampAdded": "Ramp of {l} m at {g}%{hook}.", "t.hook": ", hooked to {name}",
+    "t.undo": "Undone", "t.redo": "Redone", "t.nothing": "Nothing to undo",
+    "t.baked": "Consolidated into the ground: {n}", "t.restored": "Resumed the work saved on {d}.",
+    "t.saveFail": "Autosave failed: {m}", "t.webgl": "WebGL is needed: this browser does not offer it, or it is disabled.",
+    "t.deleted": "{name} deleted — Ctrl+Z to get it back.", "t.minVerts": "At least {n} are needed.",
+    "st.xy": "x {x} · y {y} · z {z} m · slope {s}%", "st.en": "E {x} · N {y} · z {z} m · slope {s}%",
+    "st.draw": " · side {a} m · total {b} m", "st.idle": "Move the mouse over the terrain",
+    "drop.veil": "Drop to open the terrain",
+    "privacy": "Files never leave the browser: no upload. Your work saves itself in this browser (IndexedDB).",
+  },
+};
+</script>
+
+<script type="module">
+/* =========================================================================
+   Terrain Sculptor — interfaccia e scena
+   ========================================================================= */
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import * as T from "./terrain-core.js?v=1.1.0";
+import * as IO from "./terrain-io.js?v=1.1.0";
+import Delatin from "./vendor/delatin.js";
+
+const TOOL_VERSION = "1.1.0";
+const $ = (id) => document.getElementById(id);
+let LANG = "it";
+function tr(k, vars) {
+  let s = (I18N[LANG] && I18N[LANG][k]) ?? I18N.it[k] ?? k;
+  if (vars) for (const [a, b] of Object.entries(vars)) s = s.split("{" + a + "}").join(b);
+  return s;
+}
+const nf = (x, d = 2) => new Intl.NumberFormat(LANG === "en" ? "en-GB" : "it-IT", { minimumFractionDigits: d, maximumFractionDigits: d }).format(x);
+const ni = (x) => nf(x, 0);
+/* coi decimali che servono: 0,25 · 0,5 · 1 */
+const fmtNum = (v) => nf(v, Math.abs(v - Math.round(v)) < 1e-9 ? 0 : Math.abs(v * 10 - Math.round(v * 10)) < 1e-9 ? 1 : 2);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const frame = () => new Promise((r) => setTimeout(r, 30));      // lascia disegnare l'avviso prima di un calcolo lungo
+
+/* =========================================================================
+   Stato
+   ========================================================================= */
+const SLOPES = [[1, "1:1"], [2 / 3, "2:3"], [1 / 2, "1:2"], [1 / 3, "1:3"], [1 / 4, "1:4"]];
+const CONTOURS = [0, 0.25, 0.5, 1, 2, 5, 10, 20];
+const BUDGETS = [[10000, "exp.b10"], [20000, "exp.b20"], [50000, "exp.b50"]];
+const BRUSH = ["raise", "lower", "smooth", "flatten"];
+const MODE_KEY = { nav: "N", select: "V", raise: "1", lower: "2", smooth: "3", flatten: "4", pad: "P", ramp: "R" };
+const S = {
+  doc: null, origin: { x: 0, y: 0 }, mode: "raise", sel: null,
+  brush: { radius: 8, strength: 1, hardness: 0.2 },
+  padDef: { slope: 2 / 3, round: 1.5 }, rampDef: { width: 4, slope: 0.5, round: 1 },
+  contour: 0.5, showPts: false, budget: 10000, nurbsMul: 1,
+  parts: { nurbs: true, contours: true, mesh: true, volume: true, points: true },
+  podOff: false, podUser: false, closed: {}, lastSave: null, saveOk: true, range: { min: 0, max: 1 },
+};
+const UI_KEY = "viewifc_terrain_ui";
+function saveUi() {
+  try { localStorage.setItem(UI_KEY, JSON.stringify({ brush: S.brush, padDef: S.padDef, rampDef: S.rampDef, contour: S.contour, budget: S.budget, nurbsMul: S.nurbsMul, parts: S.parts, podOff: S.podOff, podUser: S.podUser, closed: S.closed, mode: S.mode })); } catch (e) {}
+}
+(function loadUi() {
+  try {
+    const u = JSON.parse(localStorage.getItem(UI_KEY) || "null");
+    if (u) for (const k of ["brush", "padDef", "rampDef", "parts", "closed"]) if (u[k]) Object.assign(S[k], u[k]);
+    if (u) for (const k of ["contour", "budget", "nurbsMul", "podOff", "podUser", "mode"]) if (u[k] !== undefined) S[k] = u[k];
+  } catch (e) {}
+})();
+
+/* =========================================================================
+   Scena
+   ========================================================================= */
+const canvas = $("cv");
+let renderer = null;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); }
+catch (e) { $("noGl").hidden = false; $("noGl").textContent = I18N.it["t.webgl"]; }
+if (renderer) renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 10000);
+camera.up.set(0, 0, 1);
+camera.position.set(-90, -200, 130);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.12;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.screenSpacePanning = false;
+controls.zoomToCursor = true;
+canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+
+/* Aspetto (fase 2, riferimenti dell'utente del 2026-10-02: il «plastico» con
+   prato, sabbia e roccia — per ora colori e atmosfera, niente texture):
+   - il colore viene dalla PENDENZA, non dalla quota: prato in piano, terra
+     chiara sulle scarpate, roccia bruno-arancio sul ripido; i passaggi sono
+     frastagliati da un rumore procedurale in coordinate di mondo (metri),
+     con le ottave che si spengono quando scendono sotto il pixel (niente
+     sfarfallio da lontano). La quota resta solo una leggera velatura;
+   - luce da carta del rilievo (hillshade): sole basso (~33°) da nord-ovest,
+     cioè dall'alto a sinistra nella vista di partenza (da lì il rilievo non
+     si inverte), poca luce di cielo, un filo di scurimento con la pendenza.
+     La prima versione (sole alto, «avvolto», molto cielo) appiattiva tutto:
+     su un cumulo all'11 % i due versanti differivano del 6 % e le macchie
+     del prato, più contrastate, si leggevano come rilievo (utente,
+     2026-10-02). Le macchie ora cambiano TINTA più che luminosità;
+   - curve di livello calcolate nel frammento (vivono mentre si scolpisce),
+     più leggere di prima: scuriscono il colore sotto invece di coprirlo.
+     Niente curve dove è piano: una piattaforma a quota tonda si riempiva di
+     puntini (lezione del banco);
+   - nodi fuori dal rilievo (maschera nel quarto canale delle normali)
+     sbiaditi e tratteggiati. */
+const terrainMat = new THREE.ShaderMaterial({
+  uniforms: { zMin: { value: 0 }, zMax: { value: 1 }, interval: { value: 0.5 }, light: { value: new THREE.Vector3(-0.5, 0.6, 0.5).normalize() } },
+  vertexShader: `attribute vec4 nm; varying vec3 vP; varying vec3 vN; varying float vM;
+    void main(){ vP = position; vN = nm.xyz; vM = nm.w; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `uniform float zMin, zMax, interval; uniform vec3 light; varying vec3 vP; varying vec3 vN; varying float vM;
+    float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+    float vnoise(vec2 p){
+      vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
+      return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), u.x), mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), u.x), u.y);
+    }
+    /* rumore frattale in [0,1]; px = quanto vale un pixel nelle unità di p: un'ottava più fine del pixel vale la media */
+    float fbm(vec2 p, float px){
+      float s = 0.0, a = 0.5, w = 0.0, f = 1.0;
+      for (int o = 0; o < 4; o++) {
+        float k = 1.0 - smoothstep(0.25, 0.6, f * px);
+        s += a * mix(0.5, vnoise(p * f + float(o) * 17.3), k); w += a;
+        a *= 0.5; f *= 2.07;
+      }
+      return s / w;
+    }
+    float iso(float f, float px){ float w = fwidth(f); return 1.0 - clamp(abs(fract(f + 0.5) - 0.5) / max(w, 1e-6) - px, 0.0, 1.0); }
+    void main(){
+      vec3 n = normalize(vN);
+      float px = max(length(fwidth(vP.xy)), 1e-4);            // metri per pixel
+      vec2 q = vP.xy;
+      /* pendenza (n.z = coseno) spostata dal rumore: bordi frastagliati, a chiazze di qualche metro */
+      float nb = fbm(q * 0.18, px * 0.18), nf = fbm(q * 0.9 + 7.1, px * 0.9);
+      float nz = n.z + (nb - 0.5) * 0.09 + (nf - 0.5) * 0.03;
+      float toEarth = 1.0 - smoothstep(0.885, 0.935, nz);     // ~22°–28°: prato → terra
+      float toRock = 1.0 - smoothstep(0.745, 0.80, nz);       // ~37°–42°: terra → roccia
+      /* prato: verde oliva con macchie più gialle a grande scala e chiazze secche */
+      float nl = fbm(q * 0.04 + 3.0, px * 0.04), nd = fbm(q * 0.11 + 11.0, px * 0.11);
+      vec3 grass = mix(vec3(0.49, 0.57, 0.23), vec3(0.63, 0.63, 0.29), smoothstep(0.3, 0.72, nl));
+      grass = mix(grass, vec3(0.72, 0.69, 0.45), smoothstep(0.68, 0.82, nd) * 0.3);
+      grass *= 0.93 + 0.14 * nf;
+      vec3 earth = mix(vec3(0.80, 0.68, 0.50), vec3(0.90, 0.82, 0.66), nb) * (0.93 + 0.14 * nf);
+      float strata = 0.5 + 0.5 * sin(vP.z * 2.6 + nb * 5.0);   // bancate della roccia, seguono la quota
+      vec3 rock = mix(vec3(0.62, 0.40, 0.24), vec3(0.45, 0.29, 0.18), strata * 0.6 + nf * 0.4);
+      vec3 col = mix(mix(grass, earth, toEarth), rock, toRock);
+      float t = clamp((vP.z - zMin) / max(zMax - zMin, 1e-3), 0.0, 1.0);
+      col *= 0.95 + 0.1 * t;                                   // in alto un filo più chiaro (più secco)
+      /* luce: poco cielo + rimbalzo (emisfera), sole pieno; in piano ~0,85 come prima, i versanti si staccano */
+      vec3 amb = mix(vec3(0.50, 0.44, 0.36), vec3(0.78, 0.84, 0.93), n.z * 0.5 + 0.5) * 0.4;
+      float sun = max(dot(n, light), 0.0);
+      col *= amb + vec3(1.0, 0.95, 0.86) * sun * 1.0;
+      col *= 1.0 - 0.12 * smoothstep(0.05, 0.6, length(n.xy));   // la pendenza scurisce un filo, da qualunque lato
+      if (interval > 0.0 && vM >= 0.5) {           /* nei buchi riempiti niente curve: non sono rilievo */
+        float slope = smoothstep(0.004, 0.012, length(n.xy));
+        /* curve fitte sullo schermo (pendii ripidi, viste da lontano) si attenuano: le minori sotto ~30 px
+           (su una scarpata uniforme facevano un assito), le maestre sotto ~10 px; avvicinandosi tornano */
+        float dm = fwidth(vP.z / interval), dM = dm / 5.0;
+        float minor = iso(vP.z / interval, 0.25) * (1.0 - smoothstep(0.022, 0.05, dm));
+        float major = iso(vP.z / (interval * 5.0), 0.6) * (1.0 - 0.6 * smoothstep(0.06, 0.16, dM));
+        col *= 1.0 - max(minor * 0.1, major * 0.22) * slope;
+      }
+      if (vM < 0.5) {
+        float h = step(0.5, fract((vP.x + vP.y) * 0.25));
+        col = mix(col, vec3(0.6), 0.55) * (0.9 + 0.1 * h);
+      }
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+});
+
+/* --- il terreno a riquadri: 128 celle per lato, indici a 16 bit condivisi,
+   si ricarica sulla GPU solo la fascia di righe toccata --------------------- */
+const TILE = 128;
+const idxCache = new Map();
+function tileIndex(w, h) {
+  const key = w + "x" + h;
+  if (idxCache.has(key)) return idxCache.get(key);
+  const a = new Uint16Array((w - 1) * (h - 1) * 6);
+  let o = 0;
+  for (let j = 0; j < h - 1; j++) for (let i = 0; i < w - 1; i++) {
+    const p = j * w + i;
+    a[o++] = p; a[o++] = p + 1; a[o++] = p + w + 1; a[o++] = p; a[o++] = p + w + 1; a[o++] = p + w;
+  }
+  const attr = new THREE.BufferAttribute(a, 1);
+  idxCache.set(key, attr);
+  return attr;
+}
+const view = {
+  tiles: [], doc: null, ox: 0, oy: 0,
+  dispose() { for (const t of this.tiles) { scene.remove(t.mesh); t.mesh.geometry.dispose(); } this.tiles = []; },
+  build(doc, origin) {
+    this.dispose(); this.doc = doc; this.ox = origin.x; this.oy = origin.y;
+    const f = doc.final, nx = f.nx, ny = f.ny, c = f.cell;
+    for (let j0 = 0; j0 < ny - 1; j0 += TILE) for (let i0 = 0; i0 < nx - 1; i0 += TILE) {
+      const i1 = Math.min(i0 + TILE, nx - 1), j1 = Math.min(j0 + TILE, ny - 1), w = i1 - i0 + 1, h = j1 - j0 + 1;
+      const pos = new Float32Array(w * h * 3), nm = new Int8Array(w * h * 4);
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+        const v = 3 * (j * w + i);
+        pos[v] = f.x0 + (i0 + i) * c - this.ox; pos[v + 1] = f.y0 + (j0 + j) * c - this.oy;
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      g.setAttribute("nm", new THREE.BufferAttribute(nm, 4, true));
+      g.setIndex(tileIndex(w, h));
+      const mesh = new THREE.Mesh(g, terrainMat);
+      mesh.matrixAutoUpdate = false;
+      this.tiles.push({ i0, i1, j0, j1, w, h, mesh, zlo: Infinity, zhi: -Infinity });
+      scene.add(mesh);
+    }
+    this.update(doc.full());
+    for (const t of this.tiles) { t.mesh.geometry.attributes.position.clearUpdateRanges(); t.mesh.geometry.attributes.nm.clearUpdateRanges(); }
+  },
+  update(r) {
+    if (!r || !this.doc) return;
+    const f = this.doc.final, z = f.z, nx = f.nx, ny = f.ny, c = f.cell, M = f.mask;
+    const R = { i0: Math.max(0, r.i0 - 1), i1: Math.min(nx - 1, r.i1 + 1), j0: Math.max(0, r.j0 - 1), j1: Math.min(ny - 1, r.j1 + 1) };
+    for (const t of this.tiles) {
+      if (t.i1 < R.i0 || t.i0 > R.i1 || t.j1 < R.j0 || t.j0 > R.j1) continue;
+      const a0 = Math.max(t.i0, R.i0), a1 = Math.min(t.i1, R.i1), b0 = Math.max(t.j0, R.j0), b1 = Math.min(t.j1, R.j1);
+      const g = t.mesh.geometry, pa = g.attributes.position, na = g.attributes.nm, P = pa.array, N = na.array;
+      for (let j = b0; j <= b1; j++) {
+        const jm = j > 0 ? j - 1 : j, jp = j < ny - 1 ? j + 1 : j;
+        for (let i = a0; i <= a1; i++) {
+          const k = j * nx + i, v = (j - t.j0) * t.w + (i - t.i0), zz = z[k];
+          P[3 * v + 2] = zz;
+          if (zz < t.zlo) t.zlo = zz;
+          if (zz > t.zhi) t.zhi = zz;
+          const im = i > 0 ? i - 1 : i, ip = i < nx - 1 ? i + 1 : i;
+          const zx = (z[j * nx + ip] - z[j * nx + im]) / ((ip - im) * c), zy = (z[jp * nx + i] - z[jm * nx + i]) / ((jp - jm) * c);
+          const L = Math.sqrt(zx * zx + zy * zy + 1);
+          N[4 * v] = Math.round(-zx / L * 127); N[4 * v + 1] = Math.round(-zy / L * 127); N[4 * v + 2] = Math.round(127 / L);
+          N[4 * v + 3] = !M || M[k] ? 127 : 0;
+        }
+      }
+      const first = (b0 - t.j0) * t.w, count = (b1 - b0 + 1) * t.w;
+      pa.addUpdateRange(first * 3, count * 3); pa.needsUpdate = true;
+      na.addUpdateRange(first * 4, count * 4); na.needsUpdate = true;
+      const cx = f.x0 + (t.i0 + t.i1) / 2 * c - this.ox, cy = f.y0 + (t.j0 + t.j1) / 2 * c - this.oy;
+      const rx = (t.i1 - t.i0) * c / 2, ry = (t.j1 - t.j0) * c / 2, rz = (t.zhi - t.zlo) / 2;
+      g.boundingSphere = new THREE.Sphere(new THREE.Vector3(cx, cy, (t.zlo + t.zhi) / 2), Math.sqrt(rx * rx + ry * ry + rz * rz) + 0.01);
+    }
+  },
+};
+
+/* --- sovrapposizioni: anello del pennello, disegno, opere, maniglie, punti Revit */
+const overMat = (color) => new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.9 });
+const ring = new THREE.Line(new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(new Float32Array(73 * 3), 3)), overMat(0x1d2316));
+ring.renderOrder = 10; ring.visible = false; ring.frustumCulled = false; scene.add(ring);
+const draftGeo = new THREE.BufferGeometry();
+const draftLine = new THREE.Line(draftGeo, overMat(0xffffff));
+draftLine.renderOrder = 11; draftLine.frustumCulled = false; scene.add(draftLine);
+const opsLines = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95, depthTest: true }));
+opsLines.renderOrder = 5; opsLines.frustumCulled = false; scene.add(opsLines);
+const handleMat = new THREE.ShaderMaterial({
+  uniforms: {}, depthTest: false, transparent: true,
+  vertexShader: `attribute float size; attribute vec3 color; varying vec3 vC;
+    void main(){ vC = color; gl_PointSize = size; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `varying vec3 vC;
+    void main(){ float r = length(gl_PointCoord - 0.5); if (r > 0.5) discard; float edge = smoothstep(0.30, 0.36, r); gl_FragColor = vec4(mix(vC, vec3(0.11, 0.14, 0.09), edge), 1.0); }`,
+});
+const handles = new THREE.Points(new THREE.BufferGeometry(), handleMat);
+handles.renderOrder = 12; handles.frustumCulled = false; scene.add(handles);
+const draftDots = new THREE.Points(new THREE.BufferGeometry(), handleMat);
+draftDots.renderOrder = 12; draftDots.frustumCulled = false; scene.add(draftDots);
+const revitPts = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: 0xc8361f, size: 2.5, sizeAttenuation: false }));
+revitPts.visible = false; revitPts.frustumCulled = false; scene.add(revitPts);
+
+function themeColors() {
+  const cs = getComputedStyle(document.documentElement);
+  scene.background = new THREE.Color(cs.getPropertyValue("--canvas").trim() || "#dde2d5");
+  ring.material.color.set(document.documentElement.getAttribute("data-theme") === "light" ? 0x1d2316 : 0xf1f5e6);
+}
+
+/* coordinate: il motore lavora in quelle del terreno (anche UTM), la scena in
+   locale attorno a S.origin (precisione dei Float32 della GPU) */
+const toLocal = (x, y) => [x - S.origin.x, y - S.origin.y];
+const hAt = (x, y) => T.sampleHeight(S.doc.final, x, y);
+
+/* =========================================================================
+   Pick: marcia + bisezione sulla griglia (lezione del banco: niente raycast
+   su milioni di triangoli), solo dentro la scatola del terreno
+   ========================================================================= */
+const ray = new THREE.Raycaster();
+function rayAt(cx, cy) {
+  const r = canvas.getBoundingClientRect();
+  ray.setFromCamera(new THREE.Vector2((cx - r.left) / r.width * 2 - 1, -(cy - r.top) / r.height * 2 + 1), camera);
+  return ray.ray;
+}
+function pick(cx, cy) {
+  if (!S.doc) return null;
+  const { origin: o, direction: d } = rayAt(cx, cy), f = S.doc.final;
+  const lo = [f.x0 - S.origin.x, f.y0 - S.origin.y, S.range.min - 1], hi = [lo[0] + (f.nx - 1) * f.cell, lo[1] + (f.ny - 1) * f.cell, S.range.max + 1];
+  let t0 = 0, t1 = 1e7;
+  const O = [o.x, o.y, o.z], D = [d.x, d.y, d.z];
+  for (let a = 0; a < 3; a++) {
+    if (Math.abs(D[a]) < 1e-12) { if (O[a] < lo[a] || O[a] > hi[a]) return null; continue; }
+    let ta = (lo[a] - O[a]) / D[a], tb = (hi[a] - O[a]) / D[a];
+    if (ta > tb) [ta, tb] = [tb, ta];
+    t0 = Math.max(t0, ta); t1 = Math.min(t1, tb);
+  }
+  if (t0 > t1) return null;
+  const above = (t) => o.z + d.z * t > hAt(o.x + d.x * t + S.origin.x, o.y + d.y * t + S.origin.y);
+  let prev = t0;
+  for (let t = t0; t <= t1 + f.cell; ) {
+    if (!above(t)) {
+      let a = prev, b = t;
+      for (let it = 0; it < 30; it++) { const m = (a + b) / 2; if (above(m)) a = m; else b = m; }
+      const x = o.x + d.x * b + S.origin.x, y = o.y + d.y * b + S.origin.y;
+      return { x, y, z: hAt(x, y) };
+    }
+    prev = t;
+    t += Math.max(f.cell * 0.5, t * 0.002);
+  }
+  return null;
+}
+/* punto sul piano orizzontale z = h (per trascinare le maniglie senza saltare) */
+function pickPlane(cx, cy, h) {
+  const { origin: o, direction: d } = rayAt(cx, cy);
+  if (Math.abs(d.z) < 1e-9) return null;
+  const t = (h - o.z) / d.z;
+  if (t < 0) return null;
+  return { x: o.x + d.x * t + S.origin.x, y: o.y + d.y * t + S.origin.y, z: h };
+}
+function toScreen(x, y, z) {
+  const v = new THREE.Vector3(x - S.origin.x, y - S.origin.y, z).project(camera);
+  const r = canvas.getBoundingClientRect();
+  return [(v.x + 1) / 2 * r.width + r.left, (1 - v.y) / 2 * r.height + r.top, v.z];
+}
+
+/* =========================================================================
+   Documento: impostazione e ricalcoli
+   ========================================================================= */
+function originFor(base) {
+  const cx = base.x0 + (base.nx - 1) * base.cell / 2, cy = base.y0 + (base.ny - 1) * base.cell / 2;
+  /* coordinate di mappa (UTM…) → origine tonda ai 10 m vicino al centro; terreno già locale → (0, 0) */
+  return Math.abs(cx) > 20000 || Math.abs(cy) > 20000 ? { x: Math.round(cx / 10) * 10, y: Math.round(cy / 10) * 10 } : { x: 0, y: 0 };
+}
+function setDoc(doc, { frameIt = true } = {}) {
+  S.doc = doc;
+  S.origin = doc.meta.origin || originFor(doc.base);
+  doc.meta.origin = S.origin;
+  S.sel = null;
+  cancelDraft();
+  view.build(doc, S.origin);
+  refreshRange();
+  fitToTerrain(doc);
+  if (frameIt) frameAll();
+  revitPts.visible = false;
+  rebuildOps();
+  renderPod();
+  refreshBalance();
+  refreshStats();
+  if (S.showPts) scheduleRevitPts();
+}
+/* un DTM vero non è il lotto dell'esempio: con 270 m di dislivello le curve ogni
+   0,5 m sono un tappeto scuro, e un pennello di 8 m su celle da 10 m non tocca
+   nessun nodo. Si adattano al terreno nuovo (restano poi come le lascia l'utente). */
+function fitToTerrain(doc) {
+  const f = doc.final, relief = S.range.max - S.range.min, ext = Math.max((f.nx - 1) * f.cell, (f.ny - 1) * f.cell);
+  if (S.contour && relief / S.contour > 120) S.contour = CONTOURS.find((c) => c && relief / c <= 80) || CONTOURS[CONTOURS.length - 1];
+  terrainMat.uniforms.interval.value = S.contour;
+  if (S.brush.radius < 2.5 * f.cell || S.brush.radius > radiusMax()) S.brush.radius = Math.min(radiusMax(), Math.max(2.5 * f.cell, Math.round(ext / 30)));
+}
+let rangeTimer = 0;
+function refreshRange() {
+  const r = T.heightRange(S.doc.final);
+  S.range = { min: r.min, max: r.max };
+  terrainMat.uniforms.zMin.value = r.min; terrainMat.uniforms.zMax.value = r.max;
+}
+let balTimer = 0;
+function refreshBalance() {
+  if (!S.doc) return;
+  const cf = S.doc.cutFill();
+  $("vCut").textContent = ni(cf.cut) + " m³";
+  $("vFill").textContent = ni(cf.fill) + " m³";
+  $("vNet").textContent = (cf.net >= 0 ? "+" : "−") + ni(Math.abs(cf.net)) + " m³";
+  $("vRange").textContent = `${nf(S.range.min)} … ${nf(S.range.max)} m`;
+}
+/* dopo una modifica: GPU nella regione, poi (a riposo) quote, bilancio, salvataggio */
+function edited(region, { ops = false, light = false } = {}) {
+  if (S.doc) S.doc.meta.edited = true;
+  if (region) view.update(region);
+  if (ops) { rebuildOps(); renderOpsList(); }
+  updateUndo();
+  if (light) return;
+  clearTimeout(rangeTimer); clearTimeout(balTimer);
+  rangeTimer = setTimeout(() => { refreshRange(); refreshBalance(); }, 120);
+  scheduleSave();
+  if (S.showPts) scheduleRevitPts();
+}
+function updateUndo() {
+  $("bUndo").disabled = !S.doc || !S.doc.canUndo;
+  $("bRedo").disabled = !S.doc || !S.doc.canRedo;
+}
+
+/* =========================================================================
+   Modi (rail)
+   ========================================================================= */
+function setMode(m) {
+  if (!MODE_KEY[m]) m = "raise";
+  if (S.mode !== m && (S.mode === "pad" || S.mode === "ramp")) cancelDraft();
+  S.mode = m;
+  document.querySelectorAll("#rail [data-mode]").forEach((b) => b.classList.toggle("on", b.dataset.mode === m));
+  controls.mouseButtons = m === "nav"
+    ? { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }
+    : { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
+  ring.visible = false;
+  canvas.className = m === "nav" ? "c-grab" : m === "select" ? "" : "c-cross";
+  rebuildOps();
+  renderTool();
+  saveUi();
+}
+document.querySelectorAll("#rail [data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
+$("bUndo").addEventListener("click", () => doUndo(false));
+$("bRedo").addEventListener("click", () => doUndo(true));
+$("bFrame").addEventListener("click", () => frameAll());
+$("bPod").addEventListener("click", () => { S.podOff = !S.podOff; S.podUser = true; applyPod(); saveUi(); });
+function applyPod() { document.body.classList.toggle("pod-off", S.podOff); $("bPod").classList.toggle("on", !S.podOff); resize(); }
+function doUndo(redo) {
+  if (!S.doc) return;
+  cancelDraft();
+  const r = redo ? S.doc.redo() : S.doc.undo();
+  if (!r) { toast(tr("t.nothing")); return; }
+  if (S.sel && !S.doc.getOp(S.sel)) S.sel = null;
+  edited(r, { ops: true });
+  renderTool();
+  toast(tr(redo ? "t.redo" : "t.undo"));
+}
+
+/* =========================================================================
+   Pennelli
+   ========================================================================= */
+let painting = null, lastT = 0, flatTarget = 0, lastDab = null, hintedOps = false;
+function showRing(p) {
+  const R = S.brush.radius, a = ring.geometry.attributes.position.array;
+  for (let s = 0; s <= 72; s++) {
+    const t = s / 72 * Math.PI * 2, x = p.x + R * Math.cos(t), y = p.y + R * Math.sin(t);
+    const [lx, ly] = toLocal(x, y);
+    a[3 * s] = lx; a[3 * s + 1] = ly; a[3 * s + 2] = hAt(x, y) + 0.08;
+  }
+  ring.geometry.attributes.position.needsUpdate = true;
+  ring.visible = true;
+}
+function dab(x, y, dt) {
+  let m = S.mode;
+  if (painting.shift && (m === "raise" || m === "lower")) m = m === "raise" ? "lower" : "raise";
+  const { radius, strength, hardness } = S.brush;
+  if (m === "raise" || m === "lower") return S.doc.brush("raise", { x, y, radius, hardness, amount: (m === "raise" ? 1 : -1) * strength * dt });
+  if (m === "smooth") return S.doc.brush("smooth", { x, y, radius, hardness, strength: Math.min(1, strength * dt * 3) });
+  return S.doc.brush("flatten", { x, y, radius, hardness, target: flatTarget, strength: Math.min(1, strength * dt * 2) });
+}
+function brushTick(now) {
+  const dt = Math.min(0.05, (now - lastT) / 1000);
+  lastT = now;
+  const p = painting.p, R = S.brush.radius;
+  const n = Math.max(1, Math.ceil(Math.hypot(p.x - lastDab.x, p.y - lastDab.y) / (R / 3)));
+  let region = null;
+  for (let s = 1; s <= n; s++) region = T.unionRegion(region, dab(lastDab.x + (p.x - lastDab.x) * s / n, lastDab.y + (p.y - lastDab.y) * s / n, dt / n));
+  lastDab = { x: p.x, y: p.y };
+  if (region) view.update(region);
+  showRing(p);
+  if (!hintedOps && S.doc.ops.some((o) => o.on !== false && o.type === "pad" && T.pointInPolygon(p.x, p.y, o.polygon))) { hintedOps = true; toast(tr("br.underOps")); }
+}
+
+/* =========================================================================
+   Disegno di piattaforme e rampe
+   ========================================================================= */
+let draft = [];
+function cancelDraft() { draft = []; drawDraft(); }
+function snapPoint(p, shift) {
+  if (!shift || !draft.length) return [p.x, p.y];
+  const q = draft[draft.length - 1], dx = p.x - q[0], dy = p.y - q[1], L = Math.hypot(dx, dy);
+  const a = Math.round(Math.atan2(dy, dx) / (Math.PI / 12)) * (Math.PI / 12);
+  return [q[0] + L * Math.cos(a), q[1] + L * Math.sin(a)];
+}
+function drawDraft(extra) {
+  const pts = extra ? [...draft, extra] : draft.slice();
+  if (S.mode === "pad" && pts.length > 2) pts.push(pts[0]);
+  const a = new Float32Array(Math.max(pts.length, 1) * 3);
+  pts.forEach((p, s) => { const [lx, ly] = toLocal(p[0], p[1]); a[3 * s] = lx; a[3 * s + 1] = ly; a[3 * s + 2] = hAt(p[0], p[1]) + 0.15; });
+  draftGeo.setAttribute("position", new THREE.BufferAttribute(a, 3));
+  draftGeo.setDrawRange(0, pts.length);
+  const dp = new Float32Array(draft.length * 3), ds = new Float32Array(draft.length), dc = new Float32Array(draft.length * 3);
+  draft.forEach((p, s) => { const [lx, ly] = toLocal(p[0], p[1]); dp.set([lx, ly, hAt(p[0], p[1]) + 0.15], 3 * s); ds[s] = 9 * renderer.getPixelRatio(); dc.set([0.75, 0.84, 0.19], 3 * s); });
+  draftDots.geometry.setAttribute("position", new THREE.BufferAttribute(dp, 3));
+  draftDots.geometry.setAttribute("size", new THREE.BufferAttribute(ds, 1));
+  draftDots.geometry.setAttribute("color", new THREE.BufferAttribute(dc, 3));
+}
+function activePads() { return S.doc.ops.filter((o) => o.type === "pad" && o.on !== false).reverse(); }
+function finishDraft() {
+  if (S.mode === "pad" && draft.length >= 3) createPad(draft.map((p) => p.slice()));
+  else if (S.mode === "ramp" && draft.length >= 2) createRamp(draft.map((p) => p.slice()));
+  else return;
+  cancelDraft();
+}
+function createPad(poly) {
+  const f = S.doc.final, bw = Math.max(...poly.map((p) => p[0])) - Math.min(...poly.map((p) => p[0])), bh = Math.max(...poly.map((p) => p[1])) - Math.min(...poly.map((p) => p[1]));
+  const stride = Math.max(1, Math.round(Math.sqrt(bw * bh / (f.cell * f.cell) / 60000)));
+  const elev = Math.round(T.meanInside(f, poly, stride) * 20) / 20;
+  const id = S.doc.addOp({ type: "pad", polygon: poly, elevation: elev, slope: S.padDef.slope, round: S.padDef.round });
+  S.sel = id;
+  setMode("select");
+  edited(S.doc.lastRegion, { ops: true });
+  renderTool();
+  toast(tr("t.padAdded", { z: nf(elev) }));
+}
+function createRamp(line) {
+  const pads = activePads(), inPad = (p) => pads.find((o) => T.pointInPolygon(p[0], p[1], o.polygon));
+  let startPad, endPad;
+  const a = inPad(line[0]);
+  if (a) { const c = T.firstCrossing(line[0], line[1], a.polygon); if (c) line[0] = c; startPad = a.id; }
+  const b = inPad(line[line.length - 1]);
+  if (b && b !== a) { const c = T.firstCrossing(line[line.length - 1], line[line.length - 2], b.polygon); if (c) line[line.length - 1] = c; endPad = b.id; }
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const op = { type: "path", line, width: S.rampDef.width, slope: S.rampDef.slope, round: S.rampDef.round,
+    zStart: a ? a.elevation : r2(hAt(...line[0])), zEnd: b && b !== a ? b.elevation : r2(hAt(...line[line.length - 1])) };
+  if (startPad) op.startPad = startPad;
+  if (endPad) op.endPad = endPad;
+  const id = S.doc.addOp(op);
+  S.sel = id;
+  setMode("select");
+  edited(S.doc.lastRegion, { ops: true });
+  renderTool();
+  const L = T.pathLength(line), e = T.pathEnds(S.doc.getOp(id), S.doc.ops);
+  const hook = startPad || endPad ? tr("t.hook", { name: opName(S.doc.getOp(startPad || endPad)) }) : "";
+  toast(tr("t.rampAdded", { l: nf(L, 1), g: nf(L > 0 ? (e.zEnd - e.zStart) / L * 100 : 0, 1), hook }));
+}
+/* =========================================================================
+   Opere: nomi, contorni, maniglie, modifica
+   ========================================================================= */
+const opNum = (o) => +(String(o.id).match(/\d+$/) || [0])[0];
+const opName = (o) => (o ? tr(o.type === "pad" ? "op.pad" : "op.ramp", { n: opNum(o) }) : "");
+function pathProfile(o) {
+  const e = T.pathEnds(o, S.doc.ops), cum = [0];
+  for (let q = 1; q < o.line.length; q++) cum.push(cum[q - 1] + Math.hypot(o.line[q][0] - o.line[q - 1][0], o.line[q][1] - o.line[q - 1][1]));
+  const L = cum[cum.length - 1];
+  return { ...e, cum, L, zAt: (s) => e.zStart + (e.zEnd - e.zStart) * (L > 0 ? s / L : 0) };
+}
+/* contorni alle quote d'opera (non drappeggiati): non cambiano col pennello */
+function rebuildOps() {
+  if (!S.doc) return;
+  const P = [], C = [];
+  const lime = [0.75, 0.84, 0.19], white = [0.96, 0.97, 0.93], grey = [0.55, 0.57, 0.52];
+  const seg = (a, b, col) => { const [ax, ay] = toLocal(a[0], a[1]), [bx, by] = toLocal(b[0], b[1]); P.push(ax, ay, a[2] + 0.06, bx, by, b[2] + 0.06); C.push(...col, ...col); };
+  for (const o of S.doc.ops) {
+    const col = o.id === S.sel ? lime : o.on === false ? grey : white;
+    if (o.type === "pad") {
+      for (let k = 0; k < o.polygon.length; k++) { const a = o.polygon[k], b = o.polygon[(k + 1) % o.polygon.length]; seg([a[0], a[1], o.elevation], [b[0], b[1], o.elevation], col); }
+    } else {
+      const pr = pathProfile(o), hw = o.width / 2;
+      for (let q = 1; q < o.line.length; q++) {
+        const a = o.line[q - 1], b = o.line[q], za = pr.zAt(pr.cum[q - 1]), zb = pr.zAt(pr.cum[q]);
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nxv = -(b[1] - a[1]) / L * hw, nyv = (b[0] - a[0]) / L * hw;
+        seg([a[0], a[1], za], [b[0], b[1], zb], col.map((c) => c * 0.8));
+        seg([a[0] + nxv, a[1] + nyv, za], [b[0] + nxv, b[1] + nyv, zb], col);
+        seg([a[0] - nxv, a[1] - nyv, za], [b[0] - nxv, b[1] - nyv, zb], col);
+      }
+    }
+  }
+  opsLines.geometry.dispose();
+  opsLines.geometry = new THREE.BufferGeometry();
+  opsLines.geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(P), 3));
+  opsLines.geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(C), 3));
+  rebuildHandles();
+}
+/* maniglie dell'opera selezionata: vertici (grandi) e metà lato (piccole) */
+let handleList = [];
+function rebuildHandles() {
+  handleList = [];
+  const o = S.mode === "select" && S.sel ? S.doc.getOp(S.sel) : null;
+  if (o) {
+    const pts = o.type === "pad" ? o.polygon : o.line, closed = o.type === "pad";
+    const zOf = (k) => (o.type === "pad" ? o.elevation : pathProfile(o).zAt(pathProfile(o).cum[k]));
+    pts.forEach((p, k) => handleList.push({ kind: "v", k, x: p[0], y: p[1], z: zOf(k) }));
+    const nseg = closed ? pts.length : pts.length - 1;
+    for (let k = 0; k < nseg; k++) {
+      const a = pts[k], b = pts[(k + 1) % pts.length];
+      handleList.push({ kind: "m", k, x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2, z: (zOf(k) + zOf((k + 1) % pts.length)) / 2 });
+    }
+  }
+  const pr = renderer ? renderer.getPixelRatio() : 1;
+  const P = new Float32Array(handleList.length * 3), Sz = new Float32Array(handleList.length), Cl = new Float32Array(handleList.length * 3);
+  handleList.forEach((h, s) => {
+    const [lx, ly] = toLocal(h.x, h.y);
+    P.set([lx, ly, h.z + 0.06], 3 * s);
+    Sz[s] = (h.kind === "v" ? (h === hoverHandle ? 14 : 11) : 8) * pr;
+    Cl.set(h.kind === "v" ? [0.75, 0.84, 0.19] : [0.95, 0.96, 0.92], 3 * s);
+  });
+  handles.geometry.dispose();
+  handles.geometry = new THREE.BufferGeometry();
+  handles.geometry.setAttribute("position", new THREE.BufferAttribute(P, 3));
+  handles.geometry.setAttribute("size", new THREE.BufferAttribute(Sz, 1));
+  handles.geometry.setAttribute("color", new THREE.BufferAttribute(Cl, 3));
+}
+let hoverHandle = null;
+function handleAt(cx, cy) {
+  let best = null, bd = 12;
+  for (const h of handleList) {
+    const [sx, sy] = toScreen(h.x, h.y, h.z), d = Math.hypot(sx - cx, sy - cy) - (h.kind === "v" ? 2 : 0);
+    if (d < bd) { bd = d; best = h; }
+  }
+  return best;
+}
+function distToLine(x, y, line) {
+  let d = Infinity;
+  for (let q = 1; q < line.length; q++) {
+    const [ax, ay] = line[q - 1], [bx, by] = line[q], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    const t = L2 > 0 ? Math.min(Math.max(((x - ax) * dx + (y - ay) * dy) / L2, 0), 1) : 0;
+    d = Math.min(d, Math.hypot(x - ax - t * dx, y - ay - t * dy));
+  }
+  return d;
+}
+function opAt(p) {
+  if (!p) return null;
+  for (let k = S.doc.ops.length - 1; k >= 0; k--) {
+    const o = S.doc.ops[k];
+    if (o.type === "pad" ? T.pointInPolygon(p.x, p.y, o.polygon) : distToLine(p.x, p.y, o.line) <= o.width / 2 + S.doc.final.cell) return o;
+  }
+  return null;
+}
+function select(id) {
+  S.sel = id;
+  rebuildOps();
+  renderTool();
+  renderOpsList();
+}
+/* modifica geometrica dal vivo: una voce di storia per trascinamento */
+let drag = null;
+function geomOf(o) { return (o.type === "pad" ? o.polygon : o.line).map((p) => p.slice()); }
+function applyGeom(o, pts) {
+  const r = S.doc.updateOp(o.id, o.type === "pad" ? { polygon: pts } : { line: pts }, { coalesce: "geom:" + o.id + ":" + drag.t0 });
+  view.update(r);
+  rebuildOps();
+}
+function deleteVertex(h) {
+  const o = S.doc.getOp(S.sel), pts = geomOf(o), min = o.type === "pad" ? 3 : 2;
+  if (pts.length <= min) { toast(tr("t.minVerts", { n: min })); return; }
+  pts.splice(h.k, 1);
+  const r = S.doc.updateOp(o.id, o.type === "pad" ? { polygon: pts } : { line: pts });
+  hoverHandle = null;
+  edited(r, { ops: true });
+  renderTool();
+}
+
+/* =========================================================================
+   Puntatore
+   ========================================================================= */
+let downAt = null;
+canvas.addEventListener("pointerdown", (e) => {
+  downAt = [e.clientX, e.clientY];
+  if (e.button !== 0 || !S.doc || !renderer) return;
+  if (BRUSH.includes(S.mode)) {
+    const p = pick(e.clientX, e.clientY);
+    if (!p) return;
+    S.doc.beginStroke();
+    painting = { p, shift: e.shiftKey };
+    lastDab = { x: p.x, y: p.y }; lastT = performance.now(); flatTarget = p.z;
+    canvas.setPointerCapture(e.pointerId);
+    return;
+  }
+  if (S.mode === "select" && S.sel) {
+    const o = S.doc.getOp(S.sel), h = handleAt(e.clientX, e.clientY);
+    const zRef = o.type === "pad" ? o.elevation : pathProfile(o).zStart;
+    if (h) {
+      let pts = geomOf(o), k = h.k;
+      if (h.kind === "m") { k = h.k + 1; pts.splice(k, 0, [h.x, h.y]); }
+      drag = { kind: "vertex", id: o.id, k, pts, z: h.z, t0: Date.now(), moved: h.kind === "m" };
+      if (h.kind === "m") applyGeom(o, pts);
+    } else {
+      const p = pick(e.clientX, e.clientY);
+      if (p && opAt(p) === o) {
+        const q = pickPlane(e.clientX, e.clientY, zRef);
+        if (q) drag = { kind: "move", id: o.id, start: q, orig: geomOf(o), z: zRef, t0: Date.now(), moved: false };
+      }
+    }
+    if (drag) { canvas.setPointerCapture(e.pointerId); controls.enabled = false; }
+  }
+});
+let pendingMove = null;
+canvas.addEventListener("pointermove", (e) => {
+  if (!S.doc) return;
+  const p = pick(e.clientX, e.clientY);
+  status(p);
+  if (painting) { if (p) painting = { p, shift: e.shiftKey }; return; }
+  if (drag) { pendingMove = { x: e.clientX, y: e.clientY }; return; }
+  if (BRUSH.includes(S.mode) && p) showRing(p); else ring.visible = false;
+  if ((S.mode === "pad" || S.mode === "ramp") && draft.length && p) drawDraft(snapPoint(p, e.shiftKey));
+  if (S.mode === "select") {
+    const h = S.sel ? handleAt(e.clientX, e.clientY) : null;
+    if (h !== hoverHandle) { hoverHandle = h; rebuildHandles(); }
+    const o = h ? null : opAt(p);
+    canvas.className = h ? "c-point" : o && o.id === S.sel ? "c-move" : o ? "c-point" : "";
+  }
+});
+function dragTick() {
+  if (!drag || !pendingMove) return;
+  const { x, y } = pendingMove;
+  pendingMove = null;
+  const q = pickPlane(x, y, drag.z), o = S.doc.getOp(drag.id);
+  if (!q || !o) return;
+  if (drag.kind === "vertex") drag.pts[drag.k] = [q.x, q.y];
+  else {
+    const dx = q.x - drag.start.x, dy = q.y - drag.start.y;
+    drag.pts = drag.orig.map((p) => [p[0] + dx, p[1] + dy]);
+  }
+  drag.moved = true;
+  applyGeom(o, drag.pts);
+}
+canvas.addEventListener("pointercancel", () => {
+  if (painting) { painting = null; if (S.doc.endStroke()) edited(null); updateUndo(); }
+  if (drag) { drag = null; controls.enabled = true; S.doc.sealHistory(); edited(null, { ops: true }); renderTool(); }
+});
+canvas.addEventListener("pointerup", (e) => {
+  if (painting) {
+    painting = null;
+    if (S.doc.endStroke()) edited(null);
+    updateUndo();
+    return;
+  }
+  if (drag) {
+    dragTick();
+    const moved = drag.moved;
+    drag = null; controls.enabled = true;
+    S.doc.sealHistory();
+    if (moved) { edited(null, { ops: true }); renderTool(); }
+    return;
+  }
+  if (e.button !== 0 || !downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4 || !S.doc) return;
+  const p = pick(e.clientX, e.clientY);
+  if (S.mode === "pad" || S.mode === "ramp") {
+    if (!p) return;
+    const q = snapPoint(p, e.shiftKey), last = draft[draft.length - 1];
+    if (last && Math.hypot(last[0] - q[0], last[1] - q[1]) < S.doc.final.cell * 0.6) return;   // doppio clic: niente vertice doppio
+    draft.push(q);
+    drawDraft();
+  } else if (S.mode === "select") {
+    const o = opAt(p);
+    select(o ? o.id : null);
+  }
+});
+canvas.addEventListener("dblclick", (e) => {
+  if (S.mode === "pad" || S.mode === "ramp") { finishDraft(); return; }
+  if (S.mode === "select" && S.sel) { const h = handleAt(e.clientX, e.clientY); if (h && h.kind === "v") deleteVertex(h); }
+});
+canvas.addEventListener("pointerleave", () => { ring.visible = false; if (!painting) status(null); });
+
+function status(p) {
+  const el = $("statusText");
+  if (!p) { el.textContent = tr("st.idle"); return; }
+  const f = S.doc.final, c = f.cell;
+  const g = (dx, dy) => hAt(p.x + dx, p.y + dy);
+  const sx = (g(c, 0) - g(-c, 0)) / (2 * c), sy = (g(0, c) - g(0, -c)) / (2 * c);
+  const abs = S.origin.x !== 0 || S.origin.y !== 0;
+  let s = tr(abs ? "st.en" : "st.xy", { x: nf(p.x), y: nf(p.y), z: nf(p.z), s: nf(Math.hypot(sx, sy) * 100, 1) });
+  if ((S.mode === "pad" || S.mode === "ramp") && draft.length) {
+    const last = draft[draft.length - 1], a = Math.hypot(p.x - last[0], p.y - last[1]);
+    s += tr("st.draw", { a: nf(a, 1), b: nf(T.pathLength(draft) + a, 1) });
+  }
+  el.textContent = s;
+}
+
+/* =========================================================================
+   Tastiera
+   ========================================================================= */
+addEventListener("keydown", (e) => {
+  const tag = e.target && e.target.tagName;
+  if (tag === "INPUT" || tag === "TEXTAREA") return;
+  if (!$("sheet").hidden) { if (e.key === "Escape" && S.doc) closeSheet(); return; }
+  const k = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && k === "z") { e.preventDefault(); doUndo(e.shiftKey); return; }
+  if ((e.ctrlKey || e.metaKey) && k === "y") { e.preventDefault(); doUndo(true); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const map = { n: "nav", v: "select", 1: "raise", 2: "lower", 3: "smooth", 4: "flatten", p: "pad", r: "ramp" };
+  if (map[k]) { setMode(map[k]); return; }
+  if (k === "f") { frameAll(); return; }
+  if (k === "[" || k === "]") {
+    const step = S.brush.radius < 5 ? 0.5 : S.brush.radius < 20 ? 1 : 5;
+    S.brush.radius = Math.max(0.5, Math.min(radiusMax(), S.brush.radius + (k === "]" ? step : -step)));
+    renderTool(); saveUi();
+    return;
+  }
+  if (S.mode === "pad" || S.mode === "ramp") {
+    if (k === "enter") finishDraft();
+    else if (k === "escape") cancelDraft();
+    else if (k === "backspace" && draft.length) { draft.pop(); drawDraft(); }
+    return;
+  }
+  if (S.mode === "select" && S.sel) {
+    if (k === "escape") select(null);
+    else if (k === "delete" || k === "backspace") { e.preventDefault(); removeOp(S.sel); }
+  }
+});
+
+/* =========================================================================
+   Pannello: strumento attivo
+   ========================================================================= */
+const radiusMax = () => { if (!S.doc) return 50; const f = S.doc.final; return Math.max(10, Math.min(250, Math.round(Math.max((f.nx - 1) * f.cell, (f.ny - 1) * f.cell) / 4))); };
+const rng = (id, label, v, min, max, step, out) => `<div class="row"><label for="${id}">${esc(label)}</label><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${v}"><output id="${id}O">${out}</output></div>`;
+const num = (id, label, v, step, unit, extra = "") => `<div class="row"><label for="${id}">${esc(label)}</label><div class="numbox"><input type="number" id="${id}" step="${step}" value="${v}" ${extra}><span>${unit}</span></div><span></span></div>`;
+const slopeChips = (act, v) => `<div class="chips" data-act="${act}">${SLOPES.map(([s, l]) => `<button class="chip${Math.abs(s - v) < 1e-6 ? " on" : ""}" data-v="${s}" title="${nf(Math.atan(s) * 180 / Math.PI, 1)}°">${l}</button>`).join("")}</div>`;
+const r3 = (v) => Math.round(v * 1000) / 1000;
+
+function renderTool() {
+  const m = S.mode;
+  $("toolTitle").textContent = tr("mode." + m);
+  $("toolKey").textContent = MODE_KEY[m];
+  const B = $("toolBody");
+  if (BRUSH.includes(m)) {
+    const b = S.brush;
+    B.innerHTML = rng("bR", tr("br.radius"), b.radius, 0.5, radiusMax(), 0.5, nf(b.radius, b.radius % 1 ? 1 : 0) + " m")
+      + rng("bS", tr("br.strength"), b.strength, 0.1, 5, 0.1, nf(b.strength, 1))
+      + rng("bH", tr("br.hardness"), b.hardness, 0, 0.9, 0.05, nf(b.hardness, 2))
+      + `<p class="help">${tr(m === "flatten" ? "br.flatHelp" : "br.help")}</p>`;
+    const bind = (id, key, fmtf) => $(id).addEventListener("input", () => { b[key] = +$(id).value; $(id + "O").textContent = fmtf(b[key]); saveUi(); });
+    bind("bR", "radius", (v) => nf(v, v % 1 ? 1 : 0) + " m");
+    bind("bS", "strength", (v) => nf(v, 1));
+    bind("bH", "hardness", (v) => nf(v, 2));
+  } else if (m === "pad" || m === "ramp") {
+    const d = m === "pad" ? S.padDef : S.rampDef;
+    B.innerHTML = `<p class="help">${tr(m + ".help")}</p><div class="sub">${esc(tr(m + ".defaults"))}</div>`
+      + (m === "ramp" ? num("dW", tr("op.width"), d.width, 0.5, "m", 'min="0.5"') : "")
+      + `<div class="row two"><span class="lbl">${esc(tr("op.slope"))}</span>${slopeChips("defSlope", d.slope)}</div>`
+      + num("dRnd", tr("op.round"), d.round, 0.1, "m", 'min="0"')
+      + (m === "pad" ? `<p class="note">${esc(tr("pad.after"))}</p>` : "");
+    B.querySelector('[data-act="defSlope"]').addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c) return; d.slope = +c.dataset.v; renderTool(); saveUi(); });
+    $("dRnd").addEventListener("change", () => { d.round = Math.max(0, +$("dRnd").value || 0); saveUi(); });
+    if ($("dW")) $("dW").addEventListener("change", () => { d.width = Math.max(0.5, +$("dW").value || 4); saveUi(); });
+  } else if (m === "select") {
+    const o = S.sel ? S.doc.getOp(S.sel) : null;
+    B.innerHTML = o ? opForm(o) : `<p class="help">${esc(tr("op.none"))}</p>`;
+    if (o) bindOpForm(o);
+  } else {
+    B.innerHTML = `<p class="help">${tr("nav.help")}</p>`;
+  }
+}
+
+function opForm(o) {
+  const idx = S.doc.ops.findIndex((x) => x.id === o.id), above = S.doc.ops.slice(0, idx).filter((x) => x.on !== false).length;
+  let h = `<div class="kv"><span><b style="font:600 14px var(--disp);color:var(--text)">${esc(opName(o))}</b></span><b>${o.on === false ? "—" : ""}</b></div>`;
+  if (o.type === "pad") {
+    h += num("oZ", tr("op.elev"), r3(o.elevation), 0.05, "m")
+      + `<div class="row two"><span class="lbl">${esc(tr("op.slope"))}</span>${slopeChips("opSlope", o.slope)}</div>`
+      + num("oSp", tr("op.slopePct"), Math.round(o.slope * 1000) / 10, 1, "%", 'min="1"')
+      + num("oRnd", tr("op.round"), o.round, 0.1, "m", 'min="0"')
+      + `<div class="kv"><span>${esc(tr("op.area"))}</span><b>${nf(T.polygonArea(o.polygon), 1)} m²</b></div>`;
+  } else {
+    const pr = pathProfile(o), L = pr.L, g = L > 0 ? (pr.zEnd - pr.zStart) / L * 100 : 0;
+    const link = (id, which) => { const pad = S.doc.getOp(id); return pad ? `<div class="linked">${esc(tr("op.linked", { name: opName(pad) }))} · <button class="link" data-act="unlink" data-w="${which}">${esc(tr("op.unlink"))}</button></div>` : ""; };
+    h += num("oW", tr("op.width"), o.width, 0.5, "m", 'min="0.5"')
+      + num("oZ0", tr("op.zStart"), r3(pr.zStart), 0.05, "m", o.startPad ? "disabled" : "") + (o.startPad ? link(o.startPad, "start") : "")
+      + num("oZ1", tr("op.zEnd"), r3(pr.zEnd), 0.05, "m", o.endPad ? "disabled" : "") + (o.endPad ? link(o.endPad, "end") : "")
+      + num("oG", tr("op.grade"), Math.round(g * 100) / 100, 0.1, "%", o.startPad && o.endPad ? "disabled" : "")
+      + (o.startPad && o.endPad ? `<p class="note">${esc(tr("op.bothLinked"))}</p>` : "")
+      + `<div class="kv"><span>${esc(tr("op.length"))}</span><b>${nf(L, 2)} m</b></div>`
+      + `<div class="row two"><span class="lbl">${esc(tr("op.slope"))}</span>${slopeChips("opSlope", o.slope)}</div>`
+      + num("oRnd", tr("op.round"), o.round, 0.1, "m", 'min="0"');
+  }
+  h += `<p class="help" style="margin-top:8px">${esc(tr("op.hint"))}</p>`
+    + `<div class="btns"><button class="btn-sm" data-act="bake" title="${esc(tr("op.bakeTip"))}">${esc(above ? tr("op.bakeN", { n: above }) : tr("op.bake"))}</button><button class="btn-sm" data-act="del">${esc(tr("op.delete"))}</button></div>`;
+  return h;
+}
+function bindOpForm(o) {
+  const B = $("toolBody"), id = o.id;
+  const upd = (patch, key) => { const r = S.doc.updateOp(id, patch, { coalesce: id + ":" + key }); edited(r, { ops: true }); refreshOpReadouts(); };
+  const val = (el) => parseFloat(String(el.value).replace(",", "."));
+  const on = (elId, fn) => { const el = $(elId); if (el) el.addEventListener("input", () => { const v = val(el); if (Number.isFinite(v)) fn(v); }); };
+  on("oZ", (v) => upd({ elevation: v }, "z"));
+  on("oSp", (v) => { if (v > 0) upd({ slope: v / 100 }, "slope"); });
+  on("oRnd", (v) => upd({ round: Math.max(0, v) }, "round"));
+  on("oW", (v) => { if (v > 0) upd({ width: v }, "width"); });
+  on("oZ0", (v) => upd({ zStart: v }, "z0"));
+  on("oZ1", (v) => upd({ zEnd: v }, "z1"));
+  on("oG", (v) => {
+    const op = S.doc.getOp(id), pr = pathProfile(op);
+    if (!op.endPad) upd({ zEnd: Math.round((pr.zStart + v / 100 * pr.L) * 1000) / 1000 }, "grade");
+    else if (!op.startPad) upd({ zStart: Math.round((pr.zEnd - v / 100 * pr.L) * 1000) / 1000 }, "grade");
+  });
+  B.querySelectorAll('[data-act="opSlope"]').forEach((g) => g.addEventListener("click", (e) => {
+    const c = e.target.closest(".chip"); if (!c) return;
+    const r = S.doc.updateOp(id, { slope: +c.dataset.v }); edited(r, { ops: true }); renderTool();
+  }));
+  B.querySelectorAll('[data-act="unlink"]').forEach((b) => b.addEventListener("click", () => {
+    const op = S.doc.getOp(id), e = T.pathEnds(op, S.doc.ops), patch = { ...op };
+    if (b.dataset.w === "start") { patch.zStart = e.zStart; delete patch.startPad; } else { patch.zEnd = e.zEnd; delete patch.endPad; }
+    S.doc.setOps(S.doc.ops.map((x) => (x.id === id ? patch : x)));
+    edited(null, { ops: true }); renderTool();
+  }));
+  B.querySelector('[data-act="bake"]').addEventListener("click", () => {
+    const r = S.doc.bakeThrough(id);
+    S.sel = null;
+    edited(r && r.region, { ops: true }); renderTool();
+    toast(tr("t.baked", { n: r ? r.count : 0 }));
+  });
+  B.querySelector('[data-act="del"]').addEventListener("click", () => removeOp(id));
+}
+/* dopo un numero cambiato: aggiorna solo le letture, non ridisegna il modulo (il fuoco resta nel campo) */
+function refreshOpReadouts() {
+  const o = S.sel && S.doc.getOp(S.sel);
+  if (!o || o.type !== "path") return;
+  const pr = pathProfile(o), set = (id, v) => { const el = $(id); if (el && document.activeElement !== el) el.value = v; };
+  set("oZ0", r3(pr.zStart)); set("oZ1", r3(pr.zEnd)); set("oG", Math.round((pr.L > 0 ? (pr.zEnd - pr.zStart) / pr.L * 100 : 0) * 100) / 100);
+}
+function removeOp(id) {
+  const o = S.doc.getOp(id);
+  if (!o) return;
+  const r = S.doc.removeOp(id);
+  if (S.sel === id) S.sel = null;
+  edited(r, { ops: true }); renderTool();
+  toast(tr("t.deleted", { name: opName(o) }));
+}
+
+/* =========================================================================
+   Pannello: elenco delle opere
+   ========================================================================= */
+const ICON = {
+  pad: '<svg class="op-ic" viewBox="0 0 24 24"><path d="M3 17l4-8h10l4 8z"/></svg>',
+  path: '<svg class="op-ic" viewBox="0 0 24 24"><path d="M3 19h4l10-12h4"/></svg>',
+  eye: '<svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>',
+  eyeOff: '<svg viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 6.1A9.7 9.7 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3.2 3.9M6.6 6.6A17 17 0 0 0 2 12s3.5 6 10 6a9.6 9.6 0 0 0 4.4-1"/></svg>',
+  up: '<svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>',
+  down: '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+  del: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+};
+function renderOpsList() {
+  if (!S.doc) return;
+  const ops = S.doc.ops;
+  $("opsCount").textContent = ops.length ? String(ops.length) : "";
+  if (!ops.length) { $("opsBody").innerHTML = `<p class="note">${esc(tr("ops.empty"))}</p>`; return; }
+  $("opsBody").innerHTML = `<div class="oplist">` + ops.map((o, k) => {
+    let v;
+    if (o.type === "pad") v = nf(o.elevation) + " m";
+    else { const pr = pathProfile(o); v = nf(pr.L > 0 ? (pr.zEnd - pr.zStart) / pr.L * 100 : 0, 1) + " %"; }
+    return `<div class="oprow${o.id === S.sel ? " sel" : ""}${o.on === false ? " off" : ""}" data-id="${o.id}">`
+      + `<button data-act="on" title="${esc(tr("ops.on"))}">${o.on === false ? ICON.eyeOff : ICON.eye}</button>${ICON[o.type]}`
+      + `<span class="op-name">${esc(opName(o))}</span><span class="op-v">${v}</span>`
+      + `<span class="acts"><button data-act="up" title="${esc(tr("ops.up"))}" ${k === 0 ? "disabled" : ""}>${ICON.up}</button>`
+      + `<button data-act="down" title="${esc(tr("ops.down"))}" ${k === ops.length - 1 ? "disabled" : ""}>${ICON.down}</button>`
+      + `<button data-act="del" title="${esc(tr("ops.del"))}">${ICON.del}</button></span></div>`;
+  }).join("") + `</div>` + (ops.length > 1 ? `<p class="note">${esc(tr("ops.order"))}</p>` : "");
+}
+$("opsBody").addEventListener("click", (e) => {
+  const row = e.target.closest(".oprow");
+  if (!row) return;
+  const id = row.dataset.id, b = e.target.closest("button");
+  if (!b) { if (S.mode !== "select") setMode("select"); select(id); return; }
+  if (b.dataset.act === "on") { const o = S.doc.getOp(id); edited(S.doc.updateOp(id, { on: o.on === false }), { ops: true }); renderTool(); }
+  else if (b.dataset.act === "up" || b.dataset.act === "down") { edited(S.doc.moveOp(id, b.dataset.act === "up" ? -1 : 1), { ops: true }); renderTool(); }
+  else if (b.dataset.act === "del") removeOp(id);
+});
+
+/* =========================================================================
+   Pannello: terreno, curve, punti Revit
+   ========================================================================= */
+function sourceLabel(m) {
+  if (m.source === "example") return tr("src.example");
+  if (m.source === "new") return tr("src.new");
+  if (m.source === "ctx") return tr("src.ctx", { s: m.sourceName || "" });
+  return m.sourceName || m.source || "—";
+}
+function renderTerrain() {
+  if (!S.doc) return;
+  const f = S.doc.final, m = S.doc.meta, W = (f.nx - 1) * f.cell, H = (f.ny - 1) * f.cell;
+  const masked = f.mask ? 1 - f.mask.reduce((a, b) => a + b, 0) / f.mask.length : 0;
+  const crs = m.crs && (m.crs.epsg || m.crs.name) ? (m.crs.epsg ? "EPSG:" + m.crs.epsg : "") + (m.crs.name ? (m.crs.epsg ? " · " : "") + m.crs.name : "") : "";
+  $("terBody").innerHTML =
+    `<div class="kv"><span>${esc(tr("ter.source"))}</span><b>${esc(sourceLabel(m))}</b></div>`
+    + (crs ? `<div class="kv"><span>${esc(tr("ter.crs"))}</span><b>${esc(crs)}</b></div>` : "")
+    + (m.attribution ? `<p class="note">${esc(tr("ter.attr", { a: m.attribution }))}</p>` : "")
+    + `<div class="kv"><span>${esc(tr("ter.extent"))}</span><b>${nf(W, 1)} × ${nf(H, 1)} m</b></div>`
+    + `<div class="kv"><span>${esc(tr("ter.cell"))} · ${esc(tr("ter.nodes"))}</span><b>${nf(f.cell, f.cell % 1 ? 2 : 0)} m · ${ni(f.nx * f.ny)}</b></div>`
+    + (masked > 0 ? `<p class="note">${esc(tr("ter.mask", { p: nf(masked * 100, 1) }))}</p>` : "")
+    + (f.nx * f.ny > 1500000 ? `<p class="note">${esc(tr("ter.big"))}</p>` : "")
+    + `<div class="row two"><span class="lbl">${esc(tr("ter.contours"))}</span><div class="chips" id="cInt">${CONTOURS.map((c) => `<button class="chip${c === S.contour ? " on" : ""}" data-v="${c}">${c ? fmtNum(c) : esc(tr("ter.cNone"))}</button>`).join("")}</div></div>`
+    + `<label class="check"><input type="checkbox" id="showPts" ${S.showPts ? "checked" : ""}>${esc(tr("ter.revitPts", { n: ni(S.budget) }))}</label>`
+    + `<div class="btns"><button class="btn-sm" id="tNew">${esc(tr("ter.new"))}</button><button class="btn-sm" id="tOpen">${esc(tr("ter.open"))}</button></div>`
+    + `<p class="note" id="saveNote">${esc(saveText())}</p>`;
+  $("cInt").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c) return; S.contour = +c.dataset.v; terrainMat.uniforms.interval.value = S.contour; renderTerrain(); saveUi(); });
+  $("showPts").addEventListener("change", () => { S.showPts = $("showPts").checked; if (S.showPts) scheduleRevitPts(0); else revitPts.visible = false; });
+  $("tNew").addEventListener("click", () => openSheet("new"));
+  $("tOpen").addEventListener("click", () => $("fileIn").click());
+}
+function saveText() {
+  if (!S.saveOk) return tr("ter.noSave");
+  return S.lastSave ? tr("ter.saved", { t: new Date(S.lastSave).toLocaleTimeString(LANG === "en" ? "en-GB" : "it-IT", { hour: "2-digit", minute: "2-digit" }) }) : "";
+}
+function refreshStats() {
+  if (!S.doc) return;
+  const f = S.doc.final;
+  $("statGrid").innerHTML = `<b>${ni(f.nx)} × ${ni(f.ny)}</b> · ${nf(f.cell, f.cell % 1 ? 2 : 0)} m`;
+}
+let ptsTimer = 0;
+function scheduleRevitPts(delay = 700) {
+  clearTimeout(ptsTimer);
+  ptsTimer = setTimeout(async () => {
+    if (!S.showPts || !S.doc) return;
+    const f = S.doc.final, tin = T.robustTIN(f, Delatin, await loadDelaunator(), { maxPoints: S.budget }), a = new Float32Array(tin.points * 3);
+    for (let v = 0; v < tin.points; v++) {
+      const i = tin.coords[2 * v], j = tin.coords[2 * v + 1];
+      a[3 * v] = f.x0 + i * f.cell - S.origin.x; a[3 * v + 1] = f.y0 + j * f.cell - S.origin.y; a[3 * v + 2] = f.z[j * f.nx + i] + 0.05;
+    }
+    revitPts.geometry.dispose();
+    revitPts.geometry = new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(a, 3));
+    revitPts.visible = true;
+  }, delay);
+}
+
+/* =========================================================================
+   Pannello: esportazioni
+   ========================================================================= */
+function nurbsChoices() {
+  const f = S.doc.final, base = T.nurbsStep(f, 4200000);
+  return [1, 2, 3, 4].map((mul) => {
+    const step = base * mul, su = Math.max(1, Math.round((f.nx - 1) * f.cell / step)), sv = Math.max(1, Math.round((f.ny - 1) * f.cell / step));
+    return { mul, step, u: su + 3, v: sv + 3 };
+  });
+}
+function renderExport() {
+  if (!S.doc) return;
+  const abs = S.origin.x !== 0 || S.origin.y !== 0;
+  const nc = nurbsChoices();
+  if (!nc.some((c) => c.mul === S.nurbsMul)) S.nurbsMul = 1;
+  /* default: il passo più fine che resta sotto ~1 M punti di controllo */
+  const cur = nc.find((c) => c.mul === S.nurbsMul);
+  const P = S.parts, geo = S.doc.meta.ifc;
+  /* da un IFC le coordinate SONO quelle interne del progetto: il CSV torna sopra la toposolid di partenza */
+  const coords = geo && !abs
+    ? `<div class="kv"><span>${esc(tr("exp.coords"))}</span><b>${esc(tr("exp.coordsIfc", { f: S.doc.meta.sourceName || "IFC" }))}</b></div>`
+      + `<div class="kv"><span>${esc(tr("i.georef"))}</span><b>${esc(geoText({ ...geo, crs: S.doc.meta.crs && S.doc.meta.crs.name }))}</b></div>`
+      + `<p class="note">${esc(tr("exp.coordsIfcNote"))}</p>`
+    : `<div class="kv"><span>${esc(tr("exp.origin"))}</span><b>${abs ? `E ${ni(S.origin.x)} · N ${ni(S.origin.y)} → (0, 0)` : esc(tr("exp.originLocal"))}</b></div>`
+      + (abs ? `<p class="note">${esc(tr("exp.originNote"))}</p>` : "");
+  $("expBody").innerHTML = coords
+    + `<div class="expblk"><div class="exph"><b>Revit</b><span>${esc(tr("exp.revitS"))}</span></div>`
+    + `<div class="chips" id="eBudget">${BUDGETS.map(([n, k]) => `<button class="chip${n === S.budget ? " on" : ""}" data-v="${n}">${esc(tr(k))}</button>`).join("")}</div>`
+    + `<div class="btns"><button class="primary" id="eCsv">${esc(tr("exp.csv"))}</button></div></div>`
+    + `<div class="expblk"><div class="exph"><b>Rhino .3dm</b><span>${esc(tr("exp.rhinoS"))}</span></div>`
+    + `<div class="row two"><span class="lbl">${esc(tr("exp.nurbsStep"))}</span><div class="chips" id="eStep">${nc.map((c) => `<button class="chip${c.mul === S.nurbsMul ? " on" : ""}" data-v="${c.mul}" title="${esc(tr("exp.nurbsCV", { u: ni(c.u), v: ni(c.v) }))}">${nf(c.step, c.step % 1 ? 2 : 0)} m</button>`).join("")}</div></div>`
+    + `<p class="note" style="margin-left:100px">${esc(tr("exp.nurbsCV", { u: ni(cur.u), v: ni(cur.v) }))}</p>`
+    + ["nurbs", "contours", "mesh", "volume", "points"].map((k) => `<label class="check"><input type="checkbox" data-part="${k}" ${P[k] ? "checked" : ""}>${esc(tr("exp.p" + k[0].toUpperCase() + k.slice(1)))}</label>`).join("")
+    + `<div class="btns"><button class="primary" id="e3dm">${esc(tr("exp.3dm"))}</button></div></div>`
+    + `<div class="expblk"><div class="exph"><b>OBJ</b><span>${esc(tr("exp.objS"))}</span></div><div class="btns"><button id="eObj">${esc(tr("exp.obj"))}</button></div></div>`
+    + `<p class="note" id="expNote">${lastExportNote}</p>`;
+  $("eBudget").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c) return; S.budget = +c.dataset.v; renderExport(); renderTerrain(); saveUi(); if (S.showPts) scheduleRevitPts(0); });
+  $("eStep").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c) return; S.nurbsMul = +c.dataset.v; renderExport(); saveUi(); });
+  $("expBody").querySelectorAll("[data-part]").forEach((cb) => cb.addEventListener("change", () => { S.parts[cb.dataset.part] = cb.checked; saveUi(); $("e3dm").disabled = !Object.values(S.parts).some(Boolean); }));
+  $("e3dm").disabled = !Object.values(P).some(Boolean);
+  $("eCsv").addEventListener("click", () => runExport(exportCSV));
+  $("e3dm").addEventListener("click", () => runExport(export3dm));
+  $("eObj").addEventListener("click", () => runExport(exportOBJ));
+}
+let lastExportNote = "";
+function setExportNote(html) { lastExportNote = html; const el = $("expNote"); if (el) el.innerHTML = html; }
+function renderPod() {
+  renderTool(); renderOpsList(); renderTerrain(); renderExport();
+  document.querySelectorAll(".sec[data-sec]").forEach((s) => s.classList.toggle("closed", !!S.closed[s.dataset.sec]));
+}
+document.querySelectorAll(".sec[data-sec] .sec-h").forEach((h) => h.addEventListener("click", () => {
+  const s = h.parentElement, k = s.dataset.sec;
+  S.closed[k] = !S.closed[k];
+  s.classList.toggle("closed", S.closed[k]);
+  saveUi();
+}));
+
+/* --- esportazioni ------------------------------------------------------- */
+const fileBase = () => (S.doc.meta.name || "terreno").replace(/[^\w.\-]+/g, "_").replace(/^_+|_+$/g, "") || "terreno";
+function download(name, parts, type) {
+  const blob = parts instanceof Blob ? parts : new Blob(Array.isArray(parts) ? parts : [parts], { type });
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 15000);
+  return blob.size;
+}
+let busyNow = false;
+function busy(text) { $("busyText").textContent = text; $("busy").classList.toggle("on", !!text); }
+async function step(key) { busy(tr(key)); await frame(); }
+async function runExport(fn) {
+  if (busyNow || !S.doc) return;
+  busyNow = true;
+  document.querySelectorAll("#expBody button").forEach((b) => (b.disabled = true));
+  try { await fn(); }
+  catch (e) { console.error(e); toast(tr("exp.fail", { m: e.message || String(e) }), true); }
+  finally { busy(""); busyNow = false; renderExport(); }
+}
+let delaunatorP = null;
+const loadDelaunator = () => (delaunatorP ||= import("./vendor/delaunator.js").then((m) => m.default || globalThis.Delaunator));
+async function exportCSV() {
+  await step("exp.step.tin");
+  const fr = T.exportFrame(S.doc.final, S.origin);
+  /* TIN robusto: entro l'errore con qualsiasi Delaunay (Revit ritriangola i punti a modo suo) */
+  const tin = T.robustTIN(fr, Delatin, await loadDelaunator(), { maxPoints: S.budget });
+  const csv = T.toPointsCSV(fr, tin.coords);
+  download(`${fileBase()}_revit_${S.budget / 1000}k.csv`, csv, "text/csv");
+  setExportNote(tr("exp.csvDone", { n: ni(tin.points), e: nf(tin.maxError * 100, 1) }));
+}
+let rhinoP = null;
+async function export3dm() {
+  await step("exp.step.lib");
+  rhinoP ||= import("./vendor/rhino3dm.module.js").then((m) => m.default());
+  const rhino = await rhinoP;
+  const fr = T.exportFrame(S.doc.final, S.origin), P = S.parts, parts = {}, d = [];
+  if (P.nurbs) {
+    await step("exp.step.nurbs");
+    const c = nurbsChoices().find((x) => x.mul === S.nurbsMul);
+    parts.nurbs = T.nurbsFromHeightfield(fr, { step: c.step });
+    const dev = T.nurbsDeviation(parts.nurbs, fr);
+    d.push(tr("exp.d.nurbs", { u: ni(parts.nurbs.nu), v: ni(parts.nurbs.nv), d: nf(dev.maxDz * 100, 1) }));
+  }
+  if (P.contours) {
+    await step("exp.step.contours");
+    const iv = S.contour || 0.5, all = T.contourLines(fr, { interval: iv }), maj = (z) => Math.abs(z / (iv * 5) - Math.round(z / (iv * 5))) < 1e-6;
+    parts.contours = { minor: all.filter((c) => !maj(c.z)), major: all.filter((c) => maj(c.z)), minorLabel: fmtNum(iv) + " m", majorLabel: fmtNum(iv * 5) + " m" };
+    d.push(tr("exp.d.contours", { c: ni(all.length) }));
+  }
+  let tinM = null;
+  if (P.mesh) {
+    await step("exp.step.mesh");
+    tinM = T.simplifyToBudget(fr, Delatin, { maxPoints: 400000, maxError: 0.01 });
+    parts.mesh = T.tinMesh(fr, tinM);
+    d.push(tr("exp.d.mesh", { m: ni(tinM.points), e: nf(tinM.maxError * 100, 1) }));
+  }
+  if (P.volume) {
+    await step("exp.step.volume");
+    const full = fr.mask ? { ...fr, mask: null } : fr;
+    const tv = !fr.mask && tinM ? tinM : T.simplifyToBudget(full, Delatin, { maxPoints: 400000, maxError: 0.01 });
+    parts.volume = T.closedVolumeTIN(full, tv, Math.floor(S.range.min) - 2);
+    d.push(tr("exp.d.volume"));
+  }
+  if (P.points) {
+    const tin = T.robustTIN(fr, Delatin, await loadDelaunator(), { maxPoints: S.budget });
+    parts.points = { hf: fr, coords: tin.coords, label: `${tr("lay.points")} ${S.budget / 1000}k` };
+    d.push(tr("exp.d.points", { p: ni(tin.points) }));
+  }
+  await step("exp.step.write");
+  const names = {};
+  for (const k of ["nurbs", "mesh", "volume", "minor", "major", "points", "nurbsObj", "meshObj", "volumeObj", "level"]) names[k] = tr("lay." + k);
+  const { bytes } = T.build3dm(rhino, parts, { names });
+  const size = download(`${fileBase()}.3dm`, bytes, "application/octet-stream");
+  setExportNote(tr("exp.3dmDone", { parts: d.join(", "), mb: nf(size / 1048576, 1) }));
+}
+async function exportOBJ() {
+  await step("exp.step.obj");
+  const parts = T.toOBJParts(T.exportFrame(S.doc.final, S.origin), { name: fileBase() });
+  const size = download(`${fileBase()}.obj`, parts, "text/plain");
+  setExportNote(tr("exp.objDone", { mb: nf(size / 1048576, 1) }));
+}
+
+/* =========================================================================
+   Terreni di partenza
+   ========================================================================= */
+const wavy = (x, y) => 20 + 6 * Math.sin(x / 37 + 0.4) * Math.cos(y / 29) + 0.04 * x
+  + 3 * Math.exp(-((x - 55) ** 2 + (y + 30) ** 2) / (2 * 25 * 25))
+  + 0.15 * Math.sin(x / 7.3 + 1.1) * Math.sin(y / 9.1 + 0.3) + 0.1 * Math.sin((x + y) / 11.7);
+/* l'esempio della fase 0, con piattaforma e rampa come OPERE modificabili */
+function exampleDoc() {
+  const base = T.createHeightfield({ nx: 401, ny: 301, cell: 0.5, x0: -100, y0: -75, z: wavy });
+  const doc = new T.TerrainDoc(base, { meta: { name: "terreno_esempio", source: "example", origin: { x: 0, y: 0 } } });
+  const rot = 17 * Math.PI / 180, U = [Math.cos(rot), Math.sin(rot)], V = [-Math.sin(rot), Math.cos(rot)], PC = [-30, 10];
+  const c = (a, b) => [PC[0] + a * 22 * U[0] + b * 13 * V[0], PC[1] + a * 22 * U[1] + b * 13 * V[1]];
+  const pad = doc.addOp({ type: "pad", polygon: [c(-1, -1), c(1, -1), c(1, 1), c(-1, 1)], elevation: 16.75, slope: 2 / 3, round: 1.5 });
+  const P0 = [PC[0] - 13 * V[0], PC[1] - 13 * V[1]];
+  doc.addOp({ type: "path", line: [P0, [-22, -30], [5, -52]], width: 4, zStart: 16.75, zEnd: 19.99, startPad: pad, slope: 0.5, round: 1 });
+  doc.brush("raise", { x: 50, y: 40, radius: 18, amount: 3.5 });
+  doc.brush("flatten", { x: -65, y: -45, radius: 15, target: 14.95, strength: 1, hardness: 0.45 });
+  doc.undoStack = []; doc.redoStack = []; doc.histBytes = 0;
+  return doc;
+}
+const NEW = { w: 200, h: 150, cell: 0.5, shape: "slope", z: 20, grade: 8 };
+function newDoc() {
+  if (NEW.shape === "example") return exampleDoc();
+  const nx = Math.round(NEW.w / NEW.cell) + 1, ny = Math.round(NEW.h / NEW.cell) + 1;
+  const x0 = -Math.round((nx - 1) / 2) * NEW.cell, y0 = -Math.round((ny - 1) / 2) * NEW.cell;
+  const s = Math.max(NEW.w, NEW.h) / 200;
+  const zf = NEW.shape === "flat" ? NEW.z
+    : NEW.shape === "slope" ? (x, y) => NEW.z + NEW.grade / 100 * y
+    : (x, y) => NEW.z + (wavy(x / s, y / s) - 20) * Math.sqrt(s);
+  const base = T.createHeightfield({ nx, ny, cell: NEW.cell, x0, y0, z: zf });
+  return new T.TerrainDoc(base, { meta: { name: "terreno", source: "new", origin: { x: 0, y: 0 } } });
+}
+
+/* =========================================================================
+   Foglio centrale: benvenuto, nuovo, import
+   ========================================================================= */
+function openSheet(panel) {
+  $("sheet").hidden = false;
+  document.querySelectorAll("#sheet [data-panel]").forEach((p) => (p.hidden = p.dataset.panel !== panel));
+  if (panel === "new") renderNew();
+  $("wClose").textContent = tr(hasWork() ? "w.resume" : "w.example");
+}
+function closeSheet() { $("sheet").hidden = true; pendingImport = null; }
+$("btnOpen").addEventListener("click", () => openSheet("welcome"));
+$("wClose").addEventListener("click", closeSheet);
+$("wNew").addEventListener("click", () => openSheet("new"));
+$("wOpen").addEventListener("click", () => $("fileIn").click());
+$("nCancel").addEventListener("click", () => openSheet("welcome"));
+$("iCancel").addEventListener("click", () => (S.doc ? closeSheet() : openSheet("welcome")));
+$("sheet").addEventListener("click", (e) => { if (e.target === $("sheet") && S.doc) closeSheet(); });
+
+const workCount = () => (S.doc ? S.doc.ops.length : 0);
+const hasWork = () => !!S.doc && (!!S.doc.meta.edited || S.doc.meta.source === "file" || S.doc.meta.source === "ctx");
+function renderNew() {
+  const cells = [0.25, 0.5, 1, 2];
+  $("nCell").innerHTML = cells.map((c) => `<button class="chip${c === NEW.cell ? " on" : ""}" data-v="${c}">${nf(c, c % 1 ? 2 : 0)} m</button>`).join("");
+  $("nShape").innerHTML = ["flat", "slope", "rolling", "example"].map((s) => `<button class="chip${s === NEW.shape ? " on" : ""}" data-v="${s}">${esc(tr("n." + s))}</button>`).join("");
+  $("nW").value = NEW.w; $("nH").value = NEW.h; $("nZ").value = NEW.z; $("nGrade").value = NEW.grade;
+  newNote();
+}
+function newNote() {
+  const ex = NEW.shape === "example";
+  ["nW", "nH", "nZ"].forEach((id) => ($(id).disabled = ex));
+  $("nCell").querySelectorAll(".chip").forEach((c) => (c.disabled = ex));
+  $("nGradeRow").hidden = NEW.shape !== "slope";
+  const nx = Math.round(NEW.w / NEW.cell) + 1, ny = Math.round(NEW.h / NEW.cell) + 1, n = nx * ny, over = !ex && n > T.MAX_NODES;
+  let h = ex ? esc(tr("n.exampleNote")) : over ? esc(tr("n.tooMany", { n: ni(n), max: ni(T.MAX_NODES) })) : tr("n.nodes", { w: ni(nx), h: ni(ny), n: ni(n) });
+  if (hasWork()) h += `<br>${esc(tr("n.replace", { ops: workCount() }))}`;
+  $("nNote").innerHTML = h;
+  $("nNote").className = "note" + (over ? " warn" : "");
+  $("nGo").disabled = over || !(NEW.w > 0 && NEW.h > 0);
+}
+$("nCell").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c) return; NEW.cell = +c.dataset.v; renderNew(); });
+$("nShape").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c) return; NEW.shape = c.dataset.v; renderNew(); });
+for (const [id, key] of [["nW", "w"], ["nH", "h"], ["nZ", "z"], ["nGrade", "grade"]]) $(id).addEventListener("input", () => { NEW[key] = +$(id).value; newNote(); });
+$("nGo").addEventListener("click", () => {
+  busy("…");
+  setTimeout(() => { setDoc(newDoc()); saveNow(); busy(""); closeSheet(); setMode(S.mode === "select" ? "raise" : S.mode); }, 20);
+});
+
+/* --- import ------------------------------------------------------------- */
+let pendingImport = null;
+$("fileIn").addEventListener("change", () => { const f = $("fileIn").files[0]; $("fileIn").value = ""; if (f) openFile(f); });
+async function openFile(file) {
+  openSheet("import");
+  const body = $("iBody"), go = $("iGo");
+  go.disabled = true;
+  body.innerHTML = `<p class="note">${esc(tr("i.reading", { f: file.name }))}</p>`;
+  await frame();
+  const ext = (file.name.match(/\.([^.]+)$/) || [, ""])[1].toLowerCase();
+  if (ext === "ifc") return openIfc(file);
+  let src, kind, extra = [];
+  try {
+    if (["xml", "landxml", "asc", "csv", "txt", "xyz", "pts"].includes(ext) && file.size > 536870000) throw new Error(tr("i.tooBig"));
+    if (ext === "xml" || ext === "landxml") { src = IO.parseLandXML(await file.text()); kind = "landxml"; }
+    else if (ext === "asc") { src = IO.parseASC(await file.text()); kind = "asc"; }
+    else if (ext === "tif" || ext === "tiff") { src = await IO.readGeoTIFF(new Uint8Array(await file.arrayBuffer())); kind = "tif"; }
+    else if (["csv", "txt", "xyz", "pts"].includes(ext)) {
+      const pp = IO.parsePoints(await file.text());
+      src = IO.triangulate(pp.points, await loadDelaunator()); kind = "pts";
+      if (pp.skipped) extra.push(tr("i.skip", { n: ni(pp.skipped) }));
+      if (pp.idColumn) extra.push(tr("i.idcol"));
+      src.count = pp.count;
+    } else throw new Error(tr("i.unknown"));
+  } catch (e) {
+    body.innerHTML = `<p class="note warn">${esc(tr("i.fail", { f: file.name, m: e.message || String(e) }))}</p>`;
+    return;
+  }
+  const name = file.name.replace(/\.[^.]+$/, "");
+  showImport(src, { kind, file: file.name, name, extra, meta: { name, source: "file", sourceName: file.name, crs: src.crs || null } });
+}
+function showImport(src, info, keepCell = null) {
+  const co = IO.cellOptions(src, T.MAX_NODES), e = co.ext;
+  const keep = keepCell != null && co.options.some((o) => o.ok && Math.abs(o.cell - keepCell) < 1e-9);
+  pendingImport = { src, info, cell: keep ? keepCell : co.proposed };
+  const data = src.kind === "raster" ? tr("i.dataRaster", { w: ni(src.W), h: ni(src.H), c: nf(src.dx, src.dx % 1 ? 2 : 0) })
+    : info.kind === "pts" ? tr("i.dataPts", { p: ni(src.count) })
+    : info.kind === "ifc" ? tr("i.dataIfc", { f: ni(src.stats.kept), v: ni(src.stats.vertical) })
+    : tr("i.dataTin", { p: ni(src.points.length / 3), f: ni(src.faces.length / 3) });
+  const crs = src.crs && (src.crs.epsg || src.crs.name) ? (src.crs.epsg ? "EPSG:" + src.crs.epsg : "") + (src.crs.name ? " " + src.crs.name : "") : tr("i.crsUnknown");
+  const chips = co.options.filter((o) => o.cell >= co.native / 2 - 1e-9).slice(0, 7);     // più fine di metà del nativo non serve
+  const render = () => {
+    $("iBody").innerHTML =
+      `<div class="kv"><span>${esc(tr("i.file"))}</span><b>${esc(info.file)}</b></div>`
+      + `<div class="kv"><span>${esc(tr("i.type"))}</span><b>${esc(tr("i.kind." + info.kind))}</b></div>`
+      + (info.ifc ? ifcImportRows(info.ifc) : "")
+      + `<div class="kv"><span>${esc(tr("i.data"))}</span><b>${esc(data)}</b></div>`
+      + info.extra.map((x) => `<div class="kv"><span></span><b>${esc(x)}</b></div>`).join("")
+      + `<div class="kv"><span>${esc(tr("i.extent"))}</span><b>${nf(e.x1 - e.x0, 1)} × ${nf(e.y1 - e.y0, 1)} m</b></div>`
+      + (info.ifc ? "" : `<div class="kv"><span>${esc(tr("i.crs"))}</span><b>${esc(crs)}</b></div>`)
+      + `<div class="sub">${esc(tr("i.cell"))}</div><div class="chips" id="iCell">${chips.map((o) => `<button class="chip${o.cell === pendingImport.cell ? " on" : ""}" data-v="${o.cell}" ${o.ok ? "" : "disabled"} title="${esc(tr("i.nodesOf", { n: ni(o.nodes) }))}">${nf(o.cell, o.cell % 1 ? 2 : 0)} m${o.native ? " · " + esc(tr("i.native")) : ""}</button>`).join("")}</div>`
+      + `<p class="note" id="iNote"></p>`;
+    const cur = co.options.find((o) => o.cell === pendingImport.cell);
+    $("iNote").innerHTML = cur ? esc(tr("i.nodesOf", { n: ni(cur.nodes) })) + (hasWork() ? "<br>" + esc(tr("n.replace", { ops: workCount() })) : "") : "";
+    $("iCell").addEventListener("click", (ev) => { const c = ev.target.closest(".chip"); if (!c || c.disabled) return; pendingImport.cell = +c.dataset.v; render(); });
+    if (info.ifc) $("iBody").querySelectorAll("[data-el]").forEach((cb) => cb.addEventListener("change", () => ifcTogglePick(+cb.dataset.el, cb.checked)));
+    $("iGo").disabled = !cur;
+  };
+  render();
+}
+
+/* --- import IFC: la toposolid di Revit ----------------------------------
+   web-ifc del viewer (../../viewer/vendor/, già online) in un Worker, come
+   «Dal modello» del tool Contesto 3D: il file non esce dal browser e un
+   modello grande non blocca la pagina. Il Worker legge georeferenziazione e
+   candidati, poi le mesh dei SOLI candidati (niente triangolazione del resto
+   del modello). Le coordinate sono quelle del sito (= origine interna di
+   Revit, vedi terrain-io.js): il CSV torna a Revit senza origini. */
+function ifcWorkerMain() {   // gira DENTRO il worker (serializzata con toString)
+  self.onmessage = async (ev) => {
+    try {
+      const api = new WebIFC.IfcAPI();
+      api.SetWasmPath(ev.data.wasm, true);
+      await api.Init();
+      const mid = api.OpenModel(new Uint8Array(ev.data.buf), {});
+      const georef = IO.ifcReadGeoref(api, mid, WebIFC), cands = IO.ifcTerrainCandidates(api, mid, WebIFC);
+      postMessage({ type: "read", georef, cands });
+      const meshes = cands.length ? IO.ifcMeshes(api, mid, cands.map((c) => c.id)) : [];
+      postMessage({ type: "meshes", meshes }, meshes.flatMap((m) => [m.positions.buffer, m.index.buffer]));
+      try { api.CloseModel(mid); } catch (e) {}
+    } catch (e) {
+      postMessage({ type: "error", msg: String((e && e.message) || e) });
+    }
+  };
+}
+let ifcWorker = null;
+function stopIfcWorker() { if (ifcWorker) { ifcWorker.terminate(); ifcWorker = null; } }
+function makeIfcWorker() {
+  const v = new URL("../../viewer/vendor/", location.href).href, io = new URL(`./terrain-io.js?v=${TOOL_VERSION}`, location.href).href;
+  const src = `import * as WebIFC from "${v}web-ifc-api.js";\nimport * as IO from "${io}";\n;(${ifcWorkerMain.toString()})();\n`;
+  return { w: new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })), { type: "module" }), wasm: v };
+}
+async function openIfc(file) {
+  const body = $("iBody");
+  const fail = (m) => { stopIfcWorker(); body.innerHTML = `<p class="note warn">${esc(tr("i.fail", { f: file.name, m }))}</p>`; };
+  let buf, header;
+  try {
+    header = IO.ifcHeader(await file.slice(0, 65536).text());
+    buf = await file.arrayBuffer();
+  } catch (e) { return fail(e.message || String(e)); }
+  body.innerHTML = `<p class="note">${esc(tr("i.ifcRead", { f: file.name }))}</p>`;
+  stopIfcWorker();
+  let mw;
+  try { mw = makeIfcWorker(); } catch (e) { return fail(e.message || String(e)); }
+  ifcWorker = mw.w;
+  const me = ifcWorker;
+  let read = null;
+  me.onmessage = (ev) => {
+    if (ifcWorker !== me) return;
+    const m = ev.data;
+    if (m.type === "read") { read = m; return; }
+    stopIfcWorker();
+    if (m.type === "error") return fail(m.msg);
+    if (!read.cands.length) return fail(tr("i.ifcNone"));
+    const fr = IO.ifcFrames(read.georef, header);
+    const name = file.name.replace(/\.[^.]+$/, "");
+    const meshes = new Map(m.meshes.map((x) => [x.id, x]));
+    const ifc = { header, frame: fr, cands: read.cands.map((c) => ({ ...c, tris: (meshes.get(c.id) || { index: [] }).index.length / 3 })), meshes };
+    if (!ifc.cands.some((c) => c.pick)) ifc.cands[0].pick = true;
+    const info = { kind: "ifc", file: file.name, name, extra: [], ifc,
+      meta: { name, source: "file", sourceName: file.name, crs: fr.crs ? { name: fr.crs } : null,
+        ifc: { frame: fr.frame, how: fr.how, base: fr.base, rot: fr.rot, notes: fr.notes } } };
+    ifcInfo = info;
+    ifcShow(info, null);
+  };
+  me.onerror = (ev) => { if (ifcWorker === me) fail((ev && ev.message) || "worker"); };
+  me.postMessage({ buf, wasm: mw.wasm }, [buf]);
+}
+/* TIN della superficie dagli elementi spuntati, e la scheda */
+function ifcShow(info, keepCell) {
+  const ifc = info.ifc, picked = ifc.cands.filter((c) => c.pick).map((c) => ifc.meshes.get(c.id)).filter(Boolean);
+  let src;
+  try {
+    if (!picked.length) throw new Error(tr("i.ifcPickOne"));
+    src = IO.ifcTerrainTIN(picked, ifc.frame.toLocal);
+  } catch (e) {
+    pendingImport = null;
+    $("iBody").innerHTML = `<div class="kv"><span>${esc(tr("i.file"))}</span><b>${esc(info.file)}</b></div>` + ifcImportRows(ifc) + `<p class="note warn">${esc(e.message || String(e))}</p>`;
+    $("iBody").querySelectorAll("[data-el]").forEach((cb) => cb.addEventListener("change", () => ifcTogglePick(+cb.dataset.el, cb.checked)));
+    $("iGo").disabled = true;
+    return;
+  }
+  showImport(src, info, keepCell);
+}
+let ifcInfo = null;     // l'IFC aperto nella scheda (sopravvive a una selezione vuota, quando pendingImport è null)
+function ifcTogglePick(id, on) {
+  if (!ifcInfo) return;
+  const c = ifcInfo.ifc.cands.find((x) => x.id === id);
+  if (c) c.pick = on;
+  ifcShow(ifcInfo, pendingImport ? pendingImport.cell : null);
+}
+/* righe della scheda: elementi da spuntare, coordinate, georeferenziazione, avvisi */
+function ifcImportRows(ifc) {
+  const fr = ifc.frame;
+  const els = ifc.cands.map((c) => `<label class="check"><input type="checkbox" data-el="${c.id}" ${c.pick ? "checked" : ""}>${esc(c.name || c.objectType || "#" + c.id)} <span class="dim">· ${esc(c.cls)}${c.predef && c.predef !== "NOTDEFINED" ? " ." + esc(c.predef) + "." : ""} · ${esc(tr("i.ifcTris", { n: ni(c.tris) }))}</span></label>`).join("");
+  return `<div class="sub">${esc(tr("i.ifcEls"))}</div>${els}`
+    + `<div class="kv"><span>${esc(tr("i.coords"))}</span><b>${esc(tr("i.coordsSite"))}</b></div>`
+    + `<div class="kv"><span>${esc(tr("i.georef"))}</span><b>${esc(geoText(fr))}</b></div>`
+    + fr.notes.map((n) => `<p class="note${n === "pbp" ? " warn" : ""}">${esc(tr("i.note." + n))}</p>`).join("");
+}
+/* «MN95 · E 2 492 757,410 · N 1 121 203,151 · H 435,750 · rotazione −22,871° · dal placement dell'IfcSite» */
+function geoText(fr) {
+  if (!fr || !fr.frame) return tr("i.geoNone");
+  const F = fr.frame;
+  return tr("i.geoVal", { crs: fr.crs || tr("i.crsUnknown"), e: nf(F.E, 3), n: nf(F.N, 3), h: nf(F.H, 3), r: nf(fr.rot, 3) }) + " · " + tr("i.geoHow." + fr.how);
+}
+$("iCancel").addEventListener("click", stopIfcWorker);
+$("iGo").addEventListener("click", async () => {
+  if (!pendingImport) return;
+  const { src, info, cell } = pendingImport;
+  $("iGo").disabled = true;
+  busy(tr("i.reading", { f: info.file }));
+  await frame();
+  try {
+    const g = IO.buildGrid(src, cell);
+    const base = { nx: g.nx, ny: g.ny, cell: g.cell, x0: g.x0, y0: g.y0, z: g.z, mask: g.mask };
+    const doc = new T.TerrainDoc(base, { meta: { ...info.meta, origin: originFor(base), stats: g.stats } });
+    setDoc(doc);
+    await saveNow();
+    closeSheet();
+    toast(tr("i.done", { n: ni(g.nx * g.ny), c: nf(cell, cell % 1 ? 2 : 0) }));
+  } catch (e) {
+    console.error(e);
+    $("iNote").innerHTML = `<span class="warn">${esc(e.message || String(e))}</span>`;
+  } finally { busy(""); }
+});
+/* trascina un file sulla pagina */
+let dragDepth = 0;
+addEventListener("dragenter", (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")) { dragDepth++; $("dragVeil").classList.add("on"); e.preventDefault(); } });
+addEventListener("dragover", (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")) e.preventDefault(); });
+addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; $("dragVeil").classList.remove("on"); } });
+addEventListener("drop", (e) => {
+  dragDepth = 0; $("dragVeil").classList.remove("on");
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!f) return;
+  e.preventDefault();
+  openFile(f);
+});
+
+/* =========================================================================
+   Salvataggio automatico (IndexedDB) — un documento solo, sovrascritto
+   ========================================================================= */
+const SDB = "viewifc_terrain_sculptor", SDBV = 1, SSTORE = "doc", SKEY = "current";
+function idbOpen(name, ver, store) {
+  return new Promise((res, rej) => {
+    let r;
+    try { r = indexedDB.open(name, ver); } catch (e) { rej(e); return; }
+    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(store)) r.result.createObjectStore(store); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+let saveTimer = 0, dirty = false;
+function scheduleSave() {
+  dirty = true;
+  $("saveDot").classList.add("wait");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveNow, 2000);
+}
+async function saveNow() {
+  clearTimeout(saveTimer);
+  if (!S.doc || !S.saveOk) return;
+  try {
+    const db = await idbOpen(SDB, SDBV, SSTORE);
+    await new Promise((res, rej) => {
+      const tx = db.transaction(SSTORE, "readwrite");
+      tx.objectStore(SSTORE).put({ t: Date.now(), tool: TOOL_VERSION, doc: S.doc.snapshot() }, SKEY);
+      tx.oncomplete = res; tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error);
+    });
+    db.close();
+    dirty = false; S.lastSave = Date.now();
+    $("saveDot").classList.remove("wait");
+    const n = $("saveNote"); if (n) n.textContent = saveText();
+  } catch (e) {
+    console.warn("salvataggio:", e);
+    if (S.saveOk) toast(tr("t.saveFail", { m: e.message || String(e) }), true);
+    S.saveOk = false;
+    const n = $("saveNote"); if (n) n.textContent = saveText();
+  }
+}
+async function loadSaved() {
+  try {
+    const db = await idbOpen(SDB, SDBV, SSTORE);
+    const got = await new Promise((res, rej) => { const q = db.transaction(SSTORE).objectStore(SSTORE).get(SKEY); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+    db.close();
+    return got && got.doc ? got : null;
+  } catch (e) { S.saveOk = false; return null; }
+}
+addEventListener("pagehide", () => { if (dirty) saveNow(); });
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && dirty) saveNow(); });
+
+/* =========================================================================
+   Dal tool Contesto 3D: «Scolpisci il terreno» deposita la griglia del DTM
+   in IndexedDB (stesso deposito della home → viewer, chiave sua) e apre
+   ?from=context. Si legge e si cancella nella stessa transazione.
+   ========================================================================= */
+const DB = "viewifc_handoff", DBV = 1, STORE = "drop", TKEY = "terrain";
+async function takeHandoff() {
+  try {
+    const db = await idbOpen(DB, DBV, STORE);
+    const rec = await new Promise((res, rej) => {
+      const tx = db.transaction(STORE, "readwrite"), st = tx.objectStore(STORE), q = st.get(TKEY);
+      q.onsuccess = () => { st.delete(TKEY); res(q.result); };
+      q.onerror = () => rej(q.error);
+    });
+    db.close();
+    return rec && rec.kind === "terrain" && Date.now() - rec.t < 30 * 60000 ? rec : null;
+  } catch (e) { return null; }
+}
+function ctxSource(rec) {
+  const ras = IO.rasterNorthUp(rec.grid, rec.W, rec.H, rec.e0, rec.n1, rec.step);
+  ras.crs = rec.crs || null;
+  return ras;
+}
+
+/* =========================================================================
+   Avvisi
+   ========================================================================= */
+let toastTimer = 0;
+function toast(msg, warn) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "glass on" + (warn ? " warn" : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), warn ? 6000 : 3800);
+}
+
+/* =========================================================================
+   Vista: centrata nello spazio libero fra rail e pannello
+   ========================================================================= */
+const RAIL_W = 82;
+const podW = () => (S.podOff ? 14 : $("pod").getBoundingClientRect().width + 28);
+/* finestra 0×0 (pagina aperta in un riquadro nascosto): proporzioni e
+   inquadratura verrebbero NaN e la scena resterebbe vuota anche dopo, quando la
+   finestra compare — si rimandano al primo resize con una misura vera */
+let frameLater = false;
+function resize() {
+  if (!renderer) return;
+  const W = innerWidth, H = innerHeight;
+  if (!W || !H) return;
+  renderer.setSize(W, H, false);
+  camera.aspect = W / H;
+  camera.setViewOffset(W, H, -(RAIL_W - podW()) / 2, 0, W, H);
+  camera.updateProjectionMatrix();
+  if (frameLater) frameAll();
+}
+addEventListener("resize", resize);
+function frameAll() {
+  if (!S.doc) return;
+  frameLater = !innerWidth || !innerHeight;
+  if (frameLater) return;
+  const f = S.doc.final, Lx = (f.nx - 1) * f.cell, Ly = (f.ny - 1) * f.cell;
+  const cx = f.x0 + Lx / 2 - S.origin.x, cy = f.y0 + Ly / 2 - S.origin.y, cz = (S.range.min + S.range.max) / 2;
+  const free = Math.max(200, innerWidth - RAIL_W - podW());
+  const vfov = THREE.MathUtils.degToRad(camera.fov), hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+  const diag = Math.hypot(Lx, Ly) * 1.05;          // un po' di margine: la vista obliqua allarga l'ingombro
+  const d = Math.max(diag / (2 * Math.tan(hfov / 2) * free / innerWidth), diag * 0.7 / (2 * Math.tan(vfov / 2)), 20);
+  const dir = new THREE.Vector3(-0.35, -0.8, 0.55).normalize();
+  controls.target.set(cx, cy, cz);
+  camera.position.copy(controls.target).addScaledVector(dir, d);
+  controls.update();
+}
+function tick(now) {
+  if (painting) brushTick(now);
+  if (drag) dragTick();
+  controls.update();
+  const dist = camera.position.distanceTo(controls.target);
+  const ext = S.doc ? Math.hypot((S.doc.final.nx - 1) * S.doc.final.cell, (S.doc.final.ny - 1) * S.doc.final.cell) : 500;
+  camera.near = Math.max(0.05, dist / 2000); camera.far = dist * 20 + ext * 4;
+  camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+/* =========================================================================
+   Lingua e tema
+   ========================================================================= */
+function applyLang(lang) {
+  LANG = I18N[lang] ? lang : "it";
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-i18n]").forEach((el) => { const k = el.getAttribute("data-i18n"); if (I18N[LANG][k] != null) el.textContent = I18N[LANG][k]; });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => { const k = el.getAttribute("data-i18n-title"); if (I18N[LANG][k] != null) { el.title = I18N[LANG][k]; el.setAttribute("aria-label", I18N[LANG][k]); } });
+  document.querySelectorAll(".langsw button").forEach((b) => b.classList.toggle("on", b.dataset.lang === LANG));
+  try { localStorage.setItem("viewifc_tool_lang", LANG); } catch (e) {}
+  if (S.doc) { renderPod(); refreshBalance(); refreshStats(); }
+  if (!$("sheet").hidden && !document.querySelector('#sheet [data-panel="new"]').hidden) renderNew();
+  status(null);
+}
+document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("click", () => applyLang(b.dataset.lang)));
+(function initTheme() {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  function setTheme(t) {
+    if (t === "light") document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+    if (meta) meta.setAttribute("content", t === "light" ? "#f1f3ee" : "#0d120b");
+    try { localStorage.setItem("viewer_landing_theme", t); } catch (e) {}
+    themeColors();
+  }
+  let t = "light";
+  try { t = localStorage.getItem("viewer_landing_theme") || "light"; } catch (e) {}
+  setTheme(t);
+  $("thmBtn").addEventListener("click", () => setTheme(document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light"));
+})();
+
+/* =========================================================================
+   Avvio: lavoro salvato → terreno dal tool Contesto 3D → esempio + benvenuto
+   ========================================================================= */
+(async function boot() {
+  let lang = "it";
+  try { lang = localStorage.getItem("viewifc_tool_lang") || (navigator.language || "it").slice(0, 2); } catch (e) {}
+  LANG = I18N[lang] ? lang : "it";
+  if (!S.podUser) S.podOff = innerWidth < 900;      // finché l'utente non sceglie, segue la finestra (e non diventa una preferenza)
+  applyPod();
+  if (!renderer) { $("noGl").textContent = tr("t.webgl"); applyLang(LANG); return; }
+  terrainMat.uniforms.interval.value = S.contour;
+  const params = new URLSearchParams(location.search);
+  const fromCtx = params.get("from") === "context";
+  if (fromCtx) { params.delete("from"); history.replaceState(null, "", location.pathname + (params.toString() ? "?" + params : "") + location.hash); }
+  const saved = await loadSaved();
+  let restored = null;
+  if (saved) { try { restored = T.TerrainDoc.fromSnapshot(saved.doc); } catch (e) { console.warn(e); } }
+  setDoc(restored || exampleDoc());
+  if (restored) S.lastSave = saved.t;
+  applyLang(LANG);
+  setMode(S.mode === "select" ? "raise" : S.mode);
+  resize(); frameAll();
+  requestAnimationFrame(tick);
+  if (fromCtx) {
+    busy(tr("i.ctxWait"));
+    const rec = await takeHandoff();
+    busy("");
+    if (!rec) { toast(tr("i.ctxGone"), true); return; }
+    const src = ctxSource(rec);
+    openSheet("import");
+    showImport(src, { kind: "ctx", file: rec.name || "DTM", name: rec.name || "contesto", extra: rec.source ? [rec.source] : [],
+      meta: { name: (rec.name || "contesto").replace(/\.[^.]+$/, ""), source: "ctx", sourceName: rec.source || "", crs: rec.crs || null, datum: rec.datum || null, attribution: rec.attribution || null } });
+    return;
+  }
+  if (restored) toast(tr("t.restored", { d: new Date(saved.t).toLocaleString(LANG === "en" ? "en-GB" : "it-IT", { dateStyle: "medium", timeStyle: "short" }) }));
+  else openSheet("welcome");
+})();
+/* aggancio per le prove dal browser (come __banco della fase 0): niente dati del progetto, solo stato */
+window.__ts = { T, IO, get S() { return S; }, get draft() { return draft; }, get handles() { return handleList.map((h) => ({ kind: h.kind, k: h.k, screen: toScreen(h.x, h.y, h.z) })); }, pick, setMode, frameAll, saveNow };
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+{ "type": "module", "private": true, "description": "Solo per Node (test): i .js di questa cartella sono moduli ES. Il browser ignora questo file." }
