@@ -690,6 +690,7 @@ html[data-theme="light"] .seg button.on{background:#fff}
           </button>
           <button class="btn hollow sm" id="viewBtn" hidden data-i18n="btn.view">Apri nel viewer</button>
           <button class="btn hollow sm" id="lxBtn" hidden data-i18n="btn.lx">LandXML del terreno</button>
+          <button class="btn hollow sm" id="tsBtn" hidden data-i18n="btn.ts" data-i18n-title="btn.tsT" title="Apre il DTM nel Terrain Sculptor: piattaforme, rampe, pennelli, poi CSV per Revit e .3dm per Rhino">Scolpisci il terreno</button>
         </div>
       </div>
     </div>
@@ -3851,7 +3852,13 @@ async function ctxRun(deps, io, opt) {
   /* anteprima di strade e acqua: assi (con la larghezza) e aree, in lon/lat */
   const toLL = (pts) => pts.map(([E, N]) => inv(E, N));
   const previewWays = ways ? { lines: ways.preview.lines.map((l) => ({ g: l.g, w: l.w, pts: toLL(l.pts) })), polys: ways.preview.polys.map((p) => ({ g: p.g, rings: p.rings.map(toLL) })) } : null;
-  return { ifc: out.text, landxml, report, preview, previewWays };
+  /* la griglia del DTM per il Terrain Sculptor («Scolpisci il terreno»): le celle
+     campionate, NaN fuori dall'area (anche gli angoli, che qui sopra hanno preso
+     la quota media solo per Delatin); con «abbassa sotto gli edifici» è già il
+     terreno abbassato */
+  const dtm = { grid: Float32Array.from(grid, (v, i) => (valid[i] ? v : NaN)), W, H, step, e0: gE0, n1: gN1,
+    crs: { epsg: opt.crs.epsg, name: opt.crs.name }, datum: dem.datum, source: terSource || dem.names, attribution: attrTerrain };
+  return { ifc: out.text, landxml, report, preview, previewWays, dtm };
 }
 </script>
 
@@ -3969,7 +3976,9 @@ const I18N = {
     "exec.done": "Fatto in {s} s: {b} edifici, {t} triangoli di terreno, file da {mb} MB.", "exec.cancel": "Annullato.",
     "exec.err": "Errore: {e}", "exec.err429": "Overture ha limitato le richieste (429): riprova fra qualche minuto.",
     "exec.errNet": "Una fonte dati non risponde ({e}). Riprova fra poco.", "exec.errLimit": "L'area supera il limite.",
-    "btn.run": "Genera l'IFC", "btn.again": "Rigenera", "btn.cancel": "Annulla", "btn.dl": "Scarica .ifc", "btn.view": "Apri nel viewer", "btn.lx": "LandXML del terreno",
+    "btn.run": "Genera l'IFC", "btn.again": "Rigenera", "btn.cancel": "Annulla", "btn.dl": "Scarica .ifc", "btn.view": "Apri nel viewer", "btn.lx": "LandXML del terreno", "btn.ts": "Scolpisci il terreno",
+    "btn.tsT": "Apre il DTM nel Terrain Sculptor: piattaforme, rampe, pennelli, poi CSV per Revit e .3dm per Rhino",
+    "ts.fail": "Non riesco a passare il terreno al Terrain Sculptor: scarica il LandXML del terreno e aprilo là.",
     "view.fail": "Non riesco a passare il file al viewer: scaricalo e aprilo a mano.",
     "rp.t": "Report", "rp.meta": "{schema} · {mode} · {crs}", "rp.modeA": "modalità A (MapConversion)", "rp.modeB": "modalità B (coordinate di mappa)",
     "rp.bld": "Edifici", "rp.bldN": "edifici", "rp.bldOff": "non richiesti", "rp.median": "mediana dell'area", "rp.medianNo": "non calcolata (meno di 20 altezze su impronte ≥ 50 m²)",
@@ -4099,7 +4108,9 @@ const I18N = {
     "exec.done": "Done in {s} s: {b} buildings, {t} terrain triangles, {mb} MB file.", "exec.cancel": "Cancelled.",
     "exec.err": "Error: {e}", "exec.err429": "Overture is rate-limiting requests (429): try again in a few minutes.",
     "exec.errNet": "A data source is not responding ({e}). Try again shortly.", "exec.errLimit": "The area exceeds the limit.",
-    "btn.run": "Generate the IFC", "btn.again": "Generate again", "btn.cancel": "Cancel", "btn.dl": "Download .ifc", "btn.view": "Open in the viewer", "btn.lx": "Terrain LandXML",
+    "btn.run": "Generate the IFC", "btn.again": "Generate again", "btn.cancel": "Cancel", "btn.dl": "Download .ifc", "btn.view": "Open in the viewer", "btn.lx": "Terrain LandXML", "btn.ts": "Sculpt the terrain",
+    "btn.tsT": "Opens the DTM in the Terrain Sculptor: pads, ramps, brushes, then a CSV for Revit and a .3dm for Rhino",
+    "ts.fail": "Could not hand the terrain to the Terrain Sculptor: download the terrain LandXML and open it there.",
     "view.fail": "Could not hand the file to the viewer: download it and open it by hand.",
     "rp.t": "Report", "rp.meta": "{schema} · {mode} · {crs}", "rp.modeA": "mode A (MapConversion)", "rp.modeB": "mode B (map coordinates)",
     "rp.bld": "Buildings", "rp.bldN": "buildings", "rp.bldOff": "not requested", "rp.median": "area median", "rp.medianNo": "not computed (fewer than 20 heights on footprints ≥ 50 m²)",
@@ -4985,7 +4996,7 @@ function refreshExec(msg, cls) {
 function resetOutputs() {
   if (S.busy) return;
   if (S.result) { S.result = null; $("report").hidden = true; pushPreview(); }
-  $("dlBtn").hidden = true; $("viewBtn").hidden = true; $("lxBtn").hidden = true;
+  $("dlBtn").hidden = true; $("viewBtn").hidden = true; $("lxBtn").hidden = true; $("tsBtn").hidden = true;
   $("runBtn").querySelector("span").textContent = tr("btn.run");
 }
 
@@ -5009,7 +5020,7 @@ function workerMain() {   // gira DENTRO il worker (serializzata con toString)
     try {
       const r = await ctxRun(deps, io, ev.data);
       const buf = new TextEncoder().encode(r.ifc).buffer, lx = r.landxml ? new TextEncoder().encode(r.landxml).buffer : null;
-      postMessage({ type: "done", buf, lx, report: r.report, preview: r.preview, previewWays: r.previewWays }, lx ? [buf, lx] : [buf]);
+      postMessage({ type: "done", buf, lx, report: r.report, preview: r.preview, previewWays: r.previewWays, dtm: r.dtm }, (lx ? [buf, lx] : [buf]).concat(r.dtm ? [r.dtm.grid.buffer] : []));
     } catch (e) {
       postMessage({ type: "error", code: (e && e.code) || (e && e.status) || null, msg: String((e && e.message) || e) });
     }
@@ -5109,8 +5120,8 @@ $("runBtn").addEventListener("click", () => {
       const txt = m.code === "limit" ? tr("exec.errLimit") : m.code === 429 ? tr("exec.err429") : /HTTP|fetch|network|Failed/i.test(m.msg) ? tr("exec.errNet", { e: m.msg }) : tr("exec.err", { e: m.msg });
       refreshExec(txt, "err"); return;
     }
-    S.result = { blob: new Blob([m.buf], { type: "application/x-step" }), lx: m.lx ? new Blob([m.lx], { type: "application/xml" }) : null, report: m.report, preview: m.preview, previewWays: m.previewWays };
-    $("dlBtn").hidden = false; $("viewBtn").hidden = false; $("lxBtn").hidden = !S.result.lx;
+    S.result = { blob: new Blob([m.buf], { type: "application/x-step" }), lx: m.lx ? new Blob([m.lx], { type: "application/xml" }) : null, report: m.report, preview: m.preview, previewWays: m.previewWays, dtm: m.dtm || null };
+    $("dlBtn").hidden = false; $("viewBtn").hidden = false; $("lxBtn").hidden = !S.result.lx; $("tsBtn").hidden = !S.result.dtm;
     $("runBtn").querySelector("span").textContent = tr("btn.again");
     pushPreview(); renderReport(m.report);
     if (map && S.ring) { const bb = ctxBBox(S.ring); map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], { padding: 50, pitch: 50, duration: 900 }); }
@@ -5156,6 +5167,41 @@ function deposit(files) {
     };
   });
 }
+/* il DTM al Terrain Sculptor: stesso deposito della consegna al viewer, con una
+   chiave sua (TKEY) — il viewer legge solo KEY e non lo vede. Lo sculptor lo legge
+   e lo cancella nella stessa transazione (tools/terrain-sculptor/, takeHandoff). */
+const TS_URL = "../terrain-sculptor/", TKEY = "terrain";
+function depositTerrain(rec) {
+  return new Promise((res, rej) => {
+    let rq;
+    try { rq = indexedDB.open(DB, DBV); } catch (e) { rej(e); return; }
+    rq.onupgradeneeded = () => { const db = rq.result; if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE); };
+    rq.onerror = () => rej(rq.error);
+    rq.onsuccess = () => {
+      const db = rq.result;
+      let tx;
+      try { tx = db.transaction(STORE, "readwrite"); } catch (e) { db.close(); rej(e); return; }
+      tx.objectStore(STORE).put(rec, TKEY);
+      tx.oncomplete = () => { db.close(); res(); };
+      tx.onerror = tx.onabort = () => { db.close(); rej(tx.error); };
+    };
+  });
+}
+$("tsBtn").addEventListener("click", async () => {
+  if (!S.result || !S.result.dtm) return;
+  const win = window.open("about:blank", "_blank");          // dentro il gesto dell'utente: niente blocco popup
+  try {
+    const d = S.result.dtm;
+    await depositTerrain({ t: Date.now(), kind: "terrain", v: 1, grid: d.grid, W: d.W, H: d.H, step: d.step, e0: d.e0, n1: d.n1,
+      crs: d.crs, datum: d.datum, source: d.source, attribution: d.attribution, name: S.fileName.replace(/[.]ifc$/i, "_terreno") });
+    const url = new URL(TS_URL + "?from=context", location.href).href;
+    if (win) win.location.href = url; else location.href = url;
+  } catch (e) {
+    console.warn("passaggio al Terrain Sculptor non riuscito:", e);
+    if (win) win.close();
+    refreshExec(tr("ts.fail"), "err");
+  }
+});
 $("viewBtn").addEventListener("click", async () => {
   if (!S.result) return;
   /* la scheda si apre SUBITO (dentro il gesto dell'utente, così il blocco popup
