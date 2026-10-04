@@ -551,6 +551,166 @@ export function ifcTerrainTIN(meshes, toLocal, { weld = 1e-4 } = {}) {
 }
 
 /* ======================================================================
+   IFC di riferimento (fase 2c): il progetto (edificio, strutture…) si vede
+   nella scena per modellarci attorno il terreno. Solo vista: non entra nel
+   documento né negli export. Le mesh escono nelle coordinate del SITO del
+   modello (Float32: piccole), poi refPlacement le porta in quelle del
+   terreno — per la mappa se tutti e due sono georeferenziati, altrimenti per
+   le coordinate interne (terreno ed edificio dallo stesso progetto Revit).
+   ====================================================================== */
+/**
+ * Copia di ctxModelNeutralize del tool Contesto 3D: le catene booleane di
+ * sola sottrazione/intersezione si ripuntano sul solido di base e i fori si
+ * staccano. Sono le «bombe» che bloccano web-ifc per minuti (vedi
+ * truncateBoolBombs / neutralizeVoidBombs del viewer). Si usa solo come
+ * ripiego, quando il modello intero non risponde: il riferimento esce senza
+ * fori e senza tagli, che per modellare il terreno attorno non contano.
+ * Modifica il modello aperto in memoria (WriteLine), mai il file.
+ */
+export function ifcNeutralizeBooleans(api, mid, T) {
+  const ev = (x) => (x && typeof x === "object" && "value" in x ? x.value : x);
+  const ids = (t) => { const out = []; if (t == null) return out; try { const v = api.GetLineIDsWithType(mid, t); for (let i = 0; i < v.size(); i++) out.push(v.get(i)); } catch (e) {} return out; };
+  const line = (id) => { try { return api.GetLine(mid, id); } catch (e) { return null; } };
+  const isBool = (l) => l && (l.type === T.IFCBOOLEANRESULT || l.type === T.IFCBOOLEANCLIPPINGRESULT);
+  let voids = 0, bools = 0;
+  for (const rid of ids(T.IFCRELVOIDSELEMENT)) {
+    const l = line(rid);
+    if (!l) continue;
+    const op = ev(l.RelatedOpeningElement);
+    l.RelatingBuildingElement = { type: 5, value: op != null ? op : rid };
+    try { api.WriteLine(mid, l); voids++; } catch (e) {}
+  }
+  const base = new Map();
+  const baseOf = (id) => {
+    if (base.has(id)) return base.get(id);
+    let cur = id, out = null;
+    for (let k = 0; k < 500; k++) {
+      const l = line(cur);
+      if (!isBool(l)) { out = cur; break; }
+      const op = String(ev(l.Operator) || "").replace(/\./g, "").toUpperCase();
+      if (op === "UNION") break;                       // un'unione AGGIUNGE materiale: si lascia com'è
+      cur = ev(l.FirstOperand);
+      if (cur == null) break;
+    }
+    base.set(id, out);
+    return out;
+  };
+  for (const sid of ids(T.IFCSHAPEREPRESENTATION)) {
+    const sr = line(sid);
+    if (!sr || !Array.isArray(sr.Items)) continue;
+    let changed = false;
+    for (const it of sr.Items) {
+      const id = ev(it);
+      if (id == null || !isBool(line(id))) continue;
+      const b = baseOf(id);
+      if (b != null && b !== id) { it.value = b; changed = true; bools++; }
+    }
+    if (changed) try { api.WriteLine(mid, sr); } catch (e) {}
+  }
+  return { voids, bools };
+}
+
+/**
+ * Mesh del modello di riferimento, nelle coordinate del sito (toLocal di
+ * ifcFrames), a blocchi di prodotti con avanzamento (come ctxModelExtent):
+ * un Worker fermo su un blocco si riconosce dal silenzio. Fuori: fori,
+ * spazi e gli id in exclude (il terreno: lo sostituisce quello scolpito).
+ * Due gruppi: opachi e vetri (alfa < 0,99), colori RGBA a byte per vertice.
+ */
+export function ifcReferenceMeshes(api, mid, T, { exclude = [], toLocal, progress = null, chunk = 200 } = {}) {
+  const ids = (t) => { const out = []; if (t == null) return out; try { const v = api.GetLineIDsWithType(mid, t, true); for (let i = 0; i < v.size(); i++) out.push(v.get(i)); } catch (e) {} return out; };
+  const skip = new Set([...ids(T.IFCOPENINGELEMENT), ...ids(T.IFCSPACE), ...exclude]);
+  const prods = ids(T.IFCPRODUCT).filter((id) => !skip.has(id));
+  const L = toLocal || M_ID();
+  const parts = { solid: [], glass: [] }, seen = new Set();
+  const cb = (mesh) => {
+    const n = mesh.geometries.size();
+    if (n) seen.add(mesh.expressID);
+    for (let g = 0; g < n; g++) {
+      const pg = mesh.geometries.get(g), geo = api.GetGeometry(mid, pg.geometryExpressID);
+      const v = api.GetVertexArray(geo.GetVertexData(), geo.GetVertexDataSize());
+      const ix = api.GetIndexArray(geo.GetIndexData(), geo.GetIndexDataSize());
+      if (geo.delete) geo.delete();
+      if (v.length < 9 || ix.length < 3) continue;
+      /* sito ← Z-up ← mondo di web-ifc (Y-up) ← locale della mesh, in doppia precisione, una volta per mesh */
+      const m = pg.flatTransformation;
+      const W = [m[0], m[4], m[8], m[12], -m[2], -m[6], -m[10], -m[14], m[1], m[5], m[9], m[13]];
+      const A = mMul(L, W);
+      const nv = v.length / 6, P = new Float32Array(nv * 3);
+      for (let k = 0; k < nv; k++) {
+        const x = v[6 * k], y = v[6 * k + 1], z = v[6 * k + 2];
+        P[3 * k] = A[0] * x + A[1] * y + A[2] * z + A[3];
+        P[3 * k + 1] = A[4] * x + A[5] * y + A[6] * z + A[7];
+        P[3 * k + 2] = A[8] * x + A[9] * y + A[10] * z + A[11];
+      }
+      const c = pg.color || { x: 0.8, y: 0.8, z: 0.8, w: 1 }, a = c.w == null ? 1 : c.w;
+      const rgba = [c.x, c.y, c.z, a].map((t) => Math.max(0, Math.min(255, Math.round(t * 255))));
+      (a < 0.99 ? parts.glass : parts.solid).push({ P, I: Uint32Array.from(ix), rgba });
+    }
+  };
+  for (let p = 0; p < prods.length; p += chunk) {
+    api.StreamMeshes(mid, prods.slice(p, p + chunk), cb);
+    progress && progress({ done: Math.min(prods.length, p + chunk), total: prods.length });
+  }
+  const join = (list) => {
+    let nv = 0, ni = 0;
+    for (const q of list) { nv += q.P.length / 3; ni += q.I.length; }
+    const P = new Float32Array(nv * 3), C = new Uint8Array(nv * 4), I = new Uint32Array(ni);
+    let ov = 0, oi = 0;
+    for (const q of list) {
+      P.set(q.P, ov * 3);
+      for (let k = 0; k < q.P.length / 3; k++) C.set(q.rgba, (ov + k) * 4);
+      for (let k = 0; k < q.I.length; k++) I[oi + k] = q.I[k] + ov;
+      ov += q.P.length / 3; oi += q.I.length;
+    }
+    return { P, C, I };
+  };
+  const solid = join(parts.solid), glass = join(parts.glass);
+  let lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const P of [solid.P, glass.P]) for (let k = 0; k < P.length; k += 3) for (let c = 0; c < 3; c++) { if (P[k + c] < lo[c]) lo[c] = P[k + c]; if (P[k + c] > hi[c]) hi[c] = P[k + c]; }
+  return { solid, glass, elements: seen.size, triangles: (solid.I.length + glass.I.length) / 3, bbox: isFinite(lo[0]) ? { lo, hi } : null };
+}
+
+/* quanti prodotti con geometria restano oltre al terreno (fori, spazi, siti ed exclude fuori):
+   l'import della toposolid propone il resto come riferimento solo se c'è */
+export function ifcOtherProducts(api, mid, T, exclude = []) {
+  const L = ifcTools(api, mid);
+  const ids = (t) => { const out = []; if (t == null) return out; try { const v = api.GetLineIDsWithType(mid, t, true); for (let i = 0; i < v.size(); i++) out.push(v.get(i)); } catch (e) {} return out; };
+  const skip = new Set([...ids(T.IFCOPENINGELEMENT), ...ids(T.IFCSPACE), ...ids(T.IFCSITE), ...exclude]);
+  let n = 0;
+  for (const id of ids(T.IFCPRODUCT)) if (!skip.has(id)) { const l = L.line(id); if (l && l.Representation != null) n++; }
+  return n;
+}
+
+/* frame { E, N, H, c, s, k } → matrice 3×4 (sito → mappa) e inversa di una similitudine */
+export const frameMatrix = (F) => [F.k * F.c, -F.k * F.s, 0, F.E, F.k * F.s, F.k * F.c, 0, F.N, 0, 0, F.k, F.H];
+export function mInvSim(A) {
+  const k2 = A[0] * A[0] + A[4] * A[4] + A[8] * A[8];
+  const R = [A[0] / k2, A[4] / k2, A[8] / k2, 0, A[1] / k2, A[5] / k2, A[9] / k2, 0, A[2] / k2, A[6] / k2, A[10] / k2, 0];
+  for (let r = 0; r < 3; r++) R[4 * r + 3] = -(R[4 * r] * A[3] + R[4 * r + 1] * A[7] + R[4 * r + 2] * A[11]);
+  return R;
+}
+/**
+ * Dove va il modello di riferimento rispetto al terreno.
+ * docKind: "ifc" (terreno da un IFC: coordinate interne, docFrame = la sua
+ * georeferenziazione o null) · "map" (DTM in coordinate di mappa) · "local"
+ * (terreno nuovo o senza sistema). refFrame: la georeferenziazione del
+ * modello (ifcFrames().frame) o null. → { M: sito del modello → coordinate
+ * del terreno, how: "map" | "internal", notes }
+ */
+export function refPlacement(docKind, docFrame, refFrame) {
+  if (docKind === "ifc") {
+    if (docFrame && refFrame) return { M: mMul(mInvSim(frameMatrix(docFrame)), frameMatrix(refFrame)), how: "map", notes: [] };
+    return { M: M_ID(), how: "internal", notes: docFrame || refFrame ? ["mixed"] : [] };
+  }
+  if (docKind === "map") {
+    if (refFrame) return { M: frameMatrix(refFrame), how: "map", notes: [] };
+    return { M: M_ID(), how: "internal", notes: ["notGeo"] };
+  }
+  return { M: M_ID(), how: "internal", notes: refFrame ? ["localDoc"] : [] };
+}
+
+/* ======================================================================
    Estensione e passo
    ====================================================================== */
 export function sourceExtent(src) {
