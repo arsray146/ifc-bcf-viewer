@@ -1268,3 +1268,380 @@ export function tinFromPoints(points, Delaunator, { maxEdge = null, k = 8 } = {}
   if (!m) throw new Error("nessun triangolo dopo la pulizia del bordo");
   return { points, faces: F, dropped, maxEdge, median };
 }
+
+/* =========================================================================
+   Tubo in trincea (0.7) — scelte dell'utente (2026-10-04 e 2026-10-05):
+   - tubo da catalogo (materiale + DN → De e spessore) o a mano; la linea del
+     profilo è lo SCORRIMENTO, a scelta l'asse, la generatrice inferiore
+     esterna o il fondo dello scavo;
+   - trincea a strati, valori di default della UNI EN 1610: letto di posa
+     10 cm + DN/10, rinfianco fino all'estradosso, ricoprimento 30 cm sopra
+     l'estradosso, reinterro fino al terreno, ripristino (strato superficiale)
+     facoltativo; larghezza minima dalla norma (De + 0,40…1,00 m secondo il
+     DN e le pareti, e un minimo per la profondità), costante per tratto;
+   - pareti: fino a 1,50 m di profondità verticali, oltre a scarpa (D.Lgs.
+     81/08: oltre 1,50 m armatura o scarpa); soglia, scarpa e modo per tratto
+     modificabili. Le pareti verticali oltre la soglia (forzate) si contano
+     come superficie da blindare.
+   Sezioni verticali come il fosso e il canale (su pendenze di pochi punti
+   per cento la sezione del tubo perpendicolare all'asse cambia di nulla).
+   Il tubo nelle mesh è un poligono di 48 lati con il raggio ritoccato per
+   avere la stessa area del cerchio: i volumi delle mesh tornano coi conti.
+   ========================================================================= */
+
+/** Catalogo: [DN, De, spessore] in mm. Valori nominali o tipici: da controllare col tubo scelto. */
+export const PIPE_CATALOG = Object.freeze({
+  pvc: { norm: "UNI EN 1401 SN8 (SDR 34)", dn: "OD", rows: [[110, 110, 3.2], [125, 125, 3.7], [160, 160, 4.7], [200, 200, 5.9], [250, 250, 7.3], [315, 315, 9.2], [400, 400, 11.7], [500, 500, 14.6], [630, 630, 18.4]] },
+  pe: { norm: "UNI EN 13476-3 SN8", dn: "OD", rows: [[160, 160, 10.5], [200, 200, 14], [250, 250, 17], [315, 315, 22], [400, 400, 28.5], [500, 500, 36.5], [630, 630, 47.5], [800, 800, 61], [1000, 1000, 74], [1200, 1200, 85]] },
+  cls: { norm: "UNI EN 1916", dn: "ID", rows: [[300, 400, 50], [400, 520, 60], [500, 640, 70], [600, 760, 80], [800, 1000, 100], [1000, 1240, 120], [1200, 1480, 140], [1500, 1840, 170], [1800, 2200, 200], [2000, 2440, 220]] },
+  ghisa: { norm: "UNI EN 598", dn: "ID", rows: [[100, 118, 6], [150, 170, 6], [200, 222, 6.3], [250, 274, 6.8], [300, 326, 7.2], [350, 378, 7.7], [400, 429, 8.1], [450, 480, 8.6], [500, 532, 9], [600, 635, 9.9], [700, 738, 10.8], [800, 842, 11.7], [900, 945, 12.6], [1000, 1048, 13.5], [1200, 1255, 15.3], [1400, 1462, 17.1], [1600, 1668, 18.9], [1800, 1875, 20.7], [2000, 2082, 22.5]] },
+});
+/** Il tubo di un materiale e DN dal catalogo → { dn, De, s } in metri (null se non c'è). */
+export function pipeFromCatalog(mat, dn) {
+  const c = PIPE_CATALOG[mat], r = c && c.rows.find((x) => x[0] === dn);
+  return r ? { dn: r[0], De: r[1] / 1000, s: r[2] / 1000 } : null;
+}
+
+/**
+ * Tubo e trincea: PVC DN 315 di default; bed null = 10 cm + DN/10, width null = UNI EN 1610.
+ * emb: rilevato di protezione dove il terreno sta sotto estradosso + ricoprimento (0.7.1),
+ * banchina berm e scarpa bank (orizz./vert.); covMin: avviso sul ricoprimento dal terreno.
+ */
+export const PIPE = Object.freeze({ mat: "pvc", dn: 315, De: 0.315, s: 0.0092, ref: "invert", bed: null, cover: 0.3, restore: 0, width: null, walls: "auto", deep: 1.5, slope: 1,
+  emb: true, berm: 0.5, bank: 1.5, covMin: 1 });
+export const PIPE_N = 48;
+
+/**
+ * Larghezza minima della trincea (UNI EN 1610, prospetti 1 e 2): De + 0,40…1,00
+ * secondo il DN se le pareti sono ripide (verticali o β > 60°), De + 0,40 se a
+ * scarpa più dolce; e almeno 0,80 / 0,90 / 1,00 m oltre 1,00 / 1,75 / 4,00 m di
+ * profondità.
+ */
+export function en1610Width(dn, De, depth, steep = true) {
+  const a = !steep || dn <= 225 ? 0.4 : dn <= 350 ? 0.5 : dn <= 700 ? 0.7 : dn <= 1200 ? 0.85 : 1;
+  const b = !(depth >= 1) ? 0 : depth <= 1.75 ? 0.8 : depth <= 4 ? 0.9 : 1;
+  return Math.max(De + a, b);
+}
+
+/**
+ * Sezione del tubo (u orizzontale dall'asse, v verticale dallo SCORRIMENTO):
+ * vc asse, vb generatrice inferiore esterna, vt estradosso, vF fondo dello
+ * scavo (sotto il letto). lift = scorrimento − linea del profilo.
+ * Poligoni a 48 lati con raggio di ugual area: outer, inner ([u, v]).
+ */
+export function pipeShape(p = PIPE) {
+  const De = p.De, s = Math.min(p.s, De / 2 - 1e-4), Di = De - 2 * s, R = De / 2, r = Di / 2;
+  const bed = p.bed != null ? p.bed : 0.1 + p.dn / 10000;
+  const vc = r, vb = -s, vt = r + R, vF = vb - bed;
+  const lift = p.ref === "axis" ? -r : p.ref === "bottom" ? s : p.ref === "trench" ? s + bed : 0;
+  const N = PIPE_N, kA = Math.sqrt(2 * Math.PI / (N * Math.sin(2 * Math.PI / N)));
+  const circ = (rad) => Array.from({ length: N }, (_, j) => { const t = Math.PI + 2 * Math.PI * j / N; return [rad * kA * Math.cos(t), vc + rad * kA * Math.sin(t)]; });
+  return { p: { ...p }, De, s, Di, R, r, Re: R * kA, bed, vc, vb, vt, vF, lift, cover: p.cover, restore: Math.max(0, p.restore || 0),
+    emb: p.emb !== false, berm: Math.max(0, p.berm != null ? p.berm : PIPE.berm), bank: Math.max(0.01, p.bank || PIPE.bank),
+    outer: circ(R), inner: circ(r), areaPipe: Math.PI * (R * R - r * r), areaDisk: Math.PI * R * R };
+}
+
+/**
+ * Sezione della trincea a una stazione. T(u) = terreno − scorrimento (NaN
+ * fuori dal DTM); W larghezza al fondo, m scarpa delle pareti (0 = verticali).
+ * Pareti dal fondo fino al terreno (a scarpa: dove la scarpa lo incontra).
+ * Strati, ognuno fra due quote e dentro la trincea sotto il terreno:
+ *   bed [vF, vb] · surround [vb, vt] meno il tubo · cover [vt, vt + cover] ·
+ *   fill [vt + cover, T − restore] · restore [T − restore, T];
+ * cut = tutta la trincea sotto il terreno (= strati + tubo).
+ * shore = altezza delle pareti verticali (le due), cov = terreno − estradosso
+ * sull'asse. Senza terreno sotto la trincea la sezione è «asciutta».
+ *
+ * Rilevato di protezione (sh.emb, 0.7.1): dove il terreno sta sotto
+ * estradosso + ricoprimento (vTop) la superficie finita S = max(T, Fe), con Fe
+ * piana a vTop fino a ub (le pareti prolungate a vTop, uW, più la banchina) e
+ * poi in scarpa 1/bank giù fino al terreno. Gli strati stanno fra il fondo e
+ * le pareti della trincea (prolungate sopra il terreno) e S; emb = il resto
+ * fra T e S, fuori dalla trincea (banchina, scarpe, e sotto il fondo se il
+ * terreno sta più giù). covF = S − estradosso sull'asse. Senza rilevato S = T.
+ * Ritorna anche S, Fe, SL/SR (le pareti incontrano S), toeL/toeR (piedi del
+ * rilevato), uW, ub, vTop.
+ */
+export function pipeCross(sh, T, W, m, { du = 0.1, reach = 50 } = {}) {
+  const hw = W / 2, vF = sh.vF, vTop = sh.vt + sh.cover;
+  const dry = [-hw, 0, hw].some((u) => !Number.isFinite(T(u)));
+  const uW = hw + m * (vTop - vF), ub = uW + sh.berm;
+  const Fe = sh.emb ? (u) => { const a = Math.abs(u); return a <= ub ? vTop : vTop - (a - ub) / sh.bank; } : () => -Infinity;
+  const S = (u) => { const t = T(u); return Number.isFinite(t) ? Math.max(t, Fe(u)) : NaN; };
+  const edge = (G, sgn) => (m > 0 ? meet(G, sgn, hw, vF, m, 0, du, reach) : { u: sgn * hw, v: G(sgn * hw), kind: "cut", ok: Number.isFinite(G(sgn * hw)) });
+  const EL = edge(T, -1), ER = edge(T, 1), SL = edge(S, -1), SR = edge(S, 1);
+  const toe = (sgn) => {
+    const t = T(sgn * ub);
+    if (!sh.emb) return { u: sgn * hw, v: T(sgn * hw), ok: true };
+    if (!(t < vTop)) return { u: sgn * ub, v: vTop, ok: Number.isFinite(t) };
+    return meet(T, sgn, ub, vTop, sh.bank, sh.bank, du, reach);
+  };
+  const toeL = toe(-1), toeR = toe(1);
+  const E = (u) => { const a = Math.abs(u); return a <= hw ? vF : vF + (a - hw) / m; };
+  const out = { EL, ER, SL, SR, toeL, toeR, E, S, Fe, W, m, uW, ub, vTop, dry, ok: !dry && EL.ok && ER.ok && SL.ok && SR.ok && toeL.ok && toeR.ok,
+    a: { bed: 0, surround: 0, cover: 0, fill: 0, restore: 0, cut: 0, emb: 0 }, shore: 0, cov: NaN, covF: NaN };
+  if (dry) return out;
+  out.cov = T(0) - sh.vt; out.covF = S(0) - sh.vt;
+  if (!m) out.shore = Math.max(0, T(-hw) - vF) + Math.max(0, T(hw) - vF);
+  const u0 = Math.min(EL.u, SL.u, toeL.u), u1 = Math.max(ER.u, SR.u, toeR.u), n = Math.max(80, Math.ceil((u1 - u0) / Math.min(du, 0.01)));
+  const xs = [u0, u1, -hw, hw, -sh.R, sh.R, 0, EL.u, ER.u, SL.u, SR.u, toeL.u, toeR.u];
+  if (sh.emb) xs.push(-uW, uW, -ub, ub);
+  if (m > 0) {                                                 // dove le pareti tagliano i livelli (e il fondo del ripristino)
+    for (const L of [sh.vb, sh.vt, vTop]) { const x = hw + m * (L - vF); xs.push(-x, x); }
+    if (sh.restore > 0) xs.push(Math.min(-hw, SL.u + m * sh.restore), Math.max(hw, SR.u - m * sh.restore));
+  }
+  for (let i = 1; i < n; i++) xs.push(u0 + (u1 - u0) * i / n);
+  for (let i = 1; i < 96; i++) xs.push(sh.R * Math.cos(Math.PI * i / 96));      // fitti sul bordo del tubo (in coseno)
+  const us = [...new Set(xs.filter((u) => u >= u0 && u <= u1))].sort((a, b) => a - b);
+  const { vb, vt, vc, R, cover, restore } = sh;
+  const len = (e, u, s, a, b, hole) => {
+    const lo = Math.max(a, e), hi = Math.min(b, s);
+    if (!(hi > lo)) return 0;
+    let L = hi - lo;
+    if (hole && Math.abs(u) < R) { const h = Math.sqrt(R * R - u * u); L -= Math.max(0, Math.min(hi, vc + h) - Math.max(lo, vc - h)); }
+    return Math.max(0, L);
+  };
+  // out: a pareti verticali il fondo E salta su ±hw (vF dentro, ∞ fuori) → due campioni lì, dentro e fuori
+  const f = (u, outside = false) => {
+    const t = T(u);
+    if (!Number.isFinite(t)) return null;
+    const s = Math.max(t, Fe(u)), e = outside ? Infinity : E(u), top = s - restore;
+    return { bed: len(e, u, s, vF, vb), surround: len(e, u, s, vb, vt, true), cover: len(e, u, s, vt, vt + cover), fill: len(e, u, s, vt + cover, top),
+      restore: restore > 0 ? len(e, u, s, Math.max(top, vt + cover), s) : 0, cut: Math.max(0, t - e), emb: Math.max(0, Math.min(s, e) - t) };
+  };
+  const smp = [];
+  for (const u of us) {
+    if (!m && Math.abs(Math.abs(u) - hw) < 1e-12) { if (u < 0) smp.push([u, true], [u, false]); else smp.push([u, false], [u, true]); }
+    else smp.push([u, false]);
+  }
+  let prev = null, up = NaN;
+  for (const [u, o] of smp) {
+    const g = f(u, o);
+    if (g && prev && u > up) for (const k in out.a) out.a[k] += (prev[k] + g[k]) / 2 * (u - up);
+    prev = g; up = u;
+  }
+  return out;
+}
+
+/**
+ * Anelli a topologia fissa di una sezione della trincea ([[u, basso, alto]…],
+ * u crescente): campioni sulle due pareti (nS), sul fondo fuori dal tubo e
+ * sotto il tubo nelle u dei vertici del suo poligono — il rinfianco abbraccia
+ * il tubo vertice per vertice. Il rinfianco è in due: sotto e sopra l'asse.
+ * Gli strati arrivano fin dove le pareti incontrano la superficie finita S
+ * (SL, SR); lo scavo ha campioni suoi fino al ciglio (EL, ER); il rilevato
+ * (emb) va da piede a piede, con due campioni su ±hw (dentro e fuori dalla
+ * trincea: a pareti verticali il fondo E salta lì).
+ */
+export function pipeRings(sh, cr, T, { nS = 8, nB = 3, nE = 6 } = {}) {
+  const hw = cr.W / 2, Re = sh.Re, us = [], fx = [];
+  const { vF, vb, vt, vc, cover, restore } = sh, vTop = vt + cover;
+  const seg = (a, b, n) => { for (let j = 0; j < n; j++) { us.push(a + (b - a) * j / n); fx.push(j === 0); } };
+  const tAt = (u) => { const v = T(u); return cr.dry || !Number.isFinite(v) ? vF : v; };
+  const sAt = (u) => { const v = cr.S(u); return cr.dry || !Number.isFinite(v) ? vF : v; };
+  // sulle pareti a scarpa un campione dove tagliano i livelli degli strati (fondo del rinfianco,
+  // estradosso, cima del ricoprimento), poi nS fino a S; verticali: tutti su ±hw
+  const side = (sgn, e) => {
+    const E = Math.abs(e), x = [hw, ...[vb, vt, vTop].map((L) => Math.min(E, hw + cr.m * (L - vF)))];
+    x.push(Math.min(E, Math.max(x[3], E - cr.m * restore)), E);                // fondo del ripristino sulla parete
+    return x.map((v) => sgn * v);
+  };
+  const L = side(-1, cr.SL.u).reverse(), R = side(1, cr.SR.u);
+  seg(L[0], L[1], 2); seg(L[1], L[2], nS); seg(L[2], L[3], 1); seg(L[3], L[4], 1); seg(L[4], L[5], 1); seg(-hw, -Re, nB);
+  const circ = new Set();                                 // i campioni dentro il tubo servono solo al rinfianco
+  for (let j = 0; j < PIPE_N / 2; j++) { if (j) circ.add(us.length); us.push(Re * Math.cos(Math.PI + 2 * Math.PI * j / PIPE_N)); fx.push(true); }
+  seg(Re, hw, nB); seg(R[0], R[1], 1); seg(R[1], R[2], 1); seg(R[2], R[3], 1); seg(R[3], R[4], nS); seg(R[4], R[5], 2); us.push(R[5]); fx.push(true);
+  // la cima del reinterro piega dove il terreno passa la cima del rilevato: lì un campione libero
+  if (sh.emb && !cr.dry) snapCross(us, fx, (u) => T(u) - vTop);
+  const t = us.map(sAt);
+  const e = us.map((u) => cr.E(u));
+  const h = us.map((u) => (Math.abs(u) < Re ? Math.sqrt(Math.max(0, Re * Re - u * u)) : 0));
+  const all = us.map((_, j) => j), base = all.filter((j) => !circ.has(j));
+  const band = (lo, hi, idx = base) => idx.map((j) => { const l = Math.min(Math.max(lo(j), e[j]), t[j]), x = Math.max(l, Math.min(hi(j), t[j])); return [us[j], l, x]; });
+  // scavo: dal ciglio sinistro al destro, fra il fondo (o le pareti) e il terreno dove sta sopra
+  const cu = [], cf = [];
+  const cseg = (a, b, n) => { for (let j = 0; j < n; j++) { cu.push(a + (b - a) * j / n); cf.push(j === 0); } };
+  cseg(cr.EL.u, -hw, nS); cseg(-hw, hw, 6); cseg(hw, cr.ER.u, nS); cu.push(cr.ER.u); cf.push(true);
+  if (!cr.dry) snapCross(cu, cf, (u) => T(u) - cr.E(u));
+  const cut = cu.map((u) => { const x = tAt(u), y = cr.E(u); return [u, Math.min(x, y), x]; });
+  // rilevato: da piede a piede, fra il terreno e il più basso fra S e il fondo/le pareti della trincea
+  const eu = [], ef = [], eo = [];
+  const eseg = (a, b, n, o = false) => { for (let j = 0; j < n; j++) { eu.push(a + (b - a) * j / n); ef.push(j === 0); eo.push(o); } };
+  // fuori dalla trincea, per lato: ciglio, pareti su S, cima delle pareti, fine della banchina, piede (in ordine)
+  const outPts = (sgn) => (sgn < 0 ? [cr.EL.u, cr.SL.u, cr.uW, cr.ub, cr.toeL.u] : [cr.ER.u, cr.SR.u, cr.uW, cr.ub, cr.toeR.u])
+    .map((x) => Math.max(hw, Math.abs(x))).sort((a, b) => a - b);
+  const oL = outPts(-1), oR = outPts(1), lastL = oL[4], lastR = oR[4];
+  eseg(-lastL, -oL[3], nE, true);
+  for (let k = 3; k > 0; k--) eseg(-oL[k], -oL[k - 1], 2, true);
+  eseg(-oL[0], -hw, 1, true);                                                     // fuori dalla trincea fino alla parete
+  eseg(-hw, hw, 6); eu.push(hw); ef.push(true); eo.push(false);                   // sotto la trincea (dentro)
+  eseg(hw, oR[0], 1, true); for (let k = 0; k < 3; k++) eseg(oR[k], oR[k + 1], 2, true);
+  eseg(oR[3], lastR, nE, true); eu.push(lastR); ef.push(true); eo.push(true);
+  const C = (u, o) => Math.min(sAt(u), o && !cr.m ? Infinity : cr.E(u));
+  if (sh.emb && !cr.dry) snapCross(eu, ef, (u) => C(u, Math.abs(u) > hw) - T(u));   // dove il rilevato si assottiglia a zero, un campione libero
+  const emb = eu.map((u, j) => { const x = tAt(u); return [u, x, Math.max(x, C(u, eo[j]))]; });
+  return {
+    cut,
+    bed: band(() => vF, () => vb),
+    surroundLow: band(() => vb, (j) => vc - h[j], all),
+    surroundUp: band((j) => vc + h[j], () => vt, all),
+    cover: band(() => vt, () => vTop),
+    fill: band(() => vTop, (j) => t[j] - restore),
+    restore: restore > 0 ? band((j) => Math.max(t[j] - restore, vTop), (j) => t[j]) : null,
+    emb,
+  };
+}
+
+/** Tubo cavo fra anelli (esterno, interno: N punti ciascuno): pareti e corone ai capi; verso dal volume. */
+function loftTube(outer, inner) {
+  const n = outer.length, N = outer[0].length, P = new Float64Array(n * 2 * N * 3), I = [];
+  const o = (i, j) => i * 2 * N + (j % N), q = (i, j) => i * 2 * N + N + (j % N);
+  for (let i = 0; i < n; i++) for (let j = 0; j < N; j++) { P.set(outer[i][j], 3 * o(i, j)); P.set(inner[i][j], 3 * q(i, j)); }
+  for (let i = 0; i + 1 < n; i++) for (let j = 0; j < N; j++) {
+    I.push(o(i, j), o(i + 1, j), o(i + 1, j + 1), o(i, j), o(i + 1, j + 1), o(i, j + 1));
+    I.push(q(i, j), q(i, j + 1), q(i + 1, j + 1), q(i, j), q(i + 1, j + 1), q(i + 1, j));
+  }
+  for (let j = 0; j < N; j++) {
+    I.push(o(0, j), o(0, j + 1), q(0, j + 1), o(0, j), q(0, j + 1), q(0, j));
+    I.push(o(n - 1, j), q(n - 1, j + 1), o(n - 1, j + 1), o(n - 1, j), q(n - 1, j), q(n - 1, j + 1));
+  }
+  const mesh = { positions: P, index: Uint32Array.from(I) };
+  if (meshVolume(mesh) < 0) for (let k = 0; k < mesh.index.length; k += 3) { const x = mesh.index[k + 1]; mesh.index[k + 1] = mesh.index[k + 2]; mesh.index[k + 2] = x; }
+  return mesh;
+}
+
+/**
+ * Il tubo lungo l'asse. Tratti fra i salti della linea (pozzetti di salto) e
+ * le divisioni dell'utente; per ogni tratto pareti (auto: verticali fino a
+ * deep, a scarpa oltre; «v» o «s» per tratto in partWalls) e larghezza (UNI
+ * EN 1610 sul tratto, o quella data), sezioni, volumi per sezioni ragguagliate,
+ * superficie da blindare e mesh nelle coordinate locali (x − O.x, y − O.y, z).
+ * Ritorna { parts: [{ k, p0, p1, length, vol, shore, width, walls, minCov, minCovF, low, bank, mesh, miss, n, sections }], drops, miss, length, vol, shore }.
+ *   vol e mesh: pipe (tubo), bed (letto), surround (rinfianco), cover (ricoprimento), fill (reinterro), restore (ripristino), cut (scavo), emb (rilevato).
+ *   minCov / minCovF: ricoprimento minimo dal terreno / dalla superficie finita { v, p }; low: tratti col
+ *   ricoprimento dal terreno sotto p.covMin, bank: tratti in rilevato — [{ p0, p1, v }] (v: il minimo, l'altezza massima).
+ */
+export function pipeSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, step = 1, cuts = [], partWalls = {}, du = 0.1, reach = 50 } = {}) {
+  const KEYS = ["pipe", "bed", "surround", "cover", "fill", "restore", "cut", "emb"];
+  const zero = () => Object.fromEntries(KEYS.map((k) => [k, 0]));
+  const res = { parts: [], drops: [], miss: 0, length: 0, vol: zero(), shore: 0 };
+  const ax3 = buildAxis3D(axis, prof, anchors);
+  if (ax3.pts.length < 2) return res;
+  const p = sh.p, map = anchorMap(anchors), lift = sh.lift;
+  const lo = ax3.pts[0].p, hi = ax3.pts[ax3.pts.length - 1].p;
+  for (const d of profileDrops(prof)) {
+    const x = map.toP(d.q);
+    if (x > lo + 1e-6 && x < hi - 1e-6) res.drops.push({ p: x, q: d.q, dz: Math.abs(d.zA - d.zB) });
+  }
+  const B = [lo, hi, ...res.drops.map((d) => d.p)];
+  for (const x of cuts) if (x > lo + 0.5 && x < hi - 0.5 && !res.drops.some((d) => Math.abs(d.p - x) < 0.5)) B.push(x);
+  B.sort((a, b) => a - b);
+  const bounds = B.filter((x, i) => !i || x - B[i - 1] > 1e-6);
+  const P3 = (s, u, v) => [s.x + s.nx * u * s.k - O.x, s.y + s.ny * u * s.k - O.y, s.z + v];
+  for (let i = 0; i + 1 < bounds.length; i++) {
+    const p0 = bounds[i], p1 = bounds[i + 1], k = res.parts.length + 1;
+    const mode = partWalls[k] || p.walls, mS = Math.max(0.01, p.slope);
+    const stationsOf = (extra) => {
+      const raw = sweepStations(axis, prof, anchors, { step, p0, p1, extra });
+      const st = raw.filter((s, j) => !(Math.abs(s.p - p0) < 1e-9 && j + 1 < raw.length && Math.abs(raw[j + 1].p - p0) < 1e-9)
+        && !(Math.abs(s.p - p1) < 1e-9 && j > 0 && Math.abs(raw[j - 1].p - p1) < 1e-9));
+      // sui capi che cadono su un salto, la quota di questo tratto
+      for (const s of st) { const z = zAt(prof, map.toQ(s.p), s.p >= p1 - 1e-9 ? -1 : 1); if (Number.isFinite(z)) s.z = z; }
+      return st.map((s) => {
+        const zf = s.z + lift;
+        const T = (u) => zAt3(s.x + s.nx * u * s.k, s.y + s.ny * u * s.k) - zf;
+        const depth = T(0) - sh.vF;
+        const vert = mode === "v" || (mode !== "s" && !(depth > p.deep));
+        return { p: s.p, x: s.x, y: s.y, z: zf, nx: s.nx, ny: s.ny, k: s.k, T, depth, m: vert ? 0 : mS };
+      });
+    };
+    let secs = stationsOf([]);
+    if (secs.length < 2) continue;
+    // dove la profondità passa la soglia (pareti «auto») due sezioni alla stessa progressiva, una per
+    // tipo di parete: la trincea fa lo scalino lì, e mesh e computo restano d'accordo
+    const sw = [];
+    for (let j = 1; j < secs.length; j++) {
+      const a = secs[j - 1], b = secs[j];
+      if (a.m !== b.m && Number.isFinite(a.depth) && Number.isFinite(b.depth) && Math.abs(b.depth - a.depth) > 1e-12) {
+        const x = a.p + (p.deep - a.depth) / (b.depth - a.depth) * (b.p - a.p);
+        if (x > a.p + 1e-6 && x < b.p - 1e-6) sw.push(x);
+      }
+    }
+    if (sw.length) {
+      secs = stationsOf(sw);
+      const out = [];
+      for (const s of secs) {
+        if (sw.some((x) => Math.abs(x - s.p) < 1e-9)) {
+          const prev = out[out.length - 1], mB = prev ? prev.m : s.m, mA = mB ? 0 : mS;
+          out.push({ ...s, m: mB }, { ...s, m: mA });
+        } else out.push(s);
+      }
+      secs = out;
+    }
+    let W = p.width;
+    if (!(W > 0)) {
+      W = 0;
+      for (const s of secs) W = Math.max(W, en1610Width(p.dn, sh.De, Number.isFinite(s.depth) ? s.depth : 0, s.m < 0.577));
+      W = Math.ceil(W * 20 - 1e-9) / 20;                  // ai 5 cm
+    }
+    W = Math.max(W, sh.De + 0.1);
+    for (const s of secs) s.cr = pipeCross(sh, s.T, W, s.m, { du, reach });
+    const vol = zero();
+    let length = 0, shore = 0;
+    for (let j = 1; j < secs.length; j++) {
+      const a = secs[j - 1], b = secs[j], dp = b.p - a.p;
+      length += dp;
+      for (const key of KEYS) if (key !== "pipe") vol[key] += (a.cr.a[key] + b.cr.a[key]) / 2 * dp;
+      const sa = a.depth > p.deep ? a.cr.shore : 0, sb = b.depth > p.deep ? b.cr.shore : 0;
+      shore += (sa + sb) / 2 * dp;
+    }
+    vol.pipe = sh.areaPipe * length;
+    // --- mesh: il tubo, poi gli strati (anelli basso →, alto ←: tutti lo stesso verso, deciso sullo scavo)
+    const uniq = secs.filter((s, j) => !j || s.p - secs[j - 1].p > 1e-9);           // il tubo non ha scalini
+    const pipe = loftTube(uniq.map((s) => sh.outer.map(([u, v]) => P3(s, u, v))), uniq.map((s) => sh.inner.map(([u, v]) => P3(s, u, v))));
+    const rg = secs.map((s) => pipeRings(sh, s.cr, s.T));
+    const ringsOf = (key) => {
+      const zeros = [];
+      const rings = secs.map((s, j) => {
+        const r = rg[j][key];
+        zeros.push(r.map(([, l, x]) => x - l < 1e-9));
+        return [...r.map(([u, l]) => P3(s, u, l)), ...r.slice().reverse().map(([u, , x]) => P3(s, u, x))];
+      });
+      return { rings, zeros };
+    };
+    // il verso da una scatola sulle stesse stazioni: lo scavo può mancare del tutto (tubo in rilevato) e un volume ~0 non orienta
+    const fl = uniq.length > 1 ? loftBand(uniq.map((s) => [P3(s, -1, 0), P3(s, 1, 0), P3(s, 1, 1), P3(s, -1, 1)])).flipped : false;
+    const band = (key) => { if (!rg[0][key]) return null; const r = ringsOf(key); return compactMesh(loftBand(r.rings, fl, r.zeros)); };
+    const mesh = { pipe, cut: band("cut"), bed: band("bed"), surround: mergeMeshes([band("surroundLow"), band("surroundUp")]), cover: band("cover"), fill: band("fill"), restore: band("restore"), emb: band("emb") };
+    for (const key of KEYS) if (!mesh[key]) mesh[key] = { positions: new Float64Array(0), index: new Uint32Array(0) };
+    const vertLen = secs.reduce((a, s, j) => a + (j && !s.m && !secs[j - 1].m ? s.p - secs[j - 1].p : 0), 0);
+    let minCov = null, minCovF = null;
+    for (const s of secs) {
+      if (Number.isFinite(s.cr.cov) && (!minCov || s.cr.cov < minCov.v)) minCov = { v: s.cr.cov, p: s.p };
+      if (Number.isFinite(s.cr.covF) && (!minCovF || s.cr.covF < minCovF.v)) minCovF = { v: s.cr.covF, p: s.p };
+    }
+    // tratti dove g > 0, coi capi interpolati fra due sezioni; v = la peggiore (min o max di val)
+    const spans = (g, val, worst) => {
+      const out = [];
+      let cur = null;
+      for (let j = 0; j < secs.length; j++) {
+        const s = secs[j], x = g(s);
+        if (!Number.isFinite(x)) { cur = null; continue; }
+        const prev = j ? secs[j - 1] : null, xp = prev ? g(prev) : NaN;
+        if (x > 0) {
+          if (!cur) out.push(cur = { p0: Number.isFinite(xp) && xp <= 0 && x - xp > 0 ? prev.p + (0 - xp) / (x - xp) * (s.p - prev.p) : s.p, p1: s.p, v: val(s) });
+          cur.p1 = s.p; cur.v = worst(cur.v, val(s));
+        } else if (cur) { if (Number.isFinite(xp) && xp > 0 && xp - x > 0) cur.p1 = prev.p + xp / (xp - x) * (s.p - prev.p); cur = null; }
+      }
+      return out;
+    };
+    const low = Number.isFinite(p.covMin) && p.covMin > 0 ? spans((s) => p.covMin - s.cr.cov, (s) => s.cr.cov, Math.min) : [];
+    const bank = spans((s) => s.cr.a.emb - 1e-3, (s) => Math.max(0, s.cr.covF - s.cr.cov), Math.max);
+    const miss = secs.filter((s) => !s.cr.ok).length;
+    res.parts.push({ k, p0, p1, length, vol, shore, width: W, mode, walls: { vertical: vertLen, slope: Math.max(0, length - vertLen) }, minCov, minCovF, low, bank, mesh, miss, n: secs.length,
+      sections: secs.map((s) => ({ p: s.p, z: s.z, depth: s.depth, m: s.m, a: { ...s.cr.a, pipe: sh.areaPipe }, shore: s.cr.shore, cov: s.cr.cov, covF: s.cr.covF, ok: s.cr.ok, dry: s.cr.dry })) });
+    res.miss += miss; res.length += length; res.shore += shore;
+    for (const key of KEYS) res.vol[key] += vol[key];
+  }
+  return res;
+}

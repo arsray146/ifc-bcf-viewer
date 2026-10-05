@@ -738,13 +738,62 @@ export function ifcDitch(job) {
     const qs = list.map(([t, n, v]) => e(`${t}(${S(n)},$,$,${R(v, 4)},$)`));
     e(`IFCRELDEFINESBYPROPERTIES(${G()},${oh},$,$,(${target}),${e(`IFCELEMENTQUANTITY(${G()},${oh},${S(name)},$,$,(${qs.join(",")}))`)})`);
   };
-  const concrete = e(`IFCMATERIAL(${S(lb.concrete || "Calcestruzzo")},$,'Concrete')`);
   const len = (v) => `IFCLENGTHMEASURE(${R(v, 4)})`, rat = (v) => `IFCPOSITIVERATIOMEASURE(${R(v, 4)})`;
   const courses = [], pipes = [], slabs = [], mixes = [], backs = [];
+  // tubo in trincea: colore e materiale del tubo per catalogo, uno stile per strato (creati solo se servono)
+  const pipeMats = [], layerMats = {}, styles = {};
+  const once = (k, make) => styles[k] || (styles[k] = make());
+  const PIPE_RGB = { pvc: [0.78, 0.42, 0.22], pe: [0.22, 0.22, 0.22], cls: [0.72, 0.72, 0.7], ghisa: [0.3, 0.3, 0.33] };
+  const LAYER_RGB = { bed: [0.86, 0.8, 0.6], surround: [0.9, 0.85, 0.68], cover: [0.82, 0.76, 0.58], fill: [0.78, 0.68, 0.48], restore: [0.3, 0.3, 0.3] };
+  const pipeStyle = (mat) => once("pipe:" + mat, () => style(PIPE_RGB[mat] || [0.6, 0.6, 0.6], lb.pipe || "tubo"));
+  const layerStyle = (k) => once("layer:" + k, () => style(LAYER_RGB[k], k, k === "restore" ? 0 : 0.4));
   const psName = lb.pset || "ViewIFC_SviluppoProfili";
   for (const w of works) for (const part0 of w.parts) {
     const sec = w.section, part = { ...part0, name: (w.name ? w.name + " - " : "") + part0.name };
     const common = [[lb.work || "Opera", `IFCLABEL(${S(w.name || "")})`], [lb.p0 || "Progressiva iniziale", len(part.p0)], [lb.p1 || "Progressiva finale", len(part.p1)], [lb.length || "Lunghezza", len(part.length)]];
+    if (sec.type === "pipe") {
+      // tubo in trincea: IfcPipeSegment rigido, strati IfcEarthworksFill, ripristino IfcCourse, scavo a trincea
+      const refName = sec.ref === "axis" ? lb.refAxis || "Asse del tubo" : sec.ref === "bottom" ? lb.refBottom || "Generatrice inferiore esterna" : sec.ref === "trench" ? lb.refTrench || "Fondo scavo" : lb.refInvert || "Fondo interno";
+      const Di = sec.De - 2 * sec.s, bed = sec.bed != null ? sec.bed : 0.1 + sec.dn / 10000;
+      const pipeProps = [[lb.section || "Sezione", `IFCLABEL(${S(lb.pipeName || "Tubo circolare")})`], [lb.pipeMat || "Materiale", `IFCLABEL(${S(sec.matName || sec.mat || "")})`],
+        ...(sec.norm ? [[lb.norm || "Norma", `IFCLABEL(${S(sec.norm)})`]] : []), [lb.dn || "DN", `IFCLABEL(${S(String(sec.dn))})`],
+        [lb.De || "Diametro esterno", len(sec.De)], [lb.s || "Spessore", len(sec.s)], [lb.Di || "Diametro interno", len(Di)], [lb.ref || "Linea del profilo", `IFCLABEL(${S(refName)})`]];
+      const trench = [[lb.width || "Larghezza al fondo", len(part.width)], [lb.bed || "Letto di posa", len(bed)], [lb.cover || "Ricoprimento sopra l'estradosso", len(sec.cover)],
+        ...(sec.restore > 0 ? [[lb.restore || "Ripristino", len(sec.restore)]] : [])];
+      const p = e(`IFCPIPESEGMENT(${G()},${oh},${S(part.name + " - " + (lb.pipe || "tubo"))},$,$,${here()},${shape(part.mesh.pipe, pipeStyle(sec.mat))},$,.RIGIDSEGMENT.)`);
+      contained.push(p); pipeMats.push([p, sec]);
+      props(p, psName, [...common, ...pipeProps]);
+      qto(p, "Qto_PipeSegmentBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYAREA", "GrossCrossSectionArea", Math.PI * sec.De ** 2 / 4], ["IFCQUANTITYAREA", "NetCrossSectionArea", Math.PI * (sec.De ** 2 - Di ** 2) / 4]]);
+      for (const [key, name, mname] of [["bed", lb.bedL || "letto di posa", lb.bedMat || "Materiale del letto di posa"], ["surround", lb.surround || "rinfianco", lb.surroundMat || "Materiale di rinfianco"],
+        ["cover", lb.coverL || "ricoprimento", lb.coverMat || "Materiale di ricoprimento"], ["fill", lb.backfill || "reinterro", lb.fillMat || "Materiale di reinterro"]]) {
+        if (!(part.vol[key] > 0.01) || !part.mesh[key] || !part.mesh[key].index.length) continue;
+        const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + name)},$,$,${here()},${shape(part.mesh[key], layerStyle(key))},$,.BACKFILL.)`);
+        contained.push(f); (layerMats[mname] ||= []).push(f);
+        props(f, psName, common);
+        qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "CompactedVolume", part.vol[key]]]);
+      }
+      if (part.vol.restore > 0.01 && part.mesh.restore && part.mesh.restore.index.length) {
+        const c = e(`IFCCOURSE(${G()},${oh},${S(part.name + " - " + (lb.restoreL || "ripristino"))},$,$,${here()},${shape(part.mesh.restore, layerStyle("restore"))},$,.PAVEMENT.)`);
+        contained.push(c);
+        props(c, psName, common);
+        qto(c, "Qto_CourseBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYLENGTH", "Thickness", sec.restore], ["IFCQUANTITYVOLUME", "Volume", part.vol.restore]]);
+      }
+      if (part.vol.emb > 0.01 && part.mesh.emb && part.mesh.emb.index.length) {      // rilevato di protezione dove il tubo esce dal terreno (0.7.1)
+        const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + (lb.emb || "rilevato"))},$,$,${here()},${shape(part.mesh.emb, stFill)},$,.EMBANKMENT.)`);
+        contained.push(f); (layerMats[lb.embMat || "Materiale per rilevato"] ||= []).push(f);
+        const bank = (part.bank || []).reduce((a, r) => a + r.p1 - r.p0, 0);
+        props(f, psName, [...common, [lb.berm || "Banchina", len(sec.berm != null ? sec.berm : 0.5)], [lb.fillSlope || "Scarpa in riporto", rat(sec.bank || 1.5)], [lb.embLen || "Lunghezza in rilevato", len(bank)]]);
+        qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "CompactedVolume", part.vol.emb]]);
+      }
+      if (part.vol.cut > 0.01 && part.mesh.cut.index.length) {
+        const k = e(`IFCEARTHWORKSCUT(${G()},${oh},${S(part.name + " - " + (lb.cut || "scavo"))},$,$,${here()},${shape(part.mesh.cut, stCut)},$,.TRENCH.)`);
+        e(`IFCRELVOIDSELEMENT(${G()},${oh},$,$,${terrain},${k})`);
+        props(k, psName, [...common, ...trench, [lb.wallsV || "Pareti verticali", len(part.walls ? part.walls.vertical : 0)], [lb.wallsS || "Pareti a scarpa", len(part.walls ? part.walls.slope : 0)],
+          [lb.shore || "Pareti da blindare", `IFCAREAMEASURE(${R(part.shore || 0, 4)})`]]);
+        qto(k, "Qto_EarthworksCutBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYLENGTH", "Width", part.width], ["IFCQUANTITYVOLUME", "UndisturbedVolume", part.vol.cut]]);
+      }
+      continue;
+    }
     if (sec.type === "channel") {
       // canale a U: tubo «gutter» (U + muro di testa), magrone, cuneo, scavo, rinterro
       const refName = sec.ref === "top" ? lb.refTop || "Cielo" : sec.ref === "base" ? lb.refBase || "Piano di posa" : lb.refInvert || "Fondo interno";
@@ -802,11 +851,15 @@ export function ifcDitch(job) {
       qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "CompactedVolume", part.vol.fill]]);
     }
   }
-  if (courses.length || pipes.length) e(`IFCRELASSOCIATESMATERIAL(${G()},${oh},$,$,(${[...courses, ...pipes].join(",")}),${concrete})`);
+  if (courses.length || pipes.length) e(`IFCRELASSOCIATESMATERIAL(${G()},${oh},$,$,(${[...courses, ...pipes].join(",")}),${e(`IFCMATERIAL(${S(lb.concrete || "Calcestruzzo")},$,'Concrete')`)})`);   // solo se c'è calcestruzzo
   const mat = (list, name, cat) => { if (list.length) e(`IFCRELASSOCIATESMATERIAL(${G()},${oh},$,$,(${list.join(",")}),${e(`IFCMATERIAL(${S(name)},$,${S(cat)})`)})`); };
   mat(slabs, lb.leanMat || "Calcestruzzo magro", "Concrete");
   mat(mixes, lb.mixMat || "Misto cementato", "Soil");
   mat(backs, lb.backMat || "Materiale per rilevato stradale", "Soil");
+  const byName = new Map();
+  for (const [p, sec] of pipeMats) { const n = sec.matName || sec.mat || "Tubo"; if (!byName.has(n)) byName.set(n, { cat: sec.mat === "cls" ? "Concrete" : sec.mat === "ghisa" ? "Metal" : "Plastic", list: [] }); byName.get(n).list.push(p); }
+  for (const [n, x] of byName) mat(x.list, n, x.cat);
+  for (const [n, list] of Object.entries(layerMats)) mat(list, n, "Soil");
   e(`IFCRELCONTAINEDINSPATIALSTRUCTURE(${G()},${oh},$,$,(${contained.join(",")}),${site})`);
 
   const iso = date.toISOString().slice(0, 19);

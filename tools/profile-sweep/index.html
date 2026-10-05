@@ -491,7 +491,7 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
     <span class="lg"><i style="border-color:var(--lime-deep)"></i><span data-i18n="pv.design">progetto</span></span>
     <span class="lg"><i class="dash" style="border-color:var(--earth)"></i><span data-i18n="pv.ground">terreno</span></span>
     <span class="lg" id="pvDtmLg" hidden><i style="border-color:var(--blue)"></i><span data-i18n="pv.dtm">DTM</span></span>
-    <span class="lg" id="pvTopLg" hidden><i class="dash" style="border-color:var(--lime-deep)"></i><span data-i18n="pv.top">cima dei muri</span></span>
+    <span class="lg" id="pvTopLg" hidden><i class="dash" style="border-color:var(--lime-deep)"></i><span id="pvTopTx">cima dei muri</span></span>
     <span class="lg"><i class="box" style="background:rgba(224,166,58,.35)"></i><span data-i18n="pv.jump">salto di progressiva</span></span>
     <span class="sp"></span>
     <span class="lg" id="pvHint" data-i18n="pv.zoom">Rotella: zoom · trascina: sposta · doppio clic: tutto</span>
@@ -612,7 +612,7 @@ const I18N = {
     "dt.ptsNone": "{f}: nessun punto attorno alle opere (riquadro delle piante ± 200 m): controlla le coordinate.",
     "dt.ptsMany": "{f}: più di {n} punti e ancora nessuna pianta. Apri prima pianta e profilo: del rilievo si prende solo il corridoio delle opere.",
     "sx.title": "Sezione", "sx.type": "Tipo", "sx.ditch": "Fosso trapezio rivestito", "sx.channel": "Canale a U (inalveazione)",
-    "sx.soon": "Tubo, scatolare e sezioni da DWG arrivano nelle prossime versioni.",
+    "sx.soon": "Scatolare e sezioni da DWG arrivano nelle prossime versioni.",
     "sx.subSec": "Sezione", "sx.subExc": "Magrone e scavo", "sx.subBack": "Rinterro", "sx.subDrop": "Salti",
     "sx.B": "Larghezza interna", "sx.H": "Altezza interna", "sx.tw": "Pareti", "sx.ts": "Soletta di fondo", "sx.tm": "Magrone", "sx.om": "Magrone oltre i muri",
     "sx.se": "Scavo oltre il magrone", "sx.cutC": "Scarpa scavo", "sx.bermC": "Banchina", "sx.fillC": "Scarpa rinterro", "sx.hw": "Muro di testa", "sx.key": "Dente", "sx.wedge": "Scarpa cuneo",
@@ -624,6 +624,31 @@ const I18N = {
     "cm.lean": "Magrone", "cm.mix": "Misto cem.", "cm.backfill": "Rinterro", "cm.drop": "salto {d} m",
     "cm.allVc": "cls {l} · magrone {m} · misto {x} · scavo {c} · rinterro {f} m³", "cm.noDtmC": "Senza DTM: calcestruzzo, magrone e cunei, niente scavo né rinterro.",
     "ly.lean": "magrone", "ly.mix": "misto", "ly.backfill": "rinterro", "pv.top": "cima dei muri",
+    "sx.pipe": "Tubo in trincea", "sx.refAxis": "asse", "sx.refBottom": "generatrice inferiore", "sx.refTrench": "fondo scavo",
+    "sx.subPipe": "Tubo", "sx.pmat": "Materiale", "sx.De": "Diametro esterno", "sx.ps": "Spessore",
+    "sx.pcat": "{n}, DN {k}: diametri e spessori nominali o tipici, verificali col tubo scelto (cambiandoli il tubo diventa «a mano»).",
+    "sx.dnOD": "esterno", "sx.dnID": "interno", "sx.pman": "Tubo a mano: diametro esterno e spessore dati da te.",
+    "sx.subTrench": "Trincea", "sx.bed": "Letto di posa", "sx.cover": "Ricoprimento", "sx.restore": "Ripristino", "sx.width": "Larghezza al fondo",
+    "sx.subWalls": "Pareti", "sx.walls": "Pareti", "sx.wAuto": "Secondo la profondità", "sx.wV": "Verticali", "sx.wS": "A scarpa", "sx.wRule": "Come sopra",
+    "sx.deep": "Verticali fino a", "sx.slopeW": "Scarpa",
+    "sx.pWidth": "Larghezza", "sx.pWallsV": "verticali {v} m · a scarpa {s} m", "sx.pCov": "Ricoprimento minimo", "sx.pCovV": "{c} m a {p}",
+    "sx.pShore": "Pareti da blindare", "sx.pBare": "In qualche sezione il tubo esce dal terreno: la linea del profilo è giusta? (Scorrimento, asse, generatrice o fondo scavo.)",
+    "sx.pBareE": "Dove il tubo esce dal terreno lo copre il rilevato; controlla comunque la linea del profilo (scorrimento, asse, generatrice o fondo scavo).",
+    "sx.subEmb": "Rilevato di protezione", "sx.emb": "Rilevato dove il tubo esce dal terreno", "sx.bank": "Scarpa rilevato", "sx.covMin": "Ricoprimento minimo",
+    "sx.embHelp": "Dove il terreno sta sotto estradosso + ricoprimento: cima a quella quota, larga quanto la trincea in sommità più la banchina, poi la scarpa fino al DTM. Letto, rinfianco e ricoprimento restano gli stessi strati anche fuori terra. Il ricoprimento minimo (dal terreno naturale) serve solo all'avviso.",
+    "sx.pBank": "In rilevato", "sx.pBankV": "{l} m · alto fino a {h} m sull'asse", "sx.pCovF": "Ricoprimento finito minimo",
+    "sx.pLow": "Ricoprimento dal terreno sotto {c} m: {list}.", "sx.pLowR": "{a} – {b} (min {c} m)", "sx.pLowMore": "e altri {n} tratti",
+    "sx.pHelp": "Valori di default della UNI EN 1610: letto 10 cm + DN/10 (campo vuoto), rinfianco fino all'estradosso, ricoprimento 30 cm, larghezza minima della norma sul tratto (campo vuoto). Pareti verticali fino alla profondità indicata, a scarpa oltre (D.Lgs. 81/08); verticali oltre quella profondità = da blindare.",
+    "pm.pvc": "PVC-U SN8", "pm.pe": "PE/PP corrugato SN8", "pm.cls": "Calcestruzzo", "pm.ghisa": "Ghisa sferoidale", "pm.manual": "Tubo a mano",
+    "cm.pipe": "Tubo", "cm.bed": "Letto", "cm.surround": "Rinfianco", "cm.cover": "Ricoprimento", "cm.restore": "Ripristino", "cm.emb": "Rilevato",
+    "cm.noDtmP": "Senza DTM: solo il tubo, niente trincea né strati.",
+    "ly.pipe": "tubo", "ly.bed": "letto", "ly.surround": "rinfianco", "ly.cover": "ricoprimento", "ly.restore": "ripristino", "ly.emb": "rilevato", "pv.crown": "estradosso del tubo",
+    "if.pipe": "tubo", "if.emb": "rilevato", "if.embMat": "Materiale per rilevato", "if.embLen": "Lunghezza in rilevato", "if.pipeMat": "Materiale", "if.norm": "Norma", "if.De": "Diametro esterno", "if.s": "Spessore", "if.Di": "Diametro interno",
+    "if.width": "Larghezza al fondo", "if.bed": "Letto di posa", "if.cover": "Ricoprimento sopra l'estradosso", "if.restore": "Ripristino",
+    "if.bedL": "letto di posa", "if.surround": "rinfianco", "if.coverL": "ricoprimento", "if.restoreL": "ripristino",
+    "if.bedMat": "Materiale del letto di posa", "if.surroundMat": "Materiale di rinfianco", "if.coverMat": "Materiale di ricoprimento", "if.fillMat": "Materiale di reinterro",
+    "if.wallsV": "Pareti verticali", "if.wallsS": "Pareti a scarpa",
+    "exp.ifcNoteP": "Tubo: per tratto IfcPipeSegment col materiale, letto, rinfianco, ricoprimento e reinterro IfcEarthworksFill, ripristino IfcCourse, scavo IfcEarthworksCut a trincea con le pareti da blindare, rilevato di protezione IfcEarthworksFill .EMBANKMENT.",
     "exp.ifcNoteC": "Canale a U: per tratto IfcPipeSegment (la U col muro di testa del salto), magrone IfcSlab, misto cementato e rinterro IfcEarthworksFill, scavo IfcEarthworksCut.",
     "if.channelName": "Canale a U", "if.channel": "canale", "if.lean": "magrone", "if.leanType": "Magrone", "if.mix": "misto cementato", "if.backfill": "rinterro",
     "if.leanMat": "Calcestruzzo magro", "if.mixMat": "Misto cementato", "if.backMat": "Materiale per rilevato stradale",
@@ -741,7 +766,7 @@ const I18N = {
     "dt.ptsNone": "{f}: no points around the works (plan box ± 200 m): check the coordinates.",
     "dt.ptsMany": "{f}: more than {n} points and no plan yet. Open plan and profile first: only the corridor of the works is taken from the survey.",
     "sx.title": "Section", "sx.type": "Type", "sx.ditch": "Lined trapezoidal ditch", "sx.channel": "U channel (lined stream)",
-    "sx.soon": "Pipe, box culvert and sections from DWG come in the next versions.",
+    "sx.soon": "Box culvert and sections from DWG come in the next versions.",
     "sx.subSec": "Section", "sx.subExc": "Blinding and excavation", "sx.subBack": "Backfill", "sx.subDrop": "Drops",
     "sx.B": "Inner width", "sx.H": "Inner height", "sx.tw": "Walls", "sx.ts": "Base slab", "sx.tm": "Blinding", "sx.om": "Blinding past the walls",
     "sx.se": "Excavation past the blinding", "sx.cutC": "Cut slope", "sx.bermC": "Berm", "sx.fillC": "Backfill slope", "sx.hw": "Head wall", "sx.key": "Toe key", "sx.wedge": "Wedge slope",
@@ -753,6 +778,31 @@ const I18N = {
     "cm.lean": "Blinding", "cm.mix": "Cem. gran.", "cm.backfill": "Backfill", "cm.drop": "drop {d} m",
     "cm.allVc": "concrete {l} · blinding {m} · cem. granular {x} · cut {c} · backfill {f} m³", "cm.noDtmC": "Without a DTM: concrete, blinding and wedges, no cut or backfill.",
     "ly.lean": "blinding", "ly.mix": "wedge", "ly.backfill": "backfill", "pv.top": "wall top",
+    "sx.pipe": "Pipe in trench", "sx.refAxis": "axis", "sx.refBottom": "outer bottom", "sx.refTrench": "trench bottom",
+    "sx.subPipe": "Pipe", "sx.pmat": "Material", "sx.De": "Outside diameter", "sx.ps": "Wall thickness",
+    "sx.pcat": "{n}, DN {k}: nominal or typical diameters and thicknesses, check them against the chosen pipe (editing them makes it a «manual» pipe).",
+    "sx.dnOD": "outside", "sx.dnID": "inside", "sx.pman": "Manual pipe: outside diameter and wall thickness given by you.",
+    "sx.subTrench": "Trench", "sx.bed": "Bedding", "sx.cover": "Cover", "sx.restore": "Reinstatement", "sx.width": "Bottom width",
+    "sx.subWalls": "Walls", "sx.walls": "Walls", "sx.wAuto": "By depth", "sx.wV": "Vertical", "sx.wS": "Sloped", "sx.wRule": "As above",
+    "sx.deep": "Vertical down to", "sx.slopeW": "Slope",
+    "sx.pWidth": "Width", "sx.pWallsV": "vertical {v} m · sloped {s} m", "sx.pCov": "Minimum cover", "sx.pCovV": "{c} m at {p}",
+    "sx.pShore": "Walls to shore", "sx.pBare": "In some sections the pipe sticks out of the ground: is the profile line right? (Invert, axis, outer bottom or trench bottom.)",
+    "sx.pBareE": "Where the pipe sticks out of the ground the embankment covers it; still, check the profile line (invert, axis, outer bottom or trench bottom).",
+    "sx.subEmb": "Protective embankment", "sx.emb": "Embankment where the pipe leaves the ground", "sx.bank": "Embankment slope", "sx.covMin": "Minimum cover",
+    "sx.embHelp": "Where the ground is below crown + cover: top at that level, as wide as the trench at the top plus the berm, then the slope down to the DTM. Bedding, side fill and cover stay the same layers above ground too. The minimum cover (from natural ground) only drives the warning.",
+    "sx.pBank": "On embankment", "sx.pBankV": "{l} m · up to {h} m high on the axis", "sx.pCovF": "Minimum finished cover",
+    "sx.pLow": "Cover from the ground below {c} m: {list}.", "sx.pLowR": "{a} – {b} (min {c} m)", "sx.pLowMore": "and {n} more stretches",
+    "sx.pHelp": "EN 1610 defaults: bedding 10 cm + DN/10 (empty field), side fill up to the crown, 30 cm cover, minimum trench width of the standard over the stretch (empty field). Vertical walls down to the given depth, sloped beyond (Italian D.Lgs. 81/08); vertical beyond that depth = to be shored.",
+    "pm.pvc": "PVC-U SN8", "pm.pe": "Corrugated PE/PP SN8", "pm.cls": "Concrete", "pm.ghisa": "Ductile iron", "pm.manual": "Manual pipe",
+    "cm.pipe": "Pipe", "cm.bed": "Bedding", "cm.surround": "Side fill", "cm.cover": "Cover", "cm.restore": "Reinstatement", "cm.emb": "Embankment",
+    "cm.noDtmP": "Without a DTM: only the pipe, no trench or layers.",
+    "ly.pipe": "pipe", "ly.bed": "bedding", "ly.surround": "side fill", "ly.cover": "cover", "ly.restore": "reinstatement", "ly.emb": "embankment", "pv.crown": "pipe crown",
+    "if.pipe": "pipe", "if.emb": "embankment", "if.embMat": "Embankment material", "if.embLen": "Length on embankment", "if.pipeMat": "Material", "if.norm": "Standard", "if.De": "Outside diameter", "if.s": "Wall thickness", "if.Di": "Inside diameter",
+    "if.width": "Bottom width", "if.bed": "Bedding", "if.cover": "Cover above the crown", "if.restore": "Reinstatement",
+    "if.bedL": "bedding", "if.surround": "side fill", "if.coverL": "cover", "if.restoreL": "reinstatement",
+    "if.bedMat": "Bedding material", "if.surroundMat": "Side fill material", "if.coverMat": "Cover material", "if.fillMat": "Backfill material",
+    "if.wallsV": "Vertical walls", "if.wallsS": "Sloped walls",
+    "exp.ifcNoteP": "Pipe: per stretch IfcPipeSegment with its material, bedding, side fill, cover and backfill IfcEarthworksFill, reinstatement IfcCourse, IfcEarthworksCut trench with the walls to shore, protective embankment IfcEarthworksFill .EMBANKMENT.",
     "exp.ifcNoteC": "U channel: per stretch IfcPipeSegment (the U with the head wall of the drop), blinding IfcSlab, cement-bound wedge and backfill IfcEarthworksFill, excavation IfcEarthworksCut.",
     "if.channelName": "U channel", "if.channel": "channel", "if.lean": "blinding", "if.leanType": "Blinding", "if.mix": "cement-bound granular", "if.backfill": "backfill",
     "if.leanMat": "Lean concrete", "if.mixMat": "Cement-bound granular material", "if.backMat": "Embankment fill material",
@@ -803,10 +853,10 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.6.0";
-import * as IO from "./profile-io.js?v=0.6.0";
+import * as C from "./profile-core.js?v=0.7.1";
+import * as IO from "./profile-io.js?v=0.7.1";
 
-const TOOL_VERSION = "0.6.0";
+const TOOL_VERSION = "0.7.1";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -842,10 +892,22 @@ const newWork = (id, name) => ({
   anchorMode: "pairs", reversed: false, reversedUser: false,
   ditch: { ...C.DITCH, step: 1 },   // fosso trapezio: scelte dell'utente (VI02) + passo delle sezioni
   channel: { ...C.CHANNEL, step: 1 }, // canale a U (inalveazione 400×250, 0.4)
+  pipe: { ...C.PIPE, step: 1, partWalls: {} },   // tubo in trincea (0.7); partWalls: pareti per tratto { k: "auto"|"v"|"s" }
   stype: "ditch", stypeUser: false,   // tipo di sezione: dal nome dei file finché l'utente non lo sceglie
   cuts: [],              // progressive in pianta dove si divide in tratti
 });
-const isCh = (w) => w.stype === "channel";
+const isCh = (w) => w.stype === "channel", isPipe = (w) => w.stype === "pipe";
+/* i solidi di un'opera per tipo di sezione: chiave di volumi e mesh, etichetta, spigoli in vista */
+const SOLIDS = {
+  ditch: [{ k: "lining", e: true, l: () => tr("cm.lining") }, { k: "cut", l: () => tr("cm.cut") }, { k: "fill", l: () => tr("cm.fill") }],
+  channel: [{ k: "lining", e: true, l: () => tr("cm.lining") }, { k: "lean", e: true, l: () => tr("cm.lean") }, { k: "mix", e: true, l: () => tr("cm.mix") },
+    { k: "cut", l: () => tr("cm.cut") }, { k: "fill", l: () => tr("cm.backfill") }],
+  pipe: [{ k: "pipe", e: true, l: () => tr("cm.pipe") }, { k: "bed", l: () => tr("cm.bed") }, { k: "surround", l: () => tr("cm.surround") }, { k: "cover", l: () => tr("cm.cover") },
+    { k: "fill", l: () => tr("cm.backfill") }, { k: "restore", l: () => tr("cm.restore") }, { k: "emb", l: () => tr("cm.emb") }, { k: "cut", l: () => tr("cm.cut") }],
+};
+const solidsOf = (w) => SOLIDS[w.stype] || SOLIDS.ditch;
+/* nome del materiale del tubo (anche nell'IFC) */
+const pipeMatName = (m) => (m === "pvc" ? tr("pm.pvc") : m === "pe" ? tr("pm.pe") : m === "cls" ? tr("pm.cls") : m === "ghisa" ? tr("pm.ghisa") : tr("pm.manual"));
 const S = {
   works: [],             // opere del progetto
   active: -1,            // indice dell'opera attiva: pannello, profilo e ancoraggi parlano di lei
@@ -857,7 +919,7 @@ const S = {
   dtmInFile: true,       // «Salva progetto» mette il DTM dentro il file (l'ultima scelta)
   name: "",              // nome del progetto (file in uscita)
   hidden: {},            // elementi spenti: "w<id>", "w<id>:plan|prof|axis", "w<id>:t<k>", "w<id>:t<k>:lining|cut|fill", "dtm:<file>"
-  view: { ex: 2, layers: { dtm: true, lining: true, lean: true, mix: true, cut: true, fill: true } }, podOff: false, pvOff: false, treeOff: false, closed: {}, treeOpen: {}, snap: true,
+  view: { ex: 2, layers: { dtm: true, lining: true, lean: true, mix: true, cut: true, fill: true, pipe: true, bed: true, surround: true, cover: true, restore: true, emb: true } }, podOff: false, pvOff: false, treeOff: false, closed: {}, treeOpen: {}, snap: true,
   treeW: null, podW: null,     // larghezze trascinate di albero e pannello (px); null = quella iniziale del CSS
   lastSave: null, saveOk: true,
 };
@@ -987,6 +1049,12 @@ function rebuildDitch() {
   if (isCh(W)) {
     const sh = C.channelShape(W.channel);
     const sw = C.channelSweep(D.axis, D.prof, W.anchors, sh, z3, { O, step: W.channel.step, cuts: W.cuts });
+    D.parts = sw.parts; D.drops = sw.drops; D.shape = sh; D.O = O;
+    return;
+  }
+  if (isPipe(W)) {                                       // tubo in trincea: tratti ai salti (pozzetti) e alle divisioni
+    const sh = C.pipeShape(W.pipe);
+    const sw = C.pipeSweep(D.axis, D.prof, W.anchors, sh, z3, { O, step: W.pipe.step, cuts: W.cuts, partWalls: W.pipe.partWalls });
     D.parts = sw.parts; D.drops = sw.drops; D.shape = sh; D.O = O;
     return;
   }
@@ -1425,6 +1493,7 @@ const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true; controls.dampingFactor = 0.12;
 controls.screenSpacePanning = false;
 controls.zoomToCursor = true;
+controls.mouseButtons.MIDDLE = THREE.MOUSE.PAN;            // tasto della rotella = pan (come il destro); lo zoom resta alla rotella
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 scene.add(new THREE.HemisphereLight(0xffffff, 0x777766, 0.9));
 const sun = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -1461,6 +1530,20 @@ function themeColors() {
   mats.cut.color.set(light ? 0xa8743f : 0xc29560);
   mats.fill = mats.fill || new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false });
   mats.fill.color.set(light ? 0x6f9a3a : 0x8fbf55);
+  // tubo in trincea: il tubo col colore del materiale, gli strati di posa in toni di sabbia, il ripristino scuro
+  for (const [k, c] of [["pvc", 0xb8622f], ["pe", 0x3a3a3a], ["cls", 0xb0b2aa], ["ghisa", 0x4b4f57], ["manual", 0x8c8f88]]) {
+    const key = "pipe_" + k;
+    mats[key] = mats[key] || new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
+    mats[key].color.set(c);
+  }
+  for (const [k, cl, cd] of [["bed", 0xcdb779, 0xd9c48a], ["surround", 0xd9c99a, 0xe6d6a3], ["cover", 0xc2ab72, 0xcdb87e]]) {
+    mats[k] = mats[k] || new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
+    mats[k].color.set(light ? cl : cd);
+  }
+  mats.emb = mats.emb || new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false });
+  mats.emb.color.set(light ? 0x8f8a4a : 0xb3ad66);              // rilevato di protezione del tubo: oliva, diverso dal reinterro
+  mats.restore = mats.restore || new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
+  mats.restore.color.set(light ? 0x55585a : 0x6a6d70);
   mats.dtm = mats.dtm || new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
   mats.dtm.color.set(light ? 0xd8cdb4 : 0x8c8470);
   mats.edge = mats.edge || new THREE.LineBasicMaterial({ color: 0x46514a, transparent: true, opacity: 0.45 });   // come gli spigoli del viewer
@@ -1536,11 +1619,12 @@ function buildScene() {
     for (const part of parts) {
       const P = K + ":t" + part.k;
       if (!shown(P)) continue;
-      if (ly.lining && shown(P + ":lining")) tag(addMesh(part.mesh.lining, mats.lining, off, { edges: true }), P + ":lining");
-      if (ly.lean && part.mesh.lean && shown(P + ":lean") && part.mesh.lean.index.length) tag(addMesh(part.mesh.lean, mats.lean, off, { edges: true }), P + ":lean");
-      if (ly.mix && part.mesh.mix && shown(P + ":mix") && part.mesh.mix.index.length) tag(addMesh(part.mesh.mix, mats.mix, off, { edges: true }), P + ":mix");
-      if (ly.cut && shown(P + ":cut") && part.mesh.cut.index.length) tag(addMesh(part.mesh.cut, mats.cut, off), P + ":cut");
-      if (ly.fill && shown(P + ":fill") && part.mesh.fill.index.length) tag(addMesh(part.mesh.fill, mats.fill, off), P + ":fill");
+      for (const s of solidsOf(w)) {
+        const m = part.mesh[s.k];
+        if (!ly[s.k] || !m || !m.index.length || !shown(P + ":" + s.k)) continue;
+        const mat = s.k === "pipe" ? mats["pipe_" + w.pipe.mat] || mats.pipe_manual : mats[s.k];
+        tag(addMesh(m, mat, off, { edges: !!s.e }), P + ":" + s.k);
+      }
     }
     // terreno del profilo, riportato sulla pianta
     if (d.ground && shown(K + ":prof")) {
@@ -1674,9 +1758,99 @@ function orbCancel() {
   if (orbDrag) { try { canvas.releasePointerCapture(orbDrag.id); } catch (_) {} orbDrag = null; }
   if (orbDot) orbDot.visible = false;
 }
+/* ==================== pan e rotella alla profondità del punto sotto il cursore ====================
+   OrbitControls fa pan e zoom in scala con |camera − target|. Dopo «inquadra tutto» il target è il
+   centro del riquadro (in aria, o sotto il DTM), dopo la rotella con zoomToCursor (screenSpacePanning
+   false) resta sul piano orizzontale del target di prima: il pan corre troppo o si muove appena. Al
+   press del pan (destro o tasto della rotella, o sinistro con Ctrl/Shift/Meta) e all'inizio di una
+   raffica di rotella: raycast sotto il cursore e il target scivola lungo l'asse di
+   vista (la vista non cambia: nessun salto). Pan: alla profondità del punto, che così segue il
+   cursore 1:1 in orizzontale. Rotella: dove l'asse di vista passa la QUOTA del punto, perché fra un
+   passo e l'altro zoomToCursor rimette il target sul piano orizzontale per il target: quello del
+   terreno guardato. Nel vuoto: il piano orizzontale a metà della scena, se sta davanti e non oltre
+   la scena; altrimenti il target resta dov'è. */
+const panBox = new THREE.Box3(), panV = new THREE.Vector3(), panW = new THREE.Vector3(), panP = new THREE.Vector3();
+function cursorPoint(e) {
+  const r = canvas.getBoundingClientRect();
+  orbNdc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  orbRay.setFromCamera(orbNdc, camera);
+  const hit = orbRay.intersectObjects(orbTargets(), false)[0];
+  if (hit) return panP.copy(hit.point);
+  const box = sceneBox();
+  if (!box) return null;
+  panBox.copy(box);
+  const dz = orbRay.ray.direction.z, zc = (panBox.min.z + panBox.max.z) / 2;
+  if (Math.abs(dz) < 1e-6) return null;
+  const t = (zc - orbRay.ray.origin.z) / dz, far = camera.position.distanceTo(panBox.getCenter(panV)) + panBox.getSize(panV).length();
+  return t > 0 && t <= far ? orbRay.ray.at(t, panP) : null;
+}
+function cursorDepth(e) {
+  const P = cursorPoint(e);
+  return P ? panV.subVectors(P, camera.position).dot(camera.getWorldDirection(panW)) : NaN;
+}
+function targetToCursor(e, level = false) {
+  const P = cursorPoint(e);
+  if (!P) return false;
+  const dir = camera.getWorldDirection(panW);
+  let t = panV.subVectors(P, camera.position).dot(dir);
+  if (level && Math.abs(dir.z) > 0.05) { const tz = (P.z - camera.position.z) / dir.z; if (tz > 1e-3) t = tz; }
+  if (!(t > 1e-3)) return false;
+  controls.target.copy(camera.position).addScaledVector(dir, t);
+  return true;
+}
+/* Pan a presa: il punto sotto il cursore resta sotto il cursore. Il piano orizzontale alla sua quota
+   si trascina con camera e target (quota della camera invariata, come il pan «in pianta» di prima),
+   senza inerzia. OrbitControls in pan scala il moto in orizzontale con la profondità, ma in verticale
+   va avanti in pianta e il punto fa solo una parte del cursore (58 % su una vista a 35°, quasi niente
+   guardando di lato). Raggi quasi paralleli al piano (verso l'orizzonte): lo spostamento si ferma a
+   20 volte la profondità del punto. */
+let panDrag = null;                        // { id, z, P: Vector3, far }
+canvas.addEventListener("pointerdown", (e) => {
+  if (orbDrag || panDrag || e.pointerType !== "mouse" || !controls.enabled) return;
+  const mod = e.ctrlKey || e.metaKey || e.shiftKey;
+  if (((e.button === 2 || e.button === 1) && !mod && controls.enablePan) || (e.button === 0 && mod && controls.enablePan)) {
+    const P = cursorPoint(e);
+    if (!P) return;                                        // niente da prendere: il pan di OrbitControls
+    e.stopPropagation();
+    targetToCursor(e);                                     // pan, zoom e orbita dopo il pan: in scala con quel punto
+    panDrag = { id: e.pointerId, P: P.clone(), far: 20 * Math.max(1, P.distanceTo(camera.position)) };
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+  }
+}, { capture: true });
+canvas.addEventListener("mousedown", (e) => { if (e.button === 1) e.preventDefault(); });   // tasto della rotella: niente scorrimento automatico del browser
+canvas.addEventListener("pointermove", (e) => {
+  if (!panDrag || e.pointerId !== panDrag.id) return;
+  e.stopPropagation();
+  const r = canvas.getBoundingClientRect();
+  orbNdc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  orbRay.setFromCamera(orbNdc, camera);
+  const dz = orbRay.ray.direction.z;
+  if (Math.abs(dz) < 1e-6) return;
+  const t = (panDrag.P.z - orbRay.ray.origin.z) / dz;
+  if (!(t > 0) || t > panDrag.far) return;                 // verso l'orizzonte: fermo
+  const Q = orbRay.ray.at(t, panV);
+  panW.set(panDrag.P.x - Q.x, panDrag.P.y - Q.y, 0);
+  camera.position.add(panW); controls.target.add(panW);
+}, { capture: true });
+function panEnd(e) {
+  if (!panDrag || e.pointerId !== panDrag.id) return;
+  e.stopPropagation();
+  try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+  panDrag = null;
+}
+canvas.addEventListener("pointerup", panEnd, { capture: true });
+canvas.addEventListener("pointercancel", panEnd, { capture: true });
+addEventListener("blur", () => { panDrag = null; });
+let wheelT = 0;
+canvas.addEventListener("wheel", (e) => {
+  const now = performance.now();
+  if (now - wheelT > 250 && controls.enabled && controls.enableZoom) targetToCursor(e, true);   // una volta per raffica: il raycast su 1 M triangoli costa ~30 ms
+  wheelT = now;
+}, { capture: true, passive: true });
 canvas.addEventListener("pointerdown", (e) => {
   if (orbDrag) { e.stopPropagation(); return; }            // drag sul pivot in corso: nessun altro gesto
   if (e.button !== 0 || (e.pointerType !== "mouse" && e.pointerType !== "pen")) return;
+  if (e.ctrlKey || e.metaKey || e.shiftKey) return;        // sinistro con un modificatore = pan di OrbitControls
   if (!controls.enabled || !controls.enableRotate) return;
   const r = canvas.getBoundingClientRect();
   orbNdc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
@@ -1782,6 +1956,13 @@ function pvData() {
     for (const pt of D.prof.pts) PV.top.push([D.map.toP(pt.s), pt.z + up]);
     $("pvTopLg").hidden = false;
   }
+  // tubo: l'estradosso (dove comincia il ricoprimento)
+  if (isPipe(W)) {
+    const sh = C.pipeShape(W.pipe), up = sh.lift + sh.vt;
+    for (const pt of D.prof.pts) PV.top.push([D.map.toP(pt.s), pt.z + up]);
+    $("pvTopLg").hidden = false;
+  }
+  $("pvTopTx").textContent = isPipe(W) ? tr("pv.crown") : tr("pv.top");
   if (D.ground) for (const pt of D.ground.pts) PV.ground.push([D.map.toP(pt.s), pt.z]);
   W.anchors.forEach((a, idx) => PV.dots.push({ p: a.p, d: a.q - a.p, off: !!a.off, auto: !!a.auto, idx }));
   PV.dots.sort((a, b) => a.p - b.p);
@@ -2151,9 +2332,10 @@ function renderDtm() {
 function renderSection() {
   const B = $("sxBody"), ch = isCh(W), d = ch ? W.channel : W.ditch;
   const fld = (k, label, unit, min) => `<label for="sx_${k}">${esc(label)}<span class="numbox"><input type="number" id="sx_${k}" data-k="${k}" data-min="${min}" step="any" value="${d[k]}"><span>${unit}</span></span></label>`;
-  let h = `<div class="row"><span class="lbl">${esc(tr("sx.type"))}</span><div class="chips">`
-    + `<button class="chip${ch ? "" : " on"}" data-st="ditch">${esc(tr("sx.ditch"))}</button><button class="chip${ch ? " on" : ""}" data-st="channel">${esc(tr("sx.channel"))}</button></div></div>`;
+  const st = (v, label) => `<button class="chip${W.stype === v ? " on" : ""}" data-st="${v}">${esc(label)}</button>`;
+  let h = `<div class="row"><span class="lbl">${esc(tr("sx.type"))}</span><div class="chips">${st("ditch", tr("sx.ditch"))}${st("channel", tr("sx.channel"))}${st("pipe", tr("sx.pipe"))}</div></div>`;
   h += `<p class="help">${esc(tr("sx.soon"))}</p>`;
+  if (isPipe(W)) { renderPipeSection(B, h); return; }
   if (!ch) {
     h += `<div class="pgrid">` + fld("b", tr("sx.b"), "m", 0.01) + fld("h", tr("sx.h"), "m", 0.01) + fld("m", tr("sx.m"), "o/v", 0) + fld("t", tr("sx.t"), "m", 0.001)
       + fld("berm", tr("sx.berm"), "m", 0) + fld("step", tr("sx.step"), "m", 0.1) + fld("cut", tr("sx.cut"), "o/v", 0.01) + fld("fill", tr("sx.fill"), "o/v", 0.01) + `</div>`;
@@ -2179,12 +2361,104 @@ function renderSection() {
     d[k] = v;
     later(false);
   }));
+  wireType(B, later);
+  B.querySelectorAll(".chip[data-ref]").forEach((el) => el.addEventListener("click", () => { W.channel.ref = el.dataset.ref; later(false); }));
+  drawSection(PV.hover);
+}
+const sectionLaterFn = () => (full) => { busy(tr("busy.sweep")); setTimeout(() => { if (full) rebuildProfile(); recompute(); busy(""); scheduleSave(); }, 20); };
+function wireType(B, later) {
   B.querySelectorAll(".chip[data-st]").forEach((el) => el.addEventListener("click", () => {
     if (el.dataset.st === W.stype) return;
     W.stype = el.dataset.st; W.stypeUser = true;
     later(true);                                         // il canale rende verticali i salti quasi verticali
   }));
-  B.querySelectorAll(".chip[data-ref]").forEach((el) => el.addEventListener("click", () => { W.channel.ref = el.dataset.ref; later(false); }));
+}
+/* tubo in trincea: tubo (catalogo o a mano), linea del profilo, strati, larghezza, pareti (anche per tratto) */
+function renderPipeSection(B, head) {
+  const d = W.pipe, cat = C.PIPE_CATALOG[d.mat], sh = C.pipeShape(d), later = sectionLaterFn();
+  const num = (k, label, unit, min, val, ph = "") => `<label for="sx_${k}">${esc(label)}<span class="numbox"><input type="number" id="sx_${k}" data-pk="${k}" data-min="${min}" step="any" value="${val}"${ph ? ` placeholder="${esc(ph)}"` : ""}><span>${unit}</span></span></label>`;
+  const chip = (attr, v, cur, label) => `<button class="chip${cur === v ? " on" : ""}" data-${attr}="${v}">${esc(label)}</button>`;
+  const r3 = (x) => Math.round(x * 1e4) / 10;                       // m → mm (un decimale)
+  let h = head;
+  h += `<div class="row"><span class="lbl">${esc(tr("sx.refL"))}</span><div class="chips">${chip("pref", "invert", d.ref, tr("sx.refInvert"))}${chip("pref", "axis", d.ref, tr("sx.refAxis"))}${chip("pref", "bottom", d.ref, tr("sx.refBottom"))}${chip("pref", "trench", d.ref, tr("sx.refTrench"))}</div></div>`;
+  const mats = ["pvc", "pe", "cls", "ghisa", "manual"].map((m) => `<option value="${m}"${d.mat === m ? " selected" : ""}>${esc(pipeMatName(m))}${C.PIPE_CATALOG[m] ? " — " + esc(C.PIPE_CATALOG[m].norm) : ""}</option>`).join("");
+  h += `<div class="sub">${esc(tr("sx.subPipe"))}</div><div class="row"><label for="sx_mat">${esc(tr("sx.pmat"))}</label><select id="sx_mat" class="txt">${mats}</select></div>`;
+  h += `<div class="pgrid">`;
+  if (cat) h += `<label for="sx_dn">DN<select id="sx_dn" class="txt">${cat.rows.map(([dn]) => `<option value="${dn}"${dn === d.dn ? " selected" : ""}>DN ${dn}</option>`).join("")}</select></label>`;
+  h += num("De", tr("sx.De"), "mm", 10, r3(d.De)) + num("s", tr("sx.ps"), "mm", 0.5, r3(d.s)) + `</div>`;
+  h += `<p class="help">${esc(cat ? tr("sx.pcat", { n: cat.norm, k: cat.dn === "OD" ? tr("sx.dnOD") : tr("sx.dnID") }) : tr("sx.pman"))}</p>`;
+  h += `<div class="sub">${esc(tr("sx.subTrench"))}</div><div class="pgrid">` + num("bed", tr("sx.bed"), "m", 0, d.bed != null ? d.bed : "", nf(sh.bed, 3) + " auto")
+    + num("cover", tr("sx.cover"), "m", 0, d.cover) + num("restore", tr("sx.restore"), "m", 0, d.restore) + num("width", tr("sx.width"), "m", 0.1, d.width != null ? d.width : "", "UNI EN 1610") + `</div>`;
+  h += `<div class="sub">${esc(tr("sx.subWalls"))}</div><div class="row"><span class="lbl">${esc(tr("sx.walls"))}</span><div class="chips">${chip("pw", "auto", d.walls, tr("sx.wAuto"))}${chip("pw", "v", d.walls, tr("sx.wV"))}${chip("pw", "s", d.walls, tr("sx.wS"))}</div></div>`;
+  h += `<div class="pgrid">` + num("deep", tr("sx.deep"), "m", 0, d.deep) + num("slope", tr("sx.slopeW"), "o/v", 0.01, d.slope) + num("step", tr("sx.step"), "m", 0.1, d.step) + `</div>`;
+  const embOn = d.emb !== false;
+  h += `<div class="sub">${esc(tr("sx.subEmb"))}</div><label class="check"><input type="checkbox" id="sx_emb"${embOn ? " checked" : ""}> ${esc(tr("sx.emb"))}</label>`;
+  h += `<div class="pgrid">` + (embOn ? num("berm", tr("sx.berm"), "m", 0, d.berm) + num("bank", tr("sx.bank"), "o/v", 0.01, d.bank) : "") + num("covMin", tr("sx.covMin"), "m", 0, d.covMin) + `</div>`;
+  if (D.parts.length > 1) for (const t of D.parts) {
+    const cur = t.k + ":" + (d.partWalls[t.k] || "");      // «come la regola» o forzate per questo tratto
+    h += `<div class="row"><span class="lbl">${esc(tr("cm.partName", { n: t.k }))}</span><div class="chips">${chip("pp", t.k + ":", cur, tr("sx.wRule"))}${chip("pp", t.k + ":v", cur, tr("sx.wV"))}${chip("pp", t.k + ":s", cur, tr("sx.wS"))}</div></div>`;
+  }
+  if (D.parts.length && D.parts.every((t) => t.walls)) {    // (tratti del tubo: non quelli di un altro tipo ancora da ricalcolare)
+    const ws = [...new Set(D.parts.map((t) => t.width))], vert = D.parts.reduce((a, t) => a + t.walls.vertical, 0), slo = D.parts.reduce((a, t) => a + t.walls.slope, 0);
+    const shore = D.parts.reduce((a, t) => a + t.shore, 0);
+    let mc = null;
+    for (const t of D.parts) if (t.minCov && (!mc || t.minCov.v < mc.v)) mc = t.minCov;
+    h += kv(tr("sx.pWidth"), esc(ws.map((x) => nf(x, 2)).join(" · ") + " m" + (d.width ? "" : " (UNI EN 1610)")));
+    h += kv(tr("sx.walls"), esc(tr("sx.pWallsV", { v: nf(vert, 0), s: nf(slo, 0) })));
+    if (mc) h += kv(tr("sx.pCov"), esc(tr("sx.pCovV", { c: nf(mc.v, 2), p: prog(mc.p, 0) })), mc.v < 0 ? "warn" : "");
+    // rilevato: lunghezza e altezza massima sull'asse; ricoprimento finito (dalla cima del rilevato o dal terreno)
+    const banks = D.parts.flatMap((t) => t.bank || []), bankLen = banks.reduce((a, r) => a + r.p1 - r.p0, 0);
+    if (banks.length) {
+      let mf = null;
+      for (const t of D.parts) if (t.minCovF && (!mf || t.minCovF.v < mf.v)) mf = t.minCovF;
+      h += kv(tr("sx.pBank"), esc(tr("sx.pBankV", { l: nf(bankLen, 1), h: nf(Math.max(...banks.map((r) => r.v)), 2) })));
+      if (mf) h += kv(tr("sx.pCovF"), esc(tr("sx.pCovV", { c: nf(mf.v, 2), p: prog(mf.p, 0) })));
+    }
+    if (shore > 0.01) h += kv(tr("sx.pShore"), esc(nf(shore, 1) + " m²"), "warn");
+    const low = D.parts.flatMap((t) => t.low || []);
+    if (low.length) {                                      // avviso: ricoprimento dal terreno naturale sotto il minimo scelto
+      const list = low.slice(0, 4).map((r) => tr("sx.pLowR", { a: prog(r.p0, 0), b: prog(r.p1, 0), c: nf(r.v, 2) })).join(", ") + (low.length > 4 ? " " + tr("sx.pLowMore", { n: low.length - 4 }) : "");
+      h += `<p class="note warn">${esc(tr("sx.pLow", { c: nf(d.covMin, 2), list }))}</p>`;
+    }
+    if (mc && mc.v < 0) h += `<p class="note warn">${esc(embOn ? tr("sx.pBareE") : tr("sx.pBare"))}</p>`;
+  }
+  h += `<p class="help">${esc(tr("sx.pHelp"))} ${esc(tr("sx.embHelp"))}</p>`;
+  h += `<div class="secview"><div class="cap" id="sxCap"></div><svg id="sxSvg" viewBox="0 0 300 132" preserveAspectRatio="xMidYMid meet"></svg></div>`;
+  B.innerHTML = h;
+  const apply = (dn) => { const c = C.pipeFromCatalog(d.mat, dn); if (c) Object.assign(d, c); };
+  B.querySelectorAll("input[data-pk]").forEach((el) => el.addEventListener("change", () => {
+    const k = el.dataset.pk, raw = el.value.trim();
+    if ((k === "bed" || k === "width") && raw === "") { d[k] = null; later(false); return; }
+    let v = Number(raw);
+    const min = Number(el.dataset.min);
+    if (!Number.isFinite(v) || v < min) { renderSection(); return; }
+    if (k === "De" || k === "s") {                         // a mano: il tubo esce dal catalogo
+      v /= 1000;
+      if (k === "s" && v >= d.De / 2) { renderSection(); return; }
+      if (k === "De" && v <= 2 * d.s) { renderSection(); return; }
+      d[k] = v; d.mat = "manual"; d.dn = Math.round(d.De * 1000);
+    } else d[k] = v;
+    later(false);
+  }));
+  $("sx_mat").addEventListener("change", (e) => {
+    d.mat = e.target.value;
+    const c = C.PIPE_CATALOG[d.mat];
+    if (c) {                                               // lo stesso DN se c'è, altrimenti il più vicino al diametro esterno
+      const row = c.rows.find((x) => x[0] === d.dn) || c.rows.reduce((a, x) => (Math.abs(x[1] / 1000 - d.De) < Math.abs(a[1] / 1000 - d.De) ? x : a));
+      apply(row[0]);
+    }
+    later(false);
+  });
+  if ($("sx_dn")) $("sx_dn").addEventListener("change", (e) => { apply(Number(e.target.value)); later(false); });
+  $("sx_emb").addEventListener("change", (e) => { d.emb = e.target.checked; later(false); });
+  B.querySelectorAll(".chip[data-pref]").forEach((el) => el.addEventListener("click", () => { d.ref = el.dataset.pref; later(false); }));
+  B.querySelectorAll(".chip[data-pw]").forEach((el) => el.addEventListener("click", () => { d.walls = el.dataset.pw; later(false); }));
+  B.querySelectorAll(".chip[data-pp]").forEach((el) => el.addEventListener("click", () => {
+    const [k, m] = el.dataset.pp.split(":");
+    if (m) d.partWalls[k] = m; else delete d.partWalls[k];
+    later(false);
+  }));
+  wireType(B, later);
   drawSection(PV.hover);
 }
 /* anteprima della sezione: quella tipo, o quella vera alla progressiva p (col DTM) — a scala vera */
@@ -2192,6 +2466,7 @@ function drawSection(p) {
   const svg = $("sxSvg"), cap = $("sxCap");
   if (!svg || S.closed.section) return;
   if (isCh(W)) { drawChannelSection(p, svg, cap); return; }
+  if (isPipe(W)) { drawPipeSection(p, svg, cap); return; }
   const sh = C.ditchShape(W.ditch);
   let T = () => sh.h + 0.6, title = tr("sx.typical"), real = false;
   if (p != null && TIN && D.axis && D.prof && D.map) {
@@ -2261,18 +2536,73 @@ function drawChannelSection(p, svg, cap) {
   const zl = zone.kind === "wall" ? tr("sx.zoneWall") : zone.kind === "wedge" ? tr("sx.zoneWedge") : "";
   cap.textContent = title + (zl ? " · " + zl : "") + (real ? ` · ${tr("cm.cut").toLowerCase()} ${nf(cr.cut)} m² · ${tr("cm.backfill").toLowerCase()} ${nf(cr.fill)} m²` : TIN ? " — " + tr("sx.hover") : "");
 }
+/* tubo in trincea: sezione tipo (terreno 0,90 sopra il ricoprimento) o vera alla progressiva p, con la
+   larghezza e le pareti del tratto (la sezione del computo più vicina): gli anelli della mesh, il tubo */
+function drawPipeSection(p, svg, cap) {
+  const d = W.pipe, sh = C.pipeShape(d);
+  let T = () => sh.vt + sh.cover + 0.9, title = tr("sx.typical"), real = false, Wd = 0, m = 0;
+  if (p != null && TIN && D.axis && D.prof && D.map) {
+    const w = C.planAt(D.axis, p), z = C.zAt(D.prof, D.map.toQ(p), 1);
+    if (Number.isFinite(z)) {
+      const zb = z + sh.lift;
+      T = (u) => TIN.z(w.x + w.ty * u, w.y - w.tx * u) - zb; title = tr("sx.at", { p: prog(p) }); real = true;
+      const part = D.parts.find((t) => p >= t.p0 - 1e-6 && p <= t.p1 + 1e-6);
+      if (part) {
+        Wd = part.width;
+        let best = null;
+        for (const s of part.sections) if (!best || Math.abs(s.p - p) < Math.abs(best.p - p)) best = s;
+        if (best) m = best.m;
+      }
+    }
+  }
+  if (!Wd) {                                               // sezione tipo: la regola delle pareti e la UNI EN 1610 alla sua profondità
+    const depth = T(0) - sh.vF;
+    m = d.walls === "s" || (d.walls !== "v" && depth > d.deep) ? d.slope : 0;
+    Wd = d.width || Math.ceil(C.en1610Width(d.dn, sh.De, depth, m < 0.577) * 20 - 1e-9) / 20;
+  }
+  const cr = C.pipeCross(sh, T, Wd, m), rg = C.pipeRings(sh, cr, T);
+  const u0 = Math.min(cr.EL.u, cr.SL.u, cr.toeL.u, -Wd / 2) - 0.5, u1 = Math.max(cr.ER.u, cr.SR.u, cr.toeR.u, Wd / 2) + 0.5, uc = (u0 + u1) / 2;
+  const terr = [];
+  for (let u = u0; u <= u1 + 1e-9; u += (u1 - u0) / 160) terr.push([u, T(u)]);
+  let v0 = sh.vF - 0.1, v1 = sh.vt + sh.cover;
+  for (const [, t] of terr) if (Number.isFinite(t)) { v0 = Math.min(v0, t); v1 = Math.max(v1, t); }
+  const SW = 300, SH = 132, pad = 8, k = Math.min((SW - 2 * pad) / (u1 - u0), (SH - 2 * pad) / Math.max(0.5, v1 - v0));
+  const X = (u) => (SW / 2 + (u - uc) * k).toFixed(1), Y = (v) => (SH / 2 - (v - (v0 + v1) / 2) * k).toFixed(1);
+  const pts = (arr) => arr.filter(([, v]) => Number.isFinite(v)).map(([u, v]) => X(u) + "," + Y(v)).join(" ");
+  const ring = (r) => pts([...r.map(([u, l]) => [u, l]), ...r.slice().reverse().map(([u, , x]) => [u, x])]);
+  const path = (P) => "M" + P.map(([u, v]) => X(u) + " " + Y(v)).join("L") + "Z";
+  const cText = css("--text"), cPipe = { pvc: "#b8622f", pe: "#3a3a3a", cls: "#b0b2aa", ghisa: "#4b4f57" }[d.mat] || "#8c8f88";
+  let s = `<polygon points="${ring(rg.cut)}" fill="${css("--earth")}" fill-opacity=".22"/>`;
+  for (const [key, col, op] of [["emb", "#a39d58", ".55"], ["bed", "#d9c48a", ".85"], ["surroundLow", "#e6d6a3", ".85"], ["surroundUp", "#e6d6a3", ".85"], ["cover", "#cdb87e", ".85"], ["fill", "#6f9a3a", ".35"], ["restore", "#55585a", ".85"]])
+    if (rg[key]) s += `<polygon points="${ring(rg[key])}" fill="${col}" fill-opacity="${op}"/>`;
+  s += `<path d="${path(sh.outer)}${path(sh.inner)}" fill="${cPipe}" fill-rule="evenodd" stroke="${cText}" stroke-width=".5"/>`;
+  // la trincea: fondo e pareti fino alla superficie finita (sopra il terreno, se c'è il rilevato)
+  s += `<polyline points="${pts([[cr.SL.u, cr.SL.v], [-Wd / 2, sh.vF], [Wd / 2, sh.vF], [cr.SR.u, cr.SR.v]])}" fill="none" stroke="${cText}" stroke-width="1"/>`;
+  if (!cr.dry && cr.a.emb > 1e-4) {                        // superficie finita del rilevato, da piede a piede
+    const fu = terr.map(([u]) => u).filter((u) => u > cr.toeL.u && u < cr.toeR.u);
+    s += `<polyline points="${pts([[cr.toeL.u, T(cr.toeL.u)], ...fu.map((u) => [u, cr.S(u)]), [cr.toeR.u, T(cr.toeR.u)]])}" fill="none" stroke="${cText}" stroke-width=".8"/>`;
+  }
+  s += `<polyline points="${pts(terr)}" fill="none" stroke="${real ? css("--blue") : css("--faint")}" stroke-width="1.3"${real ? "" : ' stroke-dasharray="4 3"'}/>`;
+  s += `<line x1="${X(0)}" y1="${(+Y(v0) + 4).toFixed(1)}" x2="${X(0)}" y2="${Y(v1)}" stroke="${css("--faint")}" stroke-width=".6" stroke-dasharray="2 2"/>`;
+  svg.innerHTML = s;
+  const walls = m ? tr("sx.wS").toLowerCase() : tr("sx.wV").toLowerCase();
+  const emb = cr.a.emb > 1e-4 ? ` · ${tr("ly.emb")} ${nf(cr.a.emb)} m² · ${tr("sx.cover").toLowerCase()} ${nf(cr.covF)} m (${tr("pv.ground")} ${nf(cr.cov)})` : ` · ${tr("sx.cover").toLowerCase()} ${nf(cr.cov)} m`;
+  cap.textContent = title + ` · ${nf(Wd, 2)} m · ${walls}` + (real && !cr.dry ? ` · ${tr("cm.cut").toLowerCase()} ${nf(cr.a.cut)} m²` + emb : !real && TIN ? " — " + tr("sx.hover") : "");
+}
 let secRaf = 0;
 function sectionLater(p) { cancelAnimationFrame(secRaf); secRaf = requestAnimationFrame(() => drawSection(p)); }
 function renderQty() {
   const B = $("cmBody");
   if (!D.parts.length) { B.innerHTML = `<p class="empty">${esc(tr("cm.none"))}</p>`; $("cmCnt").textContent = ""; return; }
-  // colonne: fosso cls · scavo · riporto; canale cls · magrone · misto · scavo · rinterro
-  const ch = isCh(W), cols = ch ? ["lining", "lean", "mix", "cut", "fill"] : ["lining", "cut", "fill"];
-  const heads = ch ? [tr("cm.lining"), tr("cm.lean"), tr("cm.mix"), tr("cm.cut"), tr("cm.backfill")] : [tr("cm.lining"), tr("cm.cut"), tr("cm.fill")];
+  // colonne: i solidi dell'opera (fosso cls · scavo · riporto; canale + magrone, misto; tubo: gli strati e lo scavo,
+  // il tubo si conta a metri nella colonna della lunghezza; il ripristino solo se c'è)
+  const ch = isCh(W), pi = isPipe(W);
+  const sol = solidsOf(W).filter((x) => x.k !== "pipe" && (!(x.k === "restore" || x.k === "emb") || D.parts.some((t) => t.vol[x.k] > 0.001)));
+  const cols = sol.map((x) => x.k), heads = sol.map((x) => x.l());
   const tot = { length: 0 };
   for (const k of cols) tot[k] = 0;
   const cells = (v) => cols.map((k) => `<td>${nf(v[k] || 0, 1)}</td>`).join("");
-  let h = `<table class="qt${ch ? " wide" : ""}"><tr><th>${esc(tr("cm.part"))}</th><th>${esc(tr("cm.len"))}</th>${heads.map((x) => `<th title="${esc(x)}">${esc(x)}</th>`).join("")}</tr>`;
+  let h = `<table class="qt${cols.length > 3 ? " wide" : ""}"><tr><th>${esc(tr("cm.part"))}</th><th>${esc(tr("cm.len"))}</th>${heads.map((x) => `<th title="${esc(x)}">${esc(x)}</th>`).join("")}</tr>`;
   for (const pt of D.parts) {
     tot.length += pt.length;
     for (const k of cols) tot[k] += pt.vol[k] || 0;
@@ -2280,7 +2610,7 @@ function renderQty() {
     h += `<tr><td>${esc(tr("cm.partName", { n: pt.k }))}<span class="rng">${prog(pt.p0, 0)} – ${prog(pt.p1, 0)}${esc(drop)}</span></td><td>${nf(pt.length, 1)}</td>${cells(pt.vol)}</tr>`;
   }
   if (D.parts.length > 1) h += `<tr class="tot"><td>${esc(tr("cm.total"))}</td><td>${nf(tot.length, 1)}</td>${cells(tot)}</tr>`;
-  const step = ch ? W.channel.step : W.ditch.step;
+  const step = ch ? W.channel.step : pi ? W.pipe.step : W.ditch.step;
   h += `</table><p class="help">m · m³ — ${esc(tr("cm.help", { s: nf(step, step % 1 ? 1 : 0) }))}</p>`;
   const on = exported();
   if (S.works.length > 1 && on.length) {                 // le opere che escono nell'IFC e nel CSV (quelle accese nell'albero)
@@ -2291,7 +2621,8 @@ function renderQty() {
     h += kv(label, esc(anyCh ? tr("cm.allVc", v) : tr("cm.allV", v)));
   }
   const miss = D.parts.reduce((a, b) => a + b.miss, 0);
-  if (!TIN) h += `<p class="note warn">${esc(ch ? tr("cm.noDtmC") : tr("cm.noDtm"))}</p>`;
+  if (pi && D.parts.some((t) => t.shore > 0.01)) h += kv(tr("sx.pShore"), esc(nf(D.parts.reduce((a, t) => a + t.shore, 0), 1) + " m²"), "warn");
+  if (!TIN) h += `<p class="note warn">${esc(ch ? tr("cm.noDtmC") : pi ? tr("cm.noDtmP") : tr("cm.noDtm"))}</p>`;
   else if (miss) h += `<p class="note warn">${esc(tr("cm.miss", { n: ni(miss) }))}</p>`;
   const cuts = W.cuts.slice().sort((a, b) => a - b);
   if (cuts.length) h += `<div class="splits">${cuts.map((c) => `<button class="chip" data-cut="${c}" title="${esc(tr("cm.join", { p: prog(c, 2) }))}">${prog(c, 2)} ×</button>`).join("")}</div>`;
@@ -2323,7 +2654,7 @@ function renderExport() {
   const which = on.length === S.works.length ? "" : `<p class="note warn">${esc(on.length ? tr("exp.on", { n: on.length, m: S.works.length, w: on.map((w) => w.name).join(" · ") }) : tr("exp.none"))}</p>`;
   B.innerHTML = `<div class="row"><label for="expName">${esc(tr("exp.name"))}</label><input class="txt" id="expName" value="${esc(S.name || "")}"></div>` + which
     + `<div class="btns"><button class="primary" id="expIfc"${okDitch ? "" : " disabled"}>${esc(tr("exp.ifc"))}</button><button id="expCsv"${okDitch ? "" : " disabled"}>${esc(tr("exp.csv"))}</button></div>`
-    + `<p class="help">${esc(tr("exp.ifcNote"))}${S.works.some(isCh) ? " " + esc(tr("exp.ifcNoteC")) : ""}</p>`
+    + `<p class="help">${esc(tr("exp.ifcNote"))}${S.works.some(isCh) ? " " + esc(tr("exp.ifcNoteC")) : ""}${S.works.some(isPipe) ? " " + esc(tr("exp.ifcNoteP")) : ""}</p>`
     + `<div class="btns"><button id="expDxf"${okAx ? "" : " disabled"}>${esc(tr("exp.dxf"))}</button><button id="expXml"${okAx ? "" : " disabled"}>${esc(tr("exp.xml"))}</button></div>`
     + `<p class="help">${esc(tr("exp.note"))}</p>`;
   $("expName").addEventListener("change", (e) => { S.name = e.target.value.trim(); scheduleSave(); });
@@ -2381,6 +2712,12 @@ const ICON = {
   mix: SVG('<path d="M2 4h10v8z" fill="#a89d86" fill-opacity=".85"/>'),
   cut: SVG('<path d="M1 3h12l-3 8H4z" fill="var(--earth)" fill-opacity=".55"/>'),
   fill: SVG('<path d="M3 11h8l2-4H1z" fill="#6f9a3a" fill-opacity=".6"/>'),
+  pipe: SVG('<circle cx="7" cy="7" r="5" fill="none" stroke="#b8622f" stroke-width="2.2"/>'),
+  bed: SVG('<path d="M1 10h12v3H1z" fill="#d9c48a" fill-opacity=".9"/>'),
+  surround: SVG('<path d="M1 4h12v6H1z" fill="#e6d6a3" fill-opacity=".9"/><circle cx="7" cy="7" r="2.6" fill="var(--panel-solid)"/>'),
+  cover: SVG('<path d="M1 5h12v4H1z" fill="#cdb87e" fill-opacity=".9"/>'),
+  restore: SVG('<path d="M1 2h12v3H1z" fill="#55585a"/>'),
+  emb: SVG('<path d="M1 12l3-6h6l3 6z" fill="#a39d58" fill-opacity=".85"/>'),
   spare: SVG('<path d="M1 10l3-3 3 1 3-4 3 2" fill="none" stroke="var(--faint)" stroke-width="1.3" stroke-dasharray="2.2 1.6"/>'),
 };
 const BTN = (inner) => `<svg viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
@@ -2401,11 +2738,13 @@ function profSelect(w) {
 }
 function renderTree() {
   const rows = [], ly = S.view.layers;
-  const anyCh = S.works.some(isCh), allCh = anyCh && S.works.every(isCh);
-  const chip = (k, label) => `<button class="chip${ly[k] ? " on" : ""}" data-ly="${k}">${esc(label)}</button>`;
-  $("trLayers").innerHTML = `<span class="lbl">${esc(tr("ax.layers"))}</span>` + chip("lining", tr("ly.lining"))
-    + (anyCh ? chip("lean", tr("ly.lean")) + chip("mix", tr("ly.mix")) : "")
-    + chip("cut", tr("ly.cut")) + chip("fill", allCh ? tr("ly.backfill") : tr("ly.fill"));
+  // i solidi delle opere aperte, nell'ordine di sempre; «riporto» del fosso e «rinterro» di canale e tubo sono la stessa chiave
+  const allBack = S.works.length > 0 && S.works.every((w) => w.stype !== "ditch");
+  const LY = { lining: () => tr("ly.lining"), lean: () => tr("ly.lean"), mix: () => tr("ly.mix"), pipe: () => tr("ly.pipe"), bed: () => tr("ly.bed"), surround: () => tr("ly.surround"),
+    cover: () => tr("ly.cover"), cut: () => tr("ly.cut"), fill: () => (allBack ? tr("ly.backfill") : tr("ly.fill")), restore: () => tr("ly.restore"), emb: () => tr("ly.emb") };
+  const have = new Set((S.works.length ? S.works : [{ stype: "ditch" }]).flatMap((w) => solidsOf(w).map((s) => s.k)));
+  const chip = (k) => `<button class="chip${ly[k] ? " on" : ""}" data-ly="${k}">${esc(LY[k]())}</button>`;
+  $("trLayers").innerHTML = `<span class="lbl">${esc(tr("ax.layers"))}</span>` + Object.keys(LY).filter((k) => have.has(k)).map(chip).join("");
   const row = (o) => {
     const chev = o.group ? `<button class="tc${o.open ? "" : " shut"}" data-tog="${esc(o.key)}" aria-label="${esc(o.label)}">${CHEV}</button>` : `<span class="tc none"></span>`;
     const eye = o.eye === undefined ? "" : `<button class="tb" data-eye="${esc(o.key)}" title="${esc(tr("tr.eye"))}" aria-label="${esc(tr("tr.eye"))}" aria-pressed="${!!o.eye}">${o.eye ? EYE_ON : EYE_OFF}</button>`;
@@ -2438,12 +2777,12 @@ function renderTree() {
       const P = K + ":t" + p.k, pOpen = isOpen(P, false), pOn = shown(P);
       sub("t" + p.k, { kind: "part", label: tr("cm.partName", { n: p.k }), meta: prog(p.p0, 0) + " – " + prog(p.p1, 0), group: true, open: pOpen });
       if (!pOpen) continue;
-      const leaf = (k, label, v) => { const key = P + ":" + k; row({ key, d: 2, kind: k, label, meta: nf(v, 1) + " m³", eye: shown(key), off: !shown(key), dim: !wOn || !pOn || !ly[k] }); };
-      leaf("lining", tr("cm.lining"), p.vol.lining);
-      if (p.vol.lean > 0.01) leaf("lean", tr("cm.lean"), p.vol.lean);
-      if (p.vol.mix > 0.01) leaf("mix", tr("cm.mix"), p.vol.mix);
-      if (p.vol.cut > 0.01) leaf("cut", tr("cm.cut"), p.vol.cut);
-      if (p.vol.fill > 0.01) leaf("fill", isCh(w) ? tr("cm.backfill") : tr("cm.fill"), p.vol.fill);
+      const leaf = (k, label, meta) => { const key = P + ":" + k; row({ key, d: 2, kind: k, label, meta, eye: shown(key), off: !shown(key), dim: !wOn || !pOn || !ly[k] }); };
+      for (const s of solidsOf(w)) {
+        const v = p.vol[s.k] || 0;
+        if (s.k === "pipe") leaf("pipe", s.l(), "DN " + w.pipe.dn + " · " + nf(p.length, 1) + " m");     // il tubo si conta a metri
+        else if (s.k === "lining" || v > 0.01) leaf(s.k, s.l(), nf(v, 1) + " m³");
+      }
     }
   }
   // profili non abbinati
@@ -2589,7 +2928,8 @@ function exportWorks(needParts) {
       const dx = d.O ? d.O.x - O.x : 0, dy = d.O ? d.O.y - O.y : 0;
       const mesh = (m) => Object.fromEntries(Object.entries(m).map(([k, v]) => [k, shiftOne(v, dx, dy)]));
       return {
-        name: w.name, axis: d.axis, ax3: d.ax3, pvi: IO.profilePVI(d.ax3.pts), section: isCh(w) ? { type: "channel", ...w.channel } : w.ditch, channel: isCh(w),
+        name: w.name, axis: d.axis, ax3: d.ax3, pvi: IO.profilePVI(d.ax3.pts), section: isCh(w) ? { type: "channel", ...w.channel } : isPipe(w) ? { type: "pipe", ...w.pipe, matName: pipeMatName(w.pipe.mat), norm: C.PIPE_CATALOG[w.pipe.mat] ? C.PIPE_CATALOG[w.pipe.mat].norm : "" } : w.ditch,
+        channel: isCh(w), stype: w.stype,
         parts: d.parts.map((p) => ({ ...p, work: w.name, name: tr("cm.partName", { n: p.k }), mesh: mesh(p.mesh) })),
       };
     });
@@ -2618,6 +2958,11 @@ function exportIFC() {
     leanMat: tr("if.leanMat"), mixMat: tr("if.mixMat"), backMat: tr("if.backMat"), B: tr("if.B"), H: tr("if.H"), tw: tr("if.tw"), ts: tr("if.ts"), tm: tr("if.tm"),
     backSlope: tr("if.backSlope"), hw: tr("if.hw"), key: tr("if.key"), ref: tr("if.ref"), refInvert: tr("if.refInvert"), refTop: tr("if.refTop"), refBase: tr("if.refBase"),
     drop: tr("if.drop"), volume: tr("if.volume"),
+    pipe: tr("if.pipe"), pipeName: tr("sx.pipe"), pipeMat: tr("if.pipeMat"), norm: tr("if.norm"), De: tr("if.De"), s: tr("if.s"), Di: tr("if.Di"),
+    refAxis: tr("sx.refAxis"), refBottom: tr("sx.refBottom"), refTrench: tr("sx.refTrench"), width: tr("if.width"), bed: tr("if.bed"), cover: tr("if.cover"), restore: tr("if.restore"),
+    bedL: tr("if.bedL"), surround: tr("if.surround"), coverL: tr("if.coverL"), restoreL: tr("if.restoreL"), bedMat: tr("if.bedMat"), surroundMat: tr("if.surroundMat"),
+    coverMat: tr("if.coverMat"), fillMat: tr("if.fillMat"), wallsV: tr("if.wallsV"), wallsS: tr("if.wallsS"), shore: tr("sx.pShore"),
+    emb: tr("if.emb"), embMat: tr("if.embMat"), embLen: tr("if.embLen"),
   };
   const text = IO.ifcDitch({ name: S.name || ws[0].name || tr("sx.ditch"), fileName: fileBase(), origin: projectOrigin(),
     works: ws.map((x) => ({ name: x.name, axis: x.axis, pvi: x.pvi, section: x.section, parts: x.parts })),
@@ -2627,12 +2972,17 @@ function exportIFC() {
 function exportCSV() {
   const ws = exportWorks(true);
   if (!ws.length) return;
-  const comma = LANG !== "en", many = ws.length > 1, anyCh = ws.some((x) => x.channel), allCh = anyCh && ws.every((x) => x.channel);
-  // un canale aggiunge magrone e misto cementato; il «riporto» del fosso e il «rinterro» del canale stanno nella stessa colonna
-  const cols = anyCh ? ["lining", "lean", "mix", "cut", "fill"] : ["lining", "cut", "fill"];
-  const vh = anyCh ? [tr("cm.lining"), tr("cm.lean"), tr("cm.mix"), tr("cm.cut"), allCh ? tr("cm.backfill") : tr("cm.fill")] : [tr("cm.lining"), tr("cm.cut"), tr("cm.fill")];
-  const head = [...(many ? [tr("cm.work")] : []), tr("cm.part"), tr("cm.from") + " (m)", tr("cm.to") + " (m)", tr("cm.len") + " (m)", ...vh.map((x) => x + " (m³)")];
-  download(fileBase() + " - " + tr("cm.title").toLowerCase() + ".csv", IO.ditchCSV(ws.flatMap((x) => x.parts), { head, total: tr("cm.total"), comma, work: many, cols }), "text/csv");
+  const comma = LANG !== "en", many = ws.length > 1, allBack = ws.every((x) => x.stype !== "ditch"), anyPipe = ws.some((x) => x.stype === "pipe");
+  // le colonne dei solidi delle opere in uscita (il «riporto» del fosso e il «rinterro» di canale e tubo stanno nella stessa
+  // colonna); col tubo anche le pareti da blindare, in m²; il ripristino solo se c'è
+  const VH = { lining: () => tr("cm.lining"), lean: () => tr("cm.lean"), mix: () => tr("cm.mix"), bed: () => tr("cm.bed"), surround: () => tr("cm.surround"),
+    cover: () => tr("cm.cover"), cut: () => tr("cm.cut"), fill: () => (allBack ? tr("cm.backfill") : tr("cm.fill")), restore: () => tr("cm.restore"), emb: () => tr("cm.emb") };
+  const have = new Set(ws.flatMap((x) => solidsOf(x).map((o) => o.k)));
+  const cols = Object.keys(VH).filter((k) => have.has(k) && (!(k === "restore" || k === "emb") || ws.some((x) => x.parts.some((t) => t.vol[k] > 0.001))));
+  const head = [...(many ? [tr("cm.work")] : []), tr("cm.part"), tr("cm.from") + " (m)", tr("cm.to") + " (m)", tr("cm.len") + " (m)", ...cols.map((k) => VH[k]() + " (m³)")];
+  if (anyPipe) { cols.push("shore"); head.push(tr("sx.pShore") + " (m²)"); }
+  const parts = ws.flatMap((x) => x.parts.map((t) => ({ ...t, vol: { ...t.vol, shore: t.shore || 0 } })));
+  download(fileBase() + " - " + tr("cm.title").toLowerCase() + ".csv", IO.ditchCSV(parts, { head, total: tr("cm.total"), comma, work: many, cols }), "text/csv");
 }
 
 /* =========================================================================
@@ -2692,7 +3042,8 @@ function restore(doc) {
   const dr = new Map((doc.drawings || []).map((d) => [d.did, d]));
   const join = (r) => { if (!r) return null; const d = dr.get(r.did); return d ? { ...d, ...r } : null; };
   S.works = (doc.works || []).map((w) => ({ ...newWork(w.id, w.name), ...w, plan: join(w.plan), prof: join(w.prof), ditch: { ...C.DITCH, step: 1, ...(w.ditch || {}) },
-    channel: { ...C.CHANNEL, step: 1, ...(w.channel || {}) } }));
+    channel: { ...C.CHANNEL, step: 1, ...(w.channel || {}) },
+    pipe: { ...C.PIPE, step: 1, ...(w.pipe || {}), partWalls: { ...((w.pipe && w.pipe.partWalls) || {}) } } }));
   S.spare = (doc.spare || []).map(join).filter(Boolean);
   S.dtms = doc.dtms || []; S.hidden = doc.hidden || {}; S.name = doc.name || "";
   S.dtmRefs = doc.dtmRefs || []; S.dtmPaths = doc.dtmPaths || {}; S.dtmInFile = doc.dtmInFile !== false;
@@ -2990,6 +3341,7 @@ function applyLang(lang) {
   document.querySelectorAll("[data-i18n-title]").forEach((el) => { const k = el.getAttribute("data-i18n-title"); if (I18N[LANG][k] != null) { el.title = I18N[LANG][k]; el.setAttribute("aria-label", I18N[LANG][k]); } });
   document.querySelectorAll(".langsw button").forEach((b) => b.classList.toggle("on", b.dataset.lang === LANG));
   try { localStorage.setItem("viewifc_tool_lang", LANG); } catch (e) {}
+  $("pvTopTx").textContent = isPipe(W) ? tr("pv.crown") : tr("pv.top");     // legenda della lastra: cima dei muri o estradosso
   renderPod(); renderTree(); refreshStats(); drawPV(); status(null);
 }
 document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("click", () => applyLang(b.dataset.lang)));
@@ -3038,6 +3390,8 @@ window.__ps = { C, IO, get S() { return S; }, get W() { return W; }, get D() { r
   /* pivot d'orbita: stato e un passo del loop senza aspettare il rAF (fermo a pannello nascosto) */
   orb: { get drag() { return orbDrag; }, get pivot() { return orbPivot.toArray(); }, get dot() { return orbDot && orbDot.visible; },
     step() { orbApply(performance.now()); controls.update(); camera.updateMatrixWorld(true); scene.updateMatrixWorld(true); } },
+  /* pan e rotella: la profondità sotto un punto dello schermo (client x, y), come al press */
+  cursorDepth: (x, y) => cursorDepth({ clientX: x, clientY: y }), sceneBox,
   /* coppie visibili nella striscia, in coordinate client (per cliccarle nelle prove) */
   get dots() { if (!D.axis) return []; const r = pvc.getBoundingClientRect(), k = stripScale(); return k.vdots.map((d) => ({ idx: d.idx, p: d.p, off: d.off, x: r.left + xOf(d.p), y: r.top + k.yD(d.d), dense: k.dense })); } };
 </script>
