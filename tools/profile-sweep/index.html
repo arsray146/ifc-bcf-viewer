@@ -34,12 +34,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sviluppo profili — asse 3D da pianta e profilo DWG · viewifc.com</title>
+<title>Sviluppo profili — fossi e canali in 3D da pianta e profilo DWG · viewifc.com</title>
 
-<meta name="description" content="Da un profilo planimetrico e uno altimetrico (DWG o DXF) l'asse 3D di tubazioni interrate e fossi di guardia: le progressive dei due disegni si accoppiano da sole, i salti si vedono e si correggono. Esporta la polilinea 3D (DXF) e il LandXML. Gratis, senza account, i file non escono dal browser.">
+<meta name="description" content="Da un profilo planimetrico e uno altimetrico (DWG o DXF) l'opera lineare in 3D: le progressive dei due disegni si accoppiano da sole, fossi trapezi rivestiti e canali a U in calcestruzzo (coi salti: muro di testa, dente e cuneo) si sviluppano sul DTM con scavi, rinterri, banchine e scarpate. Volumi per tratto, IFC 4x3 con l'IfcAlignment, polilinea 3D e LandXML. Gratis, senza account, i file non escono dal browser.">
 <meta name="author" content="Alessandro Perugini">
 <meta name="theme-color" content="#f1f3ee">
-<meta name="robots" content="noindex">
 <link rel="canonical" href="https://viewifc.com/tools/profile-sweep/">
 <link rel="icon" type="image/png" href="../../favicon-32.png">
 <script>/* Tema chiaro di default (chiave viewer_landing_theme, condivisa da tutto il sito): l'attributo
@@ -484,7 +483,7 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
 <!-- ================= FOGLIO CENTRALE ================= -->
 <div id="sheet" hidden>
   <div class="card glass" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
-    <div class="kicker" data-i18n="w.kicker">Strumento 17 · versione di prova</div>
+    <div class="kicker" data-i18n="w.kicker">Strumento 17 · prima versione</div>
     <h1 id="sheetTitle" data-i18n="w.title">Dalla pianta e dal profilo al fosso o al canale in 3D</h1>
     <p class="lead" data-i18n="w.lead">Carica il profilo planimetrico e quello altimetrico (DWG o DXF) e, se c'è, il DTM (IFC o LandXML): le progressive si accoppiano da sole, il fosso o il canale a U si sviluppa con scavi, rinterri, banchine e scarpate fino al terreno, salti compresi. Escono volumi per tratto, IFC 4x3, polilinea 3D e LandXML.</p>
     <div class="opts">
@@ -505,7 +504,7 @@ const I18N = {
     "nav.home": "Vai a viewifc.com", "nav.tools": "Strumenti", "nav.here": "Sviluppo profili", "nav.open": "Apri disegni",
     "rail.frame": "Inquadra tutto (F)", "rail.top": "Vista dall'alto (T)", "rail.pv": "Mostra / nascondi il profilo (P)", "rail.pod": "Mostra / nascondi il pannello",
     "rail.undo": "Annulla (Ctrl+Z)", "rail.redo": "Ripristina (Ctrl+Y)",
-    "w.kicker": "Strumento 17 · versione di prova", "w.title": "Dalla pianta e dal profilo al fosso o al canale in 3D",
+    "w.kicker": "Strumento 17 · prima versione", "w.title": "Dalla pianta e dal profilo al fosso o al canale in 3D",
     "w.lead": "Carica il profilo planimetrico e quello altimetrico (DWG o DXF) e, se c'è, il DTM (IFC o LandXML): le progressive si accoppiano da sole, il fosso o il canale a U si sviluppa con scavi, rinterri, banchine e scarpate fino al terreno, salti compresi. Escono volumi per tratto, IFC 4x3, polilinea 3D e LandXML.",
     "w.open": "Apri pianta, profilo e DTM", "w.openS": "pianta e profilo .dwg o .dxf, il DTM .ifc o .xml se c'è — o trascinali qui",
     "w.example": "Prova con l'esempio", "w.exampleS": "una condotta di 900 m con un tratto in salita dove le progressive si staccano",
@@ -615,7 +614,7 @@ const I18N = {
     "nav.home": "Go to viewifc.com", "nav.tools": "Tools", "nav.here": "Profile Sweep", "nav.open": "Open drawings",
     "rail.frame": "Frame all (F)", "rail.top": "Top view (T)", "rail.pv": "Show / hide the profile (P)", "rail.pod": "Show / hide the panel",
     "rail.undo": "Undo (Ctrl+Z)", "rail.redo": "Redo (Ctrl+Y)",
-    "w.kicker": "Tool 17 · preview", "w.title": "From plan and profile to the ditch or channel in 3D",
+    "w.kicker": "Tool 17 · first version", "w.title": "From plan and profile to the ditch or channel in 3D",
     "w.lead": "Load the horizontal and the vertical profile (DWG or DXF) and, if you have it, the DTM (IFC or LandXML): the chainages pair up by themselves, the ditch or U channel is swept with excavation, backfill, berms and slopes down to the ground, drops included. Out come volumes per stretch, IFC 4x3, the 3D polyline and LandXML.",
     "w.open": "Open plan, profile and DTM", "w.openS": "plan and profile as .dwg or .dxf, the DTM as .ifc or .xml if you have it — or drop them here",
     "w.example": "Try the example", "w.exampleS": "a 900 m pipe with an uphill stretch where the chainages drift apart",
