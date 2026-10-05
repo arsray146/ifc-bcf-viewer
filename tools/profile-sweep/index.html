@@ -77,7 +77,9 @@ try{
   --mono:'IBM Plex Mono',ui-monospace,monospace;
   --sans:'IBM Plex Sans',system-ui,sans-serif;
   --disp:'Barlow Semi Condensed',var(--sans);
-  --pod-w:336px; --pv-h:250px; --tree-w:272px;
+  /* larghezze dei pannelli: quella trascinata (--tree-wu, --pod-wu, sull'html) vince sul default */
+  --pod-w-def:336px; --tree-w-def:272px; --pv-h:250px;
+  --pod-w:var(--pod-wu,var(--pod-w-def)); --tree-w:var(--tree-wu,var(--tree-w-def));
   color-scheme:dark;
 }
 html[data-theme="light"]{
@@ -151,6 +153,11 @@ html:not([data-theme="light"]) .thm .sun{display:none}
 /* ---------- albero degli elementi (sinistra, attaccato alla rail) ---------- */
 #tree{position:absolute;left:80px;top:66px;bottom:14px;width:var(--tree-w);z-index:6;border-radius:var(--r);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;min-height:0;overflow:hidden;user-select:none;-webkit-user-select:none}
 body.tree-off #tree{display:none}
+/* maniglie di ridimensionamento: le stesse del viewer (.left-resize, .detail-resize) */
+.tree-resize{position:absolute;right:-3px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:7;touch-action:none}
+.pod-resize{position:absolute;left:-3px;top:0;bottom:0;width:8px;cursor:col-resize;z-index:7;touch-action:none}
+.tree-resize::after,.pod-resize::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:2px;height:30px;border-radius:2px;background:var(--line-2)}
+.tree-resize:hover::after,.pod-resize:hover::after,.tree-resize.drag::after,.pod-resize.drag::after{background:var(--lime-deep);height:46px}
 .tree-h{display:flex;align-items:center;gap:8px;padding:12px 8px 8px 16px}
 .tree-h h2{font:600 14px/1 var(--disp);letter-spacing:.06em;text-transform:uppercase;color:var(--text)}
 .tree-h .cnt{font:400 11px/1 var(--mono);color:var(--faint)}
@@ -184,7 +191,7 @@ body.tree-off #tree{display:none}
 .tn .tsel{flex:1 1 0;min-width:0;margin-left:4px;font:400 10.5px/1 var(--mono);color:var(--muted);background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:3px 4px}
 .tn input.tren{flex:1;min-width:0;font:600 13px/1 var(--disp);color:var(--text);background:var(--panel-solid);border:1px solid var(--lime-deep);border-radius:6px;padding:4px 6px}
 .tree-empty{font:400 12.5px/1.5 var(--sans);color:var(--muted);padding:8px 10px}
-.tree-f{display:flex;gap:6px;padding:8px 10px 10px;border-top:1px solid var(--line)}
+.tree-f{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px 10px;border-top:1px solid var(--line)}
 .tree-f button{flex:1 1 auto}
 .tree-f button.armed{color:var(--red);border-color:var(--red)}
 
@@ -332,14 +339,29 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
 .opt span{display:block;font:400 12px/1.4 var(--sans);color:var(--muted);margin-top:3px}
 .card-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}
 .card-foot .privacy{padding:0}
+/* dialogo: lo stesso velo e la stessa lastra del benvenuto, più stretta */
+#dlg{position:fixed;inset:0;z-index:35;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(10,14,9,.35)}
+html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
+#dlg .card{width:min(540px,100%);padding:24px 26px 18px}
+#dlg h2{font:600 24px/1.1 var(--disp);margin:0 0 12px}
+#dlg .row{grid-template-columns:120px 1fr}
+#dlg .dtp{margin:4px 0 10px 23px}
+#dlg .dtp .fn{font:500 12px/1.3 var(--mono);color:var(--muted);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlg-f{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:16px}
+/* DTM da ricaricare (progetto salvato senza DTM) */
+.dtmiss{margin:2px 0 10px;padding:8px 10px;border-radius:10px;border:1px dashed var(--amber)}
+.dtmiss .file{margin:0 0 6px}
+.dtmiss .fm{color:var(--amber)}
+.dtmiss .txt{font-family:var(--mono);font-size:11.5px}
 
-@media (max-width:1100px){:root{--pod-w:300px;--tree-w:244px}}
+@media (max-width:1100px){:root{--pod-w-def:300px;--tree-w-def:244px}}
 @media (max-width:980px){ .appname,.stats{display:none} }
 @media (max-width:1250px){ #pvHint{display:none} }
 @media (max-width:760px){
   .crumbs .sep,.crumbs a span{display:none}
   :root{--pod-w:calc(100vw - 100px);--pv-h:200px;--tree-w:calc(100vw - 94px)}
   #pv{left:86px} #status{left:96px} #tree{z-index:7}       /* sul telefono l'albero copre, come il pannello */
+  .tree-resize,.pod-resize{display:none}                     /* e le larghezze sono quelle dello schermo */
 }
 </style>
 
@@ -413,8 +435,10 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
   <div id="treeScroll" role="tree"></div>
   <div class="tree-f">
     <button class="btn-sm" id="trOpen" data-i18n="nav.open">Apri disegni</button>
+    <button class="btn-sm" id="trSave" data-i18n="tr.save" data-i18n-title="tr.saveT" title="Scarica il progetto in un file .profiles, da riaprire qui o su un altro PC (Ctrl+S)">Salva progetto</button>
     <button class="btn-sm" id="trNew" data-i18n="tr.new">Nuovo progetto</button>
   </div>
+  <div class="tree-resize" id="treeResize" data-i18n-title="pn.resize" title="Trascina per ridimensionare il pannello · doppio clic: larghezza iniziale"></div>
 </aside>
 
 <!-- ================= PANNELLO ================= -->
@@ -453,8 +477,9 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
       <div class="sec-h"><h2 data-i18n="exp.title">Esporta</h2><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
       <div class="sec-b" id="expBody"></div>
     </section>
-    <p class="privacy" data-i18n="privacy">I file non escono dal browser: niente upload. Il lavoro si salva da solo in questo browser (IndexedDB).</p>
+    <p class="privacy" data-i18n="privacy">I file non escono dal browser: niente upload. Il lavoro si salva da solo in questo browser (IndexedDB); per portarlo altrove, «Salva progetto» lo scarica in un file .profiles.</p>
   </div>
+  <div class="pod-resize" id="podResize" data-i18n-title="pn.resize" title="Trascina per ridimensionare il pannello · doppio clic: larghezza iniziale"></div>
 </aside>
 
 <!-- ================= PROFILO (in basso) ================= -->
@@ -478,7 +503,17 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
 <div id="toast" class="glass" role="status" aria-live="polite"></div>
 <div id="busy" class="glass" role="status" aria-live="polite"><i class="spin"></i><span id="busyText"></span></div>
 <div id="dragVeil" data-i18n="drop.veil">Rilascia i disegni</div>
-<input type="file" id="fileIn" accept=".dwg,.dxf,.ifc,.xml,.landxml" multiple hidden>
+<input type="file" id="fileIn" accept=".dwg,.dxf,.ifc,.xml,.landxml,.csv,.txt,.xyz,.pts,.profiles" multiple hidden>
+<input type="file" id="dtmIn" accept=".ifc,.xml,.landxml,.csv,.txt,.xyz,.pts" hidden>
+
+<!-- ================= DIALOGO (salva progetto, apri progetto) ================= -->
+<div id="dlg" hidden>
+  <div class="card glass" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+    <h2 id="dlgTitle"></h2>
+    <div id="dlgBody"></div>
+    <div class="dlg-f" id="dlgBtns"></div>
+  </div>
+</div>
 
 <!-- ================= FOGLIO CENTRALE ================= -->
 <div id="sheet" hidden>
@@ -487,7 +522,8 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
     <h1 id="sheetTitle" data-i18n="w.title">Dalla pianta e dal profilo al fosso o al canale in 3D</h1>
     <p class="lead" data-i18n="w.lead">Carica il profilo planimetrico e quello altimetrico (DWG o DXF) e, se c'è, il DTM (IFC o LandXML): le progressive si accoppiano da sole, il fosso o il canale a U si sviluppa con scavi, rinterri, banchine e scarpate fino al terreno, salti compresi. Escono volumi per tratto, IFC 4x3, polilinea 3D e LandXML.</p>
     <div class="opts">
-      <button class="opt" id="wOpen"><svg viewBox="0 0 24 24"><path d="M4 20h16M12 4v12M7 11l5 5 5-5"/></svg><span><b data-i18n="w.open">Apri pianta, profilo e DTM</b><span data-i18n="w.openS">pianta e profilo .dwg o .dxf, il DTM .ifc o .xml se c'è — o trascinali qui</span></span></button>
+      <button class="opt" id="wOpen"><svg viewBox="0 0 24 24"><path d="M4 20h16M12 4v12M7 11l5 5 5-5"/></svg><span><b data-i18n="w.open">Apri pianta, profilo e DTM</b><span data-i18n="w.openS">pianta e profilo .dwg o .dxf, il DTM .ifc, .xml o punti .csv/.xyz se c'è — o trascinali qui</span></span></button>
+      <button class="opt" id="wProject"><svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg><span><b data-i18n="w.project">Apri un progetto salvato</b><span data-i18n="w.projectS">il file .profiles scaricato con «Salva progetto», anche da un altro PC</span></span></button>
       <button class="opt" id="wExample"><svg viewBox="0 0 24 24"><path d="M3 18c4-1 5-8 9-8s5 5 9 4"/><path d="M3 21h18"/></svg><span><b data-i18n="w.example">Prova con l'esempio</b><span data-i18n="w.exampleS">una condotta di 900 m con un tratto in salita dove le progressive si staccano</span></span></button>
     </div>
     <div class="card-foot">
@@ -504,11 +540,26 @@ const I18N = {
     "nav.home": "Vai a viewifc.com", "nav.tools": "Strumenti", "nav.here": "Sviluppo profili", "nav.open": "Apri disegni",
     "rail.frame": "Inquadra tutto (F)", "rail.top": "Vista dall'alto (T)", "rail.pv": "Mostra / nascondi il profilo (P)", "rail.pod": "Mostra / nascondi il pannello",
     "rail.undo": "Annulla (Ctrl+Z)", "rail.redo": "Ripristina (Ctrl+Y)",
+    "pn.resize": "Trascina per ridimensionare il pannello · doppio clic: larghezza iniziale",
     "w.kicker": "Strumento 17 · prima versione", "w.title": "Dalla pianta e dal profilo al fosso o al canale in 3D",
     "w.lead": "Carica il profilo planimetrico e quello altimetrico (DWG o DXF) e, se c'è, il DTM (IFC o LandXML): le progressive si accoppiano da sole, il fosso o il canale a U si sviluppa con scavi, rinterri, banchine e scarpate fino al terreno, salti compresi. Escono volumi per tratto, IFC 4x3, polilinea 3D e LandXML.",
-    "w.open": "Apri pianta, profilo e DTM", "w.openS": "pianta e profilo .dwg o .dxf, il DTM .ifc o .xml se c'è — o trascinali qui",
+    "w.open": "Apri pianta, profilo e DTM", "w.openS": "pianta e profilo .dwg o .dxf, il DTM .ifc, .xml o punti .csv/.xyz se c'è — o trascinali qui",
     "w.example": "Prova con l'esempio", "w.exampleS": "una condotta di 900 m con un tratto in salita dove le progressive si staccano",
     "w.privacy": "I file non escono dal browser. Il lavoro si salva da solo in questo browser.", "w.close": "Chiudi",
+    "w.project": "Apri un progetto salvato", "w.projectS": "il file .profiles scaricato con «Salva progetto», anche da un altro PC",
+    "tr.save": "Salva progetto", "tr.saveT": "Scarica il progetto in un file .profiles, da riaprire qui o su un altro PC (Ctrl+S)",
+    "dt.miss": "da ricaricare", "dt.reload": "Ricarica…", "dt.pathT": "Dove sta il file (lo scrivi tu: il browser non conosce le cartelle)",
+    "dt.missHelp": "Il progetto è stato salvato senza il DTM: ricaricalo dal percorso indicato. Fino ad allora niente scarpate fino al terreno, scavo e riporto.",
+    "prj.saveTitle": "Salva progetto", "prj.openTitle": "Apri il progetto", "prj.file": "File", "prj.when": "Salvato il", "prj.works": "Opere",
+    "prj.withDtm": "Metti il DTM nel file ({n} triangoli)",
+    "prj.pathHelp": "Fuori dal file resta il percorso del DTM, da ricaricare all'apertura. Il browser non conosce le cartelle: scrivilo tu (es. \\\\server\\commessa\\DTM\\rilievo.xml).",
+    "prj.saveHelp": "Il file contiene opere, disegni, ancoraggi, sezioni e occhi accesi; si riapre trascinandolo qui o da «Apri un progetto salvato», anche su un altro PC.",
+    "prj.cancel": "Annulla", "prj.save": "Salva", "prj.saveFirst": "Salva prima l'attuale", "prj.open": "Apri",
+    "prj.saving": "Preparo il file del progetto…", "prj.saved": "Progetto salvato: {f} ({mb} MB).", "prj.saveFail": "Progetto non salvato: {m}",
+    "prj.empty": "Niente da salvare: apri prima pianta e profilo.", "prj.noGzip": "questo browser non sa decomprimere il file (gzip): aggiornalo", "prj.badGzip": "file compresso danneggiato o incompleto",
+    "prj.openFail": "{f}: non riesco ad aprirlo come progetto ({m}).", "prj.dtmIn": "dentro il file ({n} triangoli)", "prj.dtmOut": "fuori dal file: {f}",
+    "prj.replace": "Il progetto aperto adesso ({n} opere) viene sostituito: se ti serve, salvalo prima.",
+    "prj.opened": "Aperto {f}: {n} opere.", "prj.openedMiss": "Aperto {f}. Manca il DTM: ricaricalo dal pannello Terreno ({d}).",
     "pl.title": "Pianta", "pl.empty": "Nessuna pianta: apri il DWG o DXF del profilo planimetrico.", "pl.layer": "Layer della pianta",
     "pl.length": "Lunghezza", "pl.verts": "Vertici", "pl.arcs": "Archi", "pl.gaps": "Pezzi uniti",
     "pl.gapsV": "{n} buchi ({m} m in tutto)", "pl.reverse": "Gira il verso della pianta", "pl.reverseAuto": "Verso proposto dagli ancoraggi: {v}.",
@@ -547,7 +598,7 @@ const I18N = {
     "t.removed": "Tolta l'opera {w}.",
     "pod.work": "Opera", "t.works": "{n} opere aperte: {w}.", "t.spare": "Profili senza pianta: {n}. Si assegnano a un'opera dall'albero (Profilo).",
     "dt.add": "Aggiungi DTM", "cm.all": "Tutte le opere ({n})", "cm.allV": "cls {l} · scavo {c} · riporto {f} m³", "cm.work": "Opera", "if.work": "Opera",
-    "dt.title": "Terreno (DTM)", "dt.empty": "Nessun DTM: aprilo per scarpate, scavo, riporto e volumi (IFC con la toposolid o LandXML TIN). Si può trascinare insieme ai disegni.",
+    "dt.title": "Terreno (DTM)", "dt.empty": "Nessun DTM: aprilo per scarpate, scavo, riporto e volumi (IFC con la toposolid, LandXML TIN o punti x,y,z in .csv, .txt, .xyz). Si può trascinare insieme ai disegni: dei punti si tiene il corridoio delle opere.",
     "dt.open": "Apri DTM", "dt.remove": "Togli", "dt.tris": "Triangoli", "dt.trisV": "{n} attorno alle opere",
     "dt.cover": "Asse coperto", "dt.coverNone": "Il DTM non copre la pianta: controlla le coordinate dei due file.",
     "dt.georef": "Coordinate", "dt.how.map": "dall'IfcMapConversion", "dt.how.site": "dal placement dell'IfcSite", "dt.how.context": "dal contesto di Revit (origine interna)", "dt.how.none": "quelle del file",
@@ -555,7 +606,11 @@ const I18N = {
     "dt.checkHelp": "Lungo la pianta, la linea di terreno del profilo contro il DTM: se torna entro qualche centimetro, taratura e ancoraggi sono giusti.",
     "dt.reading": "Leggo {f} con web-ifc…", "dt.noTerrain": "{f}: nessun elemento di terreno (toposolid o IfcGeographicElement TERRAIN).",
     "dt.fail": "{f}: non riesco a leggerlo come DTM ({m}).", "dt.loaded": "DTM caricato: {n} triangoli attorno all'asse, asse coperto al {c} %.",
-    "dt.kindIfc": "IFC · toposolid", "dt.kindXml": "LandXML · TIN",
+    "dt.kindIfc": "IFC · toposolid", "dt.kindXml": "LandXML · TIN", "dt.kindPts": "punti · Delaunay",
+    "dt.pts": "Punti", "dt.ptsV": "{n} nel corridoio su {r} letti", "dt.ptsEdge": "Bordo pulito", "dt.ptsEdgeV": "{d} triangoli tolti (lato oltre {m} m)",
+    "dt.readingPts": "Leggo i punti di {f}… {p} %", "dt.triangulating": "Triangolo {n} punti…",
+    "dt.ptsNone": "{f}: nessun punto attorno alle opere (riquadro delle piante ± 200 m): controlla le coordinate.",
+    "dt.ptsMany": "{f}: più di {n} punti e ancora nessuna pianta. Apri prima pianta e profilo: del rilievo si prende solo il corridoio delle opere.",
     "sx.title": "Sezione", "sx.type": "Tipo", "sx.ditch": "Fosso trapezio rivestito", "sx.channel": "Canale a U (inalveazione)",
     "sx.soon": "Tubo, scatolare e sezioni da DWG arrivano nelle prossime versioni.",
     "sx.subSec": "Sezione", "sx.subExc": "Magrone e scavo", "sx.subBack": "Rinterro", "sx.subDrop": "Salti",
@@ -608,17 +663,32 @@ const I18N = {
     "t.example": "Esempio caricato: nel tratto in salita il profilo è più lungo della pianta di qualche metro.",
     "busy.anchors": "Accoppio i vertici…",
     "drop.veil": "Rilascia i disegni",
-    "privacy": "I file non escono dal browser: niente upload. Il lavoro si salva da solo in questo browser (IndexedDB).",
+    "privacy": "I file non escono dal browser: niente upload. Il lavoro si salva da solo in questo browser (IndexedDB); per portarlo altrove, «Salva progetto» lo scarica in un file .profiles.",
   },
   en: {
     "nav.home": "Go to viewifc.com", "nav.tools": "Tools", "nav.here": "Profile Sweep", "nav.open": "Open drawings",
     "rail.frame": "Frame all (F)", "rail.top": "Top view (T)", "rail.pv": "Show / hide the profile (P)", "rail.pod": "Show / hide the panel",
     "rail.undo": "Undo (Ctrl+Z)", "rail.redo": "Redo (Ctrl+Y)",
+    "pn.resize": "Drag to resize the panel · double click: initial width",
     "w.kicker": "Tool 17 · first version", "w.title": "From plan and profile to the ditch or channel in 3D",
     "w.lead": "Load the horizontal and the vertical profile (DWG or DXF) and, if you have it, the DTM (IFC or LandXML): the chainages pair up by themselves, the ditch or U channel is swept with excavation, backfill, berms and slopes down to the ground, drops included. Out come volumes per stretch, IFC 4x3, the 3D polyline and LandXML.",
-    "w.open": "Open plan, profile and DTM", "w.openS": "plan and profile as .dwg or .dxf, the DTM as .ifc or .xml if you have it — or drop them here",
+    "w.open": "Open plan, profile and DTM", "w.openS": "plan and profile as .dwg or .dxf, the DTM as .ifc, .xml or .csv/.xyz points if you have it — or drop them here",
     "w.example": "Try the example", "w.exampleS": "a 900 m pipe with an uphill stretch where the chainages drift apart",
     "w.privacy": "Files never leave the browser. Your work saves itself in this browser.", "w.close": "Close",
+    "w.project": "Open a saved project", "w.projectS": "the .profiles file downloaded with “Save project”, from another PC too",
+    "tr.save": "Save project", "tr.saveT": "Download the project as a .profiles file, to reopen here or on another PC (Ctrl+S)",
+    "dt.miss": "to reload", "dt.reload": "Reload…", "dt.pathT": "Where the file is (you type it: the browser knows no folders)",
+    "dt.missHelp": "The project was saved without the DTM: reload it from the path shown. Until then no slopes down to the ground, no cut and fill.",
+    "prj.saveTitle": "Save project", "prj.openTitle": "Open the project", "prj.file": "File", "prj.when": "Saved on", "prj.works": "Works",
+    "prj.withDtm": "Put the DTM in the file ({n} triangles)",
+    "prj.pathHelp": "Outside the file the DTM path is kept, to reload it when opening. The browser knows no folders: type it yourself (e.g. \\\\server\\job\\DTM\\survey.xml).",
+    "prj.saveHelp": "The file holds works, drawings, anchors, sections and visibility; reopen it by dropping it here or with “Open a saved project”, on another PC too.",
+    "prj.cancel": "Cancel", "prj.save": "Save", "prj.saveFirst": "Save the current one first", "prj.open": "Open",
+    "prj.saving": "Preparing the project file…", "prj.saved": "Project saved: {f} ({mb} MB).", "prj.saveFail": "Project not saved: {m}",
+    "prj.empty": "Nothing to save: open plan and profile first.", "prj.noGzip": "this browser cannot decompress the file (gzip): update it", "prj.badGzip": "compressed file damaged or incomplete",
+    "prj.openFail": "{f}: cannot open it as a project ({m}).", "prj.dtmIn": "inside the file ({n} triangles)", "prj.dtmOut": "outside the file: {f}",
+    "prj.replace": "The project open now ({n} works) gets replaced: save it first if you need it.",
+    "prj.opened": "Opened {f}: {n} works.", "prj.openedMiss": "Opened {f}. The DTM is missing: reload it from the Terrain panel ({d}).",
     "pl.title": "Plan", "pl.empty": "No plan yet: open the DWG or DXF of the horizontal alignment.", "pl.layer": "Plan layer",
     "pl.length": "Length", "pl.verts": "Vertices", "pl.arcs": "Arcs", "pl.gaps": "Joined pieces",
     "pl.gapsV": "{n} gaps ({m} m in all)", "pl.reverse": "Reverse the plan direction", "pl.reverseAuto": "Direction suggested by the anchors: {v}.",
@@ -657,7 +727,7 @@ const I18N = {
     "t.removed": "Removed the work {w}.",
     "pod.work": "Work", "t.works": "{n} works opened: {w}.", "t.spare": "Profiles without a plan: {n}. Assign them to a work from the tree (Profile).",
     "dt.add": "Add DTM", "cm.all": "All works ({n})", "cm.allV": "concrete {l} · cut {c} · fill {f} m³", "cm.work": "Work", "if.work": "Work",
-    "dt.title": "Ground (DTM)", "dt.empty": "No DTM yet: open it for slopes, cut, fill and volumes (IFC with the toposolid, or LandXML TIN). It can be dropped together with the drawings.",
+    "dt.title": "Ground (DTM)", "dt.empty": "No DTM yet: open it for slopes, cut, fill and volumes (IFC with the toposolid, LandXML TIN or x,y,z points as .csv, .txt, .xyz). It can be dropped together with the drawings: of the points only the corridor of the works is kept.",
     "dt.open": "Open DTM", "dt.remove": "Remove", "dt.tris": "Triangles", "dt.trisV": "{n} around the works",
     "dt.cover": "Axis covered", "dt.coverNone": "The DTM does not cover the plan: check the coordinates of the two files.",
     "dt.georef": "Coordinates", "dt.how.map": "from the IfcMapConversion", "dt.how.site": "from the IfcSite placement", "dt.how.context": "from the Revit context (internal origin)", "dt.how.none": "those of the file",
@@ -665,7 +735,11 @@ const I18N = {
     "dt.checkHelp": "Along the plan, the ground line of the profile against the DTM: if it matches within a few centimetres, calibration and anchors are right.",
     "dt.reading": "Reading {f} with web-ifc…", "dt.noTerrain": "{f}: no ground element (toposolid or IfcGeographicElement TERRAIN).",
     "dt.fail": "{f}: cannot read it as a DTM ({m}).", "dt.loaded": "DTM loaded: {n} triangles around the axis, axis covered at {c} %.",
-    "dt.kindIfc": "IFC · toposolid", "dt.kindXml": "LandXML · TIN",
+    "dt.kindIfc": "IFC · toposolid", "dt.kindXml": "LandXML · TIN", "dt.kindPts": "points · Delaunay",
+    "dt.pts": "Points", "dt.ptsV": "{n} in the corridor out of {r} read", "dt.ptsEdge": "Clean edge", "dt.ptsEdgeV": "{d} triangles removed (side over {m} m)",
+    "dt.readingPts": "Reading the points of {f}… {p} %", "dt.triangulating": "Triangulating {n} points…",
+    "dt.ptsNone": "{f}: no points around the works (plan box ± 200 m): check the coordinates.",
+    "dt.ptsMany": "{f}: more than {n} points and no plan yet. Open plan and profile first: only the corridor of the works is taken from the survey.",
     "sx.title": "Section", "sx.type": "Type", "sx.ditch": "Lined trapezoidal ditch", "sx.channel": "U channel (lined stream)",
     "sx.soon": "Pipe, box culvert and sections from DWG come in the next versions.",
     "sx.subSec": "Section", "sx.subExc": "Blinding and excavation", "sx.subBack": "Backfill", "sx.subDrop": "Drops",
@@ -718,7 +792,7 @@ const I18N = {
     "t.example": "Example loaded: on the uphill stretch the profile is a few metres longer than the plan.",
     "busy.anchors": "Pairing the vertices…",
     "drop.veil": "Drop the drawings",
-    "privacy": "Files never leave the browser: no upload. Your work saves itself in this browser (IndexedDB).",
+    "privacy": "Files never leave the browser: no upload. Your work saves itself in this browser (IndexedDB); to take it elsewhere, “Save project” downloads it as a .profiles file.",
   },
 };
 </script>
@@ -729,10 +803,10 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.4.0";
-import * as IO from "./profile-io.js?v=0.4.0";
+import * as C from "./profile-core.js?v=0.6.0";
+import * as IO from "./profile-io.js?v=0.6.0";
 
-const TOOL_VERSION = "0.4.0";
+const TOOL_VERSION = "0.6.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -778,9 +852,13 @@ const S = {
   seq: 1,                // id di opere e disegni
   spare: [],             // profili aperti e non abbinati a nessuna opera (si scelgono dall'albero)
   dtms: [],              // topografia esistente: [{ name, kind: "ifc"|"xml", points (E, N, quota), faces, how, crs }] — corridoio delle opere, uniti nel TIN
+  dtmRefs: [],           // DTM rimasti fuori da un file .profiles: [{ name, kind, tris }] — da ricaricare
+  dtmPaths: {},          // dove sta ogni DTM (lo scrive l'utente: il browser non dà la cartella), per nome
+  dtmInFile: true,       // «Salva progetto» mette il DTM dentro il file (l'ultima scelta)
   name: "",              // nome del progetto (file in uscita)
   hidden: {},            // elementi spenti: "w<id>", "w<id>:plan|prof|axis", "w<id>:t<k>", "w<id>:t<k>:lining|cut|fill", "dtm:<file>"
   view: { ex: 2, layers: { dtm: true, lining: true, lean: true, mix: true, cut: true, fill: true } }, podOff: false, pvOff: false, treeOff: false, closed: {}, treeOpen: {}, snap: true,
+  treeW: null, podW: null,     // larghezze trascinate di albero e pannello (px); null = quella iniziale del CSS
   lastSave: null, saveOk: true,
 };
 const BLANK = newWork(0, "");          // nessuna opera: chi lavora sull'opera attiva vede un'opera vuota
@@ -806,11 +884,12 @@ function setActive(i) {
 const shown = (k) => !S.hidden[k];
 
 const UI_KEY = "viewifc_profile_ui";
-function saveUi() { try { localStorage.setItem(UI_KEY, JSON.stringify({ view: S.view, podOff: S.podOff, pvOff: S.pvOff, treeOff: S.treeOff, closed: S.closed, treeOpen: S.treeOpen, snap: S.snap })); } catch (e) {} }
+function saveUi() { try { localStorage.setItem(UI_KEY, JSON.stringify({ view: S.view, podOff: S.podOff, pvOff: S.pvOff, treeOff: S.treeOff, closed: S.closed, treeOpen: S.treeOpen, snap: S.snap, treeW: S.treeW, podW: S.podW })); } catch (e) {} }
 (function loadUi() {
   try {
     const u = JSON.parse(localStorage.getItem(UI_KEY) || "null");
-    if (u) { if (u.view) { const ly = { ...S.view.layers, ...(u.view.layers || {}) }; Object.assign(S.view, u.view); S.view.layers = ly; } if (u.closed) S.closed = u.closed; if (u.treeOpen) S.treeOpen = u.treeOpen; for (const k of ["podOff", "pvOff", "treeOff", "snap"]) if (u[k] !== undefined) S[k] = u[k]; }
+    if (u) { if (u.view) { const ly = { ...S.view.layers, ...(u.view.layers || {}) }; Object.assign(S.view, u.view); S.view.layers = ly; } if (u.closed) S.closed = u.closed; if (u.treeOpen) S.treeOpen = u.treeOpen; for (const k of ["podOff", "pvOff", "treeOff", "snap"]) if (u[k] !== undefined) S[k] = u[k];
+      for (const k of ["treeW", "podW"]) if (Number.isFinite(u[k]) && u[k] > 0) S[k] = u[k]; }
   } catch (e) {}
 })();
 
@@ -1056,21 +1135,49 @@ async function readIfcDtm(file, T) {
   }
   return { kind: "ifc", points: P, faces: tin.faces, how: fr.how, crs: fr.how === "map" ? fr.crs || null : null };   // senza MapConversion il «sito» di Revit non è un sistema di riferimento
 }
+/* punti x,y,z (rilievo): letti a pezzi tenendo solo il corridoio delle opere, poi Delaunay col bordo pulito.
+   Senza opere si tiene tutto, ma fino a 2 M punti: il rilievo intero (6 M) si apre dopo pianta e profilo. */
+const PTS_RE = /\.(csv|txt|xyz|pts)$/i;
+let delaunatorP = null;
+const loadDelaunator = () => (delaunatorP ||= import(new URL(`../terrain-sculptor/vendor/delaunator.js?v=${TOOL_VERSION}`, location.href).href).then((m) => m.default || globalThis.Delaunator));
+const PTS_MAX_FREE = 2e6;
+async function readPointsDtm(file) {
+  const box = worksBox(200), rd = IO.pointsReader({ bbox: box });
+  const reader = file.stream().pipeThrough(new TextDecoderStream()).getReader();
+  let done = 0, shown = 0;
+  for (;;) {
+    const { value, done: end } = await reader.read();
+    if (end) break;
+    rd.push(value); done += value.length;
+    if (done - shown > 8e6) { shown = done; busy(tr("dt.readingPts", { f: file.name, p: ni(Math.min(99, done / file.size * 100)) })); }
+  }
+  const pr = rd.end();
+  if (!pr.count) throw new Error("NO_POINTS_HERE");                     // tutti fuori dal corridoio
+  if (!box && pr.count > PTS_MAX_FREE) throw new Error("TOO_MANY");
+  busy(tr("dt.triangulating", { n: ni(pr.count) })); await frame();
+  const t = C.tinFromPoints(pr.points, await loadDelaunator());
+  return { kind: "pts", points: t.points, faces: t.faces, how: null, crs: null, pts: { read: pr.read, count: pr.count, skipped: pr.skipped, dropped: t.dropped, maxEdge: t.maxEdge } };
+}
 async function readDtm(file) {
+  if (PTS_RE.test(file.name)) return readPointsDtm(file);
   const T = await tio();
   if (/\.ifc$/i.test(file.name)) return readIfcDtm(file, T);
   const x = T.parseLandXML(await file.text());
   return { kind: "xml", points: x.points, faces: x.faces, how: null, crs: x.crs ? x.crs.name || (x.crs.epsg ? "EPSG:" + x.crs.epsg : null) : null };
 }
-/* solo il corridoio delle opere: il riquadro delle piante ± 200 m */
-function cropDtm(dtm) {
+/* solo il corridoio delle opere: il riquadro delle piante ± 200 m (null se non c'è ancora una pianta) */
+function worksBox(m) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const w of S.works) {
     const ax = derivedOf(w).axis;
     if (ax) for (const p of C.planPoints(ax, 0.5)) { x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y); x1 = Math.max(x1, p.x); y1 = Math.max(y1, p.y); }
   }
-  if (!(x1 >= x0)) return dtm;
-  const c = C.tinCrop(dtm.points, dtm.faces, { x0: x0 - 200, y0: y0 - 200, x1: x1 + 200, y1: y1 + 200 });
+  return x1 >= x0 ? { x0: x0 - m, y0: y0 - m, x1: x1 + m, y1: y1 + m } : null;
+}
+function cropDtm(dtm) {
+  const box = worksBox(200);
+  if (!box) return dtm;
+  const c = C.tinCrop(dtm.points, dtm.faces, box);
   return c.faces.length ? { ...dtm, points: c.points, faces: c.faces } : dtm;
 }
 function buildTin() {
@@ -1083,14 +1190,18 @@ async function openDtm(file) {
   busy(/\.ifc$/i.test(file.name) ? tr("dt.reading", { f: file.name }) : tr("t.read", { f: file.name }));
   await frame();
   try {
-    const dtm = { name: file.name, ...cropDtm(await readDtm(file)) };
+    const got = await readDtm(file);
+    const dtm = { name: file.name, ...(got.kind === "pts" ? got : cropDtm(got)) };   // i punti sono già nel corridoio
     const i = S.dtms.findIndex((t) => t.name === file.name);
     if (i >= 0) S.dtms[i] = dtm; else S.dtms.push(dtm);
+    S.dtmRefs = S.dtmRefs.filter((r) => r.name !== file.name);          // era da ricaricare: è tornato
     buildTin();
     return true;
   } catch (e) {
     console.error(e);
-    toast(e && e.message === "NO_TERRAIN" ? tr("dt.noTerrain", { f: file.name }) : tr("dt.fail", { f: file.name, m: (e && e.message) || String(e) }), true);
+    const m = e && e.message;
+    toast(m === "NO_TERRAIN" ? tr("dt.noTerrain", { f: file.name }) : m === "NO_POINTS_HERE" ? tr("dt.ptsNone", { f: file.name })
+      : m === "TOO_MANY" ? tr("dt.ptsMany", { f: file.name, n: ni(PTS_MAX_FREE) }) : tr("dt.fail", { f: file.name, m: m || String(e) }), true);
     return false;
   } finally { busy(""); }
 }
@@ -1171,7 +1282,9 @@ function assignDrawings(got, target) {
 
 async function openFiles(list, target = null) {
   const all = [...list];
-  const dtmFiles = all.filter((f) => /\.(ifc|xml|landxml)$/i.test(f.name));
+  const prj = all.find((f) => /\.profiles$/i.test(f.name));
+  if (prj) { closeSheet(); return openProject(prj, all.filter((f) => !/\.profiles$/i.test(f.name))); }   // il progetto prima, poi il resto dentro
+  const dtmFiles = all.filter((f) => /\.(ifc|xml|landxml)$/i.test(f.name) || PTS_RE.test(f.name));
   const files = all.filter((f) => /\.(dwg|dxf)$/i.test(f.name));
   if (!files.length && !dtmFiles.length) return;
   closeSheet();
@@ -1470,6 +1583,7 @@ const podW = () => (S.podOff ? 14 : $("pod").getBoundingClientRect().width + 28)
 const pvH = () => (S.pvOff ? 0 : $("pv").getBoundingClientRect().height + 14);
 let frameLater = false;
 function resize() {
+  applyWidths();
   if (!renderer) return;
   const vw = innerWidth, vh = innerHeight;
   if (!vw || !vh) return;
@@ -1492,6 +1606,7 @@ function sceneBox() {
    schermo senza toccare camera.up (OrbitControls ruota attorno all'up fissato alla creazione). */
 function frameAll(top = false, box = sceneBox()) {
   if (!box) return;
+  orbCancel();                                             // l'inquadratura interrompe drag e inerzia del pivot
   frameLater = !innerWidth || !innerHeight;
   if (frameLater) return;
   const pts = [];
@@ -1530,7 +1645,107 @@ function frameKey(key) {
   for (const o of G.group.children) { const k = o.userData.key; if (k && (k === key || k.startsWith(key + ":"))) b.expandByObject(o); }
   if (!b.isEmpty()) frameAll(false, b);
 }
+/* ==================== pivot d'orbita sotto il cursore ====================
+   Come il viewer (2.8.5): al pointerdown sinistro un raycast cerca un oggetto sotto il
+   puntatore; se lo trova, l'orbita gira attorno al punto colpito invece che attorno a
+   controls.target. Il drag lo fa questo codice (stopPropagation verso OrbitControls) con
+   la stessa cinematica: stesso rapporto pixel → angolo, stesso smorzamento; camera e
+   direzione di vista ruotano RIGIDAMENTE attorno al pivot, così il punto preso resta
+   fermo sotto il cursore. Al press nessun salto: il target scivola lungo l'asse di vista
+   alla profondità del punto (anche un clic rende pan e zoom locali a quella zona).
+   Bersagli: le mesh della scena (opere, DTM, la tenda degli assi senza sezione), non le
+   linee né il segnaposto del profilo. Nel vuoto: orbita classica. Touch: OrbitControls.
+   Qui l'alto è +z (camera.up); le quote della scena hanno già l'esagerazione della vista
+   (Zs), quindi il punto colpito è quello che si vede. */
+let orbDrag = null;                        // { id, x, y, moved, dist }
+const orbPend = { t: 0, p: 0 };            // angoli accumulati (imbardata, beccheggio), smorzati come i controls
+const orbPivot = new THREE.Vector3(), orbRay = new THREE.Raycaster(), orbNdc = new THREE.Vector2();
+const orbV1 = new THREE.Vector3(), orbV2 = new THREE.Vector3(), orbV3 = new THREE.Vector3();
+const orbQ = new THREE.Quaternion(), orbQ2 = new THREE.Quaternion();
+const ORB_UP = new THREE.Vector3(0, 0, 1), ORB_POLAR_MIN = 0.02;   // la vista non attraversa mai la verticale
+let orbDot = null, orbDotUntil = 0;
+function orbTargets() {
+  const out = [];
+  for (const o of G.group.children) if (o.isMesh && o.visible && o !== G.marker) out.push(o);
+  return out;
+}
+function orbCancel() {
+  orbPend.t = orbPend.p = 0;
+  if (orbDrag) { try { canvas.releasePointerCapture(orbDrag.id); } catch (_) {} orbDrag = null; }
+  if (orbDot) orbDot.visible = false;
+}
+canvas.addEventListener("pointerdown", (e) => {
+  if (orbDrag) { e.stopPropagation(); return; }            // drag sul pivot in corso: nessun altro gesto
+  if (e.button !== 0 || (e.pointerType !== "mouse" && e.pointerType !== "pen")) return;
+  if (!controls.enabled || !controls.enableRotate) return;
+  const r = canvas.getBoundingClientRect();
+  orbNdc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  orbRay.setFromCamera(orbNdc, camera);
+  const hit = orbRay.intersectObjects(orbTargets(), false)[0];
+  if (!hit) return;                                        // vuoto → orbita classica
+  e.stopPropagation();
+  orbPivot.copy(hit.point);
+  const dir = camera.getWorldDirection(orbV1);
+  controls.target.copy(camera.position).addScaledVector(dir, orbV2.subVectors(orbPivot, camera.position).dot(dir));
+  orbPend.t = orbPend.p = 0;
+  orbDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, dist: 0 };
+  if (!orbDot) {
+    orbDot = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14),
+      new THREE.MeshBasicMaterial({ color: 0xbfd730, transparent: true, opacity: 0.95, depthTest: false, depthWrite: false }));
+    orbDot.renderOrder = 12; orbDot.visible = false;
+    scene.add(orbDot);
+  }
+  orbDot.position.copy(orbPivot);                          // si vede solo oltre 3 px di drag: un clic non lampeggia
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+}, { capture: true });
+canvas.addEventListener("pointermove", (e) => {
+  if (!orbDrag || e.pointerId !== orbDrag.id) return;
+  e.stopPropagation();
+  const dx = e.clientX - orbDrag.x, dy = e.clientY - orbDrag.y;
+  orbDrag.x = e.clientX; orbDrag.y = e.clientY;
+  if (!orbDrag.moved && (orbDrag.dist += Math.abs(dx) + Math.abs(dy)) > 3) { orbDrag.moved = true; orbDot.material.opacity = 0.95; orbDot.visible = true; }
+  const h = canvas.clientHeight || 1;                      // la scala di OrbitControls (rotateLeft / rotateUp)
+  orbPend.t -= 2 * Math.PI * dx / h * controls.rotateSpeed;
+  orbPend.p -= 2 * Math.PI * dy / h * controls.rotateSpeed;
+}, { capture: true });
+function orbEnd(e) {
+  if (!orbDrag || e.pointerId !== orbDrag.id) return;
+  try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+  orbDrag = null;                                          // il residuo di orbPend fa l'inerzia
+  orbDotUntil = performance.now() + 240;
+}
+canvas.addEventListener("pointerup", orbEnd);
+canvas.addEventListener("pointercancel", orbEnd);
+addEventListener("blur", orbCancel);
+/* dal loop, PRIMA di controls.update(): gli angoli pendenti come rotazione rigida attorno al pivot */
+function orbApply(now) {
+  if (orbDot && orbDot.visible) {
+    const d = camera.position.distanceTo(orbDot.position);
+    orbDot.scale.setScalar(Math.max(d * Math.tan(camera.fov * Math.PI / 360) * 9 / (canvas.clientHeight || 1), 1e-4));   // ~9 px
+    if (!orbDrag) { const t = (orbDotUntil - now) / 240; if (t <= 0) orbDot.visible = false; else orbDot.material.opacity = 0.95 * t; }
+  }
+  if (!orbDrag && Math.abs(orbPend.t) < 1e-5 && Math.abs(orbPend.p) < 1e-5) return;
+  const k = controls.enableDamping ? controls.dampingFactor : 1;
+  const st = orbPend.t * k;
+  let sp = orbPend.p * k;
+  orbPend.t *= 1 - k; orbPend.p *= 1 - k;
+  const dir = camera.getWorldDirection(orbV1);
+  // beccheggio: la verticale non si supera; partendo oltre il limite (vista dall'alto) non si salta, si resta
+  const polar = Math.acos(THREE.MathUtils.clamp(dir.z, -1, 1));
+  const spMax = Math.max(0, polar - ORB_POLAR_MIN), spMin = Math.min(0, polar - (Math.PI - ORB_POLAR_MIN));
+  if (sp > spMax) { sp = spMax; orbPend.p = 0; } else if (sp < spMin) { sp = spMin; orbPend.p = 0; }
+  const right = orbV2.crossVectors(dir, ORB_UP);
+  if (right.lengthSq() < 1e-12) right.set(1, 0, 0);
+  right.normalize();
+  orbQ.setFromAxisAngle(ORB_UP, st).multiply(orbQ2.setFromAxisAngle(right, sp));
+  const depth = camera.position.distanceTo(controls.target);   // si compone con lo zoom a rotella
+  orbV3.subVectors(camera.position, orbPivot).applyQuaternion(orbQ);
+  camera.position.copy(orbPivot).add(orbV3);
+  dir.applyQuaternion(orbQ);
+  controls.target.copy(camera.position).addScaledVector(dir, depth);
+}
 function tick() {
+  orbApply(performance.now());
   controls.update();
   const dist = camera.position.distanceTo(controls.target);
   camera.near = Math.max(0.1, dist / 5000); camera.far = dist * 50 + 10000;
@@ -1881,18 +2096,38 @@ function renderAnchors() {
     toast(tr("t.added", { p: prog(p), q: prog(q) }));
   });
 }
+/* DTM rimasti fuori da un file .profiles: nome, percorso (si corregge qui) e «Ricarica» */
+function dtmMissing() {
+  return S.dtmRefs.map((r, i) => `<div class="dtmiss"><div class="file"><span class="fn" title="${esc(r.name)}">${esc(r.name)}</span><span class="fm">${esc(tr("dt.miss"))}</span>`
+    + `<button class="btn-sm" data-dtre="${i}">${esc(tr("dt.reload"))}</button></div>`
+    + `<input class="txt" data-dtpath="${i}" value="${esc(S.dtmPaths[r.name] || r.name)}" title="${esc(tr("dt.pathT"))}" aria-label="${esc(tr("dt.pathT"))}" spellcheck="false"></div>`).join("");
+}
+function wireMissing(B) {
+  B.querySelectorAll("[data-dtre]").forEach((el) => el.addEventListener("click", () => reloadDtm(+el.dataset.dtre)));
+  B.querySelectorAll("[data-dtpath]").forEach((el) => el.addEventListener("change", () => {
+    const r = S.dtmRefs[+el.dataset.dtpath];
+    if (r) { setDtmPath(r.name, el.value); scheduleSave(); }
+  }));
+}
+/* il percorso si tiene solo se dice più del nome del file */
+function setDtmPath(name, v) { v = String(v || "").trim(); if (v && v !== name) S.dtmPaths[name] = v; else delete S.dtmPaths[name]; }
 function renderDtm() {
   const B = $("dtBody");
   if (!S.dtms.length) {
-    B.innerHTML = `<p class="empty">${esc(tr("dt.empty"))}</p><div class="btns"><button class="btn-sm" id="dtOpen">${esc(tr("dt.open"))}</button></div>`;
-    $("dtCnt").textContent = "";
+    B.innerHTML = dtmMissing() + `<p class="empty">${esc(S.dtmRefs.length ? tr("dt.missHelp") : tr("dt.empty"))}</p><div class="btns"><button class="btn-sm" id="dtOpen">${esc(tr("dt.open"))}</button></div>`;
+    $("dtCnt").textContent = S.dtmRefs.length ? "!" : "";
     $("dtOpen").onclick = pickDtm;
+    wireMissing(B);
     return;
   }
   // topografia esistente del progetto: uno o più file uniti (lo stesso nome sostituisce)
-  let h = "";
+  let h = dtmMissing();
   S.dtms.forEach((dm, i) => {
-    h += `<div class="file"><span class="fn" title="${esc(dm.name)}">${esc(dm.name)}</span><span class="fm">${esc(dm.kind === "ifc" ? tr("dt.kindIfc") : tr("dt.kindXml"))}</span><button class="btn-sm" data-dtrm="${i}">${esc(tr("dt.remove"))}</button></div>`;
+    h += `<div class="file"><span class="fn" title="${esc(dm.name)}">${esc(dm.name)}</span><span class="fm">${esc(dm.kind === "ifc" ? tr("dt.kindIfc") : dm.kind === "pts" ? tr("dt.kindPts") : tr("dt.kindXml"))}</span><button class="btn-sm" data-dtrm="${i}">${esc(tr("dt.remove"))}</button></div>`;
+    if (dm.kind === "pts" && dm.pts) {
+      h += kv(tr("dt.pts"), esc(tr("dt.ptsV", { n: ni(dm.pts.count), r: ni(dm.pts.read) })));
+      h += kv(tr("dt.ptsEdge"), esc(tr("dt.ptsEdgeV", { d: ni(dm.pts.dropped), m: nf(dm.pts.maxEdge, 1) })));
+    }
     if (dm.kind === "ifc") h += kv(tr("dt.georef"), esc(dm.how === "map" ? tr("dt.how.map") : dm.how === "site" ? tr("dt.how.site") : dm.how === "context" ? tr("dt.how.context") : tr("dt.how.none")) + (dm.crs ? " · " + esc(dm.crs) : ""));
   });
   h += `<div class="btns"><button class="btn-sm" id="dtChange">${esc(tr("dt.add"))}</button></div>`;
@@ -1910,6 +2145,7 @@ function renderDtm() {
   $("dtCnt").textContent = D.axis ? ni(D.cover * 100) + " %" : "";
   $("dtChange").onclick = pickDtm;
   B.querySelectorAll("[data-dtrm]").forEach((el) => el.addEventListener("click", () => removeDtm(+el.dataset.dtrm)));
+  wireMissing(B);
 }
 /* parametri della sezione dell'opera attiva: fosso trapezio o canale a U (campi: [chiave, etichetta, unità, minimo]) */
 function renderSection() {
@@ -2182,11 +2418,12 @@ function renderTree() {
   };
   // topografia esistente (condivisa)
   const dOpen = isOpen("dtm", false);
-  row({ key: "dtm", d: 0, kind: "dtm", label: tr("tr.dtm"), meta: S.dtms.length ? tr("tr.tris", { n: ni(dtmTris()) }) : "—", eye: S.dtms.length ? ly.dtm : undefined, off: S.dtms.length > 0 && !ly.dtm, group: S.dtms.length > 0, open: dOpen, add: true });
+  row({ key: "dtm", d: 0, kind: "dtm", label: tr("tr.dtm"), meta: S.dtms.length ? tr("tr.tris", { n: ni(dtmTris()) }) : S.dtmRefs.length ? tr("dt.miss") : "—", eye: S.dtms.length ? ly.dtm : undefined, off: S.dtms.length > 0 && !ly.dtm, group: S.dtms.length + S.dtmRefs.length > 0, open: dOpen, add: true });
   if (dOpen) for (const t of S.dtms) {
     const k = "dtm:" + t.name;
-    row({ key: k, d: 1, kind: "dtmf", label: t.name, meta: t.kind === "ifc" ? "IFC" : "LandXML", eye: shown(k), off: !shown(k), dim: !ly.dtm, rm: true });
+    row({ key: k, d: 1, kind: "dtmf", label: t.name, meta: t.kind === "ifc" ? "IFC" : t.kind === "pts" ? "x,y,z" : "LandXML", eye: shown(k), off: !shown(k), dim: !ly.dtm, rm: true });
   }
+  if (dOpen) for (const r of S.dtmRefs) row({ key: "dtmref:" + r.name, d: 1, kind: "dtmf", label: r.name, meta: tr("dt.miss"), off: true, rm: true, title: S.dtmPaths[r.name] || r.name });
   // opere
   if (!S.works.length) rows.push(`<p class="tree-empty">${esc(tr("tr.empty"))}</p>`);
   for (const w of S.works) {
@@ -2240,6 +2477,7 @@ function removeKey(k) {
   if (/^w\d+$/.test(k)) removeWork(+k.slice(1));
   else if (k.startsWith("dtm:")) removeDtm(S.dtms.findIndex((t) => "dtm:" + t.name === k));
   else if (k.startsWith("spare:")) { S.spare.splice(+k.slice(6), 1); renderTree(); scheduleSave(); }
+  else if (k.startsWith("dtmref:")) { S.dtmRefs = S.dtmRefs.filter((r) => "dtmref:" + r.name !== k); refreshViews(); scheduleSave(); }
 }
 function removeWork(id) {
   const i = S.works.findIndex((w) => w.id === id);
@@ -2315,7 +2553,7 @@ $("trNew").addEventListener("click", () => {
     return;
   }
   b.classList.remove("armed"); b.textContent = tr("tr.new");
-  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = "";
+  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = ""; S.dtmRefs = []; S.dtmPaths = {};
   DW.clear(); TIN = null; setActive(-1);
   undo.length = 0; redo.length = 0; updateUndo();
   refreshViews(); scheduleSave(); openSheet();
@@ -2425,8 +2663,10 @@ function snapshot() {
     for (const [k, v] of Object.entries(src)) if (!DRAWING_KEYS.includes(k)) out[k] = v;
     return out;
   };
+  const names = new Set([...S.dtms, ...S.dtmRefs].map((t) => t.name));
   return {
     v: 2, name: S.name, active: S.active, seq: S.seq, dtms: S.dtms, hidden: S.hidden,
+    dtmRefs: S.dtmRefs, dtmPaths: Object.fromEntries(Object.entries(S.dtmPaths).filter(([k]) => names.has(k))), dtmInFile: S.dtmInFile,
     works: S.works.map((w) => ({ ...w, plan: strip(w.plan), prof: strip(w.prof) })),
     spare: S.spare.map(strip), drawings: [...drawings.values()],
   };
@@ -2455,7 +2695,8 @@ function restore(doc) {
     channel: { ...C.CHANNEL, step: 1, ...(w.channel || {}) } }));
   S.spare = (doc.spare || []).map(join).filter(Boolean);
   S.dtms = doc.dtms || []; S.hidden = doc.hidden || {}; S.name = doc.name || "";
-  S.seq = Math.max(doc.seq || 1, ...S.works.map((w) => w.id + 1), ...[...dr.keys()].map((k) => k + 1));
+  S.dtmRefs = doc.dtmRefs || []; S.dtmPaths = doc.dtmPaths || {}; S.dtmInFile = doc.dtmInFile !== false;
+  S.seq =Math.max(doc.seq || 1, ...S.works.map((w) => w.id + 1), ...[...dr.keys()].map((k) => k + 1));
   DW.clear();
   setActive(doc.active || 0);
 }
@@ -2490,6 +2731,153 @@ addEventListener("pagehide", () => { if (dirty) saveNow(); });
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && dirty) saveNow(); });
 
 /* =========================================================================
+   File di progetto .profiles (0.5): «Salva progetto» scarica lo snapshot del
+   salvataggio automatico (formato in profile-io.js) compresso con gzip; si
+   riapre dal benvenuto, da «Apri disegni» o trascinandolo, e prende il posto
+   del progetto aperto (che resta solo se lo si è salvato). Il DTM è a scelta:
+   fuori dal file restano il nome e il percorso che scrive l'utente (il browser
+   non dice mai la cartella di un file), da ricaricare all'apertura.
+   ========================================================================= */
+const PRJ_EXT = ".profiles";
+const pipeBytes = async (u8, stream) => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(stream)).arrayBuffer());
+const projectEmpty = () => !S.works.length && !S.spare.length && !S.dtms.length && !S.dtmRefs.length;
+function dlgOpen(title, body, buttons) {
+  $("dlgTitle").textContent = title;
+  $("dlgBody").innerHTML = body;
+  const f = $("dlgBtns");
+  f.innerHTML = "";
+  for (const b of buttons) {
+    const el = document.createElement("button");
+    el.textContent = b.label;
+    if (b.primary) el.className = "primary";
+    el.addEventListener("click", b.run);
+    f.append(el);
+  }
+  $("dlg").hidden = false;
+  const first = $("dlgBody").querySelector("input.txt, .numbox input") || f.querySelector(".primary");
+  if (first) { first.focus(); if (first.select) first.select(); }
+}
+function dlgClose() { $("dlg").hidden = true; }
+$("dlg").addEventListener("click", (e) => { if (e.target === $("dlg")) dlgClose(); });
+
+/* il dialogo di «Salva progetto»: nome del file, DTM dentro o fuori (coi percorsi). then: dopo il salvataggio */
+function saveProjectDialog(then = null) {
+  if (projectEmpty()) { toast(tr("prj.empty"), true); return; }
+  const list = [...S.dtms.map((t) => ({ name: t.name, here: true })), ...S.dtmRefs.map((r) => ({ name: r.name, here: false }))];
+  let h = `<div class="row"><label for="dlgName">${esc(tr("prj.file"))}</label><div class="numbox"><input id="dlgName" class="txt" value="${esc(fileBase())}" spellcheck="false"><span>${PRJ_EXT}</span></div></div>`;
+  if (S.dtms.length) h += `<label class="check"><input type="checkbox" id="dlgDtm"${S.dtmInFile ? " checked" : ""}> ${esc(tr("prj.withDtm", { n: ni(dtmTris()) }))}</label>`;
+  if (list.length) {
+    h += `<div id="dlgPaths"><p class="help">${esc(tr("prj.pathHelp"))}</p>`;
+    list.forEach((t, i) => { h += `<div class="dtp" data-here="${t.here ? 1 : 0}"><div class="fn" title="${esc(t.name)}">${esc(t.name)}${t.here ? "" : " · " + esc(tr("dt.miss"))}</div><input class="txt" data-dtp="${i}" value="${esc(S.dtmPaths[t.name] || t.name)}" spellcheck="false" aria-label="${esc(tr("dt.pathT"))}"></div>`; });
+    h += `</div>`;
+  }
+  h += `<p class="help">${esc(tr("prj.saveHelp"))}</p>`;
+  dlgOpen(tr("prj.saveTitle"), h, [
+    { label: tr("prj.cancel"), run: dlgClose },
+    { label: tr("prj.save"), primary: true, run: () => {
+      const name = $("dlgName").value.replace(/\.profiles$/i, "").replace(/[\\/:*?"<>|]+/g, "_").trim() || fileBase();
+      const withDtm = !!($("dlgDtm") && $("dlgDtm").checked);
+      document.querySelectorAll("#dlgBody [data-dtp]").forEach((el) => setDtmPath(list[+el.dataset.dtp].name, el.value));
+      dlgClose();
+      saveProject(name, withDtm).then((ok) => { if (ok && then) then(); });
+    } },
+  ]);
+  // col DTM dentro, i percorsi servono solo per quelli che mancano
+  const sync = () => {
+    const inFile = !!($("dlgDtm") && $("dlgDtm").checked);
+    document.querySelectorAll("#dlgBody .dtp").forEach((el) => { el.hidden = inFile && el.dataset.here === "1"; });
+    const p = $("dlgPaths");
+    if (p) p.hidden = ![...p.querySelectorAll(".dtp")].some((el) => !el.hidden);
+  };
+  if ($("dlgDtm")) $("dlgDtm").addEventListener("change", sync);
+  sync();
+}
+async function saveProject(name, withDtm) {
+  S.name = name; S.dtmInFile = withDtm;
+  busy(tr("prj.saving")); await frame();
+  try {
+    const doc = snapshot();
+    if (!withDtm) {                                       // fuori dal file: resta il riferimento (nome, tipo, triangoli)
+      doc.dtmRefs = [...S.dtms.map((t) => ({ name: t.name, kind: t.kind, how: t.how, crs: t.crs, tris: t.faces.length / 3 })), ...S.dtmRefs];
+      doc.dtms = [];
+    }
+    const raw = IO.encodeProject(doc, { tool: TOOL_VERSION, saved: new Date().toISOString(), works: S.works.map((w) => w.name), dtm: doc.dtms.length, refs: doc.dtmRefs.map((r) => r.name) });
+    const bytes = typeof CompressionStream === "function" ? await pipeBytes(raw, new CompressionStream("gzip")) : raw;
+    download(name + PRJ_EXT, bytes, "application/octet-stream");
+    toast(tr("prj.saved", { f: name + PRJ_EXT, mb: nf(bytes.length / 1048576, bytes.length < 10485760 ? 1 : 0) }));
+    renderExport(); refreshStats(); scheduleSave();
+    return true;
+  } catch (e) {
+    console.error(e);
+    toast(tr("prj.saveFail", { m: (e && e.message) || String(e) }), true);
+    return false;
+  } finally { busy(""); }
+}
+async function readProjectFile(file) {
+  let u8 = new Uint8Array(await file.arrayBuffer());
+  if (IO.isGzip(u8)) {
+    if (typeof DecompressionStream !== "function") throw new Error(tr("prj.noGzip"));
+    try { u8 = await pipeBytes(u8, new DecompressionStream("gzip")); }
+    catch (e) { throw new Error(tr("prj.badGzip")); }               // il browser direbbe solo «Failed to fetch»
+  }
+  return IO.decodeProject(u8);
+}
+/* apre un .profiles: se c'è già un progetto, prima chiede (salvarlo, sostituirlo o lasciar stare) */
+async function openProject(file, rest = []) {
+  busy(tr("t.read", { f: file.name })); await frame();
+  let res;
+  try { res = await readProjectFile(file); }
+  catch (e) { busy(""); console.error(e); toast(tr("prj.openFail", { f: file.name, m: (e && e.message) || String(e) }), true); return; }
+  busy("");
+  const go = async () => { dlgClose(); await loadProject(res, file.name); if (rest.length) openFiles(rest); };
+  if (projectEmpty()) return go();
+  const h = res.header, d = h.saved ? new Date(h.saved) : null;
+  const ws = Array.isArray(h.works) ? h.works : (res.doc.works || []).map((w) => w.name);
+  const refs = Array.isArray(h.refs) ? h.refs : (res.doc.dtmRefs || []).map((r) => r.name);
+  let b = kv(tr("prj.file"), esc(file.name));
+  if (d && !isNaN(d)) b += kv(tr("prj.when"), esc(d.toLocaleString(LANG === "en" ? "en-GB" : "it-IT", { dateStyle: "medium", timeStyle: "short" })));
+  b += kv(tr("prj.works"), esc(ws.length ? ws.join(" · ") : "—"));
+  b += kv(tr("tr.dtm"), esc(res.doc.dtms && res.doc.dtms.length ? tr("prj.dtmIn", { n: ni(res.doc.dtms.reduce((a, t) => a + t.faces.length / 3, 0)) }) : refs.length ? tr("prj.dtmOut", { f: refs.join(", ") }) : "—"));
+  b += `<p class="note warn">${esc(tr("prj.replace", { n: S.works.length }))}</p>`;
+  dlgOpen(tr("prj.openTitle"), b, [
+    { label: tr("prj.cancel"), run: dlgClose },
+    { label: tr("prj.saveFirst"), run: () => { dlgClose(); saveProjectDialog(go); } },
+    { label: tr("prj.open"), primary: true, run: go },
+  ]);
+}
+async function loadProject({ doc }, fname) {
+  busy(tr("busy.sweep")); await frame();
+  try {
+    restore(doc);
+    if (!S.name) S.name = fname.replace(/\.profiles$/i, "");
+    buildTin();
+    for (const w of S.works) withWork(w, () => { rebuildPlan(); rebuildProfile(); });
+    undo.length = 0; redo.length = 0; updateUndo();
+    recomputeAll();
+    if (S.dtmRefs.length) { S.closed.dtm = false; applyClosed(); }
+    pvFit(); frameAll();
+    saveNow();                                            // il progetto aperto è il nuovo salvataggio automatico
+  } finally { busy(""); }
+  if (S.dtmRefs.length) toast(tr("prj.openedMiss", { f: fname, d: S.dtmRefs.map((r) => S.dtmPaths[r.name] || r.name).join(", ") }), true);
+  else toast(tr("prj.opened", { f: fname, n: S.works.length }));
+}
+/* un DTM da ricaricare: il selettore dei DTM; anche con un altro nome prende il suo posto */
+let reloadIdx = -1;
+function reloadDtm(i) { reloadIdx = i; $("dtmIn").click(); }
+$("dtmIn").addEventListener("change", async (e) => {
+  const f = e.target.files && e.target.files[0], r = S.dtmRefs[reloadIdx];
+  e.target.value = "";
+  if (!f || !r) return;
+  if (!(await openDtm(f))) return;
+  S.dtmRefs = S.dtmRefs.filter((x) => x !== r);
+  busy(tr("busy.sweep")); await frame();
+  recomputeAll(); busy(""); scheduleSave();
+  dtmToast();
+});
+$("trSave").addEventListener("click", () => saveProjectDialog());
+$("wProject").addEventListener("click", () => pickFiles());
+
+/* =========================================================================
    Avvisi, foglio, pannelli, tasti
    ========================================================================= */
 let toastTimer = 0;
@@ -2514,6 +2902,57 @@ function applyPanels() {
   $("bPv").classList.toggle("on", !S.pvOff);
   resize();
 }
+/* ---- albero e pannello ridimensionabili: le maniglie del viewer (trascina il bordo) ----
+   Limiti del viewer: albero ≥ 220 px, pannello ≥ 280, ciascuno ≤ finestra − 560; qui in più fra
+   i due resta una vista 3D di almeno 320 px (ci sono due lastre affiancate, non una). Doppio clic
+   sulla maniglia = larghezza iniziale. La scelta va nelle preferenze; se la finestra si stringe
+   si accorcia quella mostrata, non quella scelta. Profilo, stato e inquadratura seguono da soli
+   (--tree-w, --pod-w e le misure dal vivo dei pannelli). */
+const TREE_X = 80, POD_X = 14, TREE_MIN = 220, POD_MIN = 280, VIEW_MIN = 320;
+const cssPx = (v) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(v)) || 0;
+function panelWidths(drag = null, want = 0) {
+  const vw = innerWidth;
+  let t = drag === "tree" ? want : S.treeW || cssPx("--tree-w-def");
+  let p = drag === "pod" ? want : S.podW || cssPx("--pod-w-def");
+  t = Math.max(TREE_MIN, Math.min(t, vw - 560)); p = Math.max(POD_MIN, Math.min(p, vw - 560));
+  const over = (S.treeOff ? 0 : t) + (S.podOff ? 0 : p) - (vw - TREE_X - 10 - 2 * POD_X - VIEW_MIN);
+  if (over > 0) {                                         // chi si trascina si ferma; altrimenti cede prima il pannello
+    if (drag === "tree") t = Math.max(TREE_MIN, t - over);
+    else if (drag === "pod") p = Math.max(POD_MIN, p - over);
+    else { const dp = S.podOff ? 0 : Math.min(over, p - POD_MIN); p -= dp; if (!S.treeOff) t = Math.max(TREE_MIN, t - (over - dp)); }
+  }
+  return { t: Math.round(t), p: Math.round(p) };
+}
+function applyWidths() {
+  const { t, p } = panelWidths(), st = document.documentElement.style;
+  st.setProperty("--tree-wu", t + "px"); st.setProperty("--pod-wu", p + "px");
+}
+function panelResizer(which) {
+  const h = $(which + "Resize");
+  let id = null, raf = 0;
+  const end = (e) => {
+    if (id !== e.pointerId) return;
+    id = null; h.classList.remove("drag");
+    try { h.releasePointerCapture(e.pointerId); } catch (_) {}
+    cancelAnimationFrame(raf); sizePV(); saveUi();
+  };
+  h.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault(); id = e.pointerId; h.classList.add("drag");
+    try { h.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  h.addEventListener("pointermove", (e) => {
+    if (id !== e.pointerId) return;
+    const r = panelWidths(which, which === "tree" ? e.clientX - TREE_X : innerWidth - POD_X - e.clientX);
+    S[which + "W"] = which === "tree" ? r.t : r.p;
+    document.documentElement.style.setProperty("--" + which + "-wu", S[which + "W"] + "px");
+    cancelAnimationFrame(raf); raf = requestAnimationFrame(sizePV);   // la lastra del profilo cambia larghezza
+  });
+  h.addEventListener("pointerup", end);
+  h.addEventListener("pointercancel", end);
+  h.addEventListener("dblclick", () => { S[which + "W"] = null; applyWidths(); sizePV(); saveUi(); });
+}
+panelResizer("tree"); panelResizer("pod");
 $("bTree").addEventListener("click", () => { S.treeOff = !S.treeOff; applyPanels(); saveUi(); });
 $("bPod").addEventListener("click", () => { S.podOff = !S.podOff; applyPanels(); saveUi(); });
 $("bPv").addEventListener("click", () => { S.pvOff = !S.pvOff; applyPanels(); saveUi(); });
@@ -2522,6 +2961,13 @@ $("bTop").addEventListener("click", () => frameAll(true));
 $("bUndo").addEventListener("click", () => doUndo(true));
 $("bRedo").addEventListener("click", () => doUndo(false));
 addEventListener("keydown", (e) => {
+  if (!$("dlg").hidden) {                                 // dialogo aperto: Esc chiude, Invio conferma, il resto tace
+    if (e.key === "Escape") { e.preventDefault(); dlgClose(); }
+    else if (e.key === "Enter" && e.target.type !== "checkbox" && e.target.tagName !== "BUTTON") { e.preventDefault(); const b = $("dlgBtns").querySelector(".primary"); if (b) b.click(); }
+    else if ((e.ctrlKey || e.metaKey) && (e.key === "s" || e.key === "S")) e.preventDefault();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "s" || e.key === "S")) { e.preventDefault(); saveProjectDialog(); return; }
   const tag = (e.target && e.target.tagName) || "";
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
   if (e.key === "Escape" && !$("sheet").hidden && S.works.length) { closeSheet(); return; }
@@ -2588,7 +3034,10 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
   else openSheet();
 })();
 /* aggancio per le prove dal browser: stato e funzioni, niente dati in rete */
-window.__ps = { C, IO, get S() { return S; }, get W() { return W; }, get D() { return D; }, derivedOf, setActive: (i) => { setActive(i); refreshViews(); pvFit(); }, get PV() { return PV; }, camera, controls, frameAll, pvFit, pvShow, loadExample, openFiles, saveNow, drawPV,
+window.__ps = { C, IO, get S() { return S; }, get W() { return W; }, get D() { return D; }, derivedOf, setActive: (i) => { setActive(i); refreshViews(); pvFit(); }, get PV() { return PV; }, camera, controls, frameAll, pvFit, pvShow, loadExample, openFiles, saveNow, drawPV, snapshot, saveProjectDialog,
+  /* pivot d'orbita: stato e un passo del loop senza aspettare il rAF (fermo a pannello nascosto) */
+  orb: { get drag() { return orbDrag; }, get pivot() { return orbPivot.toArray(); }, get dot() { return orbDot && orbDot.visible; },
+    step() { orbApply(performance.now()); controls.update(); camera.updateMatrixWorld(true); scene.updateMatrixWorld(true); } },
   /* coppie visibili nella striscia, in coordinate client (per cliccarle nelle prove) */
   get dots() { if (!D.axis) return []; const r = pvc.getBoundingClientRect(), k = stripScale(); return k.vdots.map((d) => ({ idx: d.idx, p: d.p, off: d.off, x: r.left + xOf(d.p), y: r.top + k.yD(d.d), dense: k.dense })); } };
 </script>

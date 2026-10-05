@@ -839,3 +839,187 @@ export function ditchCSV(parts, { head, total = "TOTALE", comma = true, work = f
   if (parts.length > 1) rows.push([...pre(q(total)), work ? "" : q(total), "", "", n(tot.length, 3), ...cols.map((k) => n(tot[k], 3))].join(";"));
   return "﻿" + rows.join("\r\n") + "\r\n";
 }
+
+/* -------------------------------------------------------------------------
+   File di progetto .profiles (0.5): lo snapshot del salvataggio automatico
+   (documento v: 2 della pagina: opere, disegni una volta per did, DTM,
+   occhi) su disco, per portarlo su un altro PC o tenerne più versioni.
+   Binario e SENZA perdite, come il .terrain del Terrain Sculptor:
+     "PSWEEP01" · uint32 LE lunghezza dell'intestazione · intestazione JSON
+     (UTF-8) · zeri fino a multiplo di 8 · blocchi, ognuno allineato a 8
+   L'intestazione porta { format, v, ...extra, doc, blocks }: doc è lo
+   snapshot con i DTM che rimandano ai blocchi ({ blk: i }); i numeri non
+   finiti (NaN, ±Infinity) passano come { $num: "…" } (il JSON li farebbe null).
+   Blocchi del DTM: punti a componenti separate (tutte le x, le y, le quote)
+   e a «piani di byte»; triangoli a differenze (uint32 che si avvolge) e a
+   piani di byte: cifre alte che si ripetono, e il gzip le schiaccia. Il gzip
+   lo fa chi chiama (CompressionStream nel browser). Il DTM è facoltativo:
+   chi non lo mette lo lascia in doc.dtmRefs (nome, percorso) da ricaricare.
+   ------------------------------------------------------------------------- */
+const PRJ_MAGIC = "PSWEEP01", PRJ_FORMAT = "profile-sweep-project", PRJ_V = 1;
+const pad8 = (n) => (8 - (n % 8)) % 8;
+function bytePlanes(u8, size) {                          // n elementi da size byte → size piani
+  const n = u8.length / size, out = new Uint8Array(u8.length);
+  for (let k = 0; k < size; k++) { const o = k * n; for (let i = 0; i < n; i++) out[o + i] = u8[size * i + k]; }
+  return out;
+}
+function unBytePlanes(u8, size) {
+  const n = u8.length / size, out = new Uint8Array(u8.length);
+  for (let k = 0; k < size; k++) { const o = k * n; for (let i = 0; i < n; i++) out[size * i + k] = u8[o + i]; }
+  return out;
+}
+function encPoints(p) {                                  // x,y,z,x,y,z… → x… y… z… → piani
+  const n = p.length / 3, c = new Float64Array(p.length);
+  for (let i = 0; i < n; i++) { c[i] = p[3 * i]; c[n + i] = p[3 * i + 1]; c[2 * n + i] = p[3 * i + 2]; }
+  return bytePlanes(new Uint8Array(c.buffer), 8);
+}
+function decPoints(u8) {
+  const c = new Float64Array(unBytePlanes(u8, 8).buffer), n = c.length / 3, p = new Float64Array(c.length);
+  for (let i = 0; i < n; i++) { p[3 * i] = c[i]; p[3 * i + 1] = c[n + i]; p[3 * i + 2] = c[2 * n + i]; }
+  return p;
+}
+function encFaces(f) {
+  const d = new Uint32Array(f.length);
+  let prev = 0;
+  for (let i = 0; i < f.length; i++) { d[i] = (f[i] - prev) >>> 0; prev = f[i]; }
+  return bytePlanes(new Uint8Array(d.buffer), 4);
+}
+function decFaces(u8) {
+  const d = new Uint32Array(unBytePlanes(u8, 4).buffer), f = new Uint32Array(d.length);
+  let prev = 0;
+  for (let i = 0; i < d.length; i++) { prev = (prev + d[i]) >>> 0; f[i] = prev; }
+  return f;
+}
+const numOut = (k, v) => (typeof v === "number" && !Number.isFinite(v) ? { $num: String(v) } : v);
+const numIn = (k, v) => (v && typeof v === "object" && typeof v.$num === "string" && Object.keys(v).length === 1 ? Number(v.$num) : v);
+
+/** È un gzip? (i primi due byte) — il file si salva compresso, ma si apre anche com'è. */
+export const isGzip = (u8) => u8.length > 2 && u8[0] === 0x1f && u8[1] === 0x8b;
+
+/**
+ * snapshot della pagina (v: 2) → byte del file (da comprimere).
+ * extra va nell'intestazione (versione del tool, data, riassunto per chi apre).
+ */
+export function encodeProject(doc, extra = {}) {
+  const blocks = [];
+  const dtms = (doc.dtms || []).map((t) => {
+    const P = t.points instanceof Float64Array ? t.points : Float64Array.from(t.points);
+    const F = t.faces instanceof Uint32Array ? t.faces : Uint32Array.from(t.faces);
+    if (P.length % 3 || F.length % 3) throw new Error(`DTM ${t.name}: punti o triangoli non a terne`);
+    blocks.push({ name: t.name + ":points", enc: "f64-xyz-planes", data: encPoints(P) });
+    blocks.push({ name: t.name + ":faces", enc: "u32-delta-planes", data: encFaces(F) });
+    return { ...t, points: { blk: blocks.length - 2 }, faces: { blk: blocks.length - 1 } };
+  });
+  const header = { format: PRJ_FORMAT, v: PRJ_V, ...extra, doc: { ...doc, dtms },
+    blocks: blocks.map((b) => ({ name: b.name, enc: b.enc, length: b.data.length })) };
+  const hb = new TextEncoder().encode(JSON.stringify(header, numOut));
+  let size = 12 + hb.length + pad8(12 + hb.length);
+  for (const b of blocks) size += b.data.length + pad8(b.data.length);
+  const out = new Uint8Array(size);
+  for (let i = 0; i < 8; i++) out[i] = PRJ_MAGIC.charCodeAt(i);
+  new DataView(out.buffer).setUint32(8, hb.length, true);
+  out.set(hb, 12);
+  let o = 12 + hb.length + pad8(12 + hb.length);
+  for (const b of blocks) { out.set(b.data, o); o += b.data.length + pad8(b.data.length); }
+  return out;
+}
+
+/** byte del file (già decompressi) → { doc, header } — errori in italiano, li mostra la pagina */
+export function decodeProject(u8) {
+  const bad = (m) => { throw new Error(m); };
+  if (!(u8 instanceof Uint8Array)) u8 = new Uint8Array(u8);
+  if (u8.length < 12 || String.fromCharCode(...u8.subarray(0, 8)) !== PRJ_MAGIC) bad("non è un progetto di Sviluppo profili");
+  const hl = new DataView(u8.buffer, u8.byteOffset, u8.byteLength).getUint32(8, true);
+  if (12 + hl > u8.length) bad("file di progetto troncato");
+  let h;
+  try { h = JSON.parse(new TextDecoder().decode(u8.subarray(12, 12 + hl)), numIn); } catch (e) { bad("intestazione del progetto illeggibile"); }
+  if (!h || h.format !== PRJ_FORMAT) bad("non è un progetto di Sviluppo profili");
+  if (!(h.v >= 1)) bad("versione del progetto non valida");
+  if (h.v > PRJ_V) bad(`progetto di una versione più recente (formato ${h.v}): aggiorna la pagina`);
+  const doc = h.doc;
+  if (!doc || (doc.v !== 1 && doc.v !== 2) || (doc.v === 2 && !Array.isArray(doc.works))) bad("contenuto del progetto non valido");
+  let o = 12 + hl + pad8(12 + hl);
+  const got = [];
+  for (const b of h.blocks || []) {
+    if (!(b.length >= 0) || o + b.length > u8.length) bad("file di progetto troncato");
+    got.push({ enc: b.enc, data: u8.slice(o, o + b.length) });
+    o += b.length + pad8(b.length);
+  }
+  const blk = (r, enc, size) => {
+    const b = r && got[r.blk];
+    if (!b || b.enc !== enc || b.data.length % size) bad("DTM del progetto danneggiato");
+    return b.data;
+  };
+  if (doc.v === 2) doc.dtms = (doc.dtms || []).map((t) => {
+    const points = decPoints(blk(t.points, "f64-xyz-planes", 24)), faces = decFaces(blk(t.faces, "u32-delta-planes", 12));
+    const n = points.length / 3;
+    for (let i = 0; i < faces.length; i++) if (faces[i] >= n) bad("DTM del progetto danneggiato");
+    return { ...t, points, faces };
+  });
+  delete h.doc;
+  return { doc, header: h };
+}
+
+/* -------------------------------------------------------------------------
+   DTM da punti x,y,z (0.6): CSV, TXT, XYZ, PTS — le regole del Terrain
+   Sculptor (parsePoints): separatore virgola, tab o spazi, oppure «;» con la
+   virgola decimale; una prima colonna intera progressiva (numero di punto)
+   si salta; righe senza 3 numeri (intestazione, note) si contano e basta.
+   A pezzi, perché il rilievo intero è 183 MB e 6 M punti: le righe si
+   leggono man mano (push del testo come arriva, anche a metà riga) e si
+   tengono solo i punti dentro il riquadro, se c'è (il corridoio delle opere).
+   Il modo (separatore, colonna del numero) si decide sulle prime 50 righe.
+   ------------------------------------------------------------------------- */
+export function pointsReader({ bbox = null } = {}) {
+  let rest = "", sample = [], mode = null, n = 0, read = 0, skipped = 0, out = 0;
+  let P = new Float64Array(3 * 65536);
+  const keep = (x, y, z) => {
+    read++;
+    if (bbox && (x < bbox.x0 || x > bbox.x1 || y < bbox.y0 || y > bbox.y1)) { out++; return; }
+    if (3 * n + 3 > P.length) { const Q = new Float64Array(P.length * 2); Q.set(P); P = Q; }
+    P[3 * n] = x; P[3 * n + 1] = y; P[3 * n + 2] = z; n++;
+  };
+  const nums = (l, semi) => {
+    const toks = semi ? l.split(";") : l.split(/[,\t ]+/), v = [];
+    for (const s of toks) { const t = s.trim(); if (!t) continue; const x = +(semi ? t.replace(",", ".") : t); if (Number.isFinite(x)) v.push(x); }
+    return v;
+  };
+  const decide = () => {
+    const semi = sample.filter((l) => l.includes(";")).length > sample.length / 2;
+    const rows = sample.map((l) => nums(l, semi)).filter((r) => r.length >= 3);
+    let id = false;
+    if (rows.length > 1 && rows.filter((r) => r.length >= 4).length > rows.length * 0.9) {
+      let prog = 0;
+      for (let r = 1; r < rows.length; r++) if (Number.isInteger(rows[r][0]) && rows[r][0] > rows[r - 1][0]) prog++;
+      id = prog > (rows.length - 1) * 0.9;
+    }
+    mode = { semi, o: id ? 1 : 0 };
+    const s = sample; sample = null;
+    for (const l of s) line(l);
+  };
+  const line = (l) => {
+    const v = nums(l, mode.semi);
+    if (v.length < 3 + mode.o) { skipped++; return; }
+    keep(v[mode.o], v[mode.o + 1], v[mode.o + 2]);
+  };
+  const feed = (l) => {
+    l = l.trim();
+    if (!l) return;
+    if (mode) line(l);
+    else { sample.push(l); if (sample.length >= 50) decide(); }
+  };
+  return {
+    push(text) {
+      const s = rest + text, parts = s.split(/\r?\n|\r/);
+      rest = parts.pop();
+      for (const l of parts) feed(l);
+    },
+    end() {
+      if (rest) feed(rest);
+      rest = "";
+      if (!mode) decide();
+      if (read < 3) throw new Error("servono almeno 3 punti x,y,z");
+      return { points: P.slice(0, 3 * n), count: n, read, skipped, outside: out, idColumn: mode.o === 1 };
+    },
+  };
+}

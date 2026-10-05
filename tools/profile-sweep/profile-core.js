@@ -1217,3 +1217,54 @@ export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }
   }
   return res;
 }
+
+/* =========================================================================
+   DTM da punti (0.6): Delaunay (Delaunator iniettato, quello del Terrain
+   Sculptor) a coordinate centrate, poi si «sbuccia» il bordo: Delaunay copre
+   l'inviluppo convesso, e dove il rilievo rientra (strisce, corridoi, buchi
+   aperti verso l'esterno) lo riempirebbe di triangoli lunghi su un terreno
+   inventato. Dal contorno verso l'interno si tolgono i triangoli il cui lato
+   esposto supera maxEdge; quelli interni, anche grandi, restano (lì i punti
+   ci sono tutto attorno). maxEdge di default = 8 × la mediana dei lati
+   (griglia di 1 m → ~10 m). Triangoli in senso antiorario visti dall'alto.
+   ========================================================================= */
+export function tinFromPoints(points, Delaunator, { maxEdge = null, k = 8 } = {}) {
+  const n = points.length / 3;
+  if (n < 3) throw new Error("servono almeno 3 punti");
+  let cx = 0, cy = 0;
+  for (let i = 0; i < n; i++) { cx += points[3 * i]; cy += points[3 * i + 1]; }
+  cx /= n; cy /= n;
+  const xy = new Float64Array(2 * n);
+  for (let i = 0; i < n; i++) { xy[2 * i] = points[3 * i] - cx; xy[2 * i + 1] = points[3 * i + 1] - cy; }
+  const d = new Delaunator(xy), T = d.triangles, H = d.halfedges, nt = T.length / 3;
+  if (!nt) throw new Error("i punti sono allineati: niente superficie");
+  const len = (e) => { const a = T[e], b = T[e % 3 === 2 ? e - 2 : e + 1]; return Math.hypot(xy[2 * a] - xy[2 * b], xy[2 * a + 1] - xy[2 * b + 1]); };
+  let median = 0;
+  if (maxEdge == null) {
+    const step = Math.max(1, Math.floor(T.length / 200000)), s = [];
+    for (let e = 0; e < T.length; e += step) s.push(len(e));
+    s.sort((a, b) => a - b);
+    median = s[s.length >> 1];
+    maxEdge = k * median;
+  }
+  const gone = new Uint8Array(nt), queue = [];
+  for (let e = 0; e < T.length; e++) if (H[e] < 0) queue.push(e);
+  let dropped = 0;
+  while (queue.length) {
+    const e = queue.pop(), t = (e / 3) | 0;
+    if (gone[t] || len(e) <= maxEdge) continue;
+    gone[t] = 1; dropped++;
+    for (let j = 0; j < 3; j++) { const o = H[3 * t + j]; if (o >= 0 && !gone[(o / 3) | 0]) queue.push(o); }
+  }
+  // antiorario visto dall'alto (asse y verso nord)
+  const F = new Uint32Array(3 * (nt - dropped));
+  let m = 0;
+  for (let t = 0; t < nt; t++) {
+    if (gone[t]) continue;
+    const a = T[3 * t], b = T[3 * t + 1], c = T[3 * t + 2];
+    const area = (xy[2 * b] - xy[2 * a]) * (xy[2 * c + 1] - xy[2 * a + 1]) - (xy[2 * b + 1] - xy[2 * a + 1]) * (xy[2 * c] - xy[2 * a]);
+    if (area >= 0) { F[m++] = a; F[m++] = b; F[m++] = c; } else { F[m++] = a; F[m++] = c; F[m++] = b; }
+  }
+  if (!m) throw new Error("nessun triangolo dopo la pulizia del bordo");
+  return { points, faces: F, dropped, maxEdge, median };
+}
