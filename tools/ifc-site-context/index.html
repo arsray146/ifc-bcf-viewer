@@ -71,6 +71,7 @@ try{
   --sh:0 2px 8px rgba(0,0,0,.28),0 18px 44px rgba(0,0,0,.42);
   --sh-sm:0 1px 3px rgba(0,0,0,.30),0 6px 18px rgba(0,0,0,.26);
   --glow:0 4px 24px rgba(191,215,48,.20);
+  --sh-up:0 -10px 26px rgba(0,0,0,.34);
   --r:24px; --r-md:14px; --r-sm:11px; --r-xs:8px;
   --blur:blur(20px) saturate(1.25);
   --mono:'IBM Plex Mono',ui-monospace,monospace;
@@ -92,6 +93,7 @@ html[data-theme="light"]{
   --sh:0 2px 8px rgba(30,40,28,.07),0 18px 44px rgba(30,40,28,.10);
   --sh-sm:0 1px 3px rgba(30,40,28,.06),0 6px 18px rgba(30,40,28,.07);
   --glow:0 4px 24px rgba(154,179,19,.28);
+  --sh-up:0 -10px 26px rgba(30,40,28,.10);
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -177,9 +179,12 @@ html:not([data-theme="light"]) .thm .sun{display:none}
 .spec-v{font:500 11.5px/1 var(--mono);color:var(--text);text-align:right}
 
 /* ---------- il banco ---------- */
+/* overflow:clip e non hidden: hidden farebbe del banco un contenitore di scorrimento e la
+   barra di esecuzione (sticky) si appiccicherebbe al banco invece che allo schermo.
+   I browser che non conoscono clip tengono hidden: la barra resta ferma al suo posto. */
 .bench{display:flex;align-items:stretch;margin-top:34px;border-radius:var(--r);
   background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
-  border:1px solid var(--hair);box-shadow:var(--sh);overflow:hidden;min-height:560px}
+  border:1px solid var(--hair);box-shadow:var(--sh);overflow:hidden;overflow:clip;min-height:560px}
 .bench-l{flex:1;min-width:0;display:flex;flex-direction:column}
 .l-hd{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:17px 24px 13px;flex-wrap:wrap}
 .l-hd .t{font:600 15px/1 var(--disp);letter-spacing:.02em;color:var(--text)}
@@ -189,7 +194,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
 .tabs button:hover{color:var(--text)}
 .tabs button.on{color:var(--acc);border-bottom-color:var(--lime-line)}
 
-.stage{position:relative;flex:1 1 auto;min-height:470px;border-top:1px solid var(--hair);background:var(--inset);overflow:hidden}
+.stage{position:relative;flex:1 1 auto;min-height:470px;border-top:1px solid var(--hair);background:var(--inset);overflow:hidden;scroll-margin-top:84px}
 #map{position:absolute;inset:0}
 #map.draw .maplibregl-canvas{cursor:crosshair}
 .mapfail{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
@@ -216,7 +221,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
 .sres button{text-align:left;padding:7px 8px;border-radius:7px;font:400 11.5px/1.35 var(--sans);color:var(--text)}
 .sres button:hover{background:var(--pnl2)}
 .sres .none,.sres .att{padding:4px 8px;font:400 10.5px/1.4 var(--sans);color:var(--faint)}
-.ov-tools{flex-direction:row;gap:4px;padding:5px;margin-left:auto}
+.ov-tools{flex-direction:row;flex-wrap:wrap;gap:4px;padding:5px;margin-left:auto}
 .tool{display:flex;align-items:center;gap:7px;padding:7px 11px;border-radius:9px;font:500 11.5px/1 var(--sans);color:var(--muted);transition:background .12s,color .12s}
 .tool:hover{color:var(--text);background:var(--pnl2)}
 .tool.on{background:var(--lime-soft);color:var(--text)}
@@ -325,6 +330,16 @@ html[data-theme="light"] .seg button.on{background:#fff}
 .acts{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .btn.run{padding:12px 20px;font-size:13.5px}
 .btn.run svg{width:14px;height:14px}
+/* «Genera» a portata di mano (segnalazione di un beta tester, 2026-10): la barra resta in
+   fondo allo schermo finché il banco è visibile, così si disegna, si genera e si ridisegna
+   senza scorrere. Quando galleggia sopra le opzioni (.stuck, da un IntersectionObserver)
+   diventa OPACA, col colore che il banco ha sullo sfondo della pagina: il vetro sfocato
+   qui non basta (il banco ha già il suo backdrop-filter e sotto si leggeva il testo).
+   Niente sticky sugli schermi bassi (telefono in orizzontale): coprirebbe mezza pagina. */
+@media (min-height:560px){
+  .exec{position:sticky;bottom:0;z-index:4}
+  .exec.stuck{background:linear-gradient(var(--pnl),var(--pnl)),var(--bg);box-shadow:var(--sh-up)}
+}
 
 /* ---------- report ---------- */
 .report{margin-top:18px;border-radius:var(--r);background:var(--pnl);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
@@ -364,7 +379,11 @@ html[data-theme="light"] .seg button.on{background:#fff}
 
 @media (max-width:980px){
   .bench{flex-direction:column}
-  .bench-r{flex:none;border-left:0;border-top:1px solid var(--hair)}
+  /* la colonna destra si scioglie nel banco: la barra di esecuzione diventa figlia del
+     banco e, appiccicata, resta in vista anche mentre si disegna sulla mappa */
+  .bench-r{display:contents}
+  .out-top{border-top:1px solid var(--hair);background:var(--inset)}
+  .exec{background:linear-gradient(var(--pnl2),var(--pnl2)),var(--inset)}
   .head{flex-direction:column;align-items:stretch;gap:24px}
   .spec{flex:none}
   .rgrid{grid-template-columns:1fr}
@@ -376,6 +395,10 @@ html[data-theme="light"] .seg button.on{background:#fff}
   .nav-act .btn{display:none}
   .cgrid{grid-template-columns:1fr}
   .ov-bar{left:10px;right:10px;top:10px}
+  .tool{padding:7px;gap:5px}   /* a 375 px i quattro strumenti stanno su una riga: la ✕ non finisce tagliata dal bordo */
+  /* barra appiccicata più bassa: a 375 px «Rigenera» e «Scarica» stanno su una riga anche in inglese */
+  .exec{padding:14px 16px 15px}
+  .btn.run{padding:12px 16px}
   .ov-help{display:none}
 }
 </style>
@@ -691,8 +714,13 @@ html[data-theme="light"] .seg button.on{background:#fff}
           <button class="btn hollow sm" id="viewBtn" hidden data-i18n="btn.view">Apri nel viewer</button>
           <button class="btn hollow sm" id="lxBtn" hidden data-i18n="btn.lx">LandXML del terreno</button>
           <button class="btn hollow sm" id="tsBtn" hidden data-i18n="btn.ts" data-i18n-title="btn.tsT" title="Apre il DTM nel Terrain Sculptor: piattaforme, rampe, pennelli, poi CSV per Revit e .3dm per Rhino">Scolpisci il terreno</button>
+          <button class="btn hollow sm" id="redrawBtn" type="button" hidden data-i18n-title="btn.redrawT" title="Ridisegna: riporta in vista la mappa con l'ultimo strumento di disegno pronto. L'area attuale resta finché non chiudi la nuova.">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>
+            <span data-i18n="btn.redraw">Ridisegna</span>
+          </button>
         </div>
       </div>
+      <div id="execEnd" aria-hidden="true"></div>
     </div>
   </section>
 
@@ -3978,6 +4006,7 @@ const I18N = {
     "exec.errNet": "Una fonte dati non risponde ({e}). Riprova fra poco.", "exec.errLimit": "L'area supera il limite.",
     "btn.run": "Genera l'IFC", "btn.again": "Rigenera", "btn.cancel": "Annulla", "btn.dl": "Scarica .ifc", "btn.view": "Apri nel viewer", "btn.lx": "LandXML del terreno", "btn.ts": "Scolpisci il terreno",
     "btn.tsT": "Apre il DTM nel Terrain Sculptor: piattaforme, rampe, pennelli, poi CSV per Revit e .3dm per Rhino",
+    "btn.redraw": "Ridisegna", "btn.redrawT": "Ridisegna: riporta in vista la mappa con l'ultimo strumento di disegno pronto. L'area attuale resta finché non chiudi la nuova.",
     "ts.fail": "Non riesco a passare il terreno al Terrain Sculptor: scarica il LandXML del terreno e aprilo là.",
     "view.fail": "Non riesco a passare il file al viewer: scaricalo e aprilo a mano.",
     "rp.t": "Report", "rp.meta": "{schema} · {mode} · {crs}", "rp.modeA": "modalità A (MapConversion)", "rp.modeB": "modalità B (coordinate di mappa)",
@@ -4110,6 +4139,7 @@ const I18N = {
     "exec.errNet": "A data source is not responding ({e}). Try again shortly.", "exec.errLimit": "The area exceeds the limit.",
     "btn.run": "Generate the IFC", "btn.again": "Generate again", "btn.cancel": "Cancel", "btn.dl": "Download .ifc", "btn.view": "Open in the viewer", "btn.lx": "Terrain LandXML", "btn.ts": "Sculpt the terrain",
     "btn.tsT": "Opens the DTM in the Terrain Sculptor: pads, ramps, brushes, then a CSV for Revit and a .3dm for Rhino",
+    "btn.redraw": "Redraw", "btn.redrawT": "Redraw: brings the map back into view with the last drawing tool ready. The current area stays until you close the new one.",
     "ts.fail": "Could not hand the terrain to the Terrain Sculptor: download the terrain LandXML and open it there.",
     "view.fail": "Could not hand the file to the viewer: download it and open it by hand.",
     "rp.t": "Report", "rp.meta": "{schema} · {mode} · {crs}", "rp.modeA": "mode A (MapConversion)", "rp.modeB": "mode B (map coordinates)",
@@ -4188,7 +4218,7 @@ function applyLang(lang) {
   try { localStorage.setItem("viewifc_tool_lang", LANG); } catch (e) {}
   $("tolLbl").textContent = tr("tol.lbl");
   refreshArea(); refreshCrs(); refreshModeNote(); refreshExec();
-  if (S.result) renderReport(S.result.report);
+  if (S.result) { renderReport(S.result.report); $("runBtn").querySelector("span").textContent = tr("btn.again"); }   // data-i18n l'aveva riportato a «Genera»
   if (drawMode) setHelp();
   renderModel(); pushModel(); refreshTsrc(); renderLine();
 }
@@ -4198,6 +4228,7 @@ function applyLang(lang) {
    resta la scheda «Da coordinate».
    ========================================================================= */
 let map = null, mapReady = false, drawMode = null, draft = [], rectStart = null, hoverLL = null;
+let lastDraw = "rect";   // l'ultimo strumento acceso: «Ridisegna» riparte da lì
 const styleUrl = () => document.documentElement.getAttribute("data-theme") === "light"
   ? "https://tiles.openfreemap.org/styles/positron" : "https://tiles.openfreemap.org/styles/dark";
 function mapFail(key) {
@@ -4279,6 +4310,7 @@ const rectRing = (a, b) => [[a[0], a[1]], [b[0], a[1]], [b[0], b[1]], [a[0], b[1
 /* --- disegno ------------------------------------------------------------ */
 function setDraw(mode) {
   drawMode = drawMode === mode ? null : mode;
+  if (drawMode) lastDraw = drawMode;
   draft = []; rectStart = null; rectPress = null; hoverLL = null;
   document.querySelectorAll(".tool[data-draw]").forEach((b) => b.classList.toggle("on", b.dataset.draw === drawMode));
   $("map").classList.toggle("draw", !!drawMode);
@@ -4982,9 +5014,12 @@ function blocker() {
   if (S.crsErr || !S.crsCheck || !S.crsCheck.ok) return "exec.crsBad";
   return null;
 }
+/* «Ridisegna» c'è quando c'è un'area da rifare e una mappa su cui rifarla */
+function refreshRedraw() { $("redrawBtn").hidden = S.busy || !S.ring || !map; }
 function refreshExec(msg, cls) {
   const st = $("execSt");
   st.classList.remove("err", "ok");
+  refreshRedraw();
   if (S.busy) return;
   const b = blocker();
   $("runBtn").disabled = !!b;
@@ -5084,7 +5119,7 @@ function progress(msg) {
 }
 function setBusy(on) {
   S.busy = on;
-  $("runBtn").hidden = on; $("cancelBtn").hidden = !on;
+  $("runBtn").hidden = on; $("cancelBtn").hidden = !on; refreshRedraw();
   $("steps").hidden = !on; $("prog").hidden = !on;
   document.querySelectorAll(".bench-r .seg button, .bench-r input, #crsGo, #crsAuto, .tool, #cGo, #mUse, #mClear, #mMargin, #mFile").forEach((el) => { el.disabled = on; });
   applyModelLocks();
@@ -5312,6 +5347,27 @@ function renderReport(r) {
    ========================================================================= */
 document.querySelectorAll(".tool[data-draw]").forEach((b) => b.addEventListener("click", () => setDraw(b.dataset.draw)));
 $("drawClear").addEventListener("click", () => { if (drawMode) setDraw(drawMode); setArea(null); });
+/* «Ridisegna», dalla barra di esecuzione: la mappa torna in vista con l'ultimo strumento
+   acceso. L'area di prima resta finché la nuova non si chiude (Esc la lascia com'era).
+   Si scorre solo se la cima della mappa, dove stanno gli strumenti, è sotto la barra di
+   navigazione o è scesa nella metà bassa dello schermo. */
+$("redrawBtn").addEventListener("click", () => {
+  if (S.busy || !map) return;
+  if (S.tab !== "map") showTab("map");
+  const top = $("stage").getBoundingClientRect().top, nav = document.querySelector(".topbar").getBoundingClientRect().bottom;
+  if (top < nav || top > innerHeight / 2) $("stage").scrollIntoView({ block: "start" });
+  if (drawMode !== lastDraw) setDraw(lastDraw);
+});
+/* barra di esecuzione appiccicata (CSS): «stuck» quando la sua fine naturale (#execEnd)
+   è sotto il bordo dello schermo, cioè quando galleggia sopra le opzioni o sulla mappa */
+(function initStickyExec() {
+  if (!window.IntersectionObserver) return;
+  const bar = document.querySelector(".exec");
+  new IntersectionObserver(([e]) => {
+    const vb = e.rootBounds ? e.rootBounds.bottom : innerHeight;
+    bar.classList.toggle("stuck", !e.isIntersecting && e.boundingClientRect.top >= vb - 1);
+  }).observe($("execEnd"));
+})();
 document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("click", () => applyLang(b.dataset.lang)));
 (function initTheme() {
   const meta = document.querySelector('meta[name="theme-color"]');
