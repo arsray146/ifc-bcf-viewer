@@ -333,12 +333,12 @@ export function workName(fileName) {
  * Tipo di sezione dai nomi di file e layer: «inalveazione … 400X250» o
  * «canale 400x250» → canale a U con interno 4,00 × 2,50 (numeri grandi =
  * centimetri); «fosso» → fosso trapezio. Il «50x50x50» di un fosso (tre
- * misure) non è una U. Ritorna { type: "channel", B?, H? } | { type: "ditch" } | null.
+ * misure) non è una U; «scatolare» → scatolare (0.9). Ritorna { type: "channel"|"box", B?, H? } | { type: "ditch" } | null.
  */
 export function guessSection(...names) {
   const s = names.filter(Boolean).join(" ");
-  if (/INALVEAZ|CANAL|SCATOLAR/i.test(s)) {
-    const out = { type: "channel" };
+  if (/INALVEAZ|CANAL|SCATOLAR|CULVERT/i.test(s)) {
+    const out = { type: /SCATOLAR|CULVERT/i.test(s) ? "box" : "channel" };            // scatolare (0.9): il canale chiuso
     const m = /(?<![\d.,x×])(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)(?!\d|[.,]\d|\s*[x×]\s*\d)/i.exec(s);
     if (m) {
       let a = parseFloat(m[1].replace(",", ".")), b = parseFloat(m[2].replace(",", "."));
@@ -463,6 +463,33 @@ export function dxf3DPolylines(list) {
 export function dxf3DPolyline(pts, { layer = "ASSE_3D" } = {}) { return dxf3DPolylines([{ pts, layer }]); }
 
 /**
+ * DXF R12 con le piante (0.11, scelta dell'utente: «DXF 2D della pianta», da riportare nel CAD):
+ * una POLYLINE 2D per opera nel suo layer, vertici in coordinate assolute col bulge degli archi
+ * (gruppo 42, come le LWPOLYLINE da cui vengono). list: [{ pts: [{ x, y, b }], layer }].
+ */
+export function dxfPolylines2D(list) {
+  const ln = [];
+  const g = (c, v) => { ln.push(String(c), String(v)); };
+  const layers = [...new Set(list.map((a) => a.layer))];
+  g(0, "SECTION"); g(2, "HEADER"); g(9, "$ACADVER"); g(1, "AC1009"); g(0, "ENDSEC");
+  g(0, "SECTION"); g(2, "TABLES");
+  g(0, "TABLE"); g(2, "LAYER"); g(70, layers.length);
+  layers.forEach((l, i) => { g(0, "LAYER"); g(2, l); g(70, 0); g(62, 1 + (i % 6)); g(6, "CONTINUOUS"); });
+  g(0, "ENDTAB"); g(0, "ENDSEC");
+  g(0, "SECTION"); g(2, "ENTITIES");
+  for (const { pts, layer } of list) {
+    g(0, "POLYLINE"); g(8, layer); g(66, 1); g(10, "0.0"); g(20, "0.0"); g(30, "0.0"); g(70, 0);
+    pts.forEach((p, i) => {
+      g(0, "VERTEX"); g(8, layer); g(10, f4(p.x)); g(20, f4(p.y)); g(30, "0.0");
+      if (i < pts.length - 1 && p.b) g(42, p.b.toFixed(9));
+    });
+    g(0, "SEQEND"); g(8, layer);
+  }
+  g(0, "ENDSEC"); g(0, "EOF");
+  return ln.join("\r\n") + "\r\n";
+}
+
+/**
  * Nomi di layer validi in R12 per gli assi delle opere: lettere, cifre, $ - _,
  * al massimo 31 caratteri, tutti diversi. «Sud fosso VI02 TO02» → «ASSE_3D_SUD_FOSSO_VI02_TO02».
  */
@@ -488,26 +515,55 @@ const azimuth = (dx, dy) => { const a = Math.atan2(dx, dy); return a < 0 ? a + 2
  * LandXML non si scrive: la quota a monte va 1 mm prima, quella a valle
  * resta sulla progressiva. Ritorna [{ s, z }].
  */
-export function profilePVI(pts3d, eps = 1e-4) {      // allineati entro 0,1 mm
+export function profilePVI(pts3d, eps = 1e-4, curves = []) {      // allineati entro 0,1 mm
+  // raccordi parabolici (0.12): curves [{ p, z, L }] in progressiva di pianta. I punti dell'asse dentro un
+  // raccordo (i suoi campioni e i capi) si tolgono; al loro posto il PVI col raccordo (L), che resta sempre
+  let src = pts3d;
+  if (curves.length) {
+    const inside = (p) => curves.some((c) => p > c.p - c.L / 2 - 1e-6 && p < c.p + c.L / 2 + 1e-6);
+    src = pts3d.filter((q) => !inside(q.p)).concat(curves.map((c) => ({ p: c.p, z: c.z, L: c.L }))).sort((a, b) => a.p - b.p);
+  }
   const raw = [];
-  for (const p of pts3d) {
+  for (const p of src) {
     const last = raw[raw.length - 1];
     if (last && p.p - last.s < 1e-6) {
       const prev = raw[raw.length - 2];
       if (!prev || last.s - 0.001 > prev.s + 1e-6) last.s -= 0.001; else raw.pop();
-      raw.push({ s: p.p, z: p.z });
+      raw.push({ s: p.p, z: p.z, L: p.L || 0 });
       continue;
     }
-    raw.push({ s: p.p, z: p.z });
+    raw.push({ s: p.p, z: p.z, L: p.L || 0 });
   }
   const out = [];
   for (let i = 0; i < raw.length; i++) {
-    if (i > 0 && i < raw.length - 1) {
+    if (i > 0 && i < raw.length - 1 && !(raw[i].L > 0)) {
       const a = out[out.length - 1], b = raw[i], c = raw[i + 1];
       const zLin = a.z + (c.z - a.z) * (b.s - a.s) / (c.s - a.s);
       if (Math.abs(zLin - b.z) <= eps) continue;
     }
-    out.push({ s: raw[i].s, z: raw[i].z });
+    out.push(raw[i].L > 0 ? { s: raw[i].s, z: raw[i].z, L: raw[i].L } : { s: raw[i].s, z: raw[i].z });
+  }
+  return out;
+}
+
+/**
+ * Segmenti verticali dai PVI (L > 0 = raccordo parabolico centrato sul PVI, come i
+ * ParaCurve di LandXML): [{ s, L, z, g0, g1, t: "CONSTANTGRADIENT"|"PARABOLICARC" }],
+ * la stessa catena del tool LandXML → IFC (lxVsegs).
+ */
+export function verticalSegments(pvi) {
+  const out = [];
+  if (pvi.length < 2) return out;
+  let cur = pvi[0].s, curZ = pvi[0].z;
+  for (let i = 1; i < pvi.length; i++) {
+    const g = (pvi[i].z - pvi[i - 1].z) / ((pvi[i].s - pvi[i - 1].s) || 1), last = i === pvi.length - 1;
+    let gN = g, Lc = 0;
+    if (!last && pvi[i].L > 0) { gN = (pvi[i + 1].z - pvi[i].z) / ((pvi[i + 1].s - pvi[i].s) || 1); Lc = pvi[i].L; }
+    const tEnd = pvi[i].s - Lc / 2;
+    if (tEnd - cur > 1e-9) out.push({ s: cur, L: tEnd - cur, z: curZ, g0: g, g1: g, t: "CONSTANTGRADIENT" });
+    curZ += g * (tEnd - cur); cur = tEnd;
+    if (Lc > 0) { out.push({ s: cur, L: Lc, z: curZ, g0: g, g1: gN, t: "PARABOLICARC" }); curZ += (g + gN) / 2 * Lc; cur += Lc; }
+    if (!(Lc > 0) || last) curZ = pvi[i].z;                 // sul PVI la quota esatta (niente somme che derivano)
   }
   return out;
 }
@@ -540,7 +596,7 @@ export function landXML({ name, axis, pvi, alignments, stamp, app = "viewifc.com
       }
     }
     const prof = a.pvi && a.pvi.length >= 2
-      ? ["      <Profile>", `        <ProfAlign name="${xmlEsc(nm)}">`, ...a.pvi.map((p) => `          <PVI>${f6(p.s)} ${f6(p.z)}</PVI>`), "        </ProfAlign>", "      </Profile>"]
+      ? ["      <Profile>", `        <ProfAlign name="${xmlEsc(nm)}">`, ...a.pvi.map((p) => (p.L > 0 ? `          <ParaCurve length="${f6(p.L)}">${f6(p.s)} ${f6(p.z)}</ParaCurve>` : `          <PVI>${f6(p.s)} ${f6(p.z)}</PVI>`)), "        </ProfAlign>", "      </Profile>"]
       : [];
     body.push(`    <Alignment name="${xmlEsc(nm)}" staStart="0.000000" length="${f6(a.axis.length)}">`, "      <CoordGeom>", ...geo, "      </CoordGeom>", ...prof, "    </Alignment>");
   }
@@ -626,7 +682,9 @@ export function stepReal(x, dec = 6) {
  *   works: [{ name, axis (planAxis), pvi [{ s, z }], section: { b, h, m, t, berm, cut, fill } (fosso)
  *               o { type: "channel", B, H, tw, ts, tm, om, se, cut, berm, fill, hw, key, wedge, ref } (canale),
  *             parts: [{ name, p0, p1, length, mesh: { lining, cut, fill (+ lean, mix) } (coordinate locali),
- *                       vol: { lining, cut, fill (+ lean, mix) }, drops? [{ dz }] }] }]
+ *                       vol: { lining, cut, fill (+ lean, mix) }, drops? [{ dz }],
+ *                       section? (0.9: la sezione del tratto, se diversa da quella dell'opera; scatolare =
+ *                       { type: "box", …canale, tt, ch, cover } → IfcPipeSegment .CULVERT.), blendNote? (raccordo) }] }]
  *     — oppure un'opera sola coi campi axis, pvi, section, parts direttamente nel job (nome = name);
  *   labels: { … nomi dei pset/proprietà nella lingua della pagina },
  *   app: { name, version }, date (Date), guid?: () => stringa (test)
@@ -692,7 +750,26 @@ export function ifcDitch(job) {
     const reps = [e(`IFCSHAPEREPRESENTATION(${axisCtx},'FootPrint','Curve2D',(${comp}))`)];
     const pvi = w.pvi || [];
     const vCurve = [], vBiz = [];
-    for (let i = 0; i + 1 < pvi.length; i++) {
+    if (pvi.some((p) => p.L > 0)) {
+      // raccordi parabolici (0.12): la forma del tool LandXML → IFC (verificata col kernel di IfcOpenShell: in ADD2
+      // l'IfcCurveSegment ri-ancora la curva madre su Location/RefDirection) — parabola = IfcPolynomialCurve (0, g0, c2)
+      const vs = verticalSegments(pvi);
+      vs.forEach((v, i) => {
+        const n = Math.hypot(1, v.g0), nx = vs[i + 1];
+        const trans = !nx ? ".DISCONTINUOUS." : Math.abs(nx.g0 - v.g1) < 1e-9 ? ".CONTSAMEGRADIENT." : ".CONTINUOUS.";
+        const pl = e(`IFCAXIS2PLACEMENT2D(${e(`IFCCARTESIANPOINT((${R(v.s)},${R(v.z)}))`)},${e(`IFCDIRECTION((${R(1 / n, 12)},${R(v.g0 / n, 12)}))`)})`);
+        if (v.t === "PARABOLICARC") {
+          const c2 = (v.g1 - v.g0) / (2 * v.L);
+          const par = e(`IFCPOLYNOMIALCURVE(${e(`IFCAXIS2PLACEMENT2D(${e("IFCCARTESIANPOINT((0.,0.))")},${e("IFCDIRECTION((1.,0.))")})`)},(0.,1.),(0.,${R(v.g0, 9)},${R(c2, 12)}),$)`);
+          vCurve.push(e(`IFCCURVESEGMENT(${trans},${pl},IFCPARAMETERVALUE(0.),IFCPARAMETERVALUE(${R(v.L)}),${par})`));
+          vBiz.push(e(`IFCALIGNMENTSEGMENT(${G()},${oh},'V${i + 1}',$,$,$,$,${e(`IFCALIGNMENTVERTICALSEGMENT($,$,${R(v.s)},${R(v.L)},${R(v.z)},${R(v.g0, 9)},${R(v.g1, 9)},${R(v.L / (v.g1 - v.g0))},.PARABOLICARC.)`)})`));
+        } else {
+          const line = e(`IFCLINE(${e("IFCCARTESIANPOINT((0.,0.))")},${e(`IFCVECTOR(${e("IFCDIRECTION((1.,0.))")},1.)`)})`);
+          vCurve.push(e(`IFCCURVESEGMENT(${trans},${pl},IFCLENGTHMEASURE(0.),IFCLENGTHMEASURE(${R(v.L * n)}),${line})`));
+          vBiz.push(e(`IFCALIGNMENTSEGMENT(${G()},${oh},'V${i + 1}',$,$,$,$,${e(`IFCALIGNMENTVERTICALSEGMENT($,$,${R(v.s)},${R(v.L)},${R(v.z)},${R(v.g0, 9)},${R(v.g0, 9)},$,.CONSTANTGRADIENT.)`)})`));
+        }
+      });
+    } else for (let i = 0; i + 1 < pvi.length; i++) {
       const a = pvi[i], b = pvi[i + 1], Lh = b.s - a.s;
       if (!(Lh > 0)) continue;
       const g = (b.z - a.z) / Lh, n = Math.hypot(1, g), last = i + 2 === pvi.length;
@@ -717,7 +794,9 @@ export function ifcDitch(job) {
     return e(`IFCSURFACESTYLE(${S(name)},.BOTH.,(${e(`IFCSURFACESTYLESHADING(${c},${R(tr, 2)})`)}))`);
   };
   const stLin = style([0.72, 0.72, 0.7], lb.lining || "cls"), stCut = style([0.66, 0.5, 0.33], lb.cut || "scavo", 0.5), stFill = style([0.55, 0.62, 0.4], lb.fill || "riporto", 0.4);
-  const anyCh = works.some((w) => w.section && w.section.type === "channel");
+  // la sezione di un tratto: la sua (opere con sezioni diverse, 0.9) o quella dell'opera
+  const secOf = (w, p) => p.section || w.section;
+  const anyCh = works.some((w) => w.parts.some((p) => { const s = secOf(w, p); return s && (s.type === "channel" || s.type === "box"); }));
   const stLean = anyCh ? style([0.84, 0.84, 0.8], lb.lean || "magrone") : null, stMix = anyCh ? style([0.62, 0.58, 0.5], lb.mix || "misto cementato") : null;
   const stBack = anyCh ? style([0.78, 0.68, 0.48], lb.backfill || "rinterro", 0.4) : null;
   const terrain = e(`IFCGEOGRAPHICELEMENT(${G()},${oh},${S(lb.terrain || "Terreno esistente")},$,$,${here()},$,$,.TERRAIN.)`);
@@ -743,14 +822,15 @@ export function ifcDitch(job) {
   // tubo in trincea: colore e materiale del tubo per catalogo, uno stile per strato (creati solo se servono)
   const pipeMats = [], layerMats = {}, styles = {};
   const once = (k, make) => styles[k] || (styles[k] = make());
-  const PIPE_RGB = { pvc: [0.78, 0.42, 0.22], pe: [0.22, 0.22, 0.22], cls: [0.72, 0.72, 0.7], ghisa: [0.3, 0.3, 0.33] };
+  const PIPE_RGB = { pvc: [0.78, 0.42, 0.22], pe: [0.22, 0.22, 0.22], cls: [0.72, 0.72, 0.7], ghisa: [0.3, 0.3, 0.33], acciaio: [0.45, 0.5, 0.56] };
   const LAYER_RGB = { bed: [0.86, 0.8, 0.6], surround: [0.9, 0.85, 0.68], cover: [0.82, 0.76, 0.58], fill: [0.78, 0.68, 0.48], restore: [0.3, 0.3, 0.3] };
   const pipeStyle = (mat) => once("pipe:" + mat, () => style(PIPE_RGB[mat] || [0.6, 0.6, 0.6], lb.pipe || "tubo"));
   const layerStyle = (k) => once("layer:" + k, () => style(LAYER_RGB[k], k, k === "restore" ? 0 : 0.4));
   const psName = lb.pset || "ViewIFC_SviluppoProfili";
   for (const w of works) for (const part0 of w.parts) {
-    const sec = w.section, part = { ...part0, name: (w.name ? w.name + " - " : "") + part0.name };
-    const common = [[lb.work || "Opera", `IFCLABEL(${S(w.name || "")})`], [lb.p0 || "Progressiva iniziale", len(part.p0)], [lb.p1 || "Progressiva finale", len(part.p1)], [lb.length || "Lunghezza", len(part.length)]];
+    const sec = secOf(w, part0), part = { ...part0, name: (w.name ? w.name + " - " : "") + part0.name };
+    const common = [[lb.work || "Opera", `IFCLABEL(${S(w.name || "")})`], [lb.p0 || "Progressiva iniziale", len(part.p0)], [lb.p1 || "Progressiva finale", len(part.p1)], [lb.length || "Lunghezza", len(part.length)],
+      ...(part.blendNote ? [[lb.blend || "Raccordo", `IFCLABEL(${S(part.blendNote)})`]] : [])];
     if (sec.type === "pipe") {
       // tubo in trincea: IfcPipeSegment rigido, strati IfcEarthworksFill, ripristino IfcCourse, scavo a trincea
       const refName = sec.ref === "axis" ? lb.refAxis || "Asse del tubo" : sec.ref === "bottom" ? lb.refBottom || "Generatrice inferiore esterna" : sec.ref === "trench" ? lb.refTrench || "Fondo scavo" : lb.refInvert || "Fondo interno";
@@ -794,19 +874,26 @@ export function ifcDitch(job) {
       }
       continue;
     }
-    if (sec.type === "channel") {
-      // canale a U: tubo «gutter» (U + muro di testa), magrone, cuneo, scavo, rinterro
-      const refName = sec.ref === "top" ? lb.refTop || "Cielo" : sec.ref === "base" ? lb.refBase || "Piano di posa" : lb.refInvert || "Fondo interno";
-      const secProps = [[lb.section || "Sezione", `IFCLABEL(${S(lb.channelName || "Canale a U")})`], [lb.B || "Larghezza interna", len(sec.B)], [lb.H || "Altezza interna", len(sec.H)],
-        [lb.tw || "Spessore pareti", len(sec.tw)], [lb.ts || "Spessore soletta", len(sec.ts)], [lb.tm || "Spessore magrone", len(sec.tm)], [lb.berm || "Banchina", len(sec.berm)],
+    if (sec.type === "channel" || sec.type === "box") {
+      // canale a U: tubo «gutter» (U + muro di testa), magrone, cuneo, scavo, rinterro; scatolare (0.9): tubo
+      // «culvert» (U + soletta + muro di testa), il resto come il canale
+      const box = sec.type === "box", m = sec.m || 0, ch = sec.ch || 0, tt = box ? sec.tt || 0 : 0;
+      const refName = sec.ref === "top" ? (box ? lb.refTopB || "Estradosso della soletta" : lb.refTop || "Cielo") : sec.ref === "base" ? lb.refBase || "Piano di posa" : lb.refInvert || "Fondo interno";
+      const secProps = [[lb.section || "Sezione", `IFCLABEL(${S(box ? lb.boxName || "Scatolare" : lb.channelName || "Canale a U")})`], [lb.B || "Larghezza interna", len(sec.B)], [lb.H || "Altezza interna", len(sec.H)],
+        [lb.tw || "Spessore pareti", len(sec.tw)], [box ? lb.tsB || "Spessore platea" : lb.ts || "Spessore soletta", len(sec.ts)],
+        ...(box ? [[lb.tt || "Spessore soletta superiore", len(tt)], [lb.coverB || "Ricoprimento minimo", len(sec.cover || 0)]] : []),
+        ...(m > 0 ? [[lb.mW || "Scarpa delle pareti", rat(m)]] : []), ...(ch > 0 ? [[lb.ch || "Smussi", len(ch)]] : []),
+        [lb.tm || "Spessore magrone", len(sec.tm)], [lb.berm || "Banchina", len(sec.berm)],
         [lb.cutSlope || "Scarpa in sterro", rat(sec.cut)], [lb.backSlope || "Scarpa del rinterro", rat(sec.fill)], [lb.hw || "Muro di testa", len(sec.hw)], [lb.key || "Dente", len(sec.key)],
         [lb.ref || "Linea del profilo", `IFCLABEL(${S(refName)})`]];
       const drops = (part.drops || []).map((d) => [lb.drop || "Salto", len(d.dz)]).slice(0, 1);
-      const gross = (sec.B + 2 * sec.tw) * (sec.H + sec.ts);
-      const p = e(`IFCPIPESEGMENT(${G()},${oh},${S(part.name + " - " + (lb.channel || "canale"))},$,$,${here()},${shape(part.mesh.lining, stLin)},$,.GUTTER.)`);
+      // sezione lorda: trapezio esterno (pareti a scarpa) + soletta; netta = lorda − luce (smussi tolti)
+      const off = sec.tw * Math.hypot(1, m), uo = sec.B / 2 - m * sec.ts + off, uoT = sec.B / 2 + m * sec.H + off;
+      const gross = (uo + uoT) * (sec.H + sec.ts) + 2 * uoT * tt, water = (sec.B + m * sec.H) * sec.H - ch * ch * (box ? 2 : 1);
+      const p = e(`IFCPIPESEGMENT(${G()},${oh},${S(part.name + " - " + (box ? lb.box || "scatolare" : lb.channel || "canale"))},$,$,${here()},${shape(part.mesh.lining, stLin)},$,${box ? ".CULVERT." : ".GUTTER."})`);
       pipes.push(p); contained.push(p);
       props(p, psName, [...common, ...secProps, ...drops, [lb.volume || "Volume calcestruzzo", `IFCVOLUMEMEASURE(${R(part.vol.lining, 4)})`]]);
-      qto(p, "Qto_PipeSegmentBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYAREA", "GrossCrossSectionArea", gross], ["IFCQUANTITYAREA", "NetCrossSectionArea", gross - sec.B * sec.H]]);
+      qto(p, "Qto_PipeSegmentBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYAREA", "GrossCrossSectionArea", gross], ["IFCQUANTITYAREA", "NetCrossSectionArea", gross - water]]);
       if (part.mesh.lean && part.mesh.lean.index.length) {
         const s = e(`IFCSLAB(${G()},${oh},${S(part.name + " - " + (lb.lean || "magrone"))},$,${S(lb.leanType || "Magrone")},${here()},${shape(part.mesh.lean, stLean)},$,.USERDEFINED.)`);
         slabs.push(s); contained.push(s);
@@ -857,7 +944,7 @@ export function ifcDitch(job) {
   mat(mixes, lb.mixMat || "Misto cementato", "Soil");
   mat(backs, lb.backMat || "Materiale per rilevato stradale", "Soil");
   const byName = new Map();
-  for (const [p, sec] of pipeMats) { const n = sec.matName || sec.mat || "Tubo"; if (!byName.has(n)) byName.set(n, { cat: sec.mat === "cls" ? "Concrete" : sec.mat === "ghisa" ? "Metal" : "Plastic", list: [] }); byName.get(n).list.push(p); }
+  for (const [p, sec] of pipeMats) { const n = sec.matName || sec.mat || "Tubo"; if (!byName.has(n)) byName.set(n, { cat: sec.mat === "cls" ? "Concrete" : sec.mat === "ghisa" || sec.mat === "acciaio" ? "Metal" : "Plastic", list: [] }); byName.get(n).list.push(p); }
   for (const [n, x] of byName) mat(x.list, n, x.cat);
   for (const [n, list] of Object.entries(layerMats)) mat(list, n, "Soil");
   e(`IFCRELCONTAINEDINSPATIALSTRUCTURE(${G()},${oh},$,$,(${contained.join(",")}),${site})`);
@@ -876,8 +963,9 @@ export function ifcDitch(job) {
  * work: true → prima colonna = opera (p.work), come nell'IFC unico di più opere.
  * cols = volumi in colonna, nell'ordine (fosso: cls, scavo, riporto; canale:
  * cls, magrone, misto cementato, scavo, rinterro); quelli che un tratto non ha valgono 0.
+ * sec: true → dopo il tratto la colonna «Sezione» (p.sec), per le opere con sezioni diverse (0.9).
  */
-export function ditchCSV(parts, { head, total = "TOTALE", comma = true, work = false, cols = ["lining", "cut", "fill"] } = {}) {
+export function ditchCSV(parts, { head, total = "TOTALE", comma = true, work = false, cols = ["lining", "cut", "fill"], sec = false } = {}) {
   const n = (v, d) => { const s = (v || 0).toFixed(d); return comma ? s.replace(".", ",") : s; };
   const q = (s) => (/[;"\n]/.test(s) ? '"' + String(s).replace(/"/g, '""') + '"' : String(s));
   const rows = [head.map(q).join(";")];
@@ -885,11 +973,11 @@ export function ditchCSV(parts, { head, total = "TOTALE", comma = true, work = f
   for (const k of cols) tot[k] = 0;
   const pre = (v) => (work ? [v] : []);
   for (const p of parts) {
-    rows.push([...pre(q(p.work || "")), q(p.name), n(p.p0, 3), n(p.p1, 3), n(p.length, 3), ...cols.map((k) => n(p.vol[k], 3))].join(";"));
+    rows.push([...pre(q(p.work || "")), q(p.name), ...(sec ? [q(p.sec || "")] : []), n(p.p0, 3), n(p.p1, 3), n(p.length, 3), ...cols.map((k) => n(p.vol[k], 3))].join(";"));
     tot.length += p.length;
     for (const k of cols) tot[k] += p.vol[k] || 0;
   }
-  if (parts.length > 1) rows.push([...pre(q(total)), work ? "" : q(total), "", "", n(tot.length, 3), ...cols.map((k) => n(tot[k], 3))].join(";"));
+  if (parts.length > 1) rows.push([...pre(q(total)), work ? "" : q(total), ...(sec ? [""] : []), "", "", n(tot.length, 3), ...cols.map((k) => n(tot[k], 3))].join(";"));
   return "﻿" + rows.join("\r\n") + "\r\n";
 }
 
@@ -1075,4 +1163,135 @@ export function pointsReader({ bbox = null } = {}) {
       return { points: P.slice(0, 3 * n), count: n, read, skipped, outside: out, idColumn: mode.o === 1 };
     },
   };
+}
+
+/* -------------------------------------------------------------------------
+   Rhino .3dm (0.8) — rhino3dm iniettato (quello del Terrain Sculptor).
+   Scelte dell'utente (2026-10-05): coordinate attorno all'ORIGINE LOCALE del
+   progetto (la stessa delle mesh dell'IFC; scritta nel documento e segnata
+   da un TextDot sul layer «Origine»); layer «Opera > classe» (un padre per
+   opera, un sottolayer per classe, un oggetto per tratto); asse 3D e DTM del
+   corridoio; spigoli vivi oltre 30°. Le mesh di rhino3dm sono in float:
+   vicino all'origine il centesimo di millimetro, a 4,6 milioni di metri
+   mezzo metro — per questo l'origine locale.
+   ------------------------------------------------------------------------- */
+
+/**
+ * Spigoli vivi: ogni vertice si divide fra i gruppi di facce che lo usano
+ * con normali entro deg l'una dall'altra (rispetto alla prima del gruppo);
+ * oltre, vertici propri. Rhino media le normali sui vertici condivisi: senza
+ * divisione una parete e un fondo a 90° si sfumano a fasce. Il tubo a 48
+ * lati (7,5° fra due facce) resta liscio. Le posizioni non cambiano: la mesh
+ * resta chiusa (Rhino unisce i vertici coincidenti nella topologia).
+ * Ritorna { positions: Float64Array, index: Uint32Array }.
+ */
+export function sharpEdges({ positions: P, index: I }, deg = 30) {
+  const nV = P.length / 3, nF = I.length / 3, cos = Math.cos(deg * Math.PI / 180);
+  const N = new Float64Array(nF * 3), ok = new Uint8Array(nF);
+  for (let f = 0; f < nF; f++) {
+    const a = 3 * I[3 * f], b = 3 * I[3 * f + 1], c = 3 * I[3 * f + 2];
+    const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], wx = P[c] - P[a], wy = P[c + 1] - P[a + 1], wz = P[c + 2] - P[a + 2];
+    const x = uy * wz - uz * wy, y = uz * wx - ux * wz, z = ux * wy - uy * wx, l = Math.hypot(x, y, z);
+    if (l > 1e-12) { N[3 * f] = x / l; N[3 * f + 1] = y / l; N[3 * f + 2] = z / l; ok[f] = 1; }
+  }
+  // facce di ogni vertice (CSR)
+  const deg0 = new Uint32Array(nV + 1);
+  for (let k = 0; k < I.length; k++) deg0[I[k] + 1]++;
+  for (let v = 0; v < nV; v++) deg0[v + 1] += deg0[v];
+  const fill = deg0.slice(0, nV), inc = new Uint32Array(I.length);
+  for (let k = 0; k < I.length; k++) inc[fill[I[k]]++] = k;               // k = posizione nell'indice (faccia k / 3)
+  const out = [], idx = new Uint32Array(I.length);
+  for (let v = 0; v < nV; v++) {
+    const seeds = [];                                                       // { f: faccia che fa da normale (−1 = degenere), v: nuovo vertice }
+    for (let q = deg0[v]; q < deg0[v + 1]; q++) {
+      const k = inc[q], f = (k / 3) | 0;
+      let g = null;
+      if (!ok[f]) g = seeds[0] || null;                                     // faccia degenere (area nulla): col primo gruppo
+      else for (const s of seeds) if (s.f >= 0 && N[3 * s.f] * N[3 * f] + N[3 * s.f + 1] * N[3 * f + 1] + N[3 * s.f + 2] * N[3 * f + 2] >= cos) { g = s; break; }
+      if (!g) {
+        g = { f: ok[f] ? f : -1, v: out.length / 3 };
+        seeds.push(g);
+        out.push(P[3 * v], P[3 * v + 1], P[3 * v + 2]);
+      }
+      idx[k] = g.v;
+    }
+  }
+  return { positions: Float64Array.from(out), index: idx };
+}
+
+const RHINO_NAMES = { origin: "Origine", originDot: "Origine E {x} · N {y}", axis: "Asse 3D", dtm: "Terreno (DTM)" };
+
+/* mesh in blocco (come il Terrain Sculptor): createFromThreejsJSON parla three.js (Y in alto), Rhino (X, Y, Z) → (X, Z, −Y) */
+function rhinoMesh(rhino, P, I) {
+  const n = P.length / 3, pos = new Float32Array(n * 3);
+  for (let k = 0; k < n; k++) { pos[3 * k] = P[3 * k]; pos[3 * k + 1] = P[3 * k + 2]; pos[3 * k + 2] = -P[3 * k + 1]; }
+  const me = rhino.Mesh.createFromThreejsJSON({ data: { attributes: { position: { itemSize: 3, type: "Float32Array", array: pos } }, index: { array: I instanceof Uint32Array ? I : Uint32Array.from(I) } } });
+  me.normals().computeNormals(); me.compact();
+  return me;
+}
+
+/**
+ * .3dm (Rhino 7 e 8, metri). job = {
+ *   origin: { x, y } (le mesh sono già in coordinate locali; asse e DTM assoluti, li sposta lo scrittore),
+ *   works: [{ name, rgb, axis: [{ x, y, z }…] assoluti, classes: [{ key, label, rgb, objects: [{ name, mesh }] }] }],
+ *   dtm: { name, positions (assoluti), index } o una lista (un oggetto per file), names, splitDeg (30), version (7) }.
+ * Layer: «Origine» (TextDot nell'origine), per opera un padre con i sottolayer «Asse 3D» e uno per classe
+ * (solo se ha oggetti), «Terreno (DTM)». Ritorna { bytes, report: { objects, closed, open: [nomi], layers } }.
+ */
+export function build3dm(rhino, { origin = { x: 0, y: 0 }, works = [], dtm = null, names = {}, splitDeg = 30, version = 7 } = {}) {
+  const NM = { ...RHINO_NAMES, ...names };
+  const doc = new rhino.File3dm();
+  doc.settings().modelUnitSystem = rhino.UnitSystem.Meters;
+  doc.strings().set("viewifc.origine", `${origin.x};${origin.y}`);
+  const report = { objects: 0, closed: 0, open: [], layers: [] };
+  const layer = (name, rgb, parent = null) => {
+    const l = new rhino.Layer();
+    l.name = name; l.color = { r: rgb[0], g: rgb[1], b: rgb[2], a: 255 };
+    if (parent) l.parentLayerId = parent;
+    const i = doc.layers().add(l);
+    report.layers.push(parent ? null : name);
+    return { index: i, id: doc.layers().get(i).id };
+  };
+  const attr = (li, name) => { const a = new rhino.ObjectAttributes(); a.layerIndex = li; if (name) a.name = name; return a; };
+  const fmt = (v) => String(Math.round(v * 1000) / 1000);
+  const lo = layer(NM.origin, [191, 215, 48]);
+  doc.objects().add(new rhino.TextDot(NM.originDot.replace("{x}", fmt(origin.x)).replace("{y}", fmt(origin.y)), [0, 0, 0]), attr(lo.index, NM.origin));
+  const used = new Map();
+  for (const w of works) {
+    let name = w.name || "—";                                      // nomi dei padri unici (Rhino non vuole due layer uguali allo stesso livello)
+    const n = (used.get(name) || 0) + 1; used.set(name, n);
+    if (n > 1) name += ` (${n})`;
+    const top = layer(name, w.rgb || [120, 120, 120]);
+    if (w.axis && w.axis.length > 1) {
+      const la = layer(NM.axis, [111, 138, 0], top.id), pl = new rhino.Polyline(w.axis.length);
+      for (const p of w.axis) pl.add(p.x - origin.x, p.y - origin.y, p.z);
+      doc.objects().addPolyline(pl, attr(la.index, `${name} - ${NM.axis}`));
+    }
+    for (const c of w.classes || []) {
+      const objs = (c.objects || []).filter((o) => o.mesh && o.mesh.index.length);
+      if (!objs.length) continue;
+      const lc = layer(c.label, c.rgb || [150, 150, 150], top.id);
+      for (const o of objs) {
+        const m = splitDeg > 0 ? sharpEdges(o.mesh, splitDeg) : o.mesh, me = rhinoMesh(rhino, m.positions, m.index);
+        report.objects++;
+        if (me.isClosed) report.closed++; else report.open.push(o.name);
+        doc.objects().addMesh(me, attr(lc.index, o.name));
+      }
+    }
+  }
+  const dtms = (Array.isArray(dtm) ? dtm : dtm ? [dtm] : []).filter((t) => t && t.index && t.index.length);
+  if (dtms.length) {
+    const ld = layer(NM.dtm, [140, 132, 112]);
+    for (const t of dtms) {
+      const P = t.positions, Q = new Float64Array(P.length);
+      for (let k = 0; k < P.length; k += 3) { Q[k] = P[k] - origin.x; Q[k + 1] = P[k + 1] - origin.y; Q[k + 2] = P[k + 2]; }
+      doc.objects().addMesh(rhinoMesh(rhino, Q, t.index), attr(ld.index, t.name || NM.dtm));
+    }
+  }
+  report.layers = report.layers.filter(Boolean);
+  const opt = new rhino.File3dmWriteOptions();
+  opt.version = version;
+  const bytes = doc.toByteArrayOptions(opt);
+  doc.delete && doc.delete();
+  return { bytes, report };
 }

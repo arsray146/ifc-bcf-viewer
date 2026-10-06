@@ -51,7 +51,11 @@ export function arcStep(r, tol) {
 /** Polilinea girata (vertici al contrario, bulge di segno opposto sul lato che ora parte dall'altro capo). */
 export function reversePoly(poly) {
   const p = poly.pts, n = p.length, out = [];
-  for (let i = n - 1; i >= 0; i--) out.push({ x: p[i].x, y: p[i].y, b: i > 0 ? -(p[i - 1].b || 0) : 0 });
+  for (let i = n - 1; i >= 0; i--) {
+    const q = { x: p[i].x, y: p[i].y, b: i > 0 ? -(p[i - 1].b || 0) : 0 };
+    if (p[i].R > 0) q.R = p[i].R;                         // il raccordo resta sul suo vertice (0.12)
+    out.push(q);
+  }
   return { ...poly, pts: out };
 }
 
@@ -229,6 +233,521 @@ export function profileVertexS(prof) {
   const out = [];
   for (const p of prof.pts) if (p.v && (!out.length || p.s - out[out.length - 1] > 1e-6)) out.push(p.s);
   return out;
+}
+
+/* -------------------------------------------------------------------------
+   Linea di progetto modificata nel tool (0.11)
+   Scelte dell'utente (2026-10-05): la linea modificata diventa dell'opera (il
+   disegno resta com'è e «Torna al disegno» la ripristina); si modifica nella
+   lastra del profilo trascinando i vertici e in una tabella (progressiva,
+   quota, pendenza). Vertici [{ s, z }] in progressiva del PROFILO (q) e quota
+   vera: gli ancoraggi restano validi e la taratura del disegno non la tocca
+   più. s non decresce; più vertici alla stessa s sono un salto (canale,
+   pozzetto) e in progressiva si spostano insieme.
+   ------------------------------------------------------------------------- */
+
+const SAME_S = 1e-6;
+/* copia di un vertice del profilo: s, z e, se c'è, R del raccordo verticale (0.12) */
+const cpV = (p) => (p.R > 0 ? { s: p.s, z: p.z, R: p.R } : { s: p.s, z: p.z });
+
+/** Vertici modificabili di una linea di profilo (profileLine): tutti i punti, anche quelli degli archi spezzati. */
+export const editPoints = (prof) => prof.pts.map((p) => ({ s: p.s, z: p.z }));
+
+/** Linea di profilo (la forma di profileLine) dai vertici modificati; i doppi esatti si tolgono. */
+export function profileFromPoints(pts) {
+  if (!Array.isArray(pts)) throw new Error("profileFromPoints: vertici mancanti");
+  const out = [];
+  for (const p of pts) {
+    if (!Number.isFinite(p.s) || !Number.isFinite(p.z)) throw new Error("profileFromPoints: vertice senza numeri");
+    const last = out[out.length - 1];
+    if (last && p.s < last.s - SAME_S) throw new Error("profileFromPoints: progressive che tornano indietro");
+    const same = last && Math.abs(p.s - last.s) <= SAME_S;
+    if (same && Math.abs(p.z - last.z) <= SAME_S) continue;
+    out.push({ s: same ? last.s : p.s, z: p.z, v: p.v !== false });     // v: false = punto di un raccordo (0.12)
+  }
+  if (out.length < 2 || out[out.length - 1].s - out[0].s < SAME_S) throw new Error("profileFromPoints: servono due progressive diverse");
+  let zMin = Infinity, zMax = -Infinity;
+  for (const p of out) { if (p.z < zMin) zMin = p.z; if (p.z > zMax) zMax = p.z; }
+  return { pts: out, pieces: 1, gaps: [], dropped: 0, s0: out[0].s, s1: out[out.length - 1].s, zMin, zMax, edited: true };
+}
+
+/** I vertici del salto di i (stessa s): [primo, ultimo] (i da solo se non sta su un salto). */
+export function dropGroup(pts, i) {
+  let a = i, b = i;
+  while (a > 0 && Math.abs(pts[a - 1].s - pts[i].s) <= SAME_S) a--;
+  while (b < pts.length - 1 && Math.abs(pts[b + 1].s - pts[i].s) <= SAME_S) b++;
+  return [a, b];
+}
+
+/**
+ * Sposta il vertice i: la quota solo lui, la progressiva tutto il suo salto,
+ * fra i vertici vicini (almeno gap da ciascuno; gap 0 = può finire sulla
+ * progressiva di un vicino e fare un salto). Ritorna { pts (copia), i, clamped }.
+ */
+export function editMove(pts, i, { s, z } = {}, { gap = 0.01 } = {}) {
+  const out = pts.map(cpV);
+  let clamped = false;
+  if (Number.isFinite(s)) {
+    const [a, b] = dropGroup(pts, i);
+    const lo = a > 0 ? pts[a - 1].s + gap : -Infinity, hi = b < pts.length - 1 ? pts[b + 1].s - gap : Infinity;
+    let v = s;
+    if (lo > hi) v = pts[i].s;
+    else if (v < lo) v = lo;
+    else if (v > hi) v = hi;
+    clamped = Math.abs(v - s) > 1e-9;
+    for (let k = a; k <= b; k++) out[k].s = v;
+  }
+  if (Number.isFinite(z)) out[i].z = z;
+  return { pts: out, i, clamped };
+}
+
+/**
+ * Un vertice in più alla progressiva s. Dentro la linea sta sul lato che la
+ * contiene (la geometria non cambia); prima o dopo i capi la allunga con la
+ * pendenza del primo o dell'ultimo lato (in piano se quello è un salto). Sopra
+ * un vertice che c'è già: null. Ritorna { pts (copia), i } (i = il nuovo).
+ */
+export function editInsert(pts, s) {
+  const n = pts.length;
+  if (!Number.isFinite(s) || n < 2 || pts.some((p) => Math.abs(p.s - s) <= SAME_S)) return null;
+  const out = pts.map(cpV);
+  const grade = (a, b) => (b.s - a.s > SAME_S ? (b.z - a.z) / (b.s - a.s) : 0);
+  if (s < pts[0].s) { out.unshift({ s, z: pts[0].z + grade(pts[0], pts[1]) * (s - pts[0].s) }); return { pts: out, i: 0 }; }
+  if (s > pts[n - 1].s) { out.push({ s, z: pts[n - 1].z + grade(pts[n - 2], pts[n - 1]) * (s - pts[n - 1].s) }); return { pts: out, i: n }; }
+  let k = 1;
+  while (pts[k].s < s) k++;
+  const a = pts[k - 1], b = pts[k];
+  out.splice(k, 0, { s, z: a.z + (b.z - a.z) * (s - a.s) / (b.s - a.s) });
+  return { pts: out, i: k };
+}
+
+/** Toglie il vertice i (ne restano almeno due con progressive diverse): { pts (copia), i (il vertice scelto dopo) } o null. */
+export function editRemove(pts, i) {
+  if (pts.length <= 2 || i < 0 || i >= pts.length) return null;
+  const out = pts.filter((_, k) => k !== i).map(cpV);
+  if (out[out.length - 1].s - out[0].s < SAME_S) return null;
+  return { pts: out, i: Math.min(i, out.length - 1) };
+}
+
+/**
+ * Pendenze dei lati (dz / dp, p = progressiva in pianta con toP: lungo l'asse vero;
+ * senza, in progressiva del profilo). Su un salto { drop: dz } invece del numero.
+ */
+export function editSlopes(pts, toP = (s) => s) {
+  const out = [];
+  for (let k = 0; k + 1 < pts.length; k++) {
+    const dp = toP(pts[k + 1].s) - toP(pts[k].s), dz = pts[k + 1].z - pts[k].z;
+    out.push(Math.abs(pts[k + 1].s - pts[k].s) <= SAME_S || !(Math.abs(dp) > SAME_S) ? { drop: dz } : dz / dp);
+  }
+  return out;
+}
+
+/** Pendenza g del lato k (dal vertice k al k + 1): si sposta la quota del k + 1, il k resta. Su un salto: null. */
+export function editSetSlope(pts, k, g, toP = (s) => s) {
+  if (k < 0 || k + 1 >= pts.length || !Number.isFinite(g)) return null;
+  const dp = toP(pts[k + 1].s) - toP(pts[k].s);
+  if (Math.abs(pts[k + 1].s - pts[k].s) <= SAME_S || !(Math.abs(dp) > SAME_S)) return null;
+  return editMove(pts, k + 1, { z: pts[k].z + g * dp });
+}
+
+/** Valore tondo al passo dato (senza i decimali sporchi della virgola mobile). */
+export const roundTo = (x, step) => (step > 0 ? Number((Math.round(x / step) * step).toFixed(Math.max(0, Math.ceil(-Math.log10(step)) + 2))) : x);
+
+/* -------------------------------------------------------------------------
+   Pianta modificata nel tool (0.11, seconda tappa)
+   Scelte dell'utente (2026-10-06): vista 3D dall'alto + tabella; il profilo
+   SEGUE i vertici (gli ancoraggi, le divisioni in tratti e le righe da/a
+   stanno attaccati alla pianta: lato + frazione della sua lunghezza); gli
+   archi restano (spostando i vertici l'arco tiene il suo angolo) e il raggio
+   si scrive in tabella; asse da zero, DXF 2D, aggancio.
+   Vertici [{ x, y, b }] nel verso dell'ASSE (b = bulge del lato che parte
+   dal vertice, come nelle polilinee); la pagina li gira se la pianta è
+   percorsa al contrario (reversePoly).
+   ------------------------------------------------------------------------- */
+
+/** Vertici dell'asse (planAxis) come polilinea nel suo verso: [{ x, y, b }], b dagli archi. */
+/* copia di un vertice della pianta: x, y, b e, se c'è, R del raccordo al vertice (0.12) */
+const cpP = (p) => (p.R > 0 ? { x: p.x, y: p.y, b: p.b || 0, R: p.R } : { x: p.x, y: p.y, b: p.b || 0 });
+export function axisVertices(axis) {
+  return axis.vtx.map((v, i) => {
+    const g = axis.segs[i];
+    return { x: v.x, y: v.y, b: g && g.t === "A" ? Math.tan(g.sweep / 4) : 0 };
+  });
+}
+
+/** Sposta il vertice i (il lato che ne parte e quello che arriva tengono il loro bulge: gli archi il loro angolo). */
+export function planMove(pts, i, { x, y }) {
+  const out = pts.map(cpP);
+  if (Number.isFinite(x)) out[i].x = x;
+  if (Number.isFinite(y)) out[i].y = y;
+  return out;
+}
+
+/**
+ * Un vertice nuovo sul lato k (dal vertice k al k + 1) alla frazione t della
+ * sua lunghezza: sulla retta, o sull'arco (che si divide in due archi dello
+ * stesso cerchio). La geometria non cambia. Ritorna { pts, i } (i = il nuovo) o null.
+ */
+export function planInsert(pts, k, t) {
+  if (k < 0 || k + 1 >= pts.length || !(t > 1e-9 && t < 1 - 1e-9)) return null;
+  const out = pts.map(cpP);
+  const a = out[k], c = out[k + 1], arc = bulgeArc(a.x, a.y, c.x, c.y, a.b);
+  let q;
+  if (!arc) q = { x: a.x + (c.x - a.x) * t, y: a.y + (c.y - a.y) * t, b: 0 };
+  else {
+    const ang = arc.a0 + arc.sweep * t;
+    q = { x: arc.cx + arc.r * Math.cos(ang), y: arc.cy + arc.r * Math.sin(ang), b: Math.tan(arc.sweep * (1 - t) / 4) };
+    a.b = Math.tan(arc.sweep * t / 4);
+  }
+  out.splice(k + 1, 0, q);
+  return { pts: out, i: k + 1 };
+}
+
+/** Toglie il vertice i (ne restano almeno due): i due lati diventano una retta. Ritorna { pts, i } o null. */
+export function planRemove(pts, i) {
+  if (pts.length <= 2 || i < 0 || i >= pts.length) return null;
+  const out = pts.filter((_, k) => k !== i).map(cpP);
+  if (i > 0 && i < pts.length - 1) out[i - 1].b = 0;
+  out[out.length - 1].b = 0;
+  if (Math.hypot(out[1].x - out[0].x, out[1].y - out[0].y) < 1e-3 && out.length === 2) return null;
+  return { pts: out, i: Math.min(i, out.length - 1) };
+}
+
+/** Raggio con segno del lato k (+ a sinistra, antiorario; − a destra); 0 = retta. */
+export function planSideRadius(pts, k) {
+  const a = pts[k], c = pts[k + 1];
+  if (!a || !c) return 0;
+  const arc = bulgeArc(a.x, a.y, c.x, c.y, a.b || 0);
+  return arc ? arc.r * Math.sign(arc.sweep) : 0;
+}
+
+/**
+ * Raggio del lato k (con segno: + a sinistra, − a destra; 0 = retta): l'arco
+ * minore fra i due vertici. Troppo piccolo per la corda (|R| < corda / 2): null.
+ */
+export function planSetRadius(pts, k, R) {
+  const a = pts[k], c = pts[k + 1];
+  if (!a || !c || !Number.isFinite(R)) return null;
+  const chord = Math.hypot(c.x - a.x, c.y - a.y);
+  const out = pts.map(cpP);
+  if (Math.abs(R) < 1e-9) { out[k].b = 0; return out; }
+  if (Math.abs(R) < chord / 2 - 1e-9) return null;
+  const th = 2 * Math.asin(Math.min(1, chord / (2 * Math.abs(R))));
+  out[k].b = Math.sign(R) * Math.tan(th / 4);
+  return out;
+}
+
+/** Deviazione al vertice i (radianti, + a sinistra): fra la tangente del lato che arriva e quella del lato che parte. 0 ai capi. */
+export function vertexDeflection(axis, i) {
+  if (i <= 0 || i >= axis.vtx.length - 1) return 0;
+  const tan = (g, end) => {
+    if (g.t === "L") return [g.ux, g.uy];
+    const dir = Math.sign(g.sweep), t = g.a0 + (end ? g.sweep : 0);
+    return [-Math.sin(t) * dir, Math.cos(t) * dir];
+  };
+  const [ax, ay] = tan(axis.segs[i - 1], true), [bx, by] = tan(axis.segs[i], false);
+  return Math.atan2(ax * by - ay * bx, ax * bx + ay * by);
+}
+
+/* Posizione «attaccata alla pianta»: u = k + t (lato k, frazione t della sua lunghezza). Spostando un
+   vertice u non cambia; inserendo o togliendo un vertice cambia come la pianta (uAfterInsert/Remove). */
+export function axisU(axis, p) {
+  const n = axis.segs.length;
+  if (!(p > 0)) return 0;
+  if (p >= axis.length) return n;
+  const k = segIndex(axis, p), g = axis.segs[k];
+  return k + (g.len > 0 ? Math.min(1, (p - g.s0) / g.len) : 0);
+}
+export function axisPAtU(axis, u) {
+  const n = axis.segs.length;
+  if (!(u > 0)) return 0;
+  if (u >= n) return axis.length;
+  const k = Math.min(n - 1, Math.floor(u)), g = axis.segs[k];
+  return g.s0 + (u - k) * g.len;
+}
+/** u dopo un vertice nuovo sul lato k alla frazione t0. */
+export function uAfterInsert(u, k, t0) {
+  if (u < k) return u;
+  if (u >= k + 1) return u + 1;
+  const t = u - k;
+  return t < t0 ? k + t / t0 : k + 1 + (t - t0) / (1 - t0);
+}
+/** u dopo aver tolto il vertice i (lens = lunghezze dei lati PRIMA): i due lati attorno diventano uno, in proporzione. */
+export function uAfterRemove(u, i, lens) {
+  const n = lens.length;
+  if (i === 0) return u < 1 ? 0 : u - 1;
+  if (i === n) return u > n - 1 ? n - 1 : u;
+  const a = i - 1;
+  if (u < a) return u;
+  if (u >= i + 1) return u - 1;
+  const along = u < i ? (u - a) * lens[a] : lens[a] + (u - i) * lens[i], tot = lens[a] + lens[i];
+  return a + (tot > 0 ? along / tot : 0);
+}
+/** Progressiva p sulla pianta di prima → sulla pianta nuova, con la trasformazione di u (fu). Prima dell'inizio
+    e dopo la fine conta lo scarto dai capi (ancoraggi fuori dalla pianta). */
+export function remapP(oldAxis, newAxis, p, fu = (u) => u) {
+  if (p < 0) return p;
+  if (p > oldAxis.length) return newAxis.length + (p - oldAxis.length);
+  return axisPAtU(newAxis, fu(axisU(oldAxis, p)));
+}
+
+/** Punto dell'asse più vicino a (x, y) fra le progressive s0 e s1 (tutto l'asse se mancano): { s, d, x, y }. */
+export function nearestS(axis, x, y, s0 = -Infinity, s1 = Infinity) {
+  let best = null;
+  for (const g of axis.segs) {
+    if (g.s0 + g.len < s0 || g.s0 > s1) continue;
+    let s;
+    if (g.t === "L") s = g.s0 + Math.max(0, Math.min(g.len, (x - g.x0) * g.ux + (y - g.y0) * g.uy));
+    else {
+      const dir = Math.sign(g.sweep);
+      let da = (Math.atan2(y - g.cy, x - g.cx) - g.a0) * dir;          // angolo percorso dall'inizio dell'arco
+      da = ((da % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+      const sw = Math.abs(g.sweep);
+      if (da > sw) da = da - sw < 2 * Math.PI - da ? sw : 0;              // fuori dall'arco: il capo più vicino
+      s = g.s0 + da * g.r;
+    }
+    s = Math.max(s0, Math.min(s1, s));
+    const q = planAt(axis, s), d = Math.hypot(q.x - x, q.y - y);
+    if (!best || d < best.d - 1e-9) best = { s, d, x: q.x, y: q.y };
+  }
+  return best;
+}
+/* -------------------------------------------------------------------------
+   Raccordi (0.12). Scelte dell'utente (2026-10-06): in pianta un arco
+   TANGENTE ai due lati su un vertice, legato al vertice (spostandolo il
+   raccordo si rifà), e un lato ad arco per tre punti (maniglia a metà del
+   lato); in profilo un raccordo PARABOLICO su un vertice. I vertici di
+   controllo (PI) portano R; la geometria si ricava ogni volta (planExpand,
+   profileExpand). Le posizioni che seguono la pianta stanno fra due
+   «stazioni» dei vertici di controllo (il vertice, o il centro del raccordo):
+   senza raccordi sono i vertici e il conto è quello di remapP.
+   ------------------------------------------------------------------------- */
+
+/**
+ * Pianta dai vertici di controllo [{ x, y, b, R? }] (verso dell'asse): ogni vertice
+ * interno con R > 0 diventa due punti di tangenza e un arco tangente ai due lati.
+ * Fra due lati DRITTI: T = R·tan(|Δ|/2), lati corti: le due tangenti di un lato non
+ * lo superano (resta almeno 1 cm dritto) e R si riduce in proporzione. Accanto a un
+ * lato ad ARCO (0.13, scelta dell'utente: «R racc. anche accanto a un arco»): il
+ * centro sta a R da tutti e due i lati dalla parte della curva (retta parallela o
+ * cerchio concentrico) e il lato ad arco si accorcia al punto di tangenza; se non ci
+ * sta, R si riduce (bisezione). Allineato (già tangente), a tornante o ai capi:
+ * niente raccordo (skipped).
+ * Ritorna { pts (polilinea), idx: [[a, b]] per vertice di controllo (b > a = raccordo), R (efficaci), clamped, skipped }.
+ */
+export function planExpand(ctrl) {
+  const n = ctrl.length, skipped = [], clamped = [];
+  // i lati: retta { t: "L", ax, ay, ux, uy, len } o arco { t: "A", cx, cy, r, a0, sw, s, len }
+  const sides = [];
+  for (let k = 0; k + 1 < n; k++) {
+    const a = ctrl[k], c = ctrl[k + 1], arc = bulgeArc(a.x, a.y, c.x, c.y, a.b || 0);
+    if (arc) sides.push({ t: "A", cx: arc.cx, cy: arc.cy, r: arc.r, a0: arc.a0, sw: arc.sweep, s: Math.sign(arc.sweep), len: arc.len });
+    else { const dx = c.x - a.x, dy = c.y - a.y, L = Math.hypot(dx, dy); sides.push({ t: "L", ax: a.x, ay: a.y, ux: L ? dx / L : 1, uy: L ? dy / L : 0, len: L }); }
+  }
+  const tanEnd = (e) => (e.t === "L" ? [e.ux, e.uy] : [-Math.sin(e.a0 + e.sw) * e.s, Math.cos(e.a0 + e.sw) * e.s]);
+  const tanStart = (e) => (e.t === "L" ? [e.ux, e.uy] : [-Math.sin(e.a0) * e.s, Math.cos(e.a0) * e.s]);
+  const cutS = new Array(Math.max(0, n - 1)).fill(0), cutE = new Array(Math.max(0, n - 1)).fill(0);   // lunghezze tolte ai capi dei lati
+  const fil = new Array(n).fill(null), T = new Array(n).fill(0), Dv = new Array(n).fill(0), general = [];
+  for (let i = 1; i < n - 1; i++) {
+    if (!(ctrl[i].R > 0)) continue;
+    const e1 = sides[i - 1], e2 = sides[i];
+    if (!(e1.len > 1e-6) || !(e2.len > 1e-6)) { skipped.push(i); continue; }
+    const [ax, ay] = tanEnd(e1), [bx, by] = tanStart(e2), d = Math.atan2(ax * by - ay * bx, ax * bx + ay * by);
+    if (Math.abs(d) < 1e-6 || Math.abs(d) > Math.PI - 1e-3) { skipped.push(i); continue; }
+    Dv[i] = d;
+    if (e1.t === "L" && e2.t === "L") T[i] = ctrl[i].R * Math.tan(Math.abs(d) / 2);
+    else general.push(i);
+  }
+  // 1. fra due rette: la formula chiusa, ridotta in proporzione sui lati corti
+  const f = new Array(n).fill(1);
+  for (let k = 0; k + 1 < n; k++) {
+    const need = T[k] + T[k + 1], avail = sides[k].len - 0.01;
+    if (need > avail && need > 0) { const g = Math.max(0, avail) / need; f[k] = Math.min(f[k], g); f[k + 1] = Math.min(f[k + 1], g); }
+  }
+  for (let i = 1; i < n - 1; i++) {
+    if (!(T[i] > 0)) continue;
+    const t = T[i] * f[i], e1 = sides[i - 1], e2 = sides[i], p = ctrl[i];
+    if (f[i] < 1 - 1e-9) clamped.push(i);
+    if (!(t > 1e-6)) continue;
+    fil[i] = { T1: { x: p.x - e1.ux * t, y: p.y - e1.uy * t }, T2: { x: p.x + e2.ux * t, y: p.y + e2.uy * t }, b: Math.tan(Dv[i] / 4), R: t / Math.tan(Math.abs(Dv[i]) / 2) };
+    cutE[i - 1] = t; cutS[i] = t;
+  }
+  // 2. accanto a un arco: da sinistra a destra, ognuno nello spazio che resta sui suoi due lati
+  for (const i of general) {
+    const e1 = sides[i - 1], e2 = sides[i], R0 = ctrl[i].R;
+    const a1 = e1.len - cutS[i - 1] - 0.01, a2 = e2.len - cutE[i] - 0.01;
+    const fits = (q) => q && q.pos1 <= a1 && q.pos2 <= a2;
+    let g = filletGeneral(e1, e2, ctrl[i], R0, Dv[i]), Rf = R0;
+    if (!fits(g)) {
+      let lo = 0, hi = R0, best = null;
+      for (let it = 0; it < 48; it++) { const m = (lo + hi) / 2, q = filletGeneral(e1, e2, ctrl[i], m, Dv[i]); if (fits(q)) { lo = m; best = q; } else hi = m; }
+      g = best; Rf = lo;
+      if (!g || !(Rf > 1e-6)) { skipped.push(i); continue; }
+      clamped.push(i);
+    }
+    fil[i] = { T1: g.T1, T2: g.T2, b: g.b, R: Rf };
+    cutE[i - 1] = g.pos1; cutS[i] = g.pos2;
+  }
+  clamped.sort((a, b) => a - b); skipped.sort((a, b) => a - b);
+  // il bulge del lato k fra i suoi capi accorciati (gli archi restano sullo stesso cerchio)
+  const sideB = (k) => {
+    const e = sides[k];
+    if (e.t === "L") return 0;
+    if (!cutS[k] && !cutE[k]) return ctrl[k].b || 0;
+    return Math.tan(e.s * (Math.abs(e.sw) - (cutS[k] + cutE[k]) / e.r) / 4);
+  };
+  const out = [], idx = [], R = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    const F = fil[i], b = i < n - 1 ? sideB(i) : 0;
+    if (F) {
+      R[i] = F.R;
+      idx.push([out.length, out.length + 1]);
+      out.push({ x: F.T1.x, y: F.T1.y, b: F.b });
+      out.push({ x: F.T2.x, y: F.T2.y, b });
+    } else {
+      idx.push([out.length, out.length]);
+      out.push({ x: ctrl[i].x, y: ctrl[i].y, b });
+    }
+  }
+  return { pts: out, idx, R, clamped, skipped };
+}
+/* il raccordo di raggio R al vertice V fra il lato e1 (che arriva) e il lato e2 (che parte), almeno uno ad arco:
+   centro all'incrocio delle due curve spostate di R verso l'interno della curva (d = deviazione al vertice),
+   punti di tangenza ai piedi delle perpendicolari. Ritorna { T1, T2, b, pos1 (da T1 al vertice lungo e1), pos2 } o null */
+function filletGeneral(e1, e2, V, R, d) {
+  const del = Math.sign(d) * R;
+  const off = (e) => (e.t === "L" ? { t: "L", px: e.ax - e.uy * del, py: e.ay + e.ux * del, ux: e.ux, uy: e.uy } : { t: "C", cx: e.cx, cy: e.cy, r: e.r - e.s * del });
+  const o1 = off(e1), o2 = off(e2);
+  if ((o1.t === "C" && !(o1.r > 1e-9)) || (o2.t === "C" && !(o2.r > 1e-9))) return null;
+  const cands = curveCross(o1, o2);
+  if (!cands.length) return null;
+  let X = cands[0];
+  for (const q of cands) if (Math.hypot(q.x - V.x, q.y - V.y) < Math.hypot(X.x - V.x, X.y - V.y)) X = q;
+  const foot = (e) => {
+    if (e.t === "L") { const l = (X.x - e.ax) * e.ux + (X.y - e.ay) * e.uy; return { x: e.ax + e.ux * l, y: e.ay + e.uy * l, l }; }
+    const dx = X.x - e.cx, dy = X.y - e.cy, h = Math.hypot(dx, dy);
+    if (!(h > 1e-12)) return null;
+    const x = e.cx + dx / h * e.r, y = e.cy + dy / h * e.r;
+    let phi = ((Math.atan2(y - e.cy, x - e.cx) - e.a0) * e.s) % (2 * Math.PI);
+    if (phi < 0) phi += 2 * Math.PI;
+    if (phi > 2 * Math.PI - 1e-9) phi = 0;
+    return { x, y, l: phi * e.r };
+  };
+  const T1 = foot(e1), T2 = foot(e2);
+  if (!T1 || !T2 || !(T1.l >= 0 && T1.l <= e1.len + 1e-9) || !(T2.l >= 0 && T2.l <= e2.len + 1e-9)) return null;
+  const pos1 = e1.len - T1.l, pos2 = T2.l;
+  if (!(pos1 > 1e-6) || !(pos2 > 1e-6)) return null;
+  const sw = Math.atan2((T1.x - X.x) * (T2.y - X.y) - (T1.y - X.y) * (T2.x - X.x), (T1.x - X.x) * (T2.x - X.x) + (T1.y - X.y) * (T2.y - X.y));
+  if (Math.sign(sw) !== Math.sign(d) || Math.abs(sw) < 1e-9) return null;
+  return { T1: { x: T1.x, y: T1.y }, T2: { x: T2.x, y: T2.y }, b: Math.tan(sw / 4), pos1, pos2 };
+}
+/* incroci di due curve: retta { px, py, ux, uy } (versore) o cerchio { cx, cy, r } */
+function curveCross(a, b) {
+  if (a.t === "L" && b.t === "L") {
+    const den = a.ux * b.uy - a.uy * b.ux;
+    if (Math.abs(den) < 1e-12) return [];
+    const t = ((b.px - a.px) * b.uy - (b.py - a.py) * b.ux) / den;
+    return [{ x: a.px + a.ux * t, y: a.py + a.uy * t }];
+  }
+  if (a.t === "C" && b.t === "L") return curveCross(b, a);
+  if (a.t === "L") {
+    const fx = a.px - b.cx, fy = a.py - b.cy, B = fx * a.ux + fy * a.uy, Cc = fx * fx + fy * fy - b.r * b.r, disc = B * B - Cc;
+    if (disc < 0) return [];
+    const r = Math.sqrt(disc);
+    return [-B - r, -B + r].map((t) => ({ x: a.px + a.ux * t, y: a.py + a.uy * t }));
+  }
+  const dx = b.cx - a.cx, dy = b.cy - a.cy, dd = Math.hypot(dx, dy);
+  if (!(dd > 1e-12) || dd > a.r + b.r || dd < Math.abs(a.r - b.r)) return [];
+  const l = (a.r * a.r - b.r * b.r + dd * dd) / (2 * dd), h = Math.sqrt(Math.max(0, a.r * a.r - l * l));
+  const mx = a.cx + dx * l / dd, my = a.cy + dy * l / dd;
+  return [{ x: mx - dy * h / dd, y: my + dx * h / dd }, { x: mx + dy * h / dd, y: my - dx * h / dd }];
+}
+/** Stazioni dei vertici di controllo sull'asse della pianta ricavata: il vertice, o il centro del suo raccordo. */
+export const ctrlStations = (axis, idx) => idx.map(([a, b]) => (axis.vtx[a].s + axis.vtx[b].s) / 2);
+/** Progressiva → u = k + frazione fra le stazioni k e k + 1 (st crescenti), e ritorno. */
+export function stationU(st, p) {
+  const n = st.length - 1;
+  if (!(p > st[0])) return 0;
+  if (p >= st[n]) return n;
+  let lo = 0, hi = n;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (st[m] <= p) lo = m; else hi = m; }
+  const d = st[lo + 1] - st[lo];
+  return lo + (d > 0 ? (p - st[lo]) / d : 0);
+}
+export function stationP(st, u) {
+  const n = st.length - 1;
+  if (!(u > 0)) return st[0];
+  if (u >= n) return st[n];
+  const k = Math.floor(u);
+  return st[k] + (u - k) * (st[k + 1] - st[k]);
+}
+/** Come remapP, fra le stazioni dei vertici di controllo di prima e di dopo (fu: come cambia u). */
+export function remapStations(oldSt, newSt, p, fu = (u) => u) {
+  const a = oldSt[oldSt.length - 1], b = newSt[newSt.length - 1];
+  if (p < oldSt[0]) return newSt[0] + (p - oldSt[0]);
+  if (p > a) return b + (p - a);
+  return stationP(newSt, fu(stationU(oldSt, p)));
+}
+/**
+ * Bulge del lato da a a b che passa per p (arco per tre punti; il lato «trascinato
+ * per il mezzo»), al più un semicerchio (|b| ≤ maxB). p sulla corda: 0 (retta).
+ */
+export function bulgeThrough(a, b, p, maxB = 1) {
+  const ux = b.x - a.x, uy = b.y - a.y, c = Math.hypot(ux, uy);
+  if (c < 1e-9) return 0;
+  const t = ((p.x - a.x) * ux + (p.y - a.y) * uy) / c, h = ((p.y - a.y) * ux - (p.x - a.x) * uy) / c;   // h > 0: p a sinistra della corda
+  if (Math.abs(h) < 1e-6 * Math.max(1, c)) return 0;
+  const k = ((t - c / 2) ** 2 + h * h - c * c / 4) / (2 * h), r = Math.hypot(c / 2, k);
+  const bl = h > 0 ? -(k + r) * 2 / c : (r - k) * 2 / c;          // un arco antiorario (b > 0) sta a destra della corda
+  return Math.max(-maxB, Math.min(maxB, bl));
+}
+
+/**
+ * Profilo dai vertici di controllo [{ s, z, R? }]: ogni vertice interno con R > 0
+ * (non su un salto) diventa una PARABOLA tangente alle due livellette, lunga
+ * L = R·|Δi| e centrata sul vertice; lati corti: le due mezze lunghezze non lo
+ * superano (resta 1 cm) e R si riduce. Punti della parabola ogni passo che la
+ * tiene entro tol (1 mm), al più 10 m; i capi del raccordo sono vertici (v), i
+ * punti in mezzo no.
+ * Ritorna { pts: [{ s, z, v }], curves: [{ i, s, z, L, g1, g2, R }], clamped, skipped }.
+ */
+export function profileExpand(pts, { tol = 0.001 } = {}) {
+  const n = pts.length, Lh = new Array(n).fill(0), g1 = [], g2 = [], skipped = [], clamped = [];
+  const ds = (k) => pts[k + 1].s - pts[k].s;
+  for (let i = 1; i < n - 1; i++) {
+    if (!(pts[i].R > 0)) continue;
+    const a = ds(i - 1), b = ds(i);
+    if (!(a > SAME_S) || !(b > SAME_S)) { skipped.push(i); continue; }
+    const ga = (pts[i].z - pts[i - 1].z) / a, gb = (pts[i + 1].z - pts[i].z) / b;
+    if (Math.abs(gb - ga) < 1e-9) { skipped.push(i); continue; }
+    g1[i] = ga; g2[i] = gb; Lh[i] = pts[i].R * Math.abs(gb - ga) / 2;
+  }
+  const f = new Array(n).fill(1);
+  for (let k = 0; k + 1 < n; k++) {
+    const need = Lh[k] + Lh[k + 1], avail = ds(k) - 0.01;
+    if (need > avail && need > 0) { const g = Math.max(0, avail) / need; f[k] = Math.min(f[k], g); f[k + 1] = Math.min(f[k + 1], g); }
+  }
+  const out = [], curves = [];
+  for (let i = 0; i < n; i++) {
+    const p = pts[i], h = Lh[i] * f[i];
+    if (Lh[i] > 0 && f[i] < 1 - 1e-9) clamped.push(i);
+    if (!(h > 1e-6)) { out.push({ s: p.s, z: p.z, v: true }); continue; }
+    const L = 2 * h, s0 = p.s - h, z0 = p.z - g1[i] * h, dg = g2[i] - g1[i];
+    const step = Math.min(10, Math.sqrt(8 * tol * L / Math.abs(dg))), m = Math.max(2, Math.ceil(L / step));
+    for (let k = 0; k <= m; k++) { const x = L * k / m; out.push({ s: s0 + x, z: z0 + g1[i] * x + dg * x * x / (2 * L), v: k === 0 || k === m }); }
+    curves.push({ i, s: p.s, z: p.z, L, g1: g1[i], g2: g2[i], R: L / Math.abs(dg) });
+  }
+  return { pts: out, curves, clamped, skipped };
+}
+
+/** Progressiva p sulla pianta di prima → la stessa posizione proiettata sulla pianta nuova (cerca entro win dalla p di prima, in proporzione). */
+export function projectP(oldAxis, newAxis, p, win = 50) {
+  if (p < 0) return p;
+  if (p > oldAxis.length) return newAxis.length + (p - oldAxis.length);
+  const q = planAt(oldAxis, p), c = p * newAxis.length / Math.max(oldAxis.length, 1e-9);
+  const w = win + Math.abs(newAxis.length - oldAxis.length);
+  const hit = nearestS(newAxis, q.x, q.y, c - w, c + w) || nearestS(newAxis, q.x, q.y);
+  return hit ? hit.s : c;
 }
 
 /* -------------------------------------------------------------------------
@@ -660,17 +1179,18 @@ const shoelace = (P) => { let a = 0; for (let i = 0; i < P.length; i++) { const 
  * Sezione del fosso in coordinate (u orizzontale dall'asse, a destra +; v
  * verticale dallo scorrimento). b fondo, h altezza, m sponde (orizz./vert.),
  * t spessore del rivestimento (perpendicolare alle pareti), berm banchina
- * dal bordo esterno del rivestimento, cut/fill scarpe (orizz./vert.).
+ * dal bordo esterno del rivestimento, cut/fill scarpe (orizz./vert.); tf
+ * spessore del fondo (assente = t: serve al raccordo col canale a U, 0.9).
  *   ui ciglio interno, uo bordo esterno del rivestimento in sommità,
  *   ub spigolo esterno del fondo, ue fine della banchina.
  */
 export function ditchShape(d = DITCH) {
-  const L = Math.hypot(1, d.m), hb = d.b / 2;
-  const ui = hb + d.m * d.h, uo = ui + d.t * L, ub = Math.max(0, hb - d.m * d.t + d.t * L), ue = uo + d.berm;
+  const L = Math.hypot(1, d.m), hb = d.b / 2, tf = d.tf != null ? d.tf : d.t;
+  const ui = hb + d.m * d.h, uo = ui + d.t * L, ub = Math.max(0, hb - d.m * tf + d.t * L), ue = uo + d.berm;
   const inner = [[-ui, d.h], [-hb, 0], [hb, 0], [ui, d.h]];
-  const outer = [[-uo, d.h], [-ub, -d.t], [ub, -d.t], [uo, d.h]];
+  const outer = [[-uo, d.h], [-ub, -tf], [ub, -tf], [uo, d.h]];
   const ring = [...inner, ...outer.slice().reverse()];
-  return { d: { ...d }, hb, ui, uo, ub, ue, h: d.h, t: d.t, inner, outer, ring, liningArea: Math.abs(shoelace(ring)), waterArea: (hb + ui) * d.h, top: 2 * ui };
+  return { d: { ...d }, hb, ui, uo, ub, ue, h: d.h, t: d.t, tf, inner, outer, ring, liningArea: Math.abs(shoelace(ring)), waterArea: (hb + ui) * d.h, top: 2 * ui };
 }
 
 /** Linea spezzata v(u) (u crescente), costante fuori dai capi. */
@@ -724,7 +1244,7 @@ function meet(T, sgn, u0, v0, up, down, du, reach) {
 export function ditchCross(sh, T, { du = 0.1, reach = 50 } = {}) {
   const { d, ue, uo, ub, h } = sh;
   const L = meet(T, -1, ue, h, d.cut, d.fill, du, reach), R = meet(T, 1, ue, h, d.cut, d.fill, du, reach);
-  const D = [[L.u, L.v], [-ue, h], [-uo, h], [-ub, -d.t], [ub, -d.t], [uo, h], [ue, h], [R.u, R.v]];
+  const D = [[L.u, L.v], [-ue, h], [-uo, h], [-ub, -sh.tf], [ub, -sh.tf], [uo, h], [ue, h], [R.u, R.v]];
   // aree: campioni ogni du più i vertici di D, (T − D) lineare fra due campioni
   const us = D.map((q) => q[0]);
   for (let u = Math.ceil(L.u / du) * du; u < R.u; u += du) us.push(u);
@@ -804,13 +1324,19 @@ function loftBand(rings, flip = null, zero = null) {
   return mesh;
 }
 
-/** Via i triangoli di area nulla (scavo o riporto che non c'è) e i vertici rimasti senza triangoli. */
+/**
+ * Via i triangoli di area nulla (scavo o riporto che non c'è) e i vertici rimasti senza triangoli.
+ * Restano quelli a tre vertici distinti e ALLINEATI (area nulla, nessuno spigolo nullo): ricuciono le
+ * giunzioni a T dove due campioni stanno sulla stessa u (±hw dentro/fuori, le due sezioni sulla soglia
+ * delle pareti) — senza, la mesh chiude per posizione ma non per topologia (Rhino: isClosed falso).
+ */
 export function compactMesh({ positions: P, index: I }, eps = 1e-6) {
   const keep = [], used = new Int32Array(P.length / 3).fill(-1), Q = [];
+  const same = (a, b) => Math.abs(P[a] - P[b]) <= 1e-9 && Math.abs(P[a + 1] - P[b + 1]) <= 1e-9 && Math.abs(P[a + 2] - P[b + 2]) <= 1e-9;
   for (let k = 0; k < I.length; k += 3) {
     const a = 3 * I[k], b = 3 * I[k + 1], c = 3 * I[k + 2];
     const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], wx = P[c] - P[a], wy = P[c + 1] - P[a + 1], wz = P[c + 2] - P[a + 2];
-    if (Math.hypot(uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx) <= eps) continue;
+    if (Math.hypot(uy * wz - uz * wy, uz * wx - ux * wz, ux * wy - uy * wx) <= eps && (same(a, b) || same(b, c) || same(a, c))) continue;
     for (const v of [I[k], I[k + 1], I[k + 2]]) { if (used[v] < 0) { used[v] = Q.length / 3; Q.push(P[3 * v], P[3 * v + 1], P[3 * v + 2]); } keep.push(used[v]); }
   }
   return { positions: Float64Array.from(Q), index: Uint32Array.from(keep) };
@@ -839,18 +1365,21 @@ function loftOpen(rings) {
  * mesh nelle coordinate locali (x − O.x, y − O.y, z). zAt3(x, y) = quota del
  * DTM (NaN fuori). Stazioni senza terreno o con la scarpata che non lo trova
  * entro `reach` si contano in `miss` (lì la scarpata si ferma).
+ * shapeAt(p) (facoltativo, 0.9): la sezione a ogni progressiva — nei raccordi
+ * le misure variano lungo il tratto (stessa topologia degli anelli).
  * Ritorna { sections, length, vol: { lining, cut, fill }, mesh: { lining, cut, fill, surface }, miss }.
  */
-export function ditchSweep(stations, sh, zAt3, { O = { x: 0, y: 0 }, du = 0.1, reach = 50, ring = {} } = {}) {
+export function ditchSweep(stations, sh, zAt3, { O = { x: 0, y: 0 }, du = 0.1, reach = 50, ring = {}, shapeAt = null } = {}) {
   const sections = stations.map((st) => {
+    const S = shapeAt ? shapeAt(st.p) : sh;
     const T = (u) => zAt3(st.x + st.nx * u * st.k, st.y + st.ny * u * st.k) - st.z;
-    const c = ditchCross(sh, T, { du, reach });
-    const { us, fixed } = ringU(c, sh, ring);
+    const c = ditchCross(S, T, { du, reach });
+    const { us, fixed } = ringU(c, S, ring);
     // dove terreno e fondo scavo si incrociano fra due campioni, il campione libero più vicino va
     // sull'incrocio: la mesh ritrova il volume delle sezioni anche al passaggio sterro/riporto
     snapCross(us, fixed, (u) => T(u) - polyV(c.D, u));
     const Tu = us.map((u) => T(u)), Du = us.map((u) => polyV(c.D, u));
-    return { p: st.p, x: st.x, y: st.y, z: st.z, nx: st.nx, ny: st.ny, k: st.k, L: c.L, R: c.R, cut: c.cut, fill: c.fill, ok: c.ok, us, Tu, Du };
+    return { p: st.p, x: st.x, y: st.y, z: st.z, nx: st.nx, ny: st.ny, k: st.k, sh: S, L: c.L, R: c.R, cut: c.cut, fill: c.fill, ok: c.ok, us, Tu, Du };
   });
   const vol = { lining: 0, cut: 0, fill: 0 };
   let length = 0;
@@ -858,14 +1387,14 @@ export function ditchSweep(stations, sh, zAt3, { O = { x: 0, y: 0 }, du = 0.1, r
     const a = sections[i - 1], b = sections[i], dp = b.p - a.p;
     length += dp;
     vol.cut += (a.cut + b.cut) / 2 * dp; vol.fill += (a.fill + b.fill) / 2 * dp;
+    vol.lining += (a.sh.liningArea + b.sh.liningArea) / 2 * dp;
   }
-  vol.lining = sh.liningArea * length;
   const P3 = (s, u, v) => [s.x + s.nx * u * s.k - O.x, s.y + s.ny * u * s.k - O.y, s.z + v];
   let mesh = null;
   if (sections.length >= 2) {
     // il rivestimento è un solido vero: il suo verso si decide dal volume; il suo anello gira al
     // contrario di quelli di scavo e riporto (interno sopra, esterno sotto) → verso opposto
-    const lining = loftBand(sections.map((s) => [...sh.inner.map(([u, v]) => P3(s, u, v)), ...sh.outer.slice().reverse().map(([u, v]) => P3(s, u, v))]));
+    const lining = loftBand(sections.map((s) => [...s.sh.inner.map(([u, v]) => P3(s, u, v)), ...s.sh.outer.slice().reverse().map(([u, v]) => P3(s, u, v))]));
     const band = (pick) => {
       const zero = [];
       const rings = sections.map((s) => {
@@ -881,12 +1410,30 @@ export function ditchSweep(stations, sh, zAt3, { O = { x: 0, y: 0 }, du = 0.1, r
       cut: band((D, T) => [D, Math.max(D, T)]),
       fill: band((D, T) => [Math.min(D, T), D]),
       surface: loftOpen(sections.map((s) => {
-        const F = [[s.L.u, s.L.v], [-sh.ue, sh.h], [-sh.uo, sh.h], ...sh.inner, [sh.uo, sh.h], [sh.ue, sh.h], [s.R.u, s.R.v]];
+        const S = s.sh, F = [[s.L.u, s.L.v], [-S.ue, S.h], [-S.uo, S.h], ...S.inner, [S.uo, S.h], [S.ue, S.h], [s.R.u, s.R.v]];
         return F.map(([u, v]) => P3(s, u, v));
       })),
     };
   }
   return { sections, length, vol, mesh, miss: sections.filter((s) => !s.ok).length };
+}
+
+/**
+ * Il fosso in tratti fra p0 e p1 (le divisioni dell'utente in cuts), come gli
+ * altri tipi: { parts: [{ k (da k0 + 1), p0, p1, length, vol, mesh, miss, n }] }.
+ */
+export function ditchPartsSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, step = 1, cuts = [], p0 = -Infinity, p1 = Infinity, k0 = 0, shapeAt = null, extra = [], du = 0.1, reach = 50 } = {}) {
+  const ax3 = buildAxis3D(axis, prof, anchors), res = { parts: [] };
+  if (ax3.pts.length < 2) return res;
+  const lo = Math.max(p0, ax3.pts[0].p), hi = Math.min(p1, ax3.pts[ax3.pts.length - 1].p);
+  const B = [lo, ...cuts.filter((c) => c > lo + 0.5 && c < hi - 0.5).sort((a, b) => a - b), hi];
+  for (let i = 0; i + 1 < B.length; i++) {
+    const st = sweepStations(axis, prof, anchors, { step, p0: B[i], p1: B[i + 1], extra });
+    if (st.length < 2) continue;
+    const sw = ditchSweep(st, sh, zAt3, { O, du, reach, shapeAt });
+    res.parts.push({ k: k0 + res.parts.length + 1, p0: B[i], p1: B[i + 1], length: sw.length, vol: sw.vol, mesh: sw.mesh, miss: sw.miss, n: st.length });
+  }
+  return res;
 }
 
 /* =========================================================================
@@ -911,9 +1458,20 @@ export function ditchSweep(stations, sh, zAt3, { O = { x: 0, y: 0 }, du = 0.1, r
      del dettaglio (l'utente: complicazione inutile).
    Sezioni verticali come il fosso: area × lunghezza in pianta = volume vero
    di un solido sweepato in verticale.
+
+   0.9 — SCATOLARE e famiglia del canale (scelte dell'utente 2026-10-05: lo
+   scatolare è «un canale», i tombini veri non si fanno qui):
+   - m scarpa delle pareti (0 = verticali; serve anche al raccordo col fosso
+     trapezio), ch smussi interni agli angoli (cateti ch, 0 = spigolo vivo);
+   - scatolare = U + soletta superiore tt (smussi anche in alto), platea = ts;
+     scavo come il canale; rinterro fino al terreno se sta sopra, se no fino
+     all'estradosso della soletta + ricoprimento minimo cover, poi banchina e
+     scarpa fill solo in discesa (rilevato). Salti come il canale.
    ========================================================================= */
 
-export const CHANNEL = Object.freeze({ B: 4, H: 2.5, tw: 0.3, ts: 0.3, tm: 0.1, om: 0.1, se: 0.5, cut: 1.5, berm: 0.5, fill: 1.5, hw: 0.4, key: 0.5, wedge: 1.5, ref: "invert" });
+export const CHANNEL = Object.freeze({ B: 4, H: 2.5, tw: 0.3, ts: 0.3, tm: 0.1, om: 0.1, se: 0.5, cut: 1.5, berm: 0.5, fill: 1.5, hw: 0.4, key: 0.5, wedge: 1.5, ref: "invert", m: 0, ch: 0 });
+/** Scatolare (box culvert): i default proposti all'utente (4,00 × 2,50, pareti, platea e soletta 0,30, smussi 0,20). */
+export const BOX = Object.freeze({ ...CHANNEL, tt: 0.3, ch: 0.2, cover: 0 });
 /** Salti: un lato più ripido di steep (100 %) e lungo al massimo len diventa verticale. */
 export const DROP = Object.freeze({ steep: 1, len: 1, eps: 0.001 });
 
@@ -956,22 +1514,44 @@ export function profileDrops(prof, eps = DROP.eps) {
 
 /**
  * Sezione del canale in coordinate (u orizzontale dall'asse, a destra +; v
- * verticale dal fondo interno). uo faccia esterna dei muri, um bordo del
- * magrone, ue spigolo del fondo scavo, ub fine della banchina; vs fondo della
- * soletta, vm fondo del magrone. lift = fondo interno − linea del profilo.
- * std = la zona corrente (fuori dai salti).
+ * verticale dal fondo interno). uo faccia esterna dei muri al fondo della
+ * soletta (uoT in cima: le pareti a scarpa m si allargano salendo), um bordo
+ * del magrone, ue spigolo del fondo scavo, ub fine della banchina; vs fondo
+ * della soletta, vm fondo del magrone, vC cima dell'opera (dei muri, o
+ * estradosso della soletta superiore), vTop cima della superficie finita.
+ * lift = fondo interno − linea del profilo. std = la zona corrente (fuori dai
+ * salti). roof: scatolare (soletta tt e smussi anche in alto; ricoprimento cover).
+ * ring = la U (6 + 6 punti: smussi sempre presenti, anche nulli → la stessa
+ * topologia in un raccordo); roofRing = la soletta con gli smussi alti (8 + 8).
  */
-export function channelShape(c = CHANNEL) {
-  const hb = c.B / 2, uo = hb + c.tw, um = uo + c.om, ue = um + c.se, ub = uo + c.berm;
-  const vs = -c.ts, vm = -c.ts - c.tm, H = c.H;
-  const inner = [[-hb, H], [-hb, 0], [hb, 0], [hb, H]], outer = [[-uo, H], [-uo, vs], [uo, vs], [uo, H]];
+export function channelShape(c = CHANNEL, { roof = false } = {}) {
+  const m = Math.max(0, c.m || 0), hb = c.B / 2, H = c.H, off = c.tw * Math.hypot(1, m);
+  const ch = Math.max(0, Math.min(c.ch || 0, 0.45 * c.B, 0.45 * H));
+  const tt = roof ? Math.max(0, c.tt || 0) : 0, cover = roof ? Math.max(0, c.cover || 0) : 0;
+  const wo = (v) => hb + m * v + off;                    // faccia esterna del muro alla quota v
+  const hbT = hb + m * H, vs = -c.ts, vm = -c.ts - c.tm;
+  const uo = wo(vs), uoT = wo(H), um = uo + c.om, ue = um + c.se, ub = uoT + c.berm;
+  const vC = H + tt, vTop = vC + cover;
+  const inner = [[-hbT, H], [-(hb + m * ch), ch], [-hb + ch, 0], [hb - ch, 0], [hb + m * ch, ch], [hbT, H]];
+  const outer = [[-uoT, H], [-wo(ch), ch], [-uo, vs], [uo, vs], [wo(ch), ch], [uoT, H]];
   const ring = [...inner, ...outer.slice().reverse()];
-  const lift = c.ref === "top" ? -H : c.ref === "base" ? c.ts + c.tm : 0;
-  const areaLean = 2 * um * c.tm;
-  return { c: { ...c }, hb, uo, um, ue, ub, H, vs, vm, inner, outer, ring, lift,
-    areaU: Math.abs(shoelace(ring)), areaLean, gross: 2 * uo * (H - vs), waterArea: c.B * H, top: 2 * uo,
+  let roofRing = null, areaRoof = 0;
+  if (roof && tt > 0) {
+    const hc = hb + m * (H - ch);
+    const lo = [[-uoT, H], [-hbT, H], [-hc, H - ch], [-hbT + ch, H], [hbT - ch, H], [hc, H - ch], [hbT, H], [uoT, H]];
+    const hi = [[-uoT, vC], [-hbT, vC], [-hbT, vC], [-hbT + ch, vC], [hbT - ch, vC], [hbT, vC], [hbT, vC], [uoT, vC]];
+    roofRing = [...lo, ...hi.reverse()];
+    areaRoof = Math.abs(shoelace(roofRing));
+  }
+  const lift = c.ref === "top" ? -vC : c.ref === "base" ? c.ts + c.tm : 0;
+  const areaU = Math.abs(shoelace(ring)), areaLean = 2 * um * c.tm;
+  return { c: { ...c }, roof: !!roofRing, m, ch, tt, cover, hb, hbT, uo, uoT, um, ue, ub, H, vs, vm, vC, vTop, inner, outer, ring, roofRing, lift,
+    areaU, areaRoof, areaC: areaU + areaRoof, areaLean, gross: (uo + uoT) * (H - vs) + 2 * uoT * tt,
+    waterArea: Math.abs(shoelace(inner)) - (roofRing ? ch * ch : 0), top: 2 * uoT,
     std: { kind: "std", vE: vm, ledge: vs, aBelow: areaLean, wall: 0, mix: 0 } };
 }
+/** Lo scatolare: il canale chiuso dalla soletta superiore. */
+export const boxShape = (c = BOX) => channelShape(c, { roof: true });
 
 /** ∫ max(0, g) sui campioni us (crescenti), g lineare fra due campioni; NaN salta l'intervallo. */
 function posArea(us, g) {
@@ -1002,20 +1582,32 @@ function posArea(us, g) {
  * Senza terreno sotto l'opera (fuori dal DTM) la sezione è «asciutta»: niente
  * scavo né rinterro. Ritorna { L, R (piede della scarpa finita), EL, ER
  * (ciglio dello scavo), cut, fill, band, ok, dry, F, E, Lo (funzioni di u) }.
+ * Scatolare (sh.roof): F = max(T, Fe), Fe piana a vTop (estradosso della
+ * soletta + ricoprimento) fino a ub, poi in scarpa 1/fill solo in discesa:
+ * dove il terreno sta sopra si rinterra fino al terreno.
  */
 export function channelCross(sh, T, zone = null, { du = 0.1, reach = 50 } = {}) {
   const z = zone || sh.std, c = sh.c, { ub, ue, H } = sh, vE = z.vE;
   const dry = [-ue, 0, ue].some((u) => !Number.isFinite(T(u)));
-  const L = meet(T, -1, ub, H, c.fill, c.fill, du, reach), R = meet(T, 1, ub, H, c.fill, c.fill, du, reach);
+  let L, R, F, Fe = null;
+  if (sh.roof) {
+    const vT = sh.vTop;
+    const toe = (sgn) => { const t = T(sgn * ub); return t < vT ? meet(T, sgn, ub, vT, c.fill, c.fill, du, reach) : { u: sgn * ub, v: t, kind: null, ok: Number.isFinite(t) }; };
+    L = toe(-1); R = toe(1);
+    Fe = (u) => { const a = Math.abs(u); return a <= ub ? vT : vT - (a - ub) / c.fill; };
+    F = (u) => { const t = T(u); return Number.isFinite(t) ? Math.max(t, Fe(u)) : NaN; };
+  } else {
+    L = meet(T, -1, ub, H, c.fill, c.fill, du, reach); R = meet(T, 1, ub, H, c.fill, c.fill, du, reach);
+    F = (u) => { const a = Math.abs(u), f = u < 0 ? L : R, w = Math.abs(f.u); return a <= ub ? H : a >= w ? T(u) : H + (f.v - H) * (a - ub) / Math.max(1e-12, w - ub); };
+  }
   const EL = meet(T, -1, ue, vE, c.cut, 0, du, reach), ER = meet(T, 1, ue, vE, c.cut, 0, du, reach);
   const E = (u) => { const a = Math.abs(u), e = u < 0 ? EL : ER; return a <= ue ? vE : a >= Math.abs(e.u) ? T(u) : vE + (a - ue) / c.cut; };
-  const F = (u) => { const a = Math.abs(u), f = u < 0 ? L : R, w = Math.abs(f.u); return a <= ub ? H : a >= w ? T(u) : H + (f.v - H) * (a - ub) / Math.max(1e-12, w - ub); };
   const Lo = (u) => Math.min(T(u), E(u));
-  const out = { L, R, EL, ER, cut: 0, fill: 0, band: 0, ok: !dry && L.ok && R.ok && EL.ok && ER.ok, dry, F, E, Lo, zone: z };
+  const out = { L, R, EL, ER, cut: 0, fill: 0, band: 0, ok: !dry && L.ok && R.ok && EL.ok && ER.ok, dry, F, Fe, E, Lo, zone: z };
   if (dry) return out;
   const u0 = Math.min(L.u, EL.u), u1 = Math.max(R.u, ER.u);
   const us = [u0, u1, L.u, R.u, EL.u, ER.u];
-  for (const k of [sh.uo, sh.um, ub, ue]) us.push(-k, k);
+  for (const k of [sh.uo, sh.uoT, sh.um, ub, ue]) us.push(-k, k);
   for (let u = Math.ceil(u0 / du) * du; u < u1; u += du) us.push(u);
   const xs = [...new Set(us.filter((u) => u >= u0 && u <= u1))].sort((a, b) => a - b);
   out.cut = posArea(xs, (u) => T(u) - E(u));
@@ -1031,12 +1623,16 @@ export function channelCross(sh, T, zone = null, { du = 0.1, reach = 50 } = {}) 
  * - right/left: rinterro di un lato, dal muro (sopra il magrone, o sopra il
  *   dente) fino al più lontano fra il piede della scarpa finita e il ciglio
  *   dello scavo; lo scalino del bordo del magrone ha due campioni alla stessa u;
- * - bottom: rinterro sotto l'opera, dove il terreno sta sotto lo scavo.
+ * - bottom: rinterro sotto l'opera, dove il terreno sta sotto lo scavo;
+ * - top (scatolare): rinterro sopra la soletta, da una faccia all'altra.
  * Dove il terreno incrocia lo scavo, e sugli spigoli delle scarpate, va il
  * campione libero più vicino: la mesh ritrova l'area della sezione.
+ * Pareti a scarpa: fra uo e uoT il rinterro sta sotto la faccia esterna del
+ * muro (tre campioni fissi: piede del muro, cima del muro, cima dell'opera;
+ * a pareti verticali tutti sulla stessa u).
  */
 export function channelRings(sh, cr, T, { nS = 10 } = {}) {
-  const { uo, um, ue, ub } = sh, zn = cr.zone;
+  const { uo, uoT, um, ue, ub, H, vs } = sh, zn = cr.zone;
   const us = [], fixed = [];
   const seg = (a, b, n) => { for (let j = 0; j < n; j++) { us.push(a + (b - a) * j / n); fixed.push(j === 0); } };
   seg(cr.EL.u, -ue, nS); seg(-ue, ue, 6); seg(ue, cr.ER.u, nS); us.push(cr.ER.u); fixed.push(true);
@@ -1047,22 +1643,27 @@ export function channelRings(sh, cr, T, { nS = 10 } = {}) {
   });
   const side = (sgn) => {
     const F = sgn > 0 ? cr.R : cr.L, E = sgn > 0 ? cr.ER : cr.EL;
-    const fx = [[uo, "w"], [um, "l"], [um, "s"], [ub, ""], [ue, ""]].sort((a, b) => a[0] - b[0]);
+    const fx = [[uo, "w"], [uoT, "t0"], [uoT, "t"], [um, "l"], [um, "s"], [ub, ""], [ue, ""]].sort((a, b) => a[0] - b[0]);
     const out = Math.max(Math.abs(F.u), Math.abs(E.u), fx[fx.length - 1][0]);
-    const vs = [], kind = [], fix = [];
+    const xs = [], kind = [], fix = [];
     fx.forEach(([u, k], j) => {
-      vs.push(u); kind.push(k); fix.push(true);
-      const next = j + 1 < fx.length ? fx[j + 1][0] : out, n = k === "w" || k === "l" ? 0 : j + 1 < fx.length ? 3 : nS;
-      for (let q = 1; q < n; q++) { vs.push(u + (next - u) * q / n); kind.push(""); fix.push(false); }
+      xs.push(u); kind.push(k); fix.push(true);
+      const next = j + 1 < fx.length ? fx[j + 1][0] : out, n = k === "w" || k === "t0" || k === "l" ? 0 : j + 1 < fx.length ? 3 : nS;
+      for (let q = 1; q < n; q++) { xs.push(u + (next - u) * q / n); kind.push(""); fix.push(false); }
     });
-    vs.push(out); kind.push(""); fix.push(true);
-    snapCross(vs, fix, (u) => T(sgn * u) - cr.E(sgn * u));
-    for (const x of [Math.abs(F.u), Math.abs(E.u)]) snapAt(vs, fix, x);
-    const r = vs.map((u, j) => {
-      const U = sgn * u, ledge = kind[j] === "l" || u < um - 1e-9;
+    xs.push(out); kind.push(""); fix.push(true);
+    snapCross(xs, fix, (u) => T(sgn * u) - cr.E(sgn * u));
+    if (cr.Fe && !cr.dry) snapCross(xs, fix, (u) => T(sgn * u) - cr.Fe(sgn * u));    // scatolare: dove il terreno passa la cima del rilevato
+    for (const x of [Math.abs(F.u), Math.abs(E.u)]) snapAt(xs, fix, x);
+    const wall = (u) => (uoT - uo < 1e-9 ? H : vs + (u - uo) * (H - vs) / (uoT - uo));   // faccia esterna del muro (a scarpa)
+    const r = xs.map((u, j) => {
+      const U = sgn * u, k = kind[j], ledge = k === "l" || u < um - 1e-9;
       let l = ledge ? zn.ledge : cr.Lo(U), h = cr.F(U);
       if (!Number.isFinite(l)) l = zn.vE;
       if (cr.dry || !Number.isFinite(h)) h = l;
+      else if (k === "w") h = Math.min(h, vs);
+      else if (k === "t0") h = Math.min(h, H);
+      else if (k !== "t" && u < uoT - 1e-9) h = Math.min(h, wall(u));
       return [U, l, Math.max(l, h)];
     });
     return sgn > 0 ? r : r.reverse();
@@ -1071,7 +1672,14 @@ export function channelRings(sh, cr, T, { nS = 10 } = {}) {
   for (let j = 0; j <= 6; j++) { bu.push(-um + 2 * um * j / 6); bf.push(j === 0 || j === 6); }
   snapCross(bu, bf, (u) => T(u) - zn.vE);
   const bottom = bu.map((u) => { const t = T(u), v = zn.vE; return [u, cr.dry || !Number.isFinite(t) ? v : Math.min(t, v), v]; });
-  return { cut, right: side(1), left: side(-1), bottom };
+  let top = null;
+  if (sh.roof) {
+    const tu = [], tf = [];
+    for (let j = 0; j <= 8; j++) { tu.push(-uoT + 2 * uoT * j / 8); tf.push(j === 0 || j === 8); }
+    if (!cr.dry) snapCross(tu, tf, (u) => T(u) - cr.Fe(u));
+    top = tu.map((u) => { const f = cr.F(u); return [u, sh.vC, cr.dry || !Number.isFinite(f) ? sh.vC : Math.max(sh.vC, f)]; });
+  }
+  return { cut, right: side(1), left: side(-1), bottom, top };
 }
 
 /** Area del poligono di un anello [[u, basso, alto]…]. */
@@ -1106,21 +1714,29 @@ function runsOf(arr, pred) {
  * cunei) con la loro zona — sulla faccia del muro due sezioni alla stessa
  * progressiva, una per lato —, le sezioni, i volumi per sezioni ragguagliate
  * e le mesh nelle coordinate locali (x − O.x, y − O.y, z). zAt3(x, y) = DTM.
+ * 0.9: p0/p1 = solo quel pezzo dell'asse (un tratto della «sezione» di
+ * un'opera; i salti sui capi danno ancora il muro di testa al tratto alto),
+ * k0 = numerazione dei tratti, shapeAt(p) = la sezione a ogni progressiva
+ * (raccordi); sh.roof = scatolare (la soletta va nel cls).
  * Ritorna { parts: [{ k, p0, p1, length, vol, mesh, miss, n, drops }], drops, miss, length, vol };
- *   vol e mesh: lining (U + muri di testa), lean (magrone), mix (cunei in misto cementato), cut (scavo), fill (rinterro).
+ *   vol e mesh: lining (U + soletta + muri di testa), lean (magrone), mix (cunei in misto cementato), cut (scavo), fill (rinterro).
  */
-export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, step = 1, cuts = [], du = 0.1, reach = 50, nS = 10 } = {}) {
+export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, step = 1, cuts = [], du = 0.1, reach = 50, nS = 10, p0: r0 = -Infinity, p1: r1 = Infinity, k0 = 0, shapeAt = null, extra: more = [] } = {}) {
   const KEYS = ["lining", "lean", "mix", "cut", "fill"];
   const res = { parts: [], drops: [], miss: 0, length: 0, vol: { lining: 0, lean: 0, mix: 0, cut: 0, fill: 0 } };
   const ax3 = buildAxis3D(axis, prof, anchors);
   if (ax3.pts.length < 2) return res;
-  const c = sh.c, map = anchorMap(anchors), lift = sh.lift, { uo, um, vs, vm } = sh;
-  const lo = ax3.pts[0].p, hi = ax3.pts[ax3.pts.length - 1].p;
+  const shOf = shapeAt || (() => sh), map = anchorMap(anchors);
+  const lo = Math.max(r0, ax3.pts[0].p), hi = Math.min(r1, ax3.pts[ax3.pts.length - 1].p);
+  if (!(hi > lo)) return res;
+  const ends = [];                                       // salti sui capi del pezzo: solo per il muro di testa
   for (const d of profileDrops(prof)) {
     const p = map.toP(d.q);
-    if (p <= lo + 1e-6 || p >= hi - 1e-6) continue;
-    const zHi = Math.max(d.zB, d.zA) + lift, zLo = Math.min(d.zB, d.zA) + lift;
-    res.drops.push({ p, q: d.q, dir: d.zA < d.zB ? 1 : -1, dz: zHi - zLo, zHi, zLo, zD: zLo - c.ts - c.key });
+    if (p < lo - 1e-6 || p > hi + 1e-6 || p <= ax3.pts[0].p + 1e-6 || p >= ax3.pts[ax3.pts.length - 1].p - 1e-6) continue;
+    const S = shOf(p), c = S.c;
+    const zHi = Math.max(d.zB, d.zA) + S.lift, zLo = Math.min(d.zB, d.zA) + S.lift;
+    const dr = { p, q: d.q, dir: d.zA < d.zB ? 1 : -1, dz: zHi - zLo, zHi, zLo, zD: zLo - c.ts - c.key };
+    if (p > lo + 1e-6 && p < hi - 1e-6) res.drops.push(dr); else ends.push(dr);
   }
   const B = [lo, hi, ...res.drops.map((d) => d.p)];
   for (const x of cuts) if (x > lo + 0.5 && x < hi - 0.5 && !res.drops.some((d) => Math.abs(d.p - x) < 0.5)) B.push(x);
@@ -1129,51 +1745,53 @@ export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }
   const P3 = (s, u, v) => [s.x + s.nx * u * s.k - O.x, s.y + s.ny * u * s.k - O.y, s.z + v];
   for (let i = 0; i + 1 < bounds.length; i++) {
     const p0 = bounds[i], p1 = bounds[i + 1];
-    const zIn = (p) => zAt(prof, map.toQ(p), p >= p1 - 1e-9 ? -1 : 1) + lift;   // sui capi che cadono su un salto, la quota di questo tratto
+    const zIn = (p) => zAt(prof, map.toQ(p), p >= p1 - 1e-9 ? -1 : 1) + shOf(p).lift;   // sui capi che cadono su un salto, la quota di questo tratto
     // muri di testa: salto alla fine col lato alto prima (sgn +1) o all'inizio col lato alto dopo (sgn −1)
     const walls = [];
-    if (c.hw > 0) for (const d of res.drops) {
+    for (const d of [...res.drops, ...ends]) {
       const sgn = Math.abs(d.p - p1) < 1e-6 && d.dir > 0 ? 1 : Math.abs(d.p - p0) < 1e-6 && d.dir < 0 ? -1 : 0;
-      if (!sgn) continue;
+      const c = shOf(d.p).c;
+      if (!sgn || !(c.hw > 0)) continue;
       const face = sgn > 0 ? Math.max(p0, p1 - c.hw) : Math.min(p1, p0 + c.hw);
-      const w = { d, sgn, a: sgn > 0 ? face : p0, b: sgn > 0 ? p1 : face, face, zPit: d.zD - c.tm, wa: null, wb: null };
+      const w = { d, sgn, a: sgn > 0 ? face : p0, b: sgn > 0 ? p1 : face, face, zPit: d.zD - c.tm, wedge: c.wedge, wa: null, wb: null };
       // cuneo: dalla faccia del muro verso il lato alto, finché la scarpa dal piede del dente incontra il fondo dello scavo
       if (c.wedge > 0) {
-        const far = sgn > 0 ? p0 : p1, f = (p) => zIn(p) + vm - (w.zPit + Math.abs(p - face) / c.wedge);
+        const far = sgn > 0 ? p0 : p1, f = (p) => zIn(p) + shOf(p).vm - (w.zPit + Math.abs(p - face) / c.wedge);
         let s = far;
         if (f(far) < 0) { let a = face, b = far; for (let it = 0; it < 50; it++) { const m = (a + b) / 2; if (f(m) > 0) a = m; else b = m; } s = (a + b) / 2; }
         if (Math.abs(s - face) > 1e-4) { w.wa = Math.min(s, face); w.wb = Math.max(s, face); }
       }
       walls.push(w);
     }
-    const extra = [];
+    const extra = [...more];
     for (const w of walls) { extra.push(w.face); if (w.wa != null) extra.push(w.wa, w.wb); }
     const raw = sweepStations(axis, prof, anchors, { step, extra, p0, p1 });
     const st = raw.filter((s, k) => !(Math.abs(s.p - p0) < 1e-9 && k + 1 < raw.length && Math.abs(raw[k + 1].p - p0) < 1e-9)
       && !(Math.abs(s.p - p1) < 1e-9 && k > 0 && Math.abs(raw[k - 1].p - p1) < 1e-9));
     if (st.length < 2) continue;
     // zona di ogni stazione: sulla faccia del muro due sezioni (cuneo e muro) alla stessa progressiva
-    const zonesAt = (s, zf) => {
+    const zonesAt = (s, zf, S) => {
+      const c = S.c;
       for (const w of walls) {
         const inWall = s.p >= w.a - 1e-9 && s.p <= w.b + 1e-9, inWedge = w.wa != null && s.p >= w.wa - 1e-9 && s.p <= w.wb + 1e-9;
         if (!inWall && !inWedge) continue;
-        const vD = w.d.zD - zf, wallZ = { kind: "wall", vD, vE: vD - c.tm, ledge: vD, wall: 2 * uo * (vs - vD), mix: 0 };
-        wallZ.aBelow = wallZ.wall + sh.areaLean;
-        const vE = Math.min(vm, w.zPit + Math.abs(s.p - w.face) / c.wedge - zf);
-        const wedgeZ = { kind: "wedge", vE, ledge: vs, wall: 0, mix: 2 * um * (vm - vE), aBelow: 2 * um * (vs - vE) };
+        const vD = w.d.zD - zf, wallZ = { kind: "wall", vD, vE: vD - c.tm, ledge: vD, wall: 2 * S.uo * (S.vs - vD), mix: 0 };
+        wallZ.aBelow = wallZ.wall + S.areaLean;
+        const vE = Math.min(S.vm, w.zPit + Math.abs(s.p - w.face) / w.wedge - zf);
+        const wedgeZ = { kind: "wedge", vE, ledge: S.vs, wall: 0, mix: 2 * S.um * (S.vm - vE), aBelow: 2 * S.um * (S.vs - vE) };
         if (inWall && inWedge) return w.sgn > 0 ? [wedgeZ, wallZ] : [wallZ, wedgeZ];
         return [inWall ? wallZ : wedgeZ];
       }
-      return [sh.std];
+      return [S.std];
     };
     const secs = [];
     for (const s of st) {
-      const zf = s.z + lift;
+      const S = shOf(s.p), zf = s.z + S.lift;
       const T = (u) => zAt3(s.x + s.nx * u * s.k, s.y + s.ny * u * s.k) - zf;
-      for (const zone of zonesAt(s, zf)) {
-        const cr = channelCross(sh, T, zone, { du, reach });
-        secs.push({ p: s.p, x: s.x, y: s.y, z: zf, nx: s.nx, ny: s.ny, k: s.k, zone, cr, T,
-          a: { lining: sh.areaU + zone.wall, lean: sh.areaLean, mix: zone.mix, cut: cr.cut, fill: cr.fill } });
+      for (const zone of zonesAt(s, zf, S)) {
+        const cr = channelCross(S, T, zone, { du, reach });
+        secs.push({ p: s.p, x: s.x, y: s.y, z: zf, nx: s.nx, ny: s.ny, k: s.k, sh: S, zone, cr, T,
+          a: { lining: S.areaC + zone.wall, lean: S.areaLean, mix: zone.mix, cut: cr.cut, fill: cr.fill } });
       }
     }
     const vol = { lining: 0, lean: 0, mix: 0, cut: 0, fill: 0 };
@@ -1184,10 +1802,12 @@ export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }
       for (const key of KEYS) vol[key] += (a.a[key] + b.a[key]) / 2 * dp;
     }
     // --- mesh. La U è un solido vero: il verso si decide dal volume; gli anelli
-    //     [basso…, alto al contrario] girano al contrario della U → verso opposto
+    //     [basso…, alto al contrario] girano al contrario della U → verso opposto.
+    //     Gli smussi nulli lasciano punti doppi negli anelli: compactMesh toglie i triangoli che ne vengono
     const uniq = secs.filter((s, j) => !j || s.p - secs[j - 1].p > 1e-9);
-    const U = loftBand(uniq.map((s) => sh.ring.map(([u, v]) => P3(s, u, v))));
-    const fl = !U.flipped;
+    const U0 = loftBand(uniq.map((s) => s.sh.ring.map(([u, v]) => P3(s, u, v)))), fl = !U0.flipped;
+    const roofed = uniq.every((s) => s.sh.roofRing);
+    const roof = roofed ? compactMesh(loftBand(uniq.map((s) => s.sh.roofRing.map(([u, v]) => P3(s, u, v))))) : null;
     const band = (list, ringOf) => {
       if (list.length < 2) return null;
       const zero = [], rings = list.map((s) => {
@@ -1197,24 +1817,27 @@ export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }
       });
       return compactMesh(loftBand(rings, fl, zero));
     };
-    const box = (list, w, lo, hi) => band(list, (s) => [[-w, lo(s), hi(s)], [w, lo(s), hi(s)]]);
+    const box = (list, w, lo, hi) => band(list, (s) => [[-w(s), lo(s), hi(s)], [w(s), lo(s), hi(s)]]);
     const wallRuns = runsOf(secs, (s) => s.zone.kind === "wall");
-    const rg = new Map(secs.map((s) => [s, channelRings(sh, s.cr, s.T, { nS })]));
+    const rg = new Map(secs.map((s) => [s, channelRings(s.sh, s.cr, s.T, { nS })]));
     const mesh = {
-      lining: mergeMeshes([U, ...wallRuns.map((r) => box(r, uo, (s) => s.zone.vD, () => vs))]),
-      lean: mergeMeshes([...runsOf(secs, (s) => s.zone.kind !== "wall").map((r) => box(r, um, () => vm, () => vs)),
-        ...wallRuns.map((r) => box(r, um, (s) => s.zone.vD - c.tm, (s) => s.zone.vD))]),
-      mix: mergeMeshes(runsOf(secs, (s) => s.zone.kind === "wedge").map((r) => box(r, um, (s) => s.zone.vE, () => vm))),
+      lining: mergeMeshes([compactMesh(U0), roof, ...wallRuns.map((r) => box(r, (s) => s.sh.uo, (s) => s.zone.vD, (s) => s.sh.vs))]),
+      lean: mergeMeshes([...runsOf(secs, (s) => s.zone.kind !== "wall").map((r) => box(r, (s) => s.sh.um, (s) => s.sh.vm, (s) => s.sh.vs)),
+        ...wallRuns.map((r) => box(r, (s) => s.sh.um, (s) => s.zone.vD - s.sh.c.tm, (s) => s.zone.vD))]),
+      mix: mergeMeshes(runsOf(secs, (s) => s.zone.kind === "wedge").map((r) => box(r, (s) => s.sh.um, (s) => s.zone.vE, (s) => s.sh.vm))),
       cut: mergeMeshes([band(uniq, (s) => rg.get(s).cut)]),
-      fill: mergeMeshes([band(secs, (s) => rg.get(s).right), band(secs, (s) => rg.get(s).left), band(secs, (s) => rg.get(s).bottom)]),
+      fill: mergeMeshes([band(secs, (s) => rg.get(s).right), band(secs, (s) => rg.get(s).left), band(secs, (s) => rg.get(s).bottom),
+        roofed ? band(uniq, (s) => rg.get(s).top) : null]),
     };
     const miss = uniq.filter((s) => !s.cr.ok).length;
-    res.parts.push({ k: res.parts.length + 1, p0, p1, length, vol, mesh, miss, n: uniq.length,
+    res.parts.push({ k: k0 + res.parts.length + 1, p0, p1, length, vol, mesh, miss, n: uniq.length,
       drops: walls.map((w) => ({ p: w.d.p, dz: w.d.dz, face: w.face, wedge: w.wa != null ? w.wb - w.wa : 0 })),
       sections: secs.map((s) => ({ p: s.p, z: s.z, kind: s.zone.kind, zone: s.zone, a: s.a, ok: s.cr.ok, dry: s.cr.dry })) });
     res.miss += miss; res.length += length;
     for (const key of KEYS) res.vol[key] += vol[key];
   }
+  res.drops.push(...ends);
+  res.drops.sort((a, b) => a.p - b.p);
   return res;
 }
 
@@ -1294,6 +1917,9 @@ export const PIPE_CATALOG = Object.freeze({
   pvc: { norm: "UNI EN 1401 SN8 (SDR 34)", dn: "OD", rows: [[110, 110, 3.2], [125, 125, 3.7], [160, 160, 4.7], [200, 200, 5.9], [250, 250, 7.3], [315, 315, 9.2], [400, 400, 11.7], [500, 500, 14.6], [630, 630, 18.4]] },
   pe: { norm: "UNI EN 13476-3 SN8", dn: "OD", rows: [[160, 160, 10.5], [200, 200, 14], [250, 250, 17], [315, 315, 22], [400, 400, 28.5], [500, 500, 36.5], [630, 630, 47.5], [800, 800, 61], [1000, 1000, 74], [1200, 1200, 85]] },
   cls: { norm: "UNI EN 1916", dn: "ID", rows: [[300, 400, 50], [400, 520, 60], [500, 640, 70], [600, 760, 80], [800, 1000, 100], [1000, 1240, 120], [1200, 1480, 140], [1500, 1840, 170], [1800, 2200, 200], [2000, 2440, 220]] },
+  // acciaio saldato UNI EN 10224, DE della serie UNI EN 10220: fino al DN 500 gli spessori dei listini italiani
+  // (Metalcondotte, Centrotubi: concordi), DN 600–1200 spessori tipici di magazzino (SSAB e listini); oltre, il tubo a mano
+  acciaio: { norm: "UNI EN 10224", dn: "ID", rows: [[80, 88.9, 2.9], [100, 114.3, 3.2], [125, 139.7, 3.6], [150, 168.3, 4], [200, 219.1, 5], [250, 273, 5.6], [300, 323.9, 5.9], [350, 355.6, 6.3], [400, 406.4, 6.3], [450, 457.2, 6.3], [500, 508, 6.3], [600, 610, 6.3], [700, 711, 7.1], [800, 813, 8], [900, 914, 8.8], [1000, 1016, 10], [1200, 1219, 10]] },
   ghisa: { norm: "UNI EN 598", dn: "ID", rows: [[100, 118, 6], [150, 170, 6], [200, 222, 6.3], [250, 274, 6.8], [300, 326, 7.2], [350, 378, 7.7], [400, 429, 8.1], [450, 480, 8.6], [500, 532, 9], [600, 635, 9.9], [700, 738, 10.8], [800, 842, 11.7], [900, 945, 12.6], [1000, 1048, 13.5], [1200, 1255, 15.3], [1400, 1462, 17.1], [1600, 1668, 18.9], [1800, 1875, 20.7], [2000, 2082, 22.5]] },
 });
 /** Il tubo di un materiale e DN dal catalogo → { dn, De, s } in metri (null se non c'è). */
@@ -1520,15 +2146,22 @@ function loftTube(outer, inner) {
  *   vol e mesh: pipe (tubo), bed (letto), surround (rinfianco), cover (ricoprimento), fill (reinterro), restore (ripristino), cut (scavo), emb (rilevato).
  *   minCov / minCovF: ricoprimento minimo dal terreno / dalla superficie finita { v, p }; low: tratti col
  *   ricoprimento dal terreno sotto p.covMin, bank: tratti in rilevato — [{ p0, p1, v }] (v: il minimo, l'altezza massima).
+ * 0.9: p0/p1 = solo quel pezzo dell'asse, k0 = numerazione dei tratti, shapeAt(p) = il tubo a ogni
+ * progressiva (raccordo fra due tubi: tronco di cono); blendW = [{ a, b, c, W }]: nel raccordo [a, b]
+ * (c = la progressiva del cambio) la larghezza va da quella del tratto alla media con W (l'altro lato) in c;
+ * la larghezza UNI EN 1610 del tratto si cerca fuori dai raccordi. widthsOnly: solo le larghezze dei tratti.
  */
-export function pipeSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, step = 1, cuts = [], partWalls = {}, du = 0.1, reach = 50 } = {}) {
+export function pipeSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, step = 1, cuts = [], partWalls = {}, du = 0.1, reach = 50,
+  p0: r0 = -Infinity, p1: r1 = Infinity, k0 = 0, shapeAt = null, extra: more = [], blendW = [], widthsOnly = false } = {}) {
   const KEYS = ["pipe", "bed", "surround", "cover", "fill", "restore", "cut", "emb"];
   const zero = () => Object.fromEntries(KEYS.map((k) => [k, 0]));
   const res = { parts: [], drops: [], miss: 0, length: 0, vol: zero(), shore: 0 };
   const ax3 = buildAxis3D(axis, prof, anchors);
   if (ax3.pts.length < 2) return res;
-  const p = sh.p, map = anchorMap(anchors), lift = sh.lift;
-  const lo = ax3.pts[0].p, hi = ax3.pts[ax3.pts.length - 1].p;
+  const p = sh.p, map = anchorMap(anchors), shOf = shapeAt || (() => sh);
+  const lo = Math.max(r0, ax3.pts[0].p), hi = Math.min(r1, ax3.pts[ax3.pts.length - 1].p);
+  if (!(hi > lo)) return res;
+  const inBlend = (x) => blendW.find((b) => x >= b.a - 1e-9 && x <= b.b + 1e-9);
   for (const d of profileDrops(prof)) {
     const x = map.toP(d.q);
     if (x > lo + 1e-6 && x < hi - 1e-6) res.drops.push({ p: x, q: d.q, dz: Math.abs(d.zA - d.zB) });
@@ -1539,20 +2172,20 @@ export function pipeSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, s
   const bounds = B.filter((x, i) => !i || x - B[i - 1] > 1e-6);
   const P3 = (s, u, v) => [s.x + s.nx * u * s.k - O.x, s.y + s.ny * u * s.k - O.y, s.z + v];
   for (let i = 0; i + 1 < bounds.length; i++) {
-    const p0 = bounds[i], p1 = bounds[i + 1], k = res.parts.length + 1;
+    const p0 = bounds[i], p1 = bounds[i + 1], k = k0 + res.parts.length + 1;
     const mode = partWalls[k] || p.walls, mS = Math.max(0.01, p.slope);
     const stationsOf = (extra) => {
-      const raw = sweepStations(axis, prof, anchors, { step, p0, p1, extra });
+      const raw = sweepStations(axis, prof, anchors, { step, p0, p1, extra: [...more, ...extra] });
       const st = raw.filter((s, j) => !(Math.abs(s.p - p0) < 1e-9 && j + 1 < raw.length && Math.abs(raw[j + 1].p - p0) < 1e-9)
         && !(Math.abs(s.p - p1) < 1e-9 && j > 0 && Math.abs(raw[j - 1].p - p1) < 1e-9));
       // sui capi che cadono su un salto, la quota di questo tratto
       for (const s of st) { const z = zAt(prof, map.toQ(s.p), s.p >= p1 - 1e-9 ? -1 : 1); if (Number.isFinite(z)) s.z = z; }
       return st.map((s) => {
-        const zf = s.z + lift;
+        const S = shOf(s.p), zf = s.z + S.lift;
         const T = (u) => zAt3(s.x + s.nx * u * s.k, s.y + s.ny * u * s.k) - zf;
-        const depth = T(0) - sh.vF;
+        const depth = T(0) - S.vF;
         const vert = mode === "v" || (mode !== "s" && !(depth > p.deep));
-        return { p: s.p, x: s.x, y: s.y, z: zf, nx: s.nx, ny: s.ny, k: s.k, T, depth, m: vert ? 0 : mS };
+        return { p: s.p, x: s.x, y: s.y, z: zf, nx: s.nx, ny: s.ny, k: s.k, sh: S, T, depth, m: vert ? 0 : mS };
       });
     };
     let secs = stationsOf([]);
@@ -1581,25 +2214,29 @@ export function pipeSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, s
     let W = p.width;
     if (!(W > 0)) {
       W = 0;
-      for (const s of secs) W = Math.max(W, en1610Width(p.dn, sh.De, Number.isFinite(s.depth) ? s.depth : 0, s.m < 0.577));
+      const pure = secs.filter((s) => !inBlend(s.p));                             // fuori dai raccordi (se ce n'è)
+      for (const s of pure.length ? pure : secs) W = Math.max(W, en1610Width(s.sh.p.dn, s.sh.De, Number.isFinite(s.depth) ? s.depth : 0, s.m < 0.577));
       W = Math.ceil(W * 20 - 1e-9) / 20;                  // ai 5 cm
     }
     W = Math.max(W, sh.De + 0.1);
-    for (const s of secs) s.cr = pipeCross(sh, s.T, W, s.m, { du, reach });
+    if (widthsOnly) { res.parts.push({ k, p0, p1, width: W }); continue; }
+    // nei raccordi la larghezza va verso la media dei due lati sulla progressiva del cambio
+    const Wat = (s) => { const b = inBlend(s.p); const t = b ? 0.5 * (1 - Math.abs(s.p - b.c) / Math.max(1e-9, b.b - b.a)) : 0; return Math.max(s.sh.De + 0.1, W + (b ? b.W - W : 0) * t); };
+    for (const s of secs) { s.W = Wat(s); s.cr = pipeCross(s.sh, s.T, s.W, s.m, { du, reach }); }
     const vol = zero();
     let length = 0, shore = 0;
     for (let j = 1; j < secs.length; j++) {
       const a = secs[j - 1], b = secs[j], dp = b.p - a.p;
       length += dp;
       for (const key of KEYS) if (key !== "pipe") vol[key] += (a.cr.a[key] + b.cr.a[key]) / 2 * dp;
+      vol.pipe += (a.sh.areaPipe + b.sh.areaPipe) / 2 * dp;
       const sa = a.depth > p.deep ? a.cr.shore : 0, sb = b.depth > p.deep ? b.cr.shore : 0;
       shore += (sa + sb) / 2 * dp;
     }
-    vol.pipe = sh.areaPipe * length;
     // --- mesh: il tubo, poi gli strati (anelli basso →, alto ←: tutti lo stesso verso, deciso sullo scavo)
     const uniq = secs.filter((s, j) => !j || s.p - secs[j - 1].p > 1e-9);           // il tubo non ha scalini
-    const pipe = loftTube(uniq.map((s) => sh.outer.map(([u, v]) => P3(s, u, v))), uniq.map((s) => sh.inner.map(([u, v]) => P3(s, u, v))));
-    const rg = secs.map((s) => pipeRings(sh, s.cr, s.T));
+    const pipe = loftTube(uniq.map((s) => s.sh.outer.map(([u, v]) => P3(s, u, v))), uniq.map((s) => s.sh.inner.map(([u, v]) => P3(s, u, v))));
+    const rg = secs.map((s) => pipeRings(s.sh, s.cr, s.T));
     const ringsOf = (key) => {
       const zeros = [];
       const rings = secs.map((s, j) => {
@@ -1639,9 +2276,401 @@ export function pipeSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, s
     const bank = spans((s) => s.cr.a.emb - 1e-3, (s) => Math.max(0, s.cr.covF - s.cr.cov), Math.max);
     const miss = secs.filter((s) => !s.cr.ok).length;
     res.parts.push({ k, p0, p1, length, vol, shore, width: W, mode, walls: { vertical: vertLen, slope: Math.max(0, length - vertLen) }, minCov, minCovF, low, bank, mesh, miss, n: secs.length,
-      sections: secs.map((s) => ({ p: s.p, z: s.z, depth: s.depth, m: s.m, a: { ...s.cr.a, pipe: sh.areaPipe }, shore: s.cr.shore, cov: s.cr.cov, covF: s.cr.covF, ok: s.cr.ok, dry: s.cr.dry })) });
+      sections: secs.map((s) => ({ p: s.p, z: s.z, depth: s.depth, m: s.m, a: { ...s.cr.a, pipe: s.sh.areaPipe }, W: s.W, shore: s.cr.shore, cov: s.cr.cov, covF: s.cr.covF, ok: s.cr.ok, dry: s.cr.dry })) });
     res.miss += miss; res.length += length; res.shore += shore;
     for (const key of KEYS) res.vol[key] += vol[key];
   }
   return res;
+}
+
+/* =========================================================================
+   Sezioni diverse lungo la stessa opera (0.9). Scelte dell'utente
+   (2026-10-05):
+   - tratti «da/a» con un tipo e misure propri; dove non c'è una riga vale
+     la sezione dell'opera;
+   - al cambio di sezione, fra sezioni COMPATIBILI un raccordo lungo a scelta
+     col baricentro sulla progressiva del cambio (metà per lato), oppure il
+     cambio netto; fra le altre sempre netto. Compatibili: lo stesso tipo con
+     misure diverse, U ↔ scatolare (la soletta comincia e finisce di netto sul
+     cambio), fosso ↔ U (le sponde si raddrizzano: il canale ha le pareti a
+     scarpa), tubo ↔ tubo (tronco di cono, e la trincea si allarga);
+   - il raccordo si divide fra i due tratti sulla progressiva del cambio: in
+     ognuno variano le misure del suo tipo, fino alla media dei due lati sul
+     cambio; scavo, magrone e rinterro seguono il tipo di ciascun lato.
+   ========================================================================= */
+export const SECTION_TYPES = Object.freeze(["ditch", "channel", "box", "pipe"]);
+/** Raccordo: lunghezza proposta; sotto min un tratto non si fa (e un buco più corto si chiude). */
+export const BLEND = Object.freeze({ len: 5, min: 0.5 });
+const isNum = (x) => typeof x === "number" && Number.isFinite(x);
+
+/** Due sezioni si possono raccordare? */
+export function sectionsCompatible(a, b) {
+  if (a === b) return true;
+  const k = [a, b].sort().join("|");
+  return k === "channel|ditch" || k === "box|channel";
+}
+/** I parametri di un tipo completati coi default (il fosso col fondo tf, il tubo col letto esplicito). */
+export function sectionParams(type, P = {}) {
+  if (type === "channel") return { ...CHANNEL, ...P };
+  if (type === "box") return { ...BOX, ...P };
+  if (type === "pipe") { const q = { ...PIPE, ...P }; return { ...q, bed: q.bed != null ? q.bed : 0.1 + q.dn / 10000 }; }
+  const q = { ...DITCH, ...P };
+  return { ...q, tf: q.tf != null ? q.tf : q.t };
+}
+/** La sezione di un tipo coi suoi parametri. */
+export function sectionShape(type, P) {
+  return type === "channel" ? channelShape(P) : type === "box" ? boxShape(P) : type === "pipe" ? pipeShape(P) : ditchShape(P);
+}
+/**
+ * P (sezione di tipo «from») espressa nel tipo «to»: le misure che si
+ * corrispondono; il resto resta quello di own (la sezione di questo lato).
+ * Fosso ↔ canale: fondo b ↔ B, altezza, scarpa delle sponde ↔ delle pareti,
+ * rivestimento t ↔ pareti tw, fondo tf ↔ soletta ts, banchina e scarpe.
+ */
+export function sectionAs(from, P, to, own) {
+  if (from === "ditch" && to !== "ditch") return { ...own, B: P.b, H: P.h, m: P.m, tw: P.t, ts: P.tf != null ? P.tf : P.t, berm: P.berm, cut: P.cut, fill: P.fill };
+  if (to === "ditch" && from !== "ditch") return { ...own, b: P.B, h: P.H, m: P.m || 0, t: P.tw, tf: P.ts, berm: P.berm, cut: P.cut, fill: P.fill };
+  const out = { ...own };
+  for (const k in own) if (isNum(own[k]) && isNum(P[k])) out[k] = P[k];
+  return out;
+}
+/** Le misure a metà strada (t ∈ [0, 1]): solo i numeri, il resto (riferimento, materiale…) resta quello di A. */
+export function sectionLerp(A, B, t) {
+  const out = { ...A };
+  for (const k in A) if (isNum(A[k]) && isNum(B[k])) out[k] = A[k] + (B[k] - A[k]) * t;
+  return out;
+}
+
+/**
+ * I tratti di sezione fra lo e hi: base = { stype, P } (la sezione
+ * dell'opera), rows = [{ id, p0, p1, stype, P, j0?, j1? }] (le righe da/a;
+ * j0/j1 = { mode: "blend"|"cut", len } sul capo iniziale/finale). Righe
+ * sovrapposte: vale la prima, la seguente parte dopo; buchi e resti più
+ * corti di BLEND.min si chiudono. Il cambio fra una riga e la sezione
+ * dell'opera lo decide la riga, fra due righe quella prima.
+ * Ritorna { runs: [{ p0, p1, stype, P, row }], joins: [{ p, comp, blend, len, h, owner: { row, side } | null }] }
+ *   (joins[i] fra runs[i] e runs[i + 1]; h = metà raccordo per lato, ridotta a metà dei due tratti).
+ */
+export function sectionRuns(base, rows, lo, hi) {
+  const R = (rows || []).filter((r) => r && isNum(r.p0) && isNum(r.p1) && SECTION_TYPES.includes(r.stype))
+    .map((r) => ({ r, a: Math.max(lo, Math.min(r.p0, r.p1)), b: Math.min(hi, Math.max(r.p0, r.p1)) }))
+    .sort((x, y) => x.a - y.a);
+  const runs = [];
+  let cur = lo;
+  for (const { r, a: a0, b } of R) {
+    let a = Math.max(a0, cur);
+    if (b - a < BLEND.min) continue;
+    if (a - cur < BLEND.min) { if (runs.length || a - lo < BLEND.min) a = cur; }   // un buco corto si chiude
+    if (a > cur + 1e-9) runs.push({ p0: cur, p1: a, stype: base.stype, P: base.P, row: null });
+    runs.push({ p0: a, p1: b, stype: r.stype, P: r.P, row: r });
+    cur = b;
+  }
+  if (hi - cur > 1e-9) {
+    if (runs.length && hi - cur < BLEND.min) runs[runs.length - 1].p1 = hi;
+    else runs.push({ p0: cur, p1: hi, stype: base.stype, P: base.P, row: null });
+  }
+  const joins = [];
+  for (let i = 0; i + 1 < runs.length; i++) {
+    const X = runs[i], Y = runs[i + 1];
+    const owner = X.row ? { row: X.row.id, side: 1, j: X.row.j1 } : Y.row ? { row: Y.row.id, side: 0, j: Y.row.j0 } : null;
+    const j = (owner && owner.j) || {}, comp = sectionsCompatible(X.stype, Y.stype);
+    const len = isNum(j.len) && j.len > 0 ? j.len : BLEND.len;
+    const h = comp && j.mode !== "cut" ? Math.min(len / 2, (X.p1 - X.p0) / 2, (Y.p1 - Y.p0) / 2) : 0;
+    joins.push({ p: X.p1, comp, blend: h > 1e-3, len, h, owner: owner && { row: owner.row, side: owner.side } });
+  }
+  return { runs, joins };
+}
+
+/**
+ * Un'opera con più sezioni: i tratti di sezione (sectionRuns), ognuno col suo
+ * sweep (fosso, canale, scatolare, tubo) sul suo pezzo d'asse, con le
+ * divisioni dell'utente e i salti; i raccordi con shapeAt; tratti numerati di
+ * seguito. spec = { stype, P, rows }. Il tubo nei raccordi tubo ↔ tubo: prima
+ * le larghezze della trincea di tutti e due i lati, poi lo sweep vero.
+ * Ritorna { parts (ognuno con stype, P, run, blends: [{ p0, p1, to }]), drops, runs, joins, miss, specAt(p) }.
+ */
+export function workSweep(axis, prof, anchors, spec, zAt3, { O = { x: 0, y: 0 }, cuts = [], partWalls = {}, du = 0.1, reach = 50 } = {}) {
+  const res = { parts: [], drops: [], runs: [], joins: [], miss: 0, specAt: () => null };
+  const ax3 = buildAxis3D(axis, prof, anchors);
+  if (ax3.pts.length < 2) return res;
+  const lo = ax3.pts[0].p, hi = ax3.pts[ax3.pts.length - 1].p;
+  const base = { stype: SECTION_TYPES.includes(spec.stype) ? spec.stype : "ditch", P: sectionParams(spec.stype, spec.P) };
+  const rows = (spec.rows || []).map((r) => ({ ...r, P: sectionParams(r.stype, r.P) }));
+  const { runs, joins } = sectionRuns(base, rows, lo, hi);
+  runs.forEach((r, i) => {
+    const jA = i ? joins[i - 1] : null, jB = joins[i] || null;
+    const eqA = jA && jA.blend ? sectionAs(runs[i - 1].stype, runs[i - 1].P, r.stype, r.P) : null;
+    const eqB = jB && jB.blend ? sectionAs(runs[i + 1].stype, runs[i + 1].P, r.stype, r.P) : null;
+    const pure = sectionShape(r.stype, r.P), memo = new Map();
+    r.sh = pure;
+    r.blends = [];
+    if (eqA) r.blends.push({ a: r.p0, b: r.p0 + jA.h, c: r.p0, to: runs[i - 1].stype });
+    if (eqB) r.blends.push({ a: r.p1 - jB.h, b: r.p1, c: r.p1, to: runs[i + 1].stype });
+    r.shapeAt = (p) => {
+      let P = null;
+      if (eqB && p > r.p1 - jB.h) P = sectionLerp(r.P, eqB, Math.min(0.5, 0.5 * (p - (r.p1 - jB.h)) / jB.h));
+      else if (eqA && p < r.p0 + jA.h) P = sectionLerp(r.P, eqA, Math.min(0.5, 0.5 * (r.p0 + jA.h - p) / jA.h));
+      if (!P) return pure;
+      if (!memo.has(p)) memo.set(p, sectionShape(r.stype, P));
+      return memo.get(p);
+    };
+  });
+  const sweep = (r, k0, extra = {}) => {
+    const o = { O, step: r.P.step || 1, cuts, du, reach, p0: r.p0, p1: r.p1, k0, shapeAt: r.blends.length ? r.shapeAt : null, extra: r.blends.flatMap((b) => [b.a, b.b]), ...extra };
+    if (r.stype === "pipe") return pipeSweep(axis, prof, anchors, r.sh, zAt3, { ...o, partWalls });
+    if (r.stype === "channel" || r.stype === "box") return channelSweep(axis, prof, anchors, r.sh, zAt3, o);
+    return ditchPartsSweep(axis, prof, anchors, r.sh, zAt3, o);
+  };
+  const pipeBlend = (i) => runs[i].stype === "pipe" && runs[i].blends.some((b) => b.to === "pipe");
+  // primo giro: i tratti (e le sole larghezze dei tubi coi raccordi tubo ↔ tubo)
+  const out = runs.map(() => null), k0s = [];
+  let k = 0;
+  runs.forEach((r, i) => {
+    k0s[i] = k;
+    out[i] = pipeBlend(i) ? sweep(r, k, { widthsOnly: true, blendW: r.blends.map((b) => ({ ...b, W: NaN })) }) : sweep(r, k);
+    k += out[i].parts.length;
+  });
+  runs.forEach((r, i) => {
+    if (!pipeBlend(i)) return;
+    const Wof = (j, last) => { const ps = out[j] && out[j].parts; return ps && ps.length ? ps[last ? ps.length - 1 : 0].width : NaN; };
+    const blendW = r.blends.filter((b) => b.to === "pipe").map((b) => ({ ...b, W: b.c === r.p0 ? Wof(i - 1, true) : Wof(i + 1, false) })).filter((b) => isNum(b.W));
+    r.wPure = out[i].parts.map((t) => t.width);
+    out[i] = sweep(r, k0s[i], { blendW });
+  });
+  const seen = new Set();
+  runs.forEach((r, i) => {
+    for (const t of out[i].parts) {
+      t.stype = r.stype; t.P = r.P; t.run = i;
+      t.blends = r.blends.filter((b) => b.b > t.p0 + 1e-6 && b.a < t.p1 - 1e-6).map((b) => ({ p0: Math.max(b.a, t.p0), p1: Math.min(b.b, t.p1), to: b.to, c: b.c }));
+      res.parts.push(t);
+    }
+    for (const d of out[i].drops || []) { const key = Math.round(d.p * 1e6); if (!seen.has(key)) { seen.add(key); res.drops.push(d); } }
+    res.miss += out[i].miss || 0;
+  });
+  res.drops.sort((a, b) => a.p - b.p);
+  res.runs = runs.map((r) => ({ p0: r.p0, p1: r.p1, stype: r.stype, P: r.P, row: r.row ? r.row.id : null, blends: r.blends }));
+  res.joins = joins;
+  res.specAt = (p) => {
+    let i = runs.findIndex((r) => p < r.p1);
+    if (i < 0) i = runs.length - 1;
+    const r = runs[i];
+    return r ? { stype: r.stype, P: r.P, sh: r.shapeAt(Math.max(r.p0, Math.min(r.p1, p))), run: i } : null;
+  };
+  return res;
+}
+
+/* -------------------------------------------------------------------------
+   Taglio della vista 3D (0.10): sezione ⟂ all'asse a una progressiva e taglio
+   lungo l'asse (metà modello). Solo vista: i file non cambiano. La pagina
+   scarta i frammenti dal lato nascosto e chiude il taglio coi «tappi»: le
+   fette delle mesh chiuse delle opere, che sul piano di una stazione
+   coincidono con gli anelli delle sezioni (aree esatte).
+   ------------------------------------------------------------------------- */
+
+/**
+ * Campo laterale dell'asse in pianta, per il taglio lungo l'asse. pts = [{ s, x, y }] (planPoints:
+ * archi spezzati; coordinate qualsiasi, anche spostate). at(x, y) → u, distanza con segno dall'asse,
+ * positiva a DESTRA guardando avanti come la u delle sezioni; in f.s la progressiva del piede (sulle
+ * corde degli archi in proporzione). L'asse prosegue oltre i capi sulle tangenti. Ai vertici lo
+ * spigolo è vivo come i giunti delle sezioni (bisettrice, fattore k): nel ventaglio del lato esterno
+ * vale la distanza più grande dalle due rette, così il punto di un anello a u dalla stazione di
+ * vertice ha campo u. Lineare a tratti: dentro i triangoli delle mesh l'interpolazione è esatta
+ * lontano dai vertici. Segmento più vicino a blocchi (riquadro come limite inferiore), cominciando dal
+ * blocco della risposta precedente: i vertici di una mesh vengono in ordine. fill(P, ox, oy, U, Sv)
+ * riempie U (e Sv) per le posizioni P (x, y, z di seguito) spostate di (ox, oy).
+ */
+export function axisField(pts, { chunk = 8 } = {}) {
+  const Q = [];
+  for (const q of pts) { const l = Q[Q.length - 1]; if (!l || Math.hypot(q.x - l.x, q.y - l.y) > 1e-9) Q.push(q); }
+  const n = Q.length - 1;
+  if (n < 1) throw new Error("axisField: servono due punti distinti");
+  const ax = new Float64Array(n), ay = new Float64Array(n), dx = new Float64Array(n), dy = new Float64Array(n), len = new Float64Array(n), s0 = new Float64Array(n), ds = new Float64Array(n);
+  let cum = 0;
+  for (let i = 0; i < n; i++) {
+    const a = Q[i], b = Q[i + 1], L = Math.hypot(b.x - a.x, b.y - a.y);
+    const sa = isNum(a.s) ? a.s : cum, sb = isNum(b.s) ? b.s : cum + L;
+    ax[i] = a.x; ay[i] = a.y; dx[i] = (b.x - a.x) / L; dy[i] = (b.y - a.y) / L; len[i] = L; s0[i] = sa; ds[i] = (sb - sa) / L;
+    cum = sb;
+  }
+  // blocchi: i due segmenti dei capi (semirette) da soli e sempre guardati, gli altri a gruppi col
+  // riquadro, e i blocchi a gruppi di 16 col riquadro (due livelli: assi di migliaia di lati)
+  const blocks = [], groups = [];
+  const bbox = (o, i0, i1) => {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = i0; i < i1; i++) for (const [x, y] of [[ax[i], ay[i]], [ax[i] + dx[i] * len[i], ay[i] + dy[i] * len[i]]]) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    return Object.assign(o, { x0, y0, x1, y1 });
+  };
+  blocks.push({ i0: 0, i1: 1, inf: true });
+  for (let i = 1; i < n - 1; i += chunk) blocks.push(bbox({ i0: i, i1: Math.min(n - 1, i + chunk), inf: false }, i, Math.min(n - 1, i + chunk)));
+  if (n > 1) blocks.push({ i0: n - 1, i1: n, inf: true });
+  const fin = blocks.length - (n > 1 ? 1 : 0);
+  for (let k = 1; k < fin; k += 16) { const k1 = Math.min(fin, k + 16); groups.push(bbox({ k0: k, k1 }, blocks[k].i0, blocks[k1 - 1].i1)); }
+  const blockOf = new Int32Array(n);
+  blocks.forEach((b, k) => { for (let i = b.i0; i < b.i1; i++) blockOf[i] = k; });
+  const far = (b, x, y) => { const ex = Math.max(b.x0 - x, 0, x - b.x1), ey = Math.max(b.y0 - y, 0, y - b.y1); return ex * ex + ey * ey; };
+  let bd = Infinity, bi = 0, bt = 0, bc = 0, last = 0;
+  const seg = (i, x, y) => {
+    let t = (x - ax[i]) * dx[i] + (y - ay[i]) * dy[i], cl = 0;
+    if (t < 0 && i > 0) { t = 0; cl = -1; } else if (t > len[i] && i < n - 1) { t = len[i]; cl = 1; }
+    const fx = ax[i] + dx[i] * t - x, fy = ay[i] + dy[i] * t - y, d = fx * fx + fy * fy;
+    if (d < bd) { bd = d; bi = i; bt = t; bc = cl; }
+  };
+  const scan = (b, x, y) => { for (let i = b.i0; i < b.i1; i++) seg(i, x, y); };
+  const f = {
+    s: 0, n,
+    at(x, y) {
+      bd = Infinity;
+      scan(blocks[last], x, y);
+      if (last !== 0) scan(blocks[0], x, y);
+      if (n > 1 && last !== blocks.length - 1) scan(blocks[blocks.length - 1], x, y);
+      // punti in disordine: prima il blocco più vicino del gruppo più vicino (un buon limite per potare)
+      let gb = null, gd = bd;
+      for (const g of groups) { const d = far(g, x, y); if (d < gd) { gd = d; gb = g; } }
+      if (gb) { let kb = -1, kd = bd; for (let k = gb.k0; k < gb.k1; k++) { const d = far(blocks[k], x, y); if (d < kd) { kd = d; kb = k; } } if (kb >= 0 && kb !== last) scan(blocks[kb], x, y); }
+      for (const g of groups) {
+        if (far(g, x, y) >= bd) continue;
+        for (let k = g.k0; k < g.k1; k++) if (k !== last && far(blocks[k], x, y) < bd) scan(blocks[k], x, y);
+      }
+      const i = bi;
+      last = blockOf[i];
+      if (!bc) { f.s = s0[i] + bt * ds[i]; return (x - ax[i]) * dy[i] - (y - ay[i]) * dx[i]; }
+      // sul vertice fra i e j: la distanza più grande dalle due rette (spigolo vivo, come gli anelli)
+      const j = i + bc, vx = bc < 0 ? ax[i] : ax[i] + dx[i] * len[i], vy = bc < 0 ? ay[i] : ay[i] + dy[i] * len[i];
+      const ui = (x - vx) * dy[i] - (y - vy) * dx[i], uj = (x - vx) * dy[j] - (y - vy) * dx[j];
+      f.s = bc < 0 ? s0[i] : s0[i] + len[i] * ds[i];
+      return Math.abs(ui) >= Math.abs(uj) ? ui : uj;
+    },
+    fill(P, ox, oy, U, Sv = null) {
+      for (let k = 0, m = P.length / 3; k < m; k++) { U[k] = f.at(P[3 * k] + ox, P[3 * k + 1] + oy); if (Sv) Sv[k] = f.s; }
+      return U;
+    },
+  };
+  return f;
+}
+
+/* punti sugli spigoli che passano il livello 0 di F (F = 0 conta come positivo): un punto per spigolo,
+   lo stesso per i due triangoli che lo condividono; per ogni triangolo tagliato il segmento fra i due.
+   Le mesh del motore sono chiuse per POSIZIONE (anelli con vertici propri che si toccano): con `weld`
+   gli spigoli si riconoscono dai vertici uniti per posizione (al micron) */
+function sliceEdges(P, I, F, G, weld = false) {
+  const nv = P.length / 3, ids = new Map(), X = [], Gs = [], A = [], B = [];
+  let W = null;
+  if (weld) {
+    const seen = new Map();
+    W = new Int32Array(nv);
+    for (let v = 0; v < nv; v++) {
+      const k = Math.round(P[3 * v] * 1e6) + "," + Math.round(P[3 * v + 1] * 1e6) + "," + Math.round(P[3 * v + 2] * 1e6);
+      const w = seen.get(k);
+      if (w === undefined) { seen.set(k, v); W[v] = v; } else W[v] = w;
+    }
+  }
+  const at = (a, b) => {
+    if (W) { a = W[a]; b = W[b]; }
+    const i = Math.min(a, b), j = Math.max(a, b), key = i * nv + j;
+    let id = ids.get(key);
+    if (id === undefined) {
+      const t = F[i] / (F[i] - F[j]);
+      X.push(P[3 * i] + t * (P[3 * j] - P[3 * i]), P[3 * i + 1] + t * (P[3 * j + 1] - P[3 * i + 1]), P[3 * i + 2] + t * (P[3 * j + 2] - P[3 * i + 2]));
+      Gs.push(G ? G[i] + t * (G[j] - G[i]) : 0);
+      id = Gs.length - 1; ids.set(key, id);
+    }
+    return id;
+  };
+  for (let k = 0; k < I.length; k += 3) {
+    const a = I[k], b = I[k + 1], c = I[k + 2], sa = F[a] >= 0, sb = F[b] >= 0, sc = F[c] >= 0;
+    if (sa === sb && sb === sc) continue;
+    const e = [];
+    if (sa !== sb) e.push(at(a, b));
+    if (sb !== sc) e.push(at(b, c));
+    if (sc !== sa) e.push(at(c, a));
+    if (e[0] === e[1]) continue;                               // triangolo degenere (due vertici nello stesso punto)
+    A.push(e[0]); B.push(e[1]);
+  }
+  return { X, G: Gs, A, B };
+}
+
+/**
+ * Fetta di una mesh CHIUSA col livello 0 del campo per vertice F (distanza con segno da un piano, o
+ * u − scostamento): anelli chiusi di punti sugli spigoli, ognuno coi punti [x, y, z] di seguito e il
+ * parametro G interpolato (l'ascissa lungo il taglio; facoltativo). Le catene che non si chiudono
+ * (mesh non a tenuta) si scartano e si contano in `open`. I vertici si uniscono per posizione.
+ * Ritorna { loops: [{ xyz: number[], g: number[] }], open }.
+ */
+export function sliceLoops({ positions: P, index: I }, F, G = null) {
+  const { X, G: Gs, A, B } = sliceEdges(P, I, F, G, true);
+  const adj = new Map(), add = (p, s) => { const l = adj.get(p); if (l) l.push(s); else adj.set(p, [s]); };
+  A.forEach((p, s) => { add(p, s); add(B[s], s); });
+  const used = new Uint8Array(A.length), loops = [];
+  let open = 0;
+  for (let s0 = 0; s0 < A.length; s0++) {
+    if (used[s0]) continue;
+    used[s0] = 1;
+    const start = A[s0], chain = [start];
+    let cur = B[s0], closed = false;
+    for (;;) {
+      if (cur === start) { closed = true; break; }
+      chain.push(cur);
+      let nx = -1;
+      for (const s of adj.get(cur)) if (!used[s]) { nx = s; break; }
+      if (nx < 0) break;
+      used[nx] = 1;
+      cur = A[nx] === cur ? B[nx] : A[nx];
+    }
+    if (!closed || chain.length < 3) { open++; continue; }
+    const xyz = [], g = [];
+    for (const id of chain) { xyz.push(X[3 * id], X[3 * id + 1], X[3 * id + 2]); g.push(Gs[id]); }
+    loops.push({ xyz, g });
+  }
+  return { loops, open };
+}
+
+/** Fetta di una superficie (il DTM): i segmenti, [x, y, z, x, y, z] di seguito, per disegnarli come linee. */
+export function sliceSegments({ positions: P, index: I }, F) {
+  const { X, A, B } = sliceEdges(P, I, F, null), out = new Float64Array(A.length * 6);
+  A.forEach((a, s) => { const b = B[s]; out.set([X[3 * a], X[3 * a + 1], X[3 * a + 2], X[3 * b], X[3 * b + 1], X[3 * b + 2]], 6 * s); });
+  return out;
+}
+
+/**
+ * Anelli piani (in 2D: [[x, y], …]) → regioni da riempire: ogni anello esterno coi suoi fori, per
+ * profondità di annidamento (pari = esterno, dispari = foro dell'anello più piccolo che lo contiene);
+ * il verso degli anelli non conta. Ritorna [{ outer, holes: […], area }] (indici negli anelli, area
+ * netta = esterno − fori).
+ */
+export function nestLoops(L) {
+  const area = L.map((r) => Math.abs(shoelace(r)));
+  const inside = ([x, y], r) => {
+    let c = false;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      const [xi, yi] = r[i], [xj, yj] = r[j];
+      if ((yi > y) !== (yj > y) && x < xi + (y - yi) * (xj - xi) / (yj - yi)) c = !c;
+    }
+    return c;
+  };
+  // un punto dell'anello un poco dentro: il medio di un lato spostato verso l'interno (gli anelli che si toccano non sbagliano)
+  const probe = (r) => {
+    const s = Math.sign(shoelace(r)) || 1;
+    let best = 0, bl = -1;
+    for (let i = 0; i < r.length; i++) { const q = r[(i + 1) % r.length], l = Math.hypot(q[0] - r[i][0], q[1] - r[i][1]); if (l > bl) { bl = l; best = i; } }
+    const p = r[best], q = r[(best + 1) % r.length], e = 1e-6 * Math.max(1, bl);
+    return [(p[0] + q[0]) / 2 - s * (q[1] - p[1]) / bl * e, (p[1] + q[1]) / 2 + s * (q[0] - p[0]) / bl * e];
+  };
+  const parent = L.map(() => -1), depth = L.map(() => 0);
+  L.forEach((r, k) => {
+    if (!(area[k] > 0)) return;
+    const pt = probe(r);
+    L.forEach((o, j) => {
+      if (j === k || !(area[j] > area[k]) || !inside(pt, o)) return;
+      depth[k]++;
+      if (parent[k] < 0 || area[j] < area[parent[k]]) parent[k] = j;
+    });
+  });
+  const out = [];
+  L.forEach((r, k) => { if (area[k] > 0 && depth[k] % 2 === 0) out.push({ outer: k, holes: [], area: area[k] }); });
+  L.forEach((r, k) => {
+    if (!(area[k] > 0) || depth[k] % 2 === 0) return;
+    const o = out.find((x) => x.outer === parent[k]);
+    if (o) { o.holes.push(k); o.area -= area[k]; }
+  });
+  return out;
 }
