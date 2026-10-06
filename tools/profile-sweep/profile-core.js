@@ -2387,13 +2387,19 @@ export function sectionRuns(base, rows, lo, hi) {
  * divisioni dell'utente e i salti; i raccordi con shapeAt; tratti numerati di
  * seguito. spec = { stype, P, rows }. Il tubo nei raccordi tubo ↔ tubo: prima
  * le larghezze della trincea di tutti e due i lati, poi lo sweep vero.
- * Ritorna { parts (ognuno con stype, P, run, blends: [{ p0, p1, to }]), drops, runs, joins, miss, specAt(p) }.
+ * bridges (0.15): tratti a ponte [{ id, p0, p1 }] — i loro capi dividono i tratti e nei tratti dentro
+ * un ponte resta solo la struttura (bridgePart) più lo spazio riservato sotto (bridgeVoid).
+ * Ritorna { parts (ognuno con stype, P, run, blends: [{ p0, p1, to }], bridge?), drops, runs, joins, miss,
+ * bridges: [{ id, p0, p1, length, parts: [k], void }], specAt(p) }.
  */
-export function workSweep(axis, prof, anchors, spec, zAt3, { O = { x: 0, y: 0 }, cuts = [], partWalls = {}, du = 0.1, reach = 50 } = {}) {
-  const res = { parts: [], drops: [], runs: [], joins: [], miss: 0, specAt: () => null };
+export function workSweep(axis, prof, anchors, spec, zAt3, { O = { x: 0, y: 0 }, cuts: cuts0 = [], partWalls = {}, du = 0.1, reach = 50, bridges: br0 = [] } = {}) {
+  const res = { parts: [], drops: [], runs: [], joins: [], miss: 0, bridges: [], specAt: () => null };
   const ax3 = buildAxis3D(axis, prof, anchors);
   if (ax3.pts.length < 2) return res;
   const lo = ax3.pts[0].p, hi = ax3.pts[ax3.pts.length - 1].p;
+  const bridges = br0.filter((b) => b && isNum(b.p0) && isNum(b.p1)).map((b) => ({ id: b.id, p0: Math.max(lo, Math.min(b.p0, b.p1)), p1: Math.min(hi, Math.max(b.p0, b.p1)) }))
+    .filter((b) => b.p1 - b.p0 >= BLEND.min).sort((a, b) => a.p0 - b.p0);
+  const cuts = [...cuts0, ...bridges.flatMap((b) => [b.p0, b.p1])];
   const base = { stype: SECTION_TYPES.includes(spec.stype) ? spec.stype : "ditch", P: sectionParams(spec.stype, spec.P) };
   const rows = (spec.rows || []).map((r) => ({ ...r, P: sectionParams(r.stype, r.P) }));
   const { runs, joins } = sectionRuns(base, rows, lo, hi);
@@ -2456,7 +2462,124 @@ export function workSweep(axis, prof, anchors, spec, zAt3, { O = { x: 0, y: 0 },
     const r = runs[i];
     return r ? { stype: r.stype, P: r.P, sh: r.shapeAt(Math.max(r.p0, Math.min(r.p1, p))), run: i } : null;
   };
+  // ponti (0.15): i tratti col centro dentro un ponte perdono le terre e prendono lo spazio riservato
+  for (const b of bridges) {
+    const B = { ...b, length: b.p1 - b.p0, parts: [], void: 0 };
+    for (const t of res.parts) {
+      const mid = (t.p0 + t.p1) / 2;
+      if (mid <= b.p0 || mid >= b.p1 || t.bridge != null) continue;
+      bridgePart(t, b.id);
+      const v = bridgeVoid(axis, prof, anchors, res.specAt, zAt3, { p0: t.p0, p1: t.p1, step: (t.P && t.P.step) || 1, O });
+      if (v.mesh) { t.mesh = { ...(t.mesh || {}), void: v.mesh }; t.vol.void = v.volume; B.void += v.volume; }
+      B.parts.push(t.k);
+    }
+    res.bridges.push(B);
+  }
   return res;
+}
+
+/* =========================================================================
+   Tratti fuori terra e ponti (0.15). Scelte dell'utente (2026-10-06):
+   «tracciato sopra il terreno = ponte» non vale sempre (rilevati bassi,
+   avvallamenti brevi, DTM sbagliato, attraversamenti a quota bassa) → il tool
+   PROPONE i tratti dove il fondo dell'opera sta sopra il terreno di almeno h
+   per almeno l (a scelta), e l'utente conferma rilevato (com'è oggi) o ponte.
+   Nel ponte niente terre: scavo, rinterri, riporto, rilevato, magrone, cuneo
+   e strati della trincea; restano la struttura (rivestimento del fosso,
+   canale o scatolare coi muri di testa, tubo) e un SEGNAPOSTO: lo spazio sotto
+   l'opera fino al terreno, largo quanto la sezione. Il ponte vero si progetta
+   altrove, come i tombini; nell'IFC un IfcBridge con lo spazio riservato.
+   ========================================================================= */
+export const BRIDGE = Object.freeze({ h: 2, l: 5, gap: 2 });
+const BRIDGE_KEEP = new Set(["lining", "pipe"]);
+
+/** Ingombro della struttura nella sezione: semilarghezza w e fondo rispetto alla linea del profilo (sollevamento compreso). */
+export function structureBox(sh) {
+  let w = 0, v = Infinity;
+  for (const [u, vv] of sh.outer) { w = Math.max(w, Math.abs(u)); v = Math.min(v, vv); }
+  return { w, bottom: v + (sh.lift || 0) };
+}
+
+/** Un tratto diventa «a ponte»: via volumi e mesh delle terre e i loro avvisi (ricoprimento, pareti, rilevato). */
+export function bridgePart(t, id) {
+  t.bridge = id;
+  for (const k of Object.keys(t.vol || {})) if (!BRIDGE_KEEP.has(k)) t.vol[k] = 0;
+  if (t.mesh) for (const k of Object.keys(t.mesh)) if (!BRIDGE_KEEP.has(k)) delete t.mesh[k];
+  t.miss = 0;
+  if ("shore" in t) t.shore = 0;
+  if ("bank" in t) t.bank = [];
+  if ("low" in t) t.low = [];
+  if ("minCov" in t) t.minCov = null;
+  if ("minCovF" in t) t.minCovF = null;
+  if (t.walls) t.walls = { vertical: 0, slope: 0 };
+  return t;
+}
+
+/**
+ * Altezza dell'opera sul terreno lungo l'asse: per stazione (sweepStations, passo step) il fondo della
+ * struttura (linea del profilo + structureBox della sezione a quella progressiva, specAt) meno il terreno
+ * sull'asse (zAt3; NaN fuori dal DTM). Ritorna [{ p, h }].
+ */
+export function clearance(axis, prof, anchors, specAt, zAt3, { step = 1 } = {}) {
+  return sweepStations(axis, prof, anchors, { step }).map((st) => {
+    const sp = specAt(st.p), b = sp && sp.sh ? structureBox(sp.sh).bottom : 0;
+    return { p: st.p, h: st.z + b - zAt3(st.x, st.y) };
+  });
+}
+
+/**
+ * Tratti fuori terra (i candidati ponte): h ≥ hMin di fila per almeno lMin; i buchi più corti di gap
+ * (h sotto la soglia o senza DTM) si chiudono. samples = [{ p, h }] crescenti (clearance).
+ * Ritorna [{ p0, p1, length, hMax, pMax }].
+ */
+export function aboveGround(samples, { h: hMin = BRIDGE.h, l: lMin = BRIDGE.l, gap = BRIDGE.gap } = {}) {
+  const runs = [];
+  let cur = null, hole = false;                          // hole: un campione sotto la soglia (o senza DTM) dopo l'ultimo sopra
+  for (const s of samples) {
+    const up = Number.isFinite(s.h) && s.h >= hMin;
+    if (!up) { hole = true; continue; }
+    if (cur && (!hole || s.p - cur.last <= gap + 1e-9)) { cur.last = s.p; if (s.h > cur.hMax) { cur.hMax = s.h; cur.pMax = s.p; } }
+    else { if (cur) runs.push(cur); cur = { first: s.p, last: s.p, hMax: s.h, pMax: s.p }; }
+    hole = false;
+  }
+  if (cur) runs.push(cur);
+  // i capi: a metà fra l'ultimo campione sotto e il primo sopra la soglia (dove h la attraversa, se lo si sa)
+  const at = (p, dir) => {
+    const i = samples.findIndex((s) => s.p >= p - 1e-9), j = i + dir;
+    if (i < 0 || j < 0 || j >= samples.length) return p;
+    const a = samples[i], b = samples[j];
+    if (Number.isFinite(a.h) && Number.isFinite(b.h) && a.h !== b.h) return a.p + (b.p - a.p) * (a.h - hMin) / (a.h - b.h);
+    return (a.p + b.p) / 2;
+  };
+  return runs.map((r) => {
+    const p0 = at(r.first, -1), p1 = at(r.last, 1);
+    return { p0, p1, length: p1 - p0, hMax: r.hMax, pMax: r.pMax };
+  }).filter((r) => r.length >= lMin);
+}
+
+/**
+ * Lo spazio riservato al ponte su [p0, p1] (il segnaposto): sotto la struttura fino al terreno, largo
+ * quanto il suo ingombro — per stazione un rettangolo col fondo dell'opera sopra e il terreno ai due
+ * spigoli sotto; dove il terreno sta sopra (o manca), spessore nullo. Mesh chiusa nelle coordinate locali
+ * (x − O.x, y − O.y, z), volume e altezza massima. Ritorna { mesh, volume, hMax } (mesh null se vuoto).
+ */
+export function bridgeVoid(axis, prof, anchors, specAt, zAt3, { p0, p1, step = 1, O = { x: 0, y: 0 } } = {}) {
+  const st = sweepStations(axis, prof, anchors, { step, p0, p1 });
+  if (st.length < 2) return { mesh: null, volume: 0, hMax: 0 };
+  let hMax = 0;
+  const zero = [];
+  const rings = st.map((s) => {
+    const sp = specAt(s.p), bx = sp && sp.sh ? structureBox(sp.sh) : { w: 0.5, bottom: 0 }, top = s.z + bx.bottom;
+    const P = (u, z) => [s.x + s.nx * u * s.k - O.x, s.y + s.ny * u * s.k - O.y, z];
+    const t = (u) => { const z = zAt3(s.x + s.nx * u * s.k, s.y + s.ny * u * s.k); return Number.isFinite(z) ? Math.min(z, top) : top; };
+    const tL = t(-bx.w), tR = t(bx.w);
+    hMax = Math.max(hMax, top - Math.max(tL, tR));
+    zero.push([top - tL < 1e-9, top - tR < 1e-9, false]);
+    return [P(-bx.w, tL), P(bx.w, tR), P(bx.w, top), P(-bx.w, top)];
+  });
+  if (!(hMax > 1e-6)) return { mesh: null, volume: 0, hMax: 0 };
+  const mesh = compactMesh(loftBand(rings, null, zero));
+  return { mesh, volume: Math.abs(meshVolume(mesh)), hMax };
 }
 
 /* -------------------------------------------------------------------------
@@ -2673,4 +2796,117 @@ export function nestLoops(L) {
     if (o) { o.holes.push(k); o.area -= area[k]; }
   });
   return out;
+}
+
+/* =========================================================================
+   IFC di contesto (0.14): modelli esistenti (strade, reti, edifici, opere
+   vicine) caricati come riferimento, mai esportati. Il Worker della pagina
+   legge l'IFC con web-ifc e consegna le mesh per classe nelle coordinate del
+   SITO del modello, in doppia precisione; qui vanno in coordinate di mappa,
+   si tengono solo gli elementi nel corridoio delle opere e si compattano
+   attorno a un'origine (Float32 piccoli, come le mesh delle opere). Per il
+   taglio della vista si affettano solo gli elementi attraversati.
+   ========================================================================= */
+
+/**
+ * raw: [{ cls, glass, P: Float64Array (x, y, z del sito), C: Uint8Array (r, g, b per vertice),
+ *         I: Uint32Array (indici nella parte), E: Uint32Array (per elemento: v0, v1, i0, i1, id) }]
+ * frame: { E, N, H, c, s, k } sito → mappa (ifcFrames del Terrain Sculptor) o null = le coordinate del file.
+ * box: { x0, y0, x1, y1 } in mappa (il corridoio) o null = tutto. Un elemento resta se il suo riquadro
+ * in pianta tocca il box.
+ * Ritorna { ox, oy, parts: [{ cls, glass, P: Float32Array (x − ox, y − oy, quota), C, I, E }],
+ * elements, triangles, dropped, bbox: { x0, y0, z0, x1, y1, z1 } | null } — parti vuote tolte.
+ */
+export function ctxAssemble(raw, frame = null, box = null) {
+  const F = frame, tx = F ? (x, y) => F.E + F.k * (F.c * x - F.s * y) : (x) => x, ty = F ? (x, y) => F.N + F.k * (F.s * x + F.c * y) : (x, y) => y;
+  const tz = F ? (z) => F.H + F.k * z : (z) => z;
+  const bb = { x0: Infinity, y0: Infinity, z0: Infinity, x1: -Infinity, y1: -Infinity, z1: -Infinity };
+  const ids = new Set(), dropIds = new Set();
+  // 1) in mappa (doppia precisione) e quali elementi restano
+  const tmp = raw.map((p) => {
+    const n = p.P.length / 3, M = new Float64Array(p.P.length);
+    for (let v = 0; v < n; v++) {
+      const x = p.P[3 * v], y = p.P[3 * v + 1];
+      M[3 * v] = tx(x, y); M[3 * v + 1] = ty(x, y); M[3 * v + 2] = tz(p.P[3 * v + 2]);
+    }
+    const keep = [];
+    for (let e = 0; e + 4 < p.E.length; e += 5) {
+      const v0 = p.E[e], v1 = p.E[e + 1];
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let v = v0; v < v1; v++) { const x = M[3 * v], y = M[3 * v + 1]; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (!(x1 >= x0) || (box && (x1 < box.x0 || x0 > box.x1 || y1 < box.y0 || y0 > box.y1))) { dropIds.add(p.E[e + 4]); continue; }
+      keep.push(e);
+      ids.add(p.E[e + 4]);
+      for (let v = v0; v < v1; v++) {
+        const x = M[3 * v], y = M[3 * v + 1], z = M[3 * v + 2];
+        if (x < bb.x0) bb.x0 = x; if (x > bb.x1) bb.x1 = x; if (y < bb.y0) bb.y0 = y; if (y > bb.y1) bb.y1 = y; if (z < bb.z0) bb.z0 = z; if (z > bb.z1) bb.z1 = z;
+      }
+    }
+    return { p, M, keep };
+  });
+  const has = bb.x1 >= bb.x0, ox = has ? Math.round((bb.x0 + bb.x1) / 2) : 0, oy = has ? Math.round((bb.y0 + bb.y1) / 2) : 0;
+  // 2) solo gli elementi rimasti, attorno all'origine
+  const parts = [];
+  let triangles = 0;
+  for (const { p, M, keep } of tmp) {
+    if (!keep.length) continue;
+    let nv = 0, ni = 0;
+    for (const e of keep) { nv += p.E[e + 1] - p.E[e]; ni += p.E[e + 3] - p.E[e + 2]; }
+    const P = new Float32Array(nv * 3), C = new Uint8Array(nv * 3), I = new Uint32Array(ni), E = new Uint32Array(keep.length * 5);
+    let ov = 0, oi = 0, k = 0;
+    for (const e of keep) {
+      const v0 = p.E[e], v1 = p.E[e + 1], i0 = p.E[e + 2], i1 = p.E[e + 3];
+      for (let v = v0; v < v1; v++) {
+        const w = ov + v - v0;
+        P[3 * w] = M[3 * v] - ox; P[3 * w + 1] = M[3 * v + 1] - oy; P[3 * w + 2] = M[3 * v + 2];
+        C[3 * w] = p.C[3 * v]; C[3 * w + 1] = p.C[3 * v + 1]; C[3 * w + 2] = p.C[3 * v + 2];
+      }
+      for (let i = i0; i < i1; i++) I[oi + i - i0] = p.I[i] - v0 + ov;
+      E.set([ov, ov + v1 - v0, oi, oi + i1 - i0, p.E[e + 4]], 5 * k++);
+      ov += v1 - v0; oi += i1 - i0;
+    }
+    triangles += ni / 3;
+    parts.push({ cls: p.cls, glass: !!p.glass, P, C, I, E });
+  }
+  for (const id of ids) dropIds.delete(id);                  // un elemento con una parte dentro e una fuori conta dentro
+  return { ox, oy, parts, elements: ids.size, triangles, dropped: dropIds.size, bbox: has ? bb : null };
+}
+
+/**
+ * Fette per il taglio della vista di una parte di contesto (ctxAssemble): F è il campo per vertice
+ * (distanza con segno dal piano, o u − scostamento), G l'ascissa lungo il taglio (facoltativa). Si
+ * affettano solo gli elementi con F di segno diverso, e di questi solo i triangoli attraversati (un
+ * tubo o una strada sono spesso UN elemento lungo centinaia di metri: saldare tutti i suoi vertici a
+ * ogni passo del taglio costava 130 ms): anelli chiusi (sliceLoops) per i tappi, con l'indice
+ * dell'elemento (el, per il colore), e i segmenti (sliceSegments) degli elementi che non sono a
+ * tenuta, per disegnarli come linee. Ritorna { loops: [{ xyz, g, el }], segs: number[], cut }.
+ */
+export function ctxSlice(part, F, G = null) {
+  const { P, I, E } = part, loops = [], segs = [], at = new Map();
+  let cut = 0;
+  for (let e = 0; e + 4 < E.length; e += 5) {
+    const v0 = E[e], v1 = E[e + 1], i0 = E[e + 2], i1 = E[e + 3];
+    let pos = false, neg = false;
+    for (let v = v0; v < v1 && !(pos && neg); v++) if (F[v] >= 0) pos = true; else neg = true;
+    if (!pos || !neg) continue;
+    // i soli triangoli attraversati, coi loro vertici rinumerati
+    at.clear();
+    const idx = [], xyz = [], fs = [], gs = [];
+    for (let i = i0; i + 2 < i1; i += 3) {
+      const a = I[i], b = I[i + 1], c = I[i + 2], sa = F[a] >= 0;
+      if (sa === F[b] >= 0 && sa === F[c] >= 0) continue;
+      for (const v of [a, b, c]) {
+        let k = at.get(v);
+        if (k === undefined) { k = fs.length; at.set(v, k); xyz.push(P[3 * v], P[3 * v + 1], P[3 * v + 2]); fs.push(F[v]); if (G) gs.push(G[v]); }
+        idx.push(k);
+      }
+    }
+    if (!idx.length) continue;
+    cut++;
+    const sub = { positions: xyz, index: idx }, Fs = fs;
+    const r = sliceLoops(sub, Fs, G ? gs : null);
+    for (const l of r.loops) loops.push({ ...l, el: e / 5 });
+    if (r.open) { const sg = sliceSegments(sub, Fs); for (let k = 0; k < sg.length; k++) segs.push(sg[k]); }
+  }
+  return { loops, segs, cut };
 }

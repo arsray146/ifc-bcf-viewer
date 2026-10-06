@@ -684,7 +684,9 @@ export function stepReal(x, dec = 6) {
  *             parts: [{ name, p0, p1, length, mesh: { lining, cut, fill (+ lean, mix) } (coordinate locali),
  *                       vol: { lining, cut, fill (+ lean, mix) }, drops? [{ dz }],
  *                       section? (0.9: la sezione del tratto, se diversa da quella dell'opera; scatolare =
- *                       { type: "box", …canale, tt, ch, cover } → IfcPipeSegment .CULVERT.), blendNote? (raccordo) }] }]
+ *                       { type: "box", …canale, tt, ch, cover } → IfcPipeSegment .CULVERT.), blendNote? (raccordo),
+ *                       bridge? (0.15: tratto a ponte { id, name, p0, p1, length, hMax } — senza terre, mesh.void = spazio
+ *                       riservato sotto l'opera → IfcBridge col tratto dentro e un IfcBuildingElementProxy .PROVISIONFORSPACE.) }] }]
  *     — oppure un'opera sola coi campi axis, pvi, section, parts direttamente nel job (nome = name);
  *   labels: { … nomi dei pset/proprietà nella lingua della pagina },
  *   app: { name, version }, date (Date), guid?: () => stringa (test)
@@ -827,8 +829,27 @@ export function ifcDitch(job) {
   const pipeStyle = (mat) => once("pipe:" + mat, () => style(PIPE_RGB[mat] || [0.6, 0.6, 0.6], lb.pipe || "tubo"));
   const layerStyle = (k) => once("layer:" + k, () => style(LAYER_RGB[k], k, k === "restore" ? 0 : 0.4));
   const psName = lb.pset || "ViewIFC_SviluppoProfili";
+  const bridges = new Map();
+  const bridgeOf = (w, part) => {
+    const key = (w.name || "") + "\u0000" + part.bridge.id;
+    if (!bridges.has(key)) {
+      const br = part.bridge, name = (w.name ? w.name + " - " : "") + (br.name || lb.bridge || "Ponte");
+      const ent = e(`IFCBRIDGE(${G()},${oh},${S(name)},${S(lb.bridgeNote || "Da progettare: segnaposto")},$,${here()},$,$,.ELEMENT.,.NOTDEFINED.)`);
+      props(ent, psName, [[lb.work || "Opera", `IFCLABEL(${S(w.name || "")})`], [lb.p0 || "Progressiva iniziale", len(br.p0)], [lb.p1 || "Progressiva finale", len(br.p1)],
+        [lb.length || "Lunghezza", len(br.length)], ...(Number.isFinite(br.hMax) ? [[lb.bridgeH || "Altezza massima sul terreno", len(br.hMax)]] : [])]);
+      bridges.set(key, { ent, list: [] });
+    }
+    return bridges.get(key);
+  };
   for (const w of works) for (const part0 of w.parts) {
     const sec = secOf(w, part0), part = { ...part0, name: (w.name ? w.name + " - " : "") + part0.name };
+    const put = (x) => { if (part.bridge) bridgeOf(w, part).list.push(x); else contained.push(x); };
+    if (part.bridge && part.mesh.void && part.mesh.void.index.length) {      // lo spazio riservato al ponte (0.15)
+      const v = e(`IFCBUILDINGELEMENTPROXY(${G()},${oh},${S(part.name + " - " + (lb.bridgeSpace || "spazio riservato al ponte"))},$,${S(lb.bridgeSpaceType || "Spazio riservato al ponte")},${here()},${shape(part.mesh.void, once("void", () => style([0.45, 0.66, 0.9], lb.bridgeSpace || "spazio riservato al ponte", 0.6)))},$,.PROVISIONFORSPACE.)`);
+      put(v);
+      props(v, psName, [[lb.work || "Opera", `IFCLABEL(${S(w.name || "")})`], [lb.bridge || "Ponte", `IFCLABEL(${S(part.bridge.name || "")})`], [lb.p0 || "Progressiva iniziale", len(part.p0)], [lb.p1 || "Progressiva finale", len(part.p1)], [lb.length || "Lunghezza", len(part.length)]]);
+      qto(v, "Qto_BuildingElementProxyQuantities", [["IFCQUANTITYVOLUME", "NetVolume", part.vol.void || 0]]);
+    }
     const common = [[lb.work || "Opera", `IFCLABEL(${S(w.name || "")})`], [lb.p0 || "Progressiva iniziale", len(part.p0)], [lb.p1 || "Progressiva finale", len(part.p1)], [lb.length || "Lunghezza", len(part.length)],
       ...(part.blendNote ? [[lb.blend || "Raccordo", `IFCLABEL(${S(part.blendNote)})`]] : [])];
     if (sec.type === "pipe") {
@@ -841,26 +862,26 @@ export function ifcDitch(job) {
       const trench = [[lb.width || "Larghezza al fondo", len(part.width)], [lb.bed || "Letto di posa", len(bed)], [lb.cover || "Ricoprimento sopra l'estradosso", len(sec.cover)],
         ...(sec.restore > 0 ? [[lb.restore || "Ripristino", len(sec.restore)]] : [])];
       const p = e(`IFCPIPESEGMENT(${G()},${oh},${S(part.name + " - " + (lb.pipe || "tubo"))},$,$,${here()},${shape(part.mesh.pipe, pipeStyle(sec.mat))},$,.RIGIDSEGMENT.)`);
-      contained.push(p); pipeMats.push([p, sec]);
+      put(p); pipeMats.push([p, sec]);
       props(p, psName, [...common, ...pipeProps]);
       qto(p, "Qto_PipeSegmentBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYAREA", "GrossCrossSectionArea", Math.PI * sec.De ** 2 / 4], ["IFCQUANTITYAREA", "NetCrossSectionArea", Math.PI * (sec.De ** 2 - Di ** 2) / 4]]);
       for (const [key, name, mname] of [["bed", lb.bedL || "letto di posa", lb.bedMat || "Materiale del letto di posa"], ["surround", lb.surround || "rinfianco", lb.surroundMat || "Materiale di rinfianco"],
         ["cover", lb.coverL || "ricoprimento", lb.coverMat || "Materiale di ricoprimento"], ["fill", lb.backfill || "reinterro", lb.fillMat || "Materiale di reinterro"]]) {
         if (!(part.vol[key] > 0.01) || !part.mesh[key] || !part.mesh[key].index.length) continue;
         const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + name)},$,$,${here()},${shape(part.mesh[key], layerStyle(key))},$,.BACKFILL.)`);
-        contained.push(f); (layerMats[mname] ||= []).push(f);
+        put(f); (layerMats[mname] ||= []).push(f);
         props(f, psName, common);
         qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "CompactedVolume", part.vol[key]]]);
       }
       if (part.vol.restore > 0.01 && part.mesh.restore && part.mesh.restore.index.length) {
         const c = e(`IFCCOURSE(${G()},${oh},${S(part.name + " - " + (lb.restoreL || "ripristino"))},$,$,${here()},${shape(part.mesh.restore, layerStyle("restore"))},$,.PAVEMENT.)`);
-        contained.push(c);
+        put(c);
         props(c, psName, common);
         qto(c, "Qto_CourseBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYLENGTH", "Thickness", sec.restore], ["IFCQUANTITYVOLUME", "Volume", part.vol.restore]]);
       }
       if (part.vol.emb > 0.01 && part.mesh.emb && part.mesh.emb.index.length) {      // rilevato di protezione dove il tubo esce dal terreno (0.7.1)
         const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + (lb.emb || "rilevato"))},$,$,${here()},${shape(part.mesh.emb, stFill)},$,.EMBANKMENT.)`);
-        contained.push(f); (layerMats[lb.embMat || "Materiale per rilevato"] ||= []).push(f);
+        put(f); (layerMats[lb.embMat || "Materiale per rilevato"] ||= []).push(f);
         const bank = (part.bank || []).reduce((a, r) => a + r.p1 - r.p0, 0);
         props(f, psName, [...common, [lb.berm || "Banchina", len(sec.berm != null ? sec.berm : 0.5)], [lb.fillSlope || "Scarpa in riporto", rat(sec.bank || 1.5)], [lb.embLen || "Lunghezza in rilevato", len(bank)]]);
         qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "CompactedVolume", part.vol.emb]]);
@@ -891,18 +912,18 @@ export function ifcDitch(job) {
       const off = sec.tw * Math.hypot(1, m), uo = sec.B / 2 - m * sec.ts + off, uoT = sec.B / 2 + m * sec.H + off;
       const gross = (uo + uoT) * (sec.H + sec.ts) + 2 * uoT * tt, water = (sec.B + m * sec.H) * sec.H - ch * ch * (box ? 2 : 1);
       const p = e(`IFCPIPESEGMENT(${G()},${oh},${S(part.name + " - " + (box ? lb.box || "scatolare" : lb.channel || "canale"))},$,$,${here()},${shape(part.mesh.lining, stLin)},$,${box ? ".CULVERT." : ".GUTTER."})`);
-      pipes.push(p); contained.push(p);
+      pipes.push(p); put(p);
       props(p, psName, [...common, ...secProps, ...drops, [lb.volume || "Volume calcestruzzo", `IFCVOLUMEMEASURE(${R(part.vol.lining, 4)})`]]);
       qto(p, "Qto_PipeSegmentBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYAREA", "GrossCrossSectionArea", gross], ["IFCQUANTITYAREA", "NetCrossSectionArea", gross - water]]);
       if (part.mesh.lean && part.mesh.lean.index.length) {
         const s = e(`IFCSLAB(${G()},${oh},${S(part.name + " - " + (lb.lean || "magrone"))},$,${S(lb.leanType || "Magrone")},${here()},${shape(part.mesh.lean, stLean)},$,.USERDEFINED.)`);
-        slabs.push(s); contained.push(s);
+        slabs.push(s); put(s);
         props(s, psName, common);
         qto(s, "Qto_SlabBaseQuantities", [["IFCQUANTITYLENGTH", "Width", sec.tm], ["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "NetVolume", part.vol.lean]]);
       }
       if (part.vol.mix > 0.01 && part.mesh.mix && part.mesh.mix.index.length) {
         const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + (lb.mix || "misto cementato"))},$,$,${here()},${shape(part.mesh.mix, stMix)},$,.BACKFILL.)`);
-        mixes.push(f); contained.push(f);
+        mixes.push(f); put(f);
         props(f, psName, common);
         qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYVOLUME", "CompactedVolume", part.vol.mix]]);
       }
@@ -914,7 +935,7 @@ export function ifcDitch(job) {
       }
       if (part.vol.fill > 0.01 && part.mesh.fill.index.length) {
         const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + (lb.backfill || "rinterro"))},$,$,${here()},${shape(part.mesh.fill, stBack)},$,.BACKFILL.)`);
-        backs.push(f); contained.push(f);
+        backs.push(f); put(f);
         props(f, psName, common);
         qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "CompactedVolume", part.vol.fill]]);
       }
@@ -922,7 +943,7 @@ export function ifcDitch(job) {
     }
     const secProps = [[lb.section || "Sezione", `IFCLABEL(${S(lb.sectionName || "Fosso trapezio")})`], [lb.b || "Fondo", len(sec.b)], [lb.h || "Altezza", len(sec.h)], [lb.m || "Scarpa sponde", rat(sec.m)], [lb.t || "Spessore rivestimento", len(sec.t)], [lb.berm || "Banchina", len(sec.berm)], [lb.cutSlope || "Scarpa in sterro", rat(sec.cut)], [lb.fillSlope || "Scarpa in riporto", rat(sec.fill)]];
     const c = e(`IFCCOURSE(${G()},${oh},${S(part.name + " - " + (lb.lining || "rivestimento"))},$,$,${here()},${shape(part.mesh.lining, stLin)},$,.PROTECTION.)`);
-    courses.push(c); contained.push(c);
+    courses.push(c); put(c);
     props(c, psName, [...common, ...secProps]);
     qto(c, "Qto_CourseBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYLENGTH", "Thickness", sec.t], ["IFCQUANTITYVOLUME", "Volume", part.vol.lining]]);
     if (part.vol.cut > 0.01 && part.mesh.cut.index.length) {
@@ -933,7 +954,7 @@ export function ifcDitch(job) {
     }
     if (part.vol.fill > 0.01 && part.mesh.fill.index.length) {                // sotto i 10 litri non è un riporto
       const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + (lb.fill || "riporto"))},$,$,${here()},${shape(part.mesh.fill, stFill)},$,.EMBANKMENT.)`);
-      contained.push(f);
+      put(f);
       props(f, psName, common);
       qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "CompactedVolume", part.vol.fill]]);
     }
@@ -948,6 +969,10 @@ export function ifcDitch(job) {
   for (const [n, x] of byName) mat(x.list, n, x.cat);
   for (const [n, list] of Object.entries(layerMats)) mat(list, n, "Soil");
   e(`IFCRELCONTAINEDINSPATIALSTRUCTURE(${G()},${oh},$,$,(${contained.join(",")}),${site})`);
+  if (bridges.size) {                                     // i ponti (0.15) sotto il sito, coi loro tratti dentro
+    e(`IFCRELAGGREGATES(${G()},${oh},$,$,${site},(${[...bridges.values()].map((x) => x.ent).join(",")}))`);
+    for (const x of bridges.values()) if (x.list.length) e(`IFCRELCONTAINEDINSPATIALSTRUCTURE(${G()},${oh},$,$,(${x.list.join(",")}),${x.ent})`);
+  }
 
   const iso = date.toISOString().slice(0, 19);
   return [
@@ -996,6 +1021,11 @@ export function ditchCSV(parts, { head, total = "TOTALE", comma = true, work = f
    piani di byte: cifre alte che si ripetono, e il gzip le schiaccia. Il gzip
    lo fa chi chiama (CompressionStream nel browser). Il DTM è facoltativo:
    chi non lo mette lo lascia in doc.dtmRefs (nome, percorso) da ricaricare.
+   IFC di contesto (0.14), facoltativo come il DTM (fuori: doc.ctxRefs): per
+   file le parti per classe (ctxAssemble del motore) coi blocchi P (Float32 a
+   componenti separate e a piani), C (r, g, b a piani), I ed E (a differenze).
+   Un progetto senza contesto resta identico byte per byte; chi apre con una
+   versione di prima non lo vede (i blocchi in più si ignorano).
    ------------------------------------------------------------------------- */
 const PRJ_MAGIC = "PSWEEP01", PRJ_FORMAT = "profile-sweep-project", PRJ_V = 1;
 const pad8 = (n) => (8 - (n % 8)) % 8;
@@ -1014,6 +1044,17 @@ function encPoints(p) {                                  // x,y,z,x,y,z… → x
   for (let i = 0; i < n; i++) { c[i] = p[3 * i]; c[n + i] = p[3 * i + 1]; c[2 * n + i] = p[3 * i + 2]; }
   return bytePlanes(new Uint8Array(c.buffer), 8);
 }
+function encF32xyz(p) {                                 // come encPoints, in Float32 (le mesh del contesto)
+  const n = p.length / 3, c = new Float32Array(p.length);
+  for (let i = 0; i < n; i++) { c[i] = p[3 * i]; c[n + i] = p[3 * i + 1]; c[2 * n + i] = p[3 * i + 2]; }
+  return bytePlanes(new Uint8Array(c.buffer), 4);
+}
+function decF32xyz(u8) {
+  const c = new Float32Array(unBytePlanes(u8, 4).buffer), n = c.length / 3, p = new Float32Array(c.length);
+  for (let i = 0; i < n; i++) { p[3 * i] = c[i]; p[3 * i + 1] = c[n + i]; p[3 * i + 2] = c[2 * n + i]; }
+  return p;
+}
+const encRGB = (c) => bytePlanes(c, 3), decRGB = (u8) => unBytePlanes(u8, 3);
 function decPoints(u8) {
   const c = new Float64Array(unBytePlanes(u8, 8).buffer), n = c.length / 3, p = new Float64Array(c.length);
   for (let i = 0; i < n; i++) { p[3 * i] = c[i]; p[3 * i + 1] = c[n + i]; p[3 * i + 2] = c[2 * n + i]; }
@@ -1051,7 +1092,16 @@ export function encodeProject(doc, extra = {}) {
     blocks.push({ name: t.name + ":faces", enc: "u32-delta-planes", data: encFaces(F) });
     return { ...t, points: { blk: blocks.length - 2 }, faces: { blk: blocks.length - 1 } };
   });
-  const header = { format: PRJ_FORMAT, v: PRJ_V, ...extra, doc: { ...doc, dtms },
+  const ctx = (doc.ctx || []).map((m) => ({ ...m, parts: m.parts.map((p, j) => {
+    if (p.P.length % 3 || p.C.length !== p.P.length || p.I.length % 3 || p.E.length % 5) throw new Error(`contesto ${m.name}: parte ${j} non valida`);
+    const at = blocks.length;
+    blocks.push({ name: `${m.name}:${j}:P`, enc: "f32-xyz-planes", data: encF32xyz(p.P instanceof Float32Array ? p.P : Float32Array.from(p.P)) });
+    blocks.push({ name: `${m.name}:${j}:C`, enc: "u8-rgb-planes", data: encRGB(p.C instanceof Uint8Array ? p.C : Uint8Array.from(p.C)) });
+    blocks.push({ name: `${m.name}:${j}:I`, enc: "u32-delta-planes", data: encFaces(p.I instanceof Uint32Array ? p.I : Uint32Array.from(p.I)) });
+    blocks.push({ name: `${m.name}:${j}:E`, enc: "u32-delta-planes", data: encFaces(p.E instanceof Uint32Array ? p.E : Uint32Array.from(p.E)) });
+    return { ...p, P: { blk: at }, C: { blk: at + 1 }, I: { blk: at + 2 }, E: { blk: at + 3 } };
+  }) }));
+  const header = { format: PRJ_FORMAT, v: PRJ_V, ...extra, doc: { ...doc, dtms, ...(doc.ctx ? { ctx } : {}) },
     blocks: blocks.map((b) => ({ name: b.name, enc: b.enc, length: b.data.length })) };
   const hb = new TextEncoder().encode(JSON.stringify(header, numOut));
   let size = 12 + hb.length + pad8(12 + hb.length);
@@ -1097,6 +1147,20 @@ export function decodeProject(u8) {
     for (let i = 0; i < faces.length; i++) if (faces[i] >= n) bad("DTM del progetto danneggiato");
     return { ...t, points, faces };
   });
+  const cblk = (r, enc, size) => {
+    const b = r && got[r.blk];
+    if (!b || b.enc !== enc || b.data.length % size) bad("contesto del progetto danneggiato");
+    return b.data;
+  };
+  if (doc.v === 2 && Array.isArray(doc.ctx)) doc.ctx = doc.ctx.map((m) => ({ ...m, parts: (m.parts || []).map((p) => {
+    const P = decF32xyz(cblk(p.P, "f32-xyz-planes", 12)), C = decRGB(cblk(p.C, "u8-rgb-planes", 3));
+    const I = decFaces(cblk(p.I, "u32-delta-planes", 12)), E = decFaces(cblk(p.E, "u32-delta-planes", 20));
+    const n = P.length / 3;
+    if (C.length !== P.length) bad("contesto del progetto danneggiato");
+    for (let i = 0; i < I.length; i++) if (I[i] >= n) bad("contesto del progetto danneggiato");
+    for (let e = 0; e < E.length; e += 5) if (E[e] > E[e + 1] || E[e + 1] > n || E[e + 2] > E[e + 3] || E[e + 3] > I.length) bad("contesto del progetto danneggiato");
+    return { ...p, P, C, I, E };
+  }) }));
   delete h.doc;
   return { doc, header: h };
 }

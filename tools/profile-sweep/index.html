@@ -387,6 +387,8 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
 .dtmiss .file{margin:0 0 6px}
 .dtmiss .fm{color:var(--amber)}
 .dtmiss .txt{font-family:var(--mono);font-size:11.5px}
+.brrow{margin:2px 0 10px;padding:8px 10px 2px;border-radius:10px;border:1px solid var(--line-2)}
+.brrow .file{margin-bottom:6px}
 
 @media (max-width:1100px){:root{--pod-w-def:300px;--tree-w-def:244px}}
 @media (max-width:980px){ .appname,.stats{display:none} }
@@ -502,9 +504,17 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
       <div class="sec-h"><h2 data-i18n="dt.title">Terreno (DTM)</h2><span class="cnt" id="dtCnt"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
       <div class="sec-b" id="dtBody"></div>
     </section>
+    <section class="sec" data-sec="ctx">
+      <div class="sec-h"><h2 data-i18n="cx.title">Contesto (IFC)</h2><span class="cnt" id="cxCnt"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div class="sec-b" id="cxBody"></div>
+    </section>
     <section class="sec" data-sec="section">
       <div class="sec-h"><h2 data-i18n="sx.title">Sezione</h2><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
       <div class="sec-b" id="sxBody"></div>
+    </section>
+    <section class="sec" data-sec="bridge">
+      <div class="sec-h"><h2 data-i18n="br.title">Ponti</h2><span class="cnt" id="brCnt"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div class="sec-b" id="brBody"></div>
     </section>
     <section class="sec" data-sec="axis">
       <div class="sec-h"><h2 data-i18n="ax.title">Asse 3D</h2><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
@@ -535,6 +545,8 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
       <span class="lg" id="pvDtmLg" hidden><i style="border-color:var(--blue)"></i><span data-i18n="pv.dtm">DTM</span></span>
       <span class="lg" id="pvTopLg" hidden><i class="dash" style="border-color:var(--lime-deep)"></i><span id="pvTopTx">cima dei muri</span></span>
       <span class="lg"><i class="box" style="background:rgba(224,166,58,.35)"></i><span data-i18n="pv.jump">salto di progressiva</span></span>
+      <span class="lg" id="pvAboveLg" hidden><i class="box" style="background:rgba(91,155,224,.14);outline:1px dashed rgba(91,155,224,.8)"></i><span data-i18n="pv.above">fuori terra</span></span>
+      <span class="lg" id="pvBridgeLg" hidden><i class="box" style="background:rgba(91,155,224,.4)"></i><span data-i18n="pv.bridge">ponte</span></span>
     </span>
     <span class="sp"></span>
     <!-- taglio della vista 3D (0.10): sezione ⟂ all'asse o lungo l'asse; solo vista -->
@@ -545,7 +557,7 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
     <button id="cutX" data-i18n="pv.cutX" data-i18n-title="pv.cutXT" title="Taglio ⟂ all'asse a una progressiva (X): clic o trascina sul profilo, ←/→ di 1 m (Maiusc 10 m), Esc lo toglie. Solo vista: i file non cambiano.">Sezione ⟂</button>
     <button id="cutL" data-i18n="pv.cutL" data-i18n-title="pv.cutLT" title="Taglio verticale lungo l'asse (L): resta metà modello; ←/→ sposta il taglio di 10 cm (Maiusc 1 m), Esc lo toglie. Solo vista: i file non cambiano.">Lungo l'asse</button>
     <button id="pvEdit" data-i18n="pv.edit" data-i18n-title="pv.editT" title="Modifica la linea di progetto (M): trascina i vertici (quote al cm, progressive al dm; Alt libero, Maiusc solo la quota), doppio clic su un lato aggiunge un vertice, Canc toglie quello scelto, ↑/↓ la quota di 1 cm (Maiusc 10 cm), ←/→ il vertice accanto, Esc esce. La linea diventa dell'opera: il disegno non cambia." disabled>Modifica</button>
-    <button id="pvFit" data-i18n="pv.fit" data-i18n-title="pv.zoom" title="Rotella: zoom · trascina: sposta · doppio clic: tutto">Tutto</button>
+    <button id="pvFit" data-i18n="pv.fit" data-i18n-title="pv.zoom" title="Tutto il profilo · sul profilo: rotella zoom, trascina sposta, doppio clic porta la vista 3D su quel punto">Tutto</button>
   </div>
 </section>
 
@@ -555,6 +567,7 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
 <div id="dragVeil" data-i18n="drop.veil">Rilascia i disegni</div>
 <input type="file" id="fileIn" accept=".dwg,.dxf,.ifc,.xml,.landxml,.csv,.txt,.xyz,.pts,.profiles" multiple hidden>
 <input type="file" id="dtmIn" accept=".ifc,.xml,.landxml,.csv,.txt,.xyz,.pts" hidden>
+<input type="file" id="ctxIn" accept=".ifc" multiple hidden>
 
 <!-- ================= DIALOGO (salva progetto, apri progetto) ================= -->
 <div id="dlg" hidden>
@@ -570,7 +583,7 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
   <div class="card glass" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
     <div class="kicker" data-i18n="w.kicker">Strumento 17 · prima versione</div>
     <h1 id="sheetTitle" data-i18n="w.title">Dalla pianta e dal profilo al fosso o al canale in 3D</h1>
-    <p class="lead" data-i18n="w.lead">Carica il profilo planimetrico e quello altimetrico (DWG o DXF) e, se c'è, il DTM (IFC o LandXML): le progressive si accoppiano da sole, il fosso, il canale a U o il tubo in trincea si sviluppa con scavi, rinterri, banchine e scarpate fino al terreno, salti compresi. Escono volumi per tratto, IFC 4x3, .3dm per Rhino, polilinea 3D e LandXML.</p>
+    <p class="lead" data-i18n="w.lead">Carica il profilo planimetrico e quello altimetrico (DWG o DXF) e, se c'è, il DTM (IFC o LandXML): le progressive si accoppiano da sole, il fosso, il canale a U o il tubo in trincea si sviluppa con scavi, rinterri, banchine e scarpate fino al terreno, salti compresi; gli IFC senza terreno (strade, reti, edifici) restano attorno come contesto. Escono volumi per tratto, IFC 4x3, .3dm per Rhino, polilinea 3D e LandXML.</p>
     <div class="opts">
       <button class="opt" id="wOpen"><svg viewBox="0 0 24 24"><path d="M4 20h16M12 4v12M7 11l5 5 5-5"/></svg><span><b data-i18n="w.open">Apri pianta, profilo e DTM</b><span data-i18n="w.openS">pianta e profilo .dwg o .dxf, il DTM .ifc, .xml o punti .csv/.xyz se c'è — o trascinali qui</span></span></button>
       <button class="opt" id="wProject"><svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg><span><b data-i18n="w.project">Apri un progetto salvato</b><span data-i18n="w.projectS">il file .profiles scaricato con «Salva progetto», anche da un altro PC</span></span></button>
@@ -593,17 +606,19 @@ const I18N = {
     "rail.undo": "Annulla (Ctrl+Z)", "rail.redo": "Ripristina (Ctrl+Y)",
     "pn.resize": "Trascina per ridimensionare il pannello · doppio clic: larghezza iniziale",
     "w.kicker": "Strumento 17 · prima versione", "w.title": "Dalla pianta e dal profilo al fosso o al canale in 3D",
-    "w.lead": "Carica il profilo planimetrico e quello altimetrico (DWG o DXF) e, se c'è, il DTM (IFC o LandXML): le progressive si accoppiano da sole, il fosso, il canale a U o il tubo in trincea si sviluppa con scavi, rinterri, banchine e scarpate fino al terreno, salti compresi. Escono volumi per tratto, IFC 4x3, .3dm per Rhino, polilinea 3D e LandXML.",
+    "w.lead": "Carica il profilo planimetrico e quello altimetrico (DWG o DXF) e, se c'è, il DTM (IFC o LandXML): le progressive si accoppiano da sole, il fosso, il canale a U o il tubo in trincea si sviluppa con scavi, rinterri, banchine e scarpate fino al terreno, salti compresi; gli IFC senza terreno (strade, reti, edifici) restano attorno come contesto. Escono volumi per tratto, IFC 4x3, .3dm per Rhino, polilinea 3D e LandXML.",
     "w.open": "Apri pianta, profilo e DTM", "w.openS": "pianta e profilo .dwg o .dxf, il DTM .ifc, .xml o punti .csv/.xyz se c'è — o trascinali qui",
     "w.example": "Prova con l'esempio", "w.exampleS": "una condotta di 900 m con un tratto in salita dove le progressive si staccano",
     "w.privacy": "I file non escono dal browser. Il lavoro si salva da solo in questo browser.", "w.close": "Chiudi",
     "w.project": "Apri un progetto salvato", "w.projectS": "il file .profiles scaricato con «Salva progetto», anche da un altro PC",
     "tr.save": "Salva progetto", "tr.saveT": "Scarica il progetto in un file .profiles, da riaprire qui o su un altro PC (Ctrl+S)",
-    "dt.miss": "da ricaricare", "dt.reload": "Ricarica…", "dt.pathT": "Dove sta il file (lo scrivi tu: il browser non conosce le cartelle)",
-    "dt.missHelp": "Il progetto è stato salvato senza il DTM: ricaricalo dal percorso indicato. Fino ad allora niente scarpate fino al terreno, scavo e riporto.",
+    "dt.miss": "da ricaricare", "dt.reload": "Ricarica…", "dt.pathT": "La cartella del file: copiala dalla barra degli indirizzi di Esplora risorse (il browser non conosce le cartelle); il nome del file lo aggiunge il tool",
+    "dt.dirPh": "cartella, es. \\\\server\\commessa\\DTM",
+    "dt.copied": "Percorso negli appunti: {f}. Nella finestra incollalo nel nome del file (Ctrl+V) e premi Invio.",
+    "dt.missHelp": "Il progetto è stato salvato senza il DTM: «Ricarica…» mette il percorso negli appunti, nella finestra incollalo nel nome del file (Ctrl+V) e premi Invio. Fino ad allora niente scarpate fino al terreno, scavo e riporto.",
     "prj.saveTitle": "Salva progetto", "prj.openTitle": "Apri il progetto", "prj.file": "File", "prj.when": "Salvato il", "prj.works": "Opere",
     "prj.withDtm": "Metti il DTM nel file ({n} triangoli)",
-    "prj.pathHelp": "Fuori dal file resta il percorso del DTM, da ricaricare all'apertura. Il browser non conosce le cartelle: scrivilo tu (es. \\\\server\\commessa\\DTM\\rilievo.xml).",
+    "prj.pathHelp": "Fuori dal file resta dove sta il DTM, da ricaricare all'apertura. Il browser non conosce le cartelle: scrivi la cartella (es. \\\\server\\commessa\\DTM, si copia dalla barra degli indirizzi di Esplora risorse), il nome del file lo aggiunge il tool.",
     "prj.saveHelp": "Il file contiene opere, disegni, ancoraggi, sezioni e occhi accesi; si riapre trascinandolo qui o da «Apri un progetto salvato», anche su un altro PC.",
     "prj.cancel": "Annulla", "prj.save": "Salva", "prj.saveFirst": "Salva prima l'attuale", "prj.open": "Apri",
     "prj.saving": "Preparo il file del progetto…", "prj.saved": "Progetto salvato: {f} ({mb} MB).", "prj.saveFail": "Progetto non salvato: {m}",
@@ -611,6 +626,26 @@ const I18N = {
     "prj.openFail": "{f}: non riesco ad aprirlo come progetto ({m}).", "prj.dtmIn": "dentro il file ({n} triangoli)", "prj.dtmOut": "fuori dal file: {f}",
     "prj.replace": "Il progetto aperto adesso ({n} opere) viene sostituito: se ti serve, salvalo prima.",
     "prj.opened": "Aperto {f}: {n} opere.", "prj.openedMiss": "Aperto {f}. Manca il DTM: ricaricalo dal pannello Terreno ({d}).",
+    "prj.openedMissCtx": "Aperto {f}. Manca l'IFC di contesto: ricaricalo dal pannello Contesto ({d}).",
+    "prj.withCtx": "Metti l'IFC di contesto nel file ({n} triangoli)", "prj.ctx": "Contesto", "prj.ctxIn": "dentro il file ({n} elementi)", "prj.ctxOut": "fuori dal file: {f}",
+    "br.title": "Ponti", "br.h": "Altezza minima sul terreno", "br.l": "Lunghezza minima", "br.cands": "Tratti fuori terra", "br.candV": "{a} – {b} · {l} m · fino a {h} m",
+    "br.none": "Nessun tratto col fondo dell'opera {h} m sopra il terreno per almeno {l} m.",
+    "br.noneMore": "Nessun altro tratto fuori terra oltre ai ponti dell'opera.", "br.noDtm": "Senza DTM il tool non trova i tratti fuori terra: i ponti si aggiungono a mano.",
+    "br.make": "Ponte", "br.makeT": "Questo tratto diventa un ponte: niente terre sotto l'opera, lo spazio fino al terreno resta riservato", "br.show": "Vedi", "br.list": "Ponti dell'opera",
+    "br.name": "Ponte {n}", "br.add": "+ Ponte", "br.addT": "Un ponte a mano: con la Sezione ⟂ accesa parte da lì", "br.del": "Togli il ponte", "br.void": "Spazio riservato", "br.hMax": "Altezza massima sul terreno",
+    "br.voidL": "spazio riservato al ponte", "br.tag": "ponte", "br.made": "{a} – {b}: ponte. Le terre sotto l'opera non ci sono più.",
+    "br.help": "Il tool propone i tratti dove il fondo dell'opera sta sopra il terreno di almeno l'altezza minima, per almeno la lunghezza minima: decidi tu se lasciarli in rilevato (com'è) o farne un ponte. Nel ponte restano la struttura (rivestimento, canale o scatolare, tubo) e lo spazio riservato sotto, fino al terreno; niente scavo, rinterro, rilevato, magrone né strati di posa. Il ponte vero si progetta altrove: nell'IFC c'è un IfcBridge col tratto e lo spazio riservato.",
+    "pv.above": "fuori terra", "pv.bridge": "ponte",
+    "if.bridge": "Ponte", "if.bridgeSpace": "spazio riservato al ponte", "if.bridgeSpaceType": "Spazio riservato al ponte", "if.bridgeNote": "Da progettare: segnaposto", "if.bridgeH": "Altezza massima sul terreno",
+    "cx.title": "Contesto (IFC)", "cx.add": "Aggiungi IFC", "cx.els": "Elementi", "cx.elsV": "{n} attorno alle opere", "cx.elsDrop": "{n} attorno alle opere · {d} fuori dal corridoio",
+    "cx.classes": "Classi", "cx.empty": "Nessun IFC di contesto: modelli esistenti (strade, reti, edifici, opere vicine) da vedere attorno alle opere e da tagliare con la Sezione ⟂ e lungo l'asse. Solo vista: non escono nei file. Il terreno di un IFC si apre come DTM.",
+    "cx.help": "Dell'IFC si tiene il corridoio delle opere (piante ± 200 m) quando lo apri: spostate le opere, riaprilo. Occhi per file e per classe nell'albero; fori e spazi non si leggono, il terreno va nel DTM.",
+    "cx.missHelp": "Il progetto è stato salvato senza questo IFC: «Ricarica…» mette il percorso negli appunti, nella finestra incollalo nel nome del file (Ctrl+V) e premi Invio.",
+    "cx.opening": "Apro {f} con web-ifc…", "cx.reading": "Leggo {f}: {d} di {t} elementi…", "cx.simplify": "{f}: web-ifc fermo sulle booleane, lo rileggo semplificato (senza fori e tagli)…",
+    "cx.loaded": "Contesto: {f}, {n} elementi attorno alle opere.", "cx.asCtx": "{f}: nessun terreno, aperto come IFC di contesto ({n} elementi).",
+    "cx.none": "{f}: nessun elemento con geometria attorno alle opere (piante ± 200 m): controlla le coordinate.", "cx.fail": "{f}: non riesco a leggerlo come contesto ({m}).",
+    "cx.timeout": "web-ifc non risponde", "cx.simplified": "letto semplificato: senza fori e tagli booleani",
+    "tr.ctx": "Contesto (IFC)", "tr.ctxAdd": "Aggiungi un IFC di contesto", "tr.els": "{n} el.",
     "pl.title": "Pianta", "pl.empty": "Nessuna pianta: apri il DWG o DXF del profilo planimetrico.", "pl.layer": "Layer della pianta",
     "pl.length": "Lunghezza", "pl.verts": "Vertici", "pl.arcs": "Archi", "pl.gaps": "Pezzi uniti",
     "pl.gapsV": "{n} buchi ({m} m in tutto)", "pl.reverse": "Gira il verso della pianta", "pl.reverseAuto": "Verso proposto dagli ancoraggi: {v}.",
@@ -671,10 +706,11 @@ const I18N = {
     "sx.tsB": "Platea", "sx.tt": "Soletta superiore", "sx.ch": "Smussi", "sx.mW": "Scarpa pareti", "sx.coverB": "Ricoprimento minimo", "sx.refTopB": "estradosso",
     "sx.boxHelp": "Scatolare: il canale chiuso dalla soletta superiore, smussi interni ai quattro angoli (0 = spigolo vivo). Rinterro fino al terreno dove sta sopra; dove sta sotto, rilevato fino all'estradosso più il ricoprimento minimo, poi banchina e scarpa fino al DTM. Scavo e salti come il canale.",
     "sx.secs": "Sezioni lungo l'opera", "sx.secWork": "Opera · {t}", "sx.secAdd": "+ Tratto", "sx.secFrom": "Da", "sx.secTo": "A", "sx.secDel": "Togli il tratto",
-    "sx.secStart": "Inizio", "sx.secEnd": "Fine", "sx.jBlend": "Raccordo", "sx.jCut": "Netto", "sx.jLen": "Lunghezza raccordo",
+    "sx.secStart": "Inizio", "sx.secEnd": "Fine", "sx.secFromStart": "Dall'inizio", "sx.secToEnd": "Fino alla fine",
+    "sx.secAddT": "Un tratto nuovo con una sezione sua: con la Sezione ⟂ accesa parte da lì", "sx.jBlend": "Raccordo", "sx.jCut": "Netto", "sx.jLen": "Lunghezza raccordo",
     "sx.jNo": "cambio netto: {a} e {b} non si raccordano", "sx.jShort": "Raccordo ridotto a {l} m: al massimo metà del tratto più corto per lato.",
     "sx.secBad": "Da e A dentro l'asse (0 – {l} m), con A almeno 0,50 m dopo Da.",
-    "sx.secsHelp": "Un tratto da/a ha tipo e misure suoi; fuori dai tratti vale la sezione dell'opera. Fra sezioni compatibili (stesso tipo, U ↔ scatolare, fosso ↔ U, tubo ↔ tubo) il raccordo ha il baricentro sul cambio, metà per lato; scavo, magrone e rinterro seguono il tipo di ciascun lato.",
+    "sx.secsHelp": "Un tratto da/a ha tipo e misure suoi; fuori dai tratti vale la sezione dell'opera. Fra sezioni compatibili (stesso tipo, U ↔ scatolare, fosso ↔ U, tubo ↔ tubo) il raccordo ha il baricentro sul cambio, metà per lato; scavo, magrone e rinterro seguono il tipo di ciascun lato. «Dall'inizio» e «Fino alla fine» tengono il capo su quello dell'asse anche se la pianta cambia; con la Sezione ⟂ accesa «+ Tratto» parte da lì.",
     "sx.subSec": "Sezione", "sx.subExc": "Magrone e scavo", "sx.subBack": "Rinterro", "sx.subDrop": "Salti",
     "sx.B": "Larghezza interna", "sx.H": "Altezza interna", "sx.tw": "Pareti", "sx.ts": "Soletta di fondo", "sx.tm": "Magrone", "sx.om": "Magrone oltre i muri",
     "sx.se": "Scavo oltre il magrone", "sx.cutC": "Scarpa scavo", "sx.bermC": "Banchina", "sx.fillC": "Scarpa rinterro", "sx.hw": "Muro di testa", "sx.key": "Dente", "sx.wedge": "Scarpa cuneo",
@@ -735,7 +771,7 @@ const I18N = {
     "busy.sweep": "Sviluppo le sezioni…",
     "pv.dtm": "DTM", "st.dtm": " · DTM {d}",
     "pv.title": "Profilo", "pv.design": "progetto", "pv.ground": "terreno", "pv.jump": "salto di progressiva", "pv.fit": "Tutto",
-    "pv.empty": "Il profilo compare quando ci sono pianta e profilo.", "pv.offset": "scarto", "pv.zoom": "Rotella: zoom · trascina: sposta · doppio clic: tutto",
+    "pv.empty": "Il profilo compare quando ci sono pianta e profilo.", "pv.offset": "scarto", "pv.zoom": "Tutto il profilo · sul profilo: rotella zoom, trascina sposta, doppio clic porta la vista 3D su quel punto",
     "pv.cutX": "Sezione ⟂", "pv.cutXT": "Taglio ⟂ all'asse a una progressiva (X): clic o trascina sul profilo, ←/→ di 1 m (Maiusc 10 m), Esc lo toglie. Solo vista: i file non cambiano.",
     "pv.cutL": "Lungo l'asse", "pv.cutLT": "Taglio verticale lungo l'asse (L): resta metà modello; ←/→ sposta il taglio di 10 cm (Maiusc 1 m), Esc lo toglie. Solo vista: i file non cambiano.",
     "pv.cutAt": "pr.", "pv.cutAtT": "Progressiva del taglio (es. 0+250,5 o 250,5)", "pv.cutOff": "scost.", "pv.cutOffT": "Scostamento del taglio dall'asse in metri, + a destra guardando verso le progressive crescenti",
@@ -800,17 +836,19 @@ const I18N = {
     "rail.undo": "Undo (Ctrl+Z)", "rail.redo": "Redo (Ctrl+Y)",
     "pn.resize": "Drag to resize the panel · double click: initial width",
     "w.kicker": "Tool 17 · first version", "w.title": "From plan and profile to the ditch or channel in 3D",
-    "w.lead": "Load the horizontal and the vertical profile (DWG or DXF) and, if you have it, the DTM (IFC or LandXML): the chainages pair up by themselves, the ditch, U channel or pipe in trench is swept with excavation, backfill, berms and slopes down to the ground, drops included. Out come volumes per stretch, IFC 4x3, a Rhino .3dm, the 3D polyline and LandXML.",
+    "w.lead": "Load the horizontal and the vertical profile (DWG or DXF) and, if you have it, the DTM (IFC or LandXML): the chainages pair up by themselves, the ditch, U channel or pipe in trench is swept with excavation, backfill, berms and slopes down to the ground, drops included; IFCs without ground (roads, networks, buildings) stay around as context. Out come volumes per stretch, IFC 4x3, a Rhino .3dm, the 3D polyline and LandXML.",
     "w.open": "Open plan, profile and DTM", "w.openS": "plan and profile as .dwg or .dxf, the DTM as .ifc, .xml or .csv/.xyz points if you have it — or drop them here",
     "w.example": "Try the example", "w.exampleS": "a 900 m pipe with an uphill stretch where the chainages drift apart",
     "w.privacy": "Files never leave the browser. Your work saves itself in this browser.", "w.close": "Close",
     "w.project": "Open a saved project", "w.projectS": "the .profiles file downloaded with “Save project”, from another PC too",
     "tr.save": "Save project", "tr.saveT": "Download the project as a .profiles file, to reopen here or on another PC (Ctrl+S)",
-    "dt.miss": "to reload", "dt.reload": "Reload…", "dt.pathT": "Where the file is (you type it: the browser knows no folders)",
-    "dt.missHelp": "The project was saved without the DTM: reload it from the path shown. Until then no slopes down to the ground, no cut and fill.",
+    "dt.miss": "to reload", "dt.reload": "Reload…", "dt.pathT": "The folder of the file: copy it from the File Explorer address bar (the browser knows no folders); the tool adds the file name",
+    "dt.dirPh": "folder, e.g. \\\\server\\job\\DTM",
+    "dt.copied": "Path on the clipboard: {f}. In the window paste it into the file name (Ctrl+V) and press Enter.",
+    "dt.missHelp": "The project was saved without the DTM: “Reload…” puts the path on the clipboard, in the window paste it into the file name (Ctrl+V) and press Enter. Until then no slopes down to the ground, no cut and fill.",
     "prj.saveTitle": "Save project", "prj.openTitle": "Open the project", "prj.file": "File", "prj.when": "Saved on", "prj.works": "Works",
     "prj.withDtm": "Put the DTM in the file ({n} triangles)",
-    "prj.pathHelp": "Outside the file the DTM path is kept, to reload it when opening. The browser knows no folders: type it yourself (e.g. \\\\server\\job\\DTM\\survey.xml).",
+    "prj.pathHelp": "Outside the file the DTM location is kept, to reload it when opening. The browser knows no folders: type the folder (e.g. \\\\server\\job\\DTM, copy it from the File Explorer address bar), the tool adds the file name.",
     "prj.saveHelp": "The file holds works, drawings, anchors, sections and visibility; reopen it by dropping it here or with “Open a saved project”, on another PC too.",
     "prj.cancel": "Cancel", "prj.save": "Save", "prj.saveFirst": "Save the current one first", "prj.open": "Open",
     "prj.saving": "Preparing the project file…", "prj.saved": "Project saved: {f} ({mb} MB).", "prj.saveFail": "Project not saved: {m}",
@@ -818,6 +856,26 @@ const I18N = {
     "prj.openFail": "{f}: cannot open it as a project ({m}).", "prj.dtmIn": "inside the file ({n} triangles)", "prj.dtmOut": "outside the file: {f}",
     "prj.replace": "The project open now ({n} works) gets replaced: save it first if you need it.",
     "prj.opened": "Opened {f}: {n} works.", "prj.openedMiss": "Opened {f}. The DTM is missing: reload it from the Terrain panel ({d}).",
+    "prj.openedMissCtx": "Opened {f}. The context IFC is missing: reload it from the Context panel ({d}).",
+    "prj.withCtx": "Put the context IFC in the file ({n} triangles)", "prj.ctx": "Context", "prj.ctxIn": "inside the file ({n} elements)", "prj.ctxOut": "outside the file: {f}",
+    "br.title": "Bridges", "br.h": "Minimum height above ground", "br.l": "Minimum length", "br.cands": "Stretches above ground", "br.candV": "{a} – {b} · {l} m · up to {h} m",
+    "br.none": "No stretch with the bottom of the work {h} m above the ground for at least {l} m.",
+    "br.noneMore": "No other stretch above ground besides the bridges of the work.", "br.noDtm": "Without a DTM the tool cannot find the stretches above ground: add bridges by hand.",
+    "br.make": "Bridge", "br.makeT": "This stretch becomes a bridge: no earthworks under the work, the space down to the ground stays reserved", "br.show": "Show", "br.list": "Bridges of the work",
+    "br.name": "Bridge {n}", "br.add": "+ Bridge", "br.addT": "A bridge by hand: with the Cross section on it starts there", "br.del": "Remove the bridge", "br.void": "Reserved space", "br.hMax": "Maximum height above ground",
+    "br.voidL": "space reserved for the bridge", "br.tag": "bridge", "br.made": "{a} – {b}: bridge. The earthworks under the work are gone.",
+    "br.help": "The tool proposes the stretches where the bottom of the work is at least the minimum height above the ground, for at least the minimum length: you decide whether to keep them on embankment (as they are) or make them a bridge. On the bridge the structure stays (lining, channel or box, pipe) with the reserved space below, down to the ground; no excavation, backfill, embankment, blinding or bedding layers. The real bridge is designed elsewhere: the IFC has an IfcBridge with the stretch and the reserved space.",
+    "pv.above": "above ground", "pv.bridge": "bridge",
+    "if.bridge": "Bridge", "if.bridgeSpace": "space reserved for the bridge", "if.bridgeSpaceType": "Space reserved for the bridge", "if.bridgeNote": "To be designed: placeholder", "if.bridgeH": "Maximum height above ground",
+    "cx.title": "Context (IFC)", "cx.add": "Add IFC", "cx.els": "Elements", "cx.elsV": "{n} around the works", "cx.elsDrop": "{n} around the works · {d} outside the corridor",
+    "cx.classes": "Classes", "cx.empty": "No context IFC yet: existing models (roads, networks, buildings, nearby works) to see around the works and to cut with the Cross section and along the axis. View only: they never go into the files. The ground of an IFC opens as a DTM.",
+    "cx.help": "Of the IFC the corridor of the works (plans ± 200 m) is kept when you open it: after moving the works, reopen it. Eyes per file and per class in the tree; openings and spaces are not read, the ground goes into the DTM.",
+    "cx.missHelp": "The project was saved without this IFC: “Reload…” puts the path on the clipboard, in the window paste it into the file name (Ctrl+V) and press Enter.",
+    "cx.opening": "Opening {f} with web-ifc…", "cx.reading": "Reading {f}: {d} of {t} elements…", "cx.simplify": "{f}: web-ifc stuck on the booleans, reading it again simplified (no openings and cuts)…",
+    "cx.loaded": "Context: {f}, {n} elements around the works.", "cx.asCtx": "{f}: no ground, opened as a context IFC ({n} elements).",
+    "cx.none": "{f}: no element with geometry around the works (plans ± 200 m): check the coordinates.", "cx.fail": "{f}: cannot read it as context ({m}).",
+    "cx.timeout": "web-ifc does not answer", "cx.simplified": "read simplified: no openings and boolean cuts",
+    "tr.ctx": "Context (IFC)", "tr.ctxAdd": "Add a context IFC", "tr.els": "{n} el.",
     "pl.title": "Plan", "pl.empty": "No plan yet: open the DWG or DXF of the horizontal alignment.", "pl.layer": "Plan layer",
     "pl.length": "Length", "pl.verts": "Vertices", "pl.arcs": "Arcs", "pl.gaps": "Joined pieces",
     "pl.gapsV": "{n} gaps ({m} m in all)", "pl.reverse": "Reverse the plan direction", "pl.reverseAuto": "Direction suggested by the anchors: {v}.",
@@ -878,10 +936,11 @@ const I18N = {
     "sx.tsB": "Bottom slab", "sx.tt": "Top slab", "sx.ch": "Chamfers", "sx.mW": "Wall batter", "sx.coverB": "Minimum cover", "sx.refTopB": "top of slab",
     "sx.boxHelp": "Box culvert: the channel closed by a top slab, inner chamfers at the four corners (0 = sharp corner). Backfill up to the ground where it is above; where it is below, embankment up to the top of the slab plus the minimum cover, then berm and slope down to the DTM. Excavation and drops as for the channel.",
     "sx.secs": "Sections along the work", "sx.secWork": "Work · {t}", "sx.secAdd": "+ Stretch", "sx.secFrom": "From", "sx.secTo": "To", "sx.secDel": "Remove the stretch",
-    "sx.secStart": "Start", "sx.secEnd": "End", "sx.jBlend": "Transition", "sx.jCut": "Sharp", "sx.jLen": "Transition length",
+    "sx.secStart": "Start", "sx.secEnd": "End", "sx.secFromStart": "From the start", "sx.secToEnd": "To the end",
+    "sx.secAddT": "A new stretch with its own section: with the Cross section on it starts there", "sx.jBlend": "Transition", "sx.jCut": "Sharp", "sx.jLen": "Transition length",
     "sx.jNo": "sharp change: {a} and {b} cannot be blended", "sx.jShort": "Transition cut down to {l} m: at most half of the shorter stretch on each side.",
     "sx.secBad": "From and To inside the axis (0 – {l} m), with To at least 0.50 m after From.",
-    "sx.secsHelp": "A from/to stretch has its own type and sizes; outside the stretches the work's section applies. Between compatible sections (same type, U ↔ box, ditch ↔ U, pipe ↔ pipe) the transition is centred on the change, half on each side; excavation, blinding and backfill follow the type of each side.",
+    "sx.secsHelp": "A from/to stretch has its own type and sizes; outside the stretches the work's section applies. Between compatible sections (same type, U ↔ box, ditch ↔ U, pipe ↔ pipe) the transition is centred on the change, half on each side; excavation, blinding and backfill follow the type of each side. “From the start” and “To the end” keep the end on the axis end even if the plan changes; with the Cross section on, “+ Stretch” starts there.",
     "sx.subSec": "Section", "sx.subExc": "Blinding and excavation", "sx.subBack": "Backfill", "sx.subDrop": "Drops",
     "sx.B": "Inner width", "sx.H": "Inner height", "sx.tw": "Walls", "sx.ts": "Base slab", "sx.tm": "Blinding", "sx.om": "Blinding past the walls",
     "sx.se": "Excavation past the blinding", "sx.cutC": "Cut slope", "sx.bermC": "Berm", "sx.fillC": "Backfill slope", "sx.hw": "Head wall", "sx.key": "Toe key", "sx.wedge": "Wedge slope",
@@ -942,7 +1001,7 @@ const I18N = {
     "busy.sweep": "Sweeping the sections…",
     "pv.dtm": "DTM", "st.dtm": " · DTM {d}",
     "pv.title": "Profile", "pv.design": "design", "pv.ground": "ground", "pv.jump": "chainage jump", "pv.fit": "All",
-    "pv.empty": "The profile shows up once plan and profile are there.", "pv.offset": "offset", "pv.zoom": "Wheel: zoom · drag: pan · double click: all",
+    "pv.empty": "The profile shows up once plan and profile are there.", "pv.offset": "offset", "pv.zoom": "The whole profile · on the profile: wheel zoom, drag pan, double click takes the 3D view to that point",
     "pv.cutX": "Cross section", "pv.cutXT": "Cut ⟂ to the axis at a chainage (X): click or drag on the profile, ←/→ by 1 m (Shift 10 m), Esc removes it. View only: files do not change.",
     "pv.cutL": "Along the axis", "pv.cutLT": "Vertical cut along the axis (L): half of the model stays; ←/→ moves the cut by 10 cm (Shift 1 m), Esc removes it. View only: files do not change.",
     "pv.cutAt": "ch.", "pv.cutAtT": "Chainage of the cut (e.g. 0+250.5 or 250.5)", "pv.cutOff": "offset", "pv.cutOffT": "Offset of the cut from the axis in metres, + to the right looking towards increasing chainage",
@@ -1010,10 +1069,10 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.13.1";
-import * as IO from "./profile-io.js?v=0.13.1";
+import * as C from "./profile-core.js?v=0.15.0";
+import * as IO from "./profile-io.js?v=0.15.0";
 
-const TOOL_VERSION = "0.13.1";
+const TOOL_VERSION = "0.15.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -1054,8 +1113,10 @@ const newWork = (id, name) => ({
   box: { ...C.BOX, step: 1 },        // scatolare (0.9)
   stype: "ditch", stypeUser: false,   // tipo di sezione: dal nome dei file finché l'utente non lo sceglie
   cuts: [],              // progressive in pianta dove si divide in tratti
-  secs: [],              // sezioni diverse lungo l'opera (0.9): [{ id, p0, p1, stype, ditch, channel, box, pipe, j0, j1 }], j = raccordo sul capo { mode, len }
+  secs: [],              // sezioni diverse lungo l'opera (0.9): [{ id, p0, p1, stype, ditch, channel, box, pipe, j0, j1, fromStart, toEnd }], j = raccordo sul capo { mode, len }
   secSel: null,          // la riga da/a in modifica nel pannello Sezione (null = la sezione dell'opera)
+  bridges: [],           // tratti a ponte (0.15): [{ id, p0, p1, fromStart?, toEnd? }] — senza terre, spazio riservato fino al terreno
+  brOpt: { h: 2, l: 5 },  // proposta dei tratti fuori terra: altezza del fondo sul terreno e lunghezza minime
 });
 const isCh = (w) => w.stype === "channel", isPipe = (w) => w.stype === "pipe";
 /* i tipi di sezione di un'opera: il suo e quelli delle righe da/a (0.9) */
@@ -1080,6 +1141,9 @@ function solidsOf(w) {
 /* la sezione in modifica nel pannello: quella dell'opera o una riga da/a (0.9) */
 const secRow = () => (W.secSel != null && W.secs ? W.secs.find((r) => r.id === W.secSel) || null : null);
 const secTarget = () => secRow() || W;
+/* capi di una riga da/a (0.13.2): «dall'inizio» e «fino alla fine» restano sui capi dell'asse anche se la pianta cambia lunghezza */
+const secP0 = (r) => (r.fromStart ? 0 : r.p0);
+const secP1 = (r) => (r.toEnd && D.axis ? D.axis.length : r.p1);
 const typeShort = (t) => (t === "box" ? tr("sxs.box") : t === "channel" ? tr("sxs.channel") : t === "pipe" ? tr("sxs.pipe") : tr("sxs.ditch"));
 /* nome del materiale del tubo (anche nell'IFC) */
 const pipeMatName = (m) => (m === "pvc" ? tr("pm.pvc") : m === "pe" ? tr("pm.pe") : m === "cls" ? tr("pm.cls") : m === "ghisa" ? tr("pm.ghisa") : m === "acciaio" ? tr("pm.acciaio") : tr("pm.manual"));
@@ -1095,10 +1159,13 @@ const S = {
   spare: [],             // profili aperti e non abbinati a nessuna opera (si scelgono dall'albero)
   dtms: [],              // topografia esistente: [{ name, kind: "ifc"|"xml", points (E, N, quota), faces, how, crs }] — corridoio delle opere, uniti nel TIN
   dtmRefs: [],           // DTM rimasti fuori da un file .profiles: [{ name, kind, tris }] — da ricaricare
-  dtmPaths: {},          // dove sta ogni DTM (lo scrive l'utente: il browser non dà la cartella), per nome
+  dtmPaths: {},          // dove sta ogni DTM, per nome: cartella scritta dall'utente (il browser non la dà) + nome del file (0.13.2)
   dtmInFile: true,       // «Salva progetto» mette il DTM dentro il file (l'ultima scelta)
+  ctx: [],               // IFC di contesto (0.14): [{ name, how, crs, ox, oy, parts: [{ cls, glass, P, C, I, E }], elements, triangles, dropped, bbox, simplified }] — solo vista
+  ctxRefs: [],           // IFC di contesto rimasti fuori da un file .profiles: [{ name, elements, triangles }] — da ricaricare (il percorso in dtmPaths)
+  ctxInFile: true,       // «Salva progetto» mette il contesto dentro il file (l'ultima scelta)
   name: "",              // nome del progetto (file in uscita)
-  hidden: {},            // elementi spenti: "w<id>", "w<id>:plan|prof|axis", "w<id>:t<k>", "w<id>:t<k>:lining|cut|fill", "dtm:<file>"
+  hidden: {},            // elementi spenti: "w<id>", "w<id>:plan|prof|axis", "w<id>:t<k>", "w<id>:t<k>:lining|cut|fill", "dtm:<file>", "ctx:<file>", "ctx:<file>:<classe>"
   view: { ex: 2, layers: { dtm: true, lining: true, lean: true, mix: true, cut: true, fill: true, pipe: true, bed: true, surround: true, cover: true, restore: true, emb: true } }, podOff: false, pvOff: false, treeOff: false, closed: {}, treeOpen: {}, snap: true,
   treeW: null, podW: null,     // larghezze trascinate di albero e pannello (px); null = quella iniziale del CSS
   lastSave: null, saveOk: true,
@@ -1265,12 +1332,20 @@ function projectOrigin() {
    scatolare e tubo si dividono da sé ai salti; le divisioni dell'utente si aggiungono; dalla 0.9 anche le
    righe da/a con una sezione loro (e i raccordi fra sezioni compatibili): C.workSweep */
 function rebuildDitch() {
-  D.parts = []; D.shape = null; D.O = null; D.drops = []; D.runs = []; D.joins = []; D.specAt = null;
+  D.parts = []; D.shape = null; D.O = null; D.drops = []; D.runs = []; D.joins = []; D.specAt = null; D.clear = []; D.bridges = []; D.above = [];
   if (!D.axis || !D.prof || !D.ax3 || D.ax3.pts.length < 2) return;
   const z3 = TIN ? TIN.z : () => NaN, O = originOf(D.axis);
-  const spec = { stype: W.stype, P: W[W.stype], rows: (W.secs || []).map((r) => ({ id: r.id, p0: r.p0, p1: r.p1, stype: r.stype, P: r[r.stype], j0: r.j0, j1: r.j1 })) };
-  const sw = C.workSweep(D.axis, D.prof, W.anchors, spec, z3, { O, cuts: W.cuts, partWalls: W.pipe.partWalls });
+  const spec = { stype: W.stype, P: W[W.stype], rows: (W.secs || []).map((r) => ({ id: r.id, p0: secP0(r), p1: secP1(r), stype: r.stype, P: r[r.stype], j0: r.j0, j1: r.j1 })) };
+  const bridges = (W.bridges || []).map((b) => ({ id: b.id, p0: secP0(b), p1: secP1(b) }));
+  const sw = C.workSweep(D.axis, D.prof, W.anchors, spec, z3, { O, cuts: W.cuts, partWalls: W.pipe.partWalls, bridges });
   D.parts = sw.parts; D.drops = sw.drops; D.runs = sw.runs; D.joins = sw.joins; D.specAt = sw.specAt; D.O = O;
+  // tratti fuori terra (0.15): il fondo della struttura sopra il terreno sull'asse; i candidati che toccano un ponte no
+  D.clear = TIN ? C.clearance(D.axis, D.prof, W.anchors, D.specAt, z3, { step: 1 }) : [];
+  D.bridges = sw.bridges.map((b) => {
+    const h = D.clear.filter((c) => c.p >= b.p0 && c.p <= b.p1 && Number.isFinite(c.h)).reduce((a, c) => Math.max(a, c.h), -Infinity);
+    return { ...b, hMax: Number.isFinite(h) ? h : NaN };
+  });
+  D.above = C.aboveGround(D.clear, { ...C.BRIDGE, ...(W.brOpt || {}) }).filter((c) => !D.bridges.some((b) => b.p0 < c.p1 && b.p1 > c.p0));
   D.shape = C.sectionShape(W.stype, C.sectionParams(W.stype, W[W.stype]));
 }
 /* derivati dell'opera attiva (W, D): asse 3D, salti, DTM lungo l'asse, fosso */
@@ -1334,7 +1409,7 @@ function fullRebuild({ propose = true, quiet = false } = {}) {
    ========================================================================= */
 const undo = [], redo = [];
 const snapAnchors = () => JSON.stringify({ id: W.id, a: W.anchors, e: W.prof ? W.prof.edit || null : undefined,
-  pe: W.plan ? W.plan.edit || null : undefined, cuts: W.cuts, sp: (W.secs || []).map((r) => [r.id, r.p0, r.p1]) });   // pianta (0.11) e ciò che la segue
+  pe: W.plan ? W.plan.edit || null : undefined, cuts: W.cuts, sp: (W.secs || []).map((r) => [r.id, r.p0, r.p1]), bp: (W.bridges || []).map((r) => [r.id, r.p0, r.p1]) });   // pianta (0.11) e ciò che la segue
 function pushUndo() { undo.push(snapAnchors()); if (undo.length > 100) undo.shift(); redo.length = 0; updateUndo(); }
 function doUndo(back) {
   const from = back ? undo : redo, to = back ? redo : undo;
@@ -1350,6 +1425,7 @@ function doUndo(back) {
     if (e.pe) W.plan.edit = e.pe; else delete W.plan.edit;
     if (e.cuts) W.cuts = e.cuts;
     for (const [id, p0, p1] of e.sp || []) { const r = (W.secs || []).find((x) => x.id === id); if (r) { r.p0 = p0; r.p1 = p1; } }
+    for (const [id, p0, p1] of e.bp || []) { const r = (W.bridges || []).find((x) => x.id === id); if (r) { r.p0 = p0; r.p1 = p1; } }
   }
   clearTimeout(ED.timer); ED.burst = false; clearTimeout(PE.timer); PE.burst = false;
   rebuildPlan(); rebuildProfile();
@@ -1471,7 +1547,7 @@ function buildTin() {
   TIN = C.tinSampler(m.points, m.faces);
 }
 /* un file di topografia: si aggiunge agli altri (lo stesso nome sostituisce) */
-async function openDtm(file) {
+async function openDtm(file, ctxFallback = false) {   // ctxFallback: un IFC senza terreno torna "ctx" (si apre come contesto)
   busy(/\.ifc$/i.test(file.name) ? tr("dt.reading", { f: file.name }) : tr("t.read", { f: file.name }));
   await frame();
   try {
@@ -1483,8 +1559,9 @@ async function openDtm(file) {
     buildTin();
     return true;
   } catch (e) {
-    console.error(e);
     const m = e && e.message;
+    if (m === "NO_TERRAIN" && ctxFallback) return "ctx";             // previsto: si apre come contesto
+    console.error(e);
     toast(m === "NO_TERRAIN" ? tr("dt.noTerrain", { f: file.name }) : m === "NO_POINTS_HERE" ? tr("dt.ptsNone", { f: file.name })
       : m === "TOO_MANY" ? tr("dt.ptsMany", { f: file.name, n: ni(PTS_MAX_FREE) }) : tr("dt.fail", { f: file.name, m: m || String(e) }), true);
     return false;
@@ -1504,6 +1581,163 @@ function dtmToast() {
   if (!S.dtms.length) return;
   if (D.axis && D.cover < 0.01) toast(tr("dt.coverNone"), true);
   else toast(tr("dt.loaded", { n: ni(dtmTris()), c: ni(D.cover * 100) }));
+}
+
+/* --- IFC di contesto (0.14) --------------------------------------------------
+   Modelli esistenti attorno alle opere (strade, reti, edifici, opere vicine),
+   SOLO VISTA: mai nei file in uscita. web-ifc del viewer in un Worker, come il
+   DTM e i «modelli di riferimento» del Terrain Sculptor: georeferenziazione con
+   ifcReadGeoref/ifcFrames, tutti i prodotti con geometria tranne fori, spazi,
+   sito e terreno (quello si apre come DTM), per classe IFC (vetri a parte) con
+   gli elementi in fila (E: v0, v1, i0, i1, id), punti del sito in doppia
+   precisione; C.ctxAssemble li porta in mappa e tiene il corridoio delle opere.
+   Cane da guardia come nel Terrain Sculptor: un modello con le «bombe»
+   booleane di Revit tiene web-ifc fermo per minuti → dopo 40 s di silenzio il
+   Worker si chiude e il modello si rilegge semplificato (ifcNeutralizeBooleans). */
+const CTX_OPEN = 300000, CTX_STALL = 40000, CTX_STALL_SIMPLE = 120000;
+function ctxWorkerMain() {   // gira DENTRO il worker (serializzata con toString)
+  self.onmessage = async (ev) => {
+    try {
+      const { buf, wasm, header, simplify } = ev.data;
+      const api = new WebIFC.IfcAPI();
+      api.SetWasmPath(wasm, true);
+      await api.Init();
+      const mid = api.OpenModel(new Uint8Array(buf), {});
+      const f = IO.ifcFrames(IO.ifcReadGeoref(api, mid, WebIFC), header);
+      const terr = IO.ifcTerrainCandidates(api, mid, WebIFC).filter((c) => c.pick).map((c) => c.id);
+      postMessage({ type: "read", fr: { frame: f.frame, how: f.how, crs: f.crs } });
+      if (simplify) IO.ifcNeutralizeBooleans(api, mid, WebIFC);
+      const ids = (t) => { const out = []; if (t == null) return out; try { const v = api.GetLineIDsWithType(mid, t, true); for (let i = 0; i < v.size(); i++) out.push(v.get(i)); } catch (e) {} return out; };
+      const skip = new Set([...ids(WebIFC.IFCOPENINGELEMENT), ...ids(WebIFC.IFCSPACE), ...ids(WebIFC.IFCSITE), ...terr]);
+      const prods = ids(WebIFC.IFCPRODUCT).filter((id) => !skip.has(id));
+      const L = f.toLocal, names = new Map(), acc = new Map();
+      const clsOf = (id) => {                            // il nome della classe come nello schema (IfcWall), una volta per tipo
+        const t = api.GetLineType(mid, id);
+        let n = names.get(t);
+        if (n == null) {
+          try { const l = api.GetLine(mid, id); n = l && l.constructor && /^Ifc/.test(l.constructor.name) ? l.constructor.name : ""; } catch (e) { n = ""; }
+          if (!n) { const u = String(api.GetNameFromTypeCode(t) || "IFCPRODUCT"); n = "Ifc" + u.charAt(3) + u.slice(4).toLowerCase(); }
+          names.set(t, n);
+        }
+        return n;
+      };
+      const cb = (mesh) => {
+        const n = mesh.geometries.size();
+        if (!n) return;
+        const id = mesh.expressID, cls = clsOf(id), mine = new Map();
+        for (let g = 0; g < n; g++) {
+          const pg = mesh.geometries.get(g), geo = api.GetGeometry(mid, pg.geometryExpressID);
+          const v = api.GetVertexArray(geo.GetVertexData(), geo.GetVertexDataSize());
+          const ix = api.GetIndexArray(geo.GetIndexData(), geo.GetIndexDataSize());
+          if (geo.delete) geo.delete();
+          if (v.length < 9 || ix.length < 3) continue;
+          /* sito ← Z in alto ← mondo di web-ifc (Y in alto) ← locale della mesh, in doppia precisione */
+          const m = pg.flatTransformation, A = IO.mMul(L, [m[0], m[4], m[8], m[12], -m[2], -m[6], -m[10], -m[14], m[1], m[5], m[9], m[13]]);
+          const c = pg.color || { x: 0.8, y: 0.8, z: 0.8, w: 1 }, glass = (c.w == null ? 1 : c.w) < 0.99, key = cls + (glass ? "|g" : "");
+          let a = acc.get(key);
+          if (!a) acc.set(key, (a = { cls, glass, P: [], C: [], I: [], E: [] }));
+          if (!mine.has(key)) mine.set(key, { v0: a.P.length / 3, i0: a.I.length });
+          const base = a.P.length / 3, r = Math.round(c.x * 255), gg = Math.round(c.y * 255), b = Math.round(c.z * 255);
+          for (let k = 0; k < v.length; k += 6) {
+            const x = v[k], y = v[k + 1], z = v[k + 2];
+            a.P.push(A[0] * x + A[1] * y + A[2] * z + A[3], A[4] * x + A[5] * y + A[6] * z + A[7], A[8] * x + A[9] * y + A[10] * z + A[11]);
+            a.C.push(r, gg, b);
+          }
+          for (let k = 0; k < ix.length; k++) a.I.push(base + ix[k]);
+        }
+        for (const [key, e] of mine) { const a = acc.get(key); a.E.push(e.v0, a.P.length / 3, e.i0, a.I.length, id); }
+      };
+      let last = 0;
+      for (let p = 0; p < prods.length; p += 50) {
+        api.StreamMeshes(mid, prods.slice(p, p + 50), cb);
+        const t = Date.now();
+        if (t - last > 250 || p + 50 >= prods.length) { last = t; postMessage({ type: "progress", done: Math.min(prods.length, p + 50), total: prods.length }); }
+      }
+      const raw = [...acc.values()].map((a) => ({ cls: a.cls, glass: a.glass, P: Float64Array.from(a.P), C: Uint8Array.from(a.C), I: Uint32Array.from(a.I), E: Uint32Array.from(a.E) }));
+      postMessage({ type: "done", raw }, raw.flatMap((r) => [r.P.buffer, r.C.buffer, r.I.buffer, r.E.buffer]));
+      try { api.CloseModel(mid); } catch (e) {}
+    } catch (e) { postMessage({ type: "error", msg: String((e && e.message) || e) }); }
+  };
+}
+async function readCtx(file) {
+  const T = await tio();
+  const header = T.ifcHeader(await file.slice(0, 65536).text()), buf = await file.arrayBuffer();
+  const v = new URL("../../viewer/vendor/", location.href).href;
+  const url = URL.createObjectURL(new Blob([`import * as WebIFC from "${v}web-ifc-api.js";\nimport * as IO from "${TS_IO}";\n;(${ctxWorkerMain.toString()})();\n`], { type: "text/javascript" }));
+  const run = (simplify) => new Promise((res, rej) => {
+    const w = new Worker(url, { type: "module" });
+    let dog = 0, opened = false, fr = null;
+    // largo finché web-ifc apre il file, stretto durante la triangolazione
+    const kick = () => { clearTimeout(dog); dog = setTimeout(() => { w.terminate(); rej(Object.assign(new Error(tr("cx.timeout")), { stuck: opened })); }, !opened ? CTX_OPEN : simplify ? CTX_STALL_SIMPLE : CTX_STALL); };
+    w.onmessage = (ev) => {
+      const m = ev.data;
+      if (m.type === "read") { opened = true; fr = m.fr; kick(); return; }
+      if (m.type === "progress") { kick(); busy(tr("cx.reading", { f: file.name, d: ni(m.done), t: ni(m.total) })); return; }
+      clearTimeout(dog); w.terminate();
+      if (m.type === "done") res({ raw: m.raw, fr }); else rej(new Error(m.msg));
+    };
+    w.onerror = (ev) => { clearTimeout(dog); w.terminate(); rej(new Error((ev && ev.message) || "worker")); };
+    kick();
+    const copy = buf.slice(0);                            // l'originale resta per il secondo giro
+    w.postMessage({ buf: copy, wasm: v, header, simplify }, [copy]);
+  });
+  try {
+    let got, simplified = false;
+    try { got = await run(false); }
+    catch (e) { if (!e.stuck) throw e; busy(tr("cx.simplify", { f: file.name })); got = await run(true); simplified = true; }
+    const a = C.ctxAssemble(got.raw, got.fr.frame, worksBox(200));
+    return { name: file.name, how: got.fr.how, crs: got.fr.how === "map" ? got.fr.crs || null : null, simplified, ...a };
+  } finally { URL.revokeObjectURL(url); }
+}
+/* un IFC di contesto: si aggiunge agli altri (lo stesso nome sostituisce); torna il contesto letto o null */
+async function openCtx(file) {
+  busy(tr("cx.opening", { f: file.name })); await frame();
+  try {
+    const m = await readCtx(file);
+    if (!m.parts.length) { toast(tr("cx.none", { f: file.name }), true); return null; }
+    const i = S.ctx.findIndex((x) => x.name === file.name);
+    if (i >= 0) S.ctx[i] = m; else S.ctx.push(m);
+    S.ctxRefs = S.ctxRefs.filter((r) => r.name !== file.name);         // era da ricaricare: è tornato
+    return m;
+  } catch (e) {
+    console.error(e);
+    toast(tr("cx.fail", { f: file.name, m: (e && e.message) || String(e) }), true);
+    return null;
+  } finally { busy(""); }
+}
+const ctxTris = () => S.ctx.reduce((a, m) => a + m.triangles, 0);
+const ctxEls = () => S.ctx.reduce((a, m) => a + m.elements, 0);
+function ctxDone(m, asCtx = false) {
+  S.closed.ctx = false; applyClosed();
+  refreshViews(); scheduleSave();
+  const v = { f: m.name, n: ni(m.elements) };
+  toast(asCtx ? tr("cx.asCtx", v) : tr("cx.loaded", v));
+}
+function removeCtx(i) {
+  const m = S.ctx[i];
+  if (!m) return;
+  S.ctx.splice(i, 1);
+  const pre = "ctx:" + m.name;
+  for (const o of [S.hidden, S.treeOpen]) for (const k of Object.keys(o)) if (k === pre || k.startsWith(pre + ":")) delete o[k];
+  refreshViews(); scheduleSave();
+}
+/* selettore degli IFC di contesto; reload = il riferimento di cui il file prende il posto (anche con un altro nome) */
+let ctxReload = null;
+function pickCtx(reload = null) { ctxReload = reload; $("ctxIn").click(); }
+$("ctxIn").addEventListener("change", async (e) => {
+  const list = [...(e.target.files || [])], rn = ctxReload;
+  ctxReload = null; e.target.value = "";
+  let last = null;
+  for (const f of list) last = (await openCtx(f)) || last;
+  if (!last) return;
+  if (rn) S.ctxRefs = S.ctxRefs.filter((r) => r.name !== rn);
+  ctxDone(last);
+});
+function reloadCtx(i) {
+  const r = S.ctxRefs[i];
+  if (!r) return;
+  if (S.dtmPaths[r.name] && navigator.clipboard) navigator.clipboard.writeText(dtmPath(r.name)).then(() => toast(tr("dt.copied", { f: dtmPath(r.name) })), () => {});
+  pickCtx(r.name);
 }
 
 /* nome di un'opera nuova, diverso da quelli che ci sono */
@@ -1600,8 +1834,12 @@ async function openFiles(list, target = null) {
   const prep = touched.map((w) => ({ w, ...prepareWork(w) }));
   if (touched.length) setActive(S.works.indexOf(touched[0]));
   if (!S.name && S.works.length) S.name = S.works[0].name;
-  let dtmOk = false;
-  for (const f of dtmFiles) dtmOk = (await openDtm(f)) || dtmOk;    // dopo le piante: si ritaglia sul loro corridoio
+  let dtmOk = false, ctxLast = null;
+  for (const f of dtmFiles) {                                       // dopo le piante: si ritaglia sul loro corridoio
+    const r = await openDtm(f, /\.ifc$/i.test(f.name));
+    if (r === "ctx") ctxLast = (await openCtx(f)) || ctxLast;       // IFC senza terreno (0.14): è contesto
+    else dtmOk = r || dtmOk;
+  }
   busy(tr("busy.sweep")); await frame();
   if (dtmOk) recomputeAll(); else refreshViews();
   pvFit(); frameAll();
@@ -1620,6 +1858,7 @@ async function openFiles(list, target = null) {
   else if (prep.length > 1) toast(tr("t.works", { n: prep.length, w: prep.map((x) => x.w.name).join(" · ") }));
   if (S.spare.length > spare0) later.push(() => toast(S.works.length ? tr("t.spare", { n: S.spare.length }) : tr("t.needPlan"), true));
   if (dtmOk) later.push(dtmToast);
+  if (ctxLast) { S.closed.ctx = false; applyClosed(); later.push(() => { const v = { f: ctxLast.name, n: ni(ctxLast.elements) }; toast(tr("cx.asCtx", v)); }); }
   if (!prep.length && later.length) later.shift()();
   later.forEach((f, i) => setTimeout(f, 3800 * (i + 1)));
 }
@@ -1768,7 +2007,12 @@ function themeColors() {
   mats.dtm = mats.dtm || new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.38, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
   mats.dtm.color.set(light ? 0xd8cdb4 : 0x8c8470);
   mats.edge = mats.edge || new THREE.LineBasicMaterial({ color: 0x46514a, transparent: true, opacity: 0.45 });   // come gli spigoli del viewer
-  for (const k of Object.keys(mats)) if (!CUT_SKIP.has(k)) cutPatch(mats[k]);          // opere, DTM e spigoli si tagliano; le linee no
+  mats.void = mats.void || new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false });
+  mats.void.color.set(light ? 0x4f8fd6 : 0x6ea8ea);                 // spazio riservato al ponte (0.15)
+  // IFC di contesto (0.14): i colori dell'IFC per vertice, normali piatte dalle derivate (niente attributo), vetri trasparenti
+  mats.ctx = mats.ctx || new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
+  mats.ctxGlass = mats.ctxGlass || new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide, transparent: true, opacity: 0.35, depthWrite: false });
+  for (const k of Object.keys(mats)) if (!CUT_SKIP.has(k)) cutPatch(mats[k]);          // opere, DTM, contesto e spigoli si tagliano; le linee no
   if (CUT.mode) cutLater();                                                              // tappi coi colori del tema
   drawPV();
 }
@@ -1790,6 +2034,22 @@ function addMesh(m, mat, O = null, { smooth = false, edges = false } = {}) {
   return o;
 }
 const Zs = (z) => (z - G.zRef) * S.view.ex;
+/* colori dell'IFC (sRGB) → lineari, come three.js tratta i colori per vertice */
+const SRGB_LIN = Uint8Array.from({ length: 256 }, (_, i) => { const c = i / 255; return Math.round((c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)) * 255); });
+/* vetri e scavi (un vuoto: come lo scavo delle opere) trasparenti, nel taglio solo il contorno */
+const CTX_GHOST = new Set(["IfcEarthworksCut"]), ctxGhost = (p) => p.glass || CTX_GHOST.has(p.cls);
+/* una parte del contesto nella scena: coordinate attorno all'origine del file → origine della scena, quote con l'esagerazione */
+function ctxMesh(m, p) {
+  const P = p.P, n = P.length / 3, f = new Float32Array(P.length), col = new Uint8Array(p.C.length), dx = m.ox - G.O.x, dy = m.oy - G.O.y;
+  for (let i = 0; i < n; i++) { f[3 * i] = P[3 * i] + dx; f[3 * i + 1] = P[3 * i + 1] + dy; f[3 * i + 2] = Zs(P[3 * i + 2]); }
+  for (let i = 0; i < col.length; i++) col[i] = SRGB_LIN[p.C[i]];
+  const g = new THREE.BufferGeometry().setAttribute("position", new THREE.BufferAttribute(f, 3)).setAttribute("color", new THREE.BufferAttribute(col, 3, true));
+  g.setIndex(new THREE.BufferAttribute(p.I, 1));
+  const o = new THREE.Mesh(g, ctxGhost(p) ? mats.ctxGlass : mats.ctx);
+  o.userData.src = { m: { positions: P, index: p.I }, ox: dx, oy: dy, flat: false, ctx: p };   // per il taglio: indicizzata, fette per elemento
+  G.group.add(o);
+  return o;
+}
 function clearGroup() {
   for (const o of [...G.group.children]) { G.group.remove(o); o.traverse((c) => { if (c.geometry) c.geometry.dispose(); }); }
 }
@@ -1850,6 +2110,7 @@ function buildScene() {
         const mat = s.k === "pipe" ? mats["pipe_" + (part.P || w.pipe).mat] || mats.pipe_manual : mats[s.k];
         tag(addMesh(m, mat, off, { edges: !!s.e }), P + ":" + s.k);
       }
+      if (part.mesh.void && part.mesh.void.index.length && shown(P + ":void")) tag(addMesh(part.mesh.void, mats.void, off), P + ":void");   // ponte (0.15)
     }
     // terreno del profilo, riportato sulla pianta
     if (d.ground && shown(K + ":prof")) {
@@ -1870,6 +2131,11 @@ function buildScene() {
   }
   // topografia esistente (fuori dall'inquadratura generale: è più larga delle opere)
   if (ly.dtm) for (const t of S.dtms) if (shown("dtm:" + t.name)) { const o = tag(addMesh({ positions: t.points, index: t.faces }, mats.dtm, G.O, { smooth: true }), "dtm:" + t.name); o.userData.noFrame = true; }
+  // IFC di contesto (0.14): una mesh per classe (vetri a parte), fuori dall'inquadratura generale come il DTM
+  if (ly.ctx !== false) for (const m of S.ctx) if (shown("ctx:" + m.name)) for (const p of m.parts) {
+    const k = "ctx:" + m.name + ":" + p.cls;
+    if (shown(k)) tag(ctxMesh(m, p), k).userData.noFrame = true;
+  }
   // segnaposto del cursore del profilo
   G.marker = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), mats.mark);
   G.marker.visible = false;
@@ -1892,6 +2158,7 @@ const RAIL_W = 82;
 const podW = () => (S.podOff ? 14 : $("pod").getBoundingClientRect().width + 28);
 const pvH = () => (S.pvOff ? 0 : $("pv").getBoundingClientRect().height + 14);
 let frameLater = false;
+let fly = null;                                            // volo della camera in corso (flyTo)
 function resize() {
   applyWidths();
   if (!renderer) return;
@@ -1913,8 +2180,9 @@ function sceneBox() {
 /* gli 8 spigoli della scatola devono cadere nello spazio libero fra rail, testata, pannello e lastra
    del profilo: distanza e centro si aggiustano sulla loro proiezione, in pochi giri. Dall'alto la
    vista si inclina di 2 millesimi perpendicolarmente all'asse, così l'asse esce orizzontale sullo
-   schermo senza toccare camera.up (OrbitControls ruota attorno all'up fissato alla creazione). */
-function frameAll(top = false, box = sceneBox()) {
+   schermo senza toccare camera.up (OrbitControls ruota attorno all'up fissato alla creazione).
+   opt.dir: la direzione verso la camera (se no quella di sempre); opt.fly: ci si arriva in volo. */
+function frameAll(top = false, box = sceneBox(), opt = {}) {
   if (!box) return;
   orbCancel();                                             // l'inquadratura interrompe drag e inerzia del pivot
   frameLater = !innerWidth || !innerHeight;
@@ -1924,11 +2192,13 @@ function frameAll(top = false, box = sceneBox()) {
   const L = (S.treeOff || innerWidth < 760 ? RAIL_W : $("tree").getBoundingClientRect().right + 10) + 12, R = Math.max(L + 160, innerWidth - podW() - 12), Tp = 70, B = Math.max(Tp + 120, innerHeight - pvH() - 14);
   const vfov = THREE.MathUtils.degToRad(camera.fov);
   let dir;
-  if (top) {
+  if (opt.dir) dir = opt.dir.clone().normalize();
+  else if (top) {
     const a = D.ax3 && D.ax3.pts.length > 1 ? D.ax3.pts : null;
     const ang = a ? Math.atan2(a[a.length - 1].y - a[0].y, a[a.length - 1].x - a[0].x) : 0;
     dir = new THREE.Vector3(Math.sin(ang) * 0.002, -Math.cos(ang) * 0.002, 1).normalize();
   } else dir = new THREE.Vector3(-0.35, -0.75, 0.56).normalize();
+  const was = opt.fly ? { p: camera.position.clone(), q: camera.quaternion.clone() } : null;
   const tgt = box.getCenter(new THREE.Vector3()), right = new THREE.Vector3(), up = new THREE.Vector3();
   let d = Math.max(20, box.getSize(new THREE.Vector3()).length());
   for (let it = 0; it < 7; it++) {
@@ -1945,9 +2215,73 @@ function frameAll(top = false, box = sceneBox()) {
     tgt.addScaledVector(right, ((a + b) / 2 - (L + R) / 2) * wpp).addScaledVector(up, ((Tp + B) / 2 - (c + e) / 2) * wpp);
     d = Math.max(5, d * Math.max((b - a) / (R - L), (e - c) / (B - Tp)) * 1.04);
   }
+  if (was) {                                               // la camera torna dov'era: il volo parte da lì
+    camera.position.copy(was.p); camera.quaternion.copy(was.q); camera.updateMatrixWorld();
+    flyTo(tgt.clone().addScaledVector(dir, d), tgt);
+    return;
+  }
+  fly = null;
   controls.target.copy(tgt);
   camera.position.copy(tgt).addScaledVector(dir, d);
   controls.update();
+}
+/* volo della camera (come flyTo del viewer): posizione e target in 0,6 s con ease-in-out, OrbitControls
+   fermo nel frattempo (lo smorzamento rimasto combatterebbe l'arrivo); un clic o la rotella sulla vista
+   lo interrompono dove si trova */
+function flyTo(pos, tgt, ms = 600) {
+  orbCancel();
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) ms = 0;
+  const p0 = camera.position.clone(), t0 = controls.target.clone(), start = performance.now();
+  fly = (now) => {
+    let k = ms > 0 ? Math.min(1, (now - start) / ms) : 1;
+    k = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    camera.position.lerpVectors(p0, pos, k);
+    controls.target.lerpVectors(t0, tgt, k);
+    camera.lookAt(controls.target);
+    if (k >= 1) { fly = null; controls.update(); }
+  };
+}
+for (const ev of ["pointerdown", "wheel"]) addEventListener(ev, (e) => { if (fly && e.target === canvas) { fly = null; controls.update(); } }, { capture: true, passive: true });
+/* doppio clic sul profilo (0.13.2): la vista 3D vola sul punto dell'asse a quella progressiva, con la
+   direzione di vista di adesso (sezione ⟂ accesa: di fronte al taglio, alla stessa altezza). Inquadra la
+   sezione dell'opera attiva in quel punto — le fette delle sue mesh col piano ⟂ all'asse, entro 100 m
+   (in curva lo stesso piano ritaglia l'opera anche altrove) — e almeno 20 m attorno al punto. */
+function zoomAt(p) {
+  if (!D.axis || !G.group) return;
+  p = Math.max(0, Math.min(D.axis.length, p));
+  const w = C.planAt(D.axis, p), px = w.x - G.O.x, py = w.y - G.O.y;
+  let z = D.prof && D.map ? C.zAt(D.prof, D.map.toQ(p), 1) : NaN;
+  if (!Number.isFinite(z) && TIN) z = TIN.z(w.x, w.y);
+  const zs = Number.isFinite(z) ? Zs(z) : controls.target.z;
+  const box = new THREE.Box3(), v = new THREE.Vector3(), K = "w" + W.id;
+  let half = 10;
+  for (const o of G.group.children) {
+    const src = o.userData.src, k = o.userData.key;
+    if (!src || !src.flat || !o.visible || o.userData.cap || !k || !(k === K || k.startsWith(K + ":"))) continue;
+    const P = src.m.positions, n = P.length / 3, F = new Float64Array(n);
+    let pos = 0;
+    for (let i = 0; i < n; i++) { F[i] = w.tx * (P[3 * i] + src.ox - px) + w.ty * (P[3 * i + 1] + src.oy - py); if (F[i] >= 0) pos++; }
+    if (!pos || pos === n) continue;
+    const sg = C.sliceSegments(src.m, F);
+    for (let i = 0; i < sg.length; i += 3) {
+      const x = sg[i] + src.ox, y = sg[i + 1] + src.oy, u = Math.hypot(x - px, y - py);
+      if (u > 100) continue;
+      box.expandByPoint(v.set(x, y, Zs(sg[i + 2])));
+      half = Math.max(half, u);
+    }
+  }
+  box.expandByPoint(v.set(px, py, zs));
+  // almeno 10 m per lato, e un poco d'opera prima e dopo il punto (metà della larghezza)
+  for (const s of [-1, 1]) {
+    box.expandByPoint(v.set(px + s * w.ty * 10, py - s * w.tx * 10, zs));
+    box.expandByPoint(v.set(px + s * w.tx * half / 2, py + s * w.ty * half / 2, zs));
+  }
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  if (CUT.mode === "x" && CUT.plane) {                     // dalla parte tagliata via, verso il tappo
+    const h = Math.min(Math.sin(THREE.MathUtils.degToRad(60)), Math.max(Math.sin(THREE.MathUtils.degToRad(15)), dir.z)), c = Math.sqrt(1 - h * h);
+    dir.set(-CUT.plane.x * c, -CUT.plane.y * c, h);
+  }
+  frameAll(false, box, { dir, fly: true });
 }
 /* inquadra un elemento dell'albero: gli oggetti con quella chiave o sotto (anche il DTM) */
 function frameKey(key) {
@@ -2290,6 +2624,61 @@ function cutLineMats() {
   cutLine.dtm = cutLine.dtm || new THREE.LineBasicMaterial();
   cutLine.dtm.color.set(light ? 0x2f6fbf : 0x5b9be0);                // il DTM come nella lastra del profilo e nella sezione del pannello
 }
+/* anelli di una fetta → il tappo: anelli in 2D (ascissa del taglio, quota) senza punti doppi di seguito e
+   i punti 3D della scena in parallelo, esterni coi loro fori (C.nestLoops), triangoli (earcut di three.js);
+   i contorni vanno in lines. pv/ix si allungano (più tappi in una geometria). */
+function capGeom(loops, src, lines, pv = [], ix = []) {
+  const L2 = [], L3 = [];
+  for (const lp of loops) {
+    const a = [], b = [];
+    for (let i = 0; i < lp.g.length; i++) {
+      const q = [lp.g[i], lp.xyz[3 * i + 2]], l = a[a.length - 1];
+      if (l && Math.abs(l[0] - q[0]) < 1e-9 && Math.abs(l[1] - q[1]) < 1e-9) continue;
+      a.push(q); b.push([lp.xyz[3 * i] + src.ox, lp.xyz[3 * i + 1] + src.oy, Zs(lp.xyz[3 * i + 2])]);
+    }
+    while (a.length > 1 && Math.abs(a[0][0] - a[a.length - 1][0]) < 1e-9 && Math.abs(a[0][1] - a[a.length - 1][1]) < 1e-9) { a.pop(); b.pop(); }
+    L2.push(a); L3.push(b);
+  }
+  for (const r of C.nestLoops(L2)) {
+    const ids = [r.outer, ...r.holes], lo = L2[r.outer];
+    if (ids.some((k) => L2[k].length < 3)) continue;
+    let per = 0;
+    for (let i = 0; i < lo.length; i++) { const q = lo[(i + 1) % lo.length]; per += Math.hypot(q[0] - lo[i][0], q[1] - lo[i][1]); }
+    if (r.area < 5e-4 * per) continue;                     // fettina più sottile di 1 mm (il rinfianco sull'asse, sotto e sopra il tubo): solo il contorno — earcut ci mette secondi
+    let faces;
+    try { faces = THREE.ShapeUtils.triangulateShape(L2[r.outer].map(([x, y]) => new THREE.Vector2(x, y)), r.holes.map((k) => L2[k].map(([x, y]) => new THREE.Vector2(x, y)))); }
+    catch (_) { continue; }
+    const base = pv.length / 3;
+    for (const k of ids) for (const q of L3[k]) pv.push(q[0], q[1], q[2]);
+    for (const f of faces) ix.push(base + f[0], base + f[1], base + f[2]);
+  }
+  for (const b of L3) for (let i = 0; i < b.length; i++) { const q = b[i], r = b[(i + 1) % b.length]; lines.push(q[0], q[1], q[2], r[0], r[1], r[2]); }
+  return { pv, ix };
+}
+/* tappi di una parte del contesto (0.14): le fette dei soli elementi attraversati (C.ctxSlice), ognuno
+   col colore del suo elemento un poco più scuro; vetri e pezzi non a tenuta solo come contorno */
+function ctxCaps(src, F, Gp, lines) {
+  const p = src.ctx, { loops, segs } = C.ctxSlice(p, F, Gp);
+  for (let k = 0; k < segs.length; k += 6) lines.push(segs[k] + src.ox, segs[k + 1] + src.oy, Zs(segs[k + 2]), segs[k + 3] + src.ox, segs[k + 4] + src.oy, Zs(segs[k + 5]));
+  if (!loops.length) return;
+  const byEl = new Map();
+  for (const l of loops) { const a = byEl.get(l.el); if (a) a.push(l); else byEl.set(l.el, [l]); }
+  const pv = [], ix = [], col = [];
+  for (const [el, ls] of byEl) {
+    if (ctxGhost(p)) { capGeom(ls, src, lines); continue; }
+    const n0 = pv.length / 3, v0 = p.E[5 * el];
+    capGeom(ls, src, lines, pv, ix);
+    const c = [0, 1, 2].map((j) => (SRGB_LIN[p.C[3 * v0 + j]] / 255) * 0.8);
+    for (let k = n0; k < pv.length / 3; k++) col.push(c[0], c[1], c[2]);
+  }
+  if (!ix.length) return;
+  const g = new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(pv, 3)).setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(ix);
+  CUT.ctxMat = CUT.ctxMat || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+  const cap = new THREE.Mesh(g, CUT.ctxMat);
+  cap.userData.cap = true; cap.userData.noFrame = true;
+  G.group.add(cap);
+}
 /* tappi: via i vecchi, poi una fetta per ogni mesh della scena che il taglio attraversa */
 function cutCaps() {
   for (const o of [...G.group.children]) if (o.userData.cap) { G.group.remove(o); o.geometry.dispose(); }
@@ -2312,41 +2701,15 @@ function cutCaps() {
       for (let k = 0; k < n; k++) { F[k] = CUT.side * (U[k] - CUT.off); Gp[k] = Sv[k]; if (F[k] >= 0) pos++; else neg++; }
     }
     if (!pos || !neg) continue;
-    const Z = (z) => Zs(z);
+    if (src.ctx) { ctxCaps(src, F, Gp, lines); continue; }   // IFC di contesto (0.14): solo gli elementi attraversati
     if (!src.flat) {                                       // il DTM (superficie): una linea
       const sg = C.sliceSegments(M, F);
-      for (let k = 0; k < sg.length; k += 3) dtmSeg.push(sg[k] + src.ox, sg[k + 1] + src.oy, Z(sg[k + 2]));
+      for (let k = 0; k < sg.length; k += 3) dtmSeg.push(sg[k] + src.ox, sg[k + 1] + src.oy, Zs(sg[k + 2]));
       continue;
     }
     const { loops } = C.sliceLoops(M, F, Gp);
     if (!loops.length) continue;
-    // anelli in 2D (ascissa del taglio, quota) senza punti doppi di seguito, e i punti 3D della scena in parallelo
-    const L2 = [], L3 = [];
-    for (const lp of loops) {
-      const a = [], b = [];
-      for (let i = 0; i < lp.g.length; i++) {
-        const q = [lp.g[i], lp.xyz[3 * i + 2]], l = a[a.length - 1];
-        if (l && Math.abs(l[0] - q[0]) < 1e-9 && Math.abs(l[1] - q[1]) < 1e-9) continue;
-        a.push(q); b.push([lp.xyz[3 * i] + src.ox, lp.xyz[3 * i + 1] + src.oy, Z(lp.xyz[3 * i + 2])]);
-      }
-      while (a.length > 1 && Math.abs(a[0][0] - a[a.length - 1][0]) < 1e-9 && Math.abs(a[0][1] - a[a.length - 1][1]) < 1e-9) { a.pop(); b.pop(); }
-      L2.push(a); L3.push(b);
-    }
-    const pv = [], ix = [];
-    for (const r of C.nestLoops(L2)) {
-      const ids = [r.outer, ...r.holes], lo = L2[r.outer];
-      if (ids.some((k) => L2[k].length < 3)) continue;
-      let per = 0;
-      for (let i = 0; i < lo.length; i++) { const q = lo[(i + 1) % lo.length]; per += Math.hypot(q[0] - lo[i][0], q[1] - lo[i][1]); }
-      if (r.area < 5e-4 * per) continue;                   // fettina più sottile di 1 mm (il rinfianco sull'asse, sotto e sopra il tubo): solo il contorno — earcut ci mette secondi
-      let faces;
-      try { faces = THREE.ShapeUtils.triangulateShape(L2[r.outer].map(([x, y]) => new THREE.Vector2(x, y)), r.holes.map((k) => L2[k].map(([x, y]) => new THREE.Vector2(x, y)))); }
-      catch (_) { continue; }
-      const base = pv.length / 3;
-      for (const k of ids) for (const q of L3[k]) pv.push(q[0], q[1], q[2]);
-      for (const f of faces) ix.push(base + f[0], base + f[1], base + f[2]);
-    }
-    for (const b of L3) for (let i = 0; i < b.length; i++) { const q = b[i], r = b[(i + 1) % b.length]; lines.push(q[0], q[1], q[2], r[0], r[1], r[2]); }
+    const { pv, ix } = capGeom(loops, src, lines);
     if (!ix.length) continue;
     const g = new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(pv, 3));
     g.setIndex(ix);
@@ -2425,8 +2788,8 @@ function cutStep(dir, big) {
 }
 
 function tick() {
-  orbApply(performance.now());
-  controls.update();
+  if (fly) fly(performance.now());
+  else { orbApply(performance.now()); controls.update(); }
   const dist = camera.position.distanceTo(controls.target);
   camera.near = Math.max(0.1, dist / 5000); camera.far = dist * 50 + 10000;
   camera.updateProjectionMatrix();
@@ -2458,6 +2821,7 @@ function pvData() {
   if (!can && ED.on) { ED.on = false; ED.sel = ED.hover = -1; $("pvEdit").classList.remove("on"); }
   $("pvDtmLg").hidden = !D.dtmLine.length;
   $("pvTopLg").hidden = true;
+  $("pvAboveLg").hidden = !(D.above && D.above.length); $("pvBridgeLg").hidden = !(D.bridges && D.bridges.length);
   if (!D.axis || !D.prof) return;
   for (const pt of D.prof.pts) PV.design.push([D.map.toP(pt.s), pt.z]);
   // la cima dell'opera tratto per tratto (fa gli stessi gradini del fondo): canale = cima dei muri, scatolare =
@@ -2533,6 +2897,17 @@ function drawPV() {
   for (const j of D.jumps) {
     const a = Math.max(xl, xOf(j.p0)), b = Math.min(xr, xOf(j.p1));
     if (b > a) pctx.fillRect(a, sT, Math.max(2, b - a), mB - sT);
+  }
+  // --- tratti fuori terra proposti (velati, bordi tratteggiati) e ponti (0.15)
+  for (const [list, fill, dash] of [[D.above || [], "rgba(91,155,224,.10)", true], [D.bridges || [], "rgba(91,155,224,.26)", false]]) for (const c of list) {
+    const a = Math.max(xl, xOf(c.p0)), b = Math.min(xr, xOf(c.p1));
+    if (!(b > a)) continue;
+    pctx.fillStyle = fill; pctx.fillRect(a, mT, b - a, mB - mT);
+    if (dash) {
+      pctx.save(); pctx.strokeStyle = "rgba(91,155,224,.8)"; pctx.setLineDash([3, 3]); pctx.lineWidth = 1;
+      for (const x of [xOf(c.p0), xOf(c.p1)]) if (x >= xl && x <= xr) { pctx.beginPath(); pctx.moveTo(Math.round(x) + 0.5, mT); pctx.lineTo(Math.round(x) + 0.5, mB); pctx.stroke(); }
+      pctx.restore();
+    }
   }
   // --- griglia e assi
   pctx.strokeStyle = cLine; pctx.lineWidth = 1; pctx.fillStyle = cFaint;
@@ -2712,7 +3087,11 @@ function pvUp() {
 pvc.addEventListener("pointerup", pvUp);
 pvc.addEventListener("pointercancel", () => { if (PV.drag && PV.drag.vtx >= 0) pvUp(); else { PV.drag = null; pvc.classList.remove("grab"); } });
 pvc.addEventListener("pointerleave", () => { if (!PV.drag) { PV.hover = null; ED.hover = -1; drawPV(); setMarker(null); status(null); sectionLater(CUT.mode === "x" ? CUT.p : null); } });
-pvc.addEventListener("dblclick", (e) => { if (!edDblClick(e)) pvFit(); });
+pvc.addEventListener("dblclick", (e) => {                 // doppio clic (0.13.2): la vista 3D su quel punto; «Tutto» resta il pulsante
+  if (edDblClick(e) || !D.axis) return;
+  const x = e.clientX - pvc.getBoundingClientRect().left, [xl, xr] = plotX();
+  if (x >= xl && x <= xr) zoomAt(pOf(x));
+});
 $("pvFit").addEventListener("click", () => pvFit());
 $("pvEdit").addEventListener("click", () => edSet(!ED.on));
 function pvShow(p0, p1) {
@@ -3195,11 +3574,12 @@ function plSnap(cx, cy) {
 }
 /* ciò che segue la pianta: ancoraggi, divisioni in tratti, righe da/a, sezione ⟂; m = progressiva di prima → nuova */
 const plBase = () => ({ axis: D.axis, st: D.plSt.slice(), pts: D.plPts.map((p) => ({ ...p })), anchors: W.anchors.map((a) => ({ ...a })), cuts: W.cuts.slice(),
-  secs: Object.fromEntries((W.secs || []).map((r) => [r.id, [r.p0, r.p1]])), cut: CUT.mode === "x" && Number.isFinite(CUT.p) ? CUT.p : null });
+  secs: Object.fromEntries((W.secs || []).map((r) => [r.id, [r.p0, r.p1]])), brs: Object.fromEntries((W.bridges || []).map((r) => [r.id, [r.p0, r.p1]])), cut: CUT.mode === "x" && Number.isFinite(CUT.p) ? CUT.p : null });
 function plFollow(b, m) {
   W.anchors = b.anchors.map((a) => ({ ...a, p: m(a.p) }));
   W.cuts = b.cuts.map(m);
   for (const r of W.secs || []) { const x = b.secs[r.id]; if (x) { r.p0 = m(x[0]); r.p1 = m(x[1]); } }
+  for (const r of W.bridges || []) { const x = (b.brs || {})[r.id]; if (x) { r.p0 = m(x[0]); r.p1 = m(x[1]); } }
   if (b.cut != null) CUT.p = m(b.cut);
 }
 /* la pianta cambia (vertici di controllo nel verso dell'asse): dal primo cambio è dell'opera; fu = come cambia u (fra le
@@ -3875,21 +4255,41 @@ function renderAnchors() {
     toast(tr("t.added", { p: prog(p), q: prog(q) }));
   });
 }
-/* DTM rimasti fuori da un file .profiles: nome, percorso (si corregge qui) e «Ricarica» */
+/* DTM rimasti fuori da un file .profiles: nome, cartella (si corregge qui) e «Ricarica» */
 function dtmMissing() {
-  return S.dtmRefs.map((r, i) => `<div class="dtmiss"><div class="file"><span class="fn" title="${esc(r.name)}">${esc(r.name)}</span><span class="fm">${esc(tr("dt.miss"))}</span>`
+  return S.dtmRefs.map((r, i) => `<div class="dtmiss"><div class="file"><span class="fn" title="${esc(dtmPath(r.name))}">${esc(r.name)}</span><span class="fm">${esc(tr("dt.miss"))}</span>`
     + `<button class="btn-sm" data-dtre="${i}">${esc(tr("dt.reload"))}</button></div>`
-    + `<input class="txt" data-dtpath="${i}" value="${esc(S.dtmPaths[r.name] || r.name)}" title="${esc(tr("dt.pathT"))}" aria-label="${esc(tr("dt.pathT"))}" spellcheck="false"></div>`).join("");
+    + `<input class="txt" data-dtpath="${i}" value="${esc(dtmDir(r.name))}" placeholder="${esc(tr("dt.dirPh"))}" title="${esc(tr("dt.pathT"))}" aria-label="${esc(tr("dt.pathT"))}" spellcheck="false"></div>`).join("");
 }
 function wireMissing(B) {
   B.querySelectorAll("[data-dtre]").forEach((el) => el.addEventListener("click", () => reloadDtm(+el.dataset.dtre)));
   B.querySelectorAll("[data-dtpath]").forEach((el) => el.addEventListener("change", () => {
     const r = S.dtmRefs[+el.dataset.dtpath];
-    if (r) { setDtmPath(r.name, el.value); scheduleSave(); }
+    if (r) { setDtmDir(r.name, el.value); el.value = dtmDir(r.name); el.previousElementSibling.querySelector(".fn").title = dtmPath(r.name); renderTree(); scheduleSave(); }
   }));
 }
-/* il percorso si tiene solo se dice più del nome del file */
-function setDtmPath(name, v) { v = String(v || "").trim(); if (v && v !== name) S.dtmPaths[name] = v; else delete S.dtmPaths[name]; }
+/* dove sta un DTM fuori dal file (0.13.2): l'utente scrive la CARTELLA (si copia dalla barra degli
+   indirizzi di Esplora risorse), il nome del file lo aggiunge il tool. In S.dtmPaths resta il percorso
+   intero, come prima: i progetti salvati prima si riaprono uguali (la cartella = il percorso senza il
+   nome; se non finisce col nome lo si mostra intero). Incollato col nome in fondo o fra virgolette va
+   bene lo stesso; un percorso a un file DTM con un altro nome resta com'è. */
+const DTM_FILE = /\.(ifc|xml|landxml|csv|txt|xyz|pts|terrain)$/i;
+const dirJoin = (d, name) => d + (d.includes("\\") || !d.includes("/") ? "\\" : "/") + name;
+function dtmTail(p, name) {                              // il percorso finisce con «\nome» o «/nome»?
+  const n = name.length;
+  return p.length > n && p.slice(-n).toLowerCase() === name.toLowerCase() && /[\\/]/.test(p[p.length - n - 1]);
+}
+/* il percorso intero (una sola cartella scritta in un progetto della 0.13.1 diventa cartella + nome) */
+function dtmPath(name) { const p = S.dtmPaths[name]; return !p ? name : dtmTail(p, name) || DTM_FILE.test(p) ? p : dirJoin(p, name); }
+function dtmDir(name) { const p = S.dtmPaths[name] || ""; return dtmTail(p, name) ? p.slice(0, -name.length - 1) : p; }
+function setDtmDir(name, v) {
+  let d = String(v || "").trim().replace(/^"(.*)"$/, "$1").trim();
+  if (dtmTail(d, name)) d = d.slice(0, -name.length - 1);
+  else if (DTM_FILE.test(d) && /[\\/]/.test(d)) { S.dtmPaths[name] = d; return; }
+  d = d.replace(/(.)[\\/]+$/, "$1");
+  if (!d || d === name) { delete S.dtmPaths[name]; return; }
+  S.dtmPaths[name] = dirJoin(d, name);
+}
 function renderDtm() {
   const B = $("dtBody");
   if (!S.dtms.length) {
@@ -3926,17 +4326,48 @@ function renderDtm() {
   B.querySelectorAll("[data-dtrm]").forEach((el) => el.addEventListener("click", () => removeDtm(+el.dataset.dtrm)));
   wireMissing(B);
 }
+/* IFC di contesto (0.14): file aperti (georeferenziazione, elementi nel corridoio, classi, triangoli), quelli
+   rimasti fuori da un .profiles con la cartella e «Ricarica…», e «Aggiungi IFC» */
+function renderCtx() {
+  const B = $("cxBody");
+  let h = S.ctxRefs.map((r, i) => `<div class="dtmiss"><div class="file"><span class="fn" title="${esc(dtmPath(r.name))}">${esc(r.name)}</span><span class="fm">${esc(tr("dt.miss"))}</span>`
+    + `<button class="btn-sm" data-cxre="${i}">${esc(tr("dt.reload"))}</button></div>`
+    + `<input class="txt" data-cxpath="${i}" value="${esc(dtmDir(r.name))}" placeholder="${esc(tr("dt.dirPh"))}" title="${esc(tr("dt.pathT"))}" aria-label="${esc(tr("dt.pathT"))}" spellcheck="false"></div>`).join("");
+  if (S.ctxRefs.length) h += `<p class="help">${esc(tr("cx.missHelp"))}</p>`;
+  S.ctx.forEach((m, i) => {
+    h += `<div class="file"><span class="fn" title="${esc(m.name)}">${esc(m.name)}</span><span class="fm">IFC</span><button class="btn-sm" data-cxrm="${i}">${esc(tr("dt.remove"))}</button></div>`;
+    h += kv(tr("dt.georef"), esc(m.how === "map" ? tr("dt.how.map") : m.how === "site" ? tr("dt.how.site") : m.how === "context" ? tr("dt.how.context") : tr("dt.how.none")) + (m.crs ? " · " + esc(m.crs) : ""));
+    h += kv(tr("cx.els"), esc(m.dropped ? tr("cx.elsDrop", { n: ni(m.elements), d: ni(m.dropped) }) : tr("cx.elsV", { n: ni(m.elements) })));
+    h += kv(tr("cx.classes"), esc(String(new Set(m.parts.map((p) => p.cls)).size)));
+    h += kv(tr("dt.tris"), esc(ni(m.triangles)));
+    if (m.simplified) h += `<p class="note warn">${esc(tr("cx.simplified"))}</p>`;
+  });
+  if (!S.ctx.length && !S.ctxRefs.length) h += `<p class="empty">${esc(tr("cx.empty"))}</p>`;
+  h += `<div class="btns"><button class="btn-sm" id="cxAdd">${esc(tr("cx.add"))}</button></div>`;
+  if (S.ctx.length) h += `<p class="help">${esc(tr("cx.help"))}</p>`;
+  B.innerHTML = h;
+  $("cxCnt").textContent = S.ctxRefs.length ? "!" : S.ctx.length ? ni(ctxEls()) : "";
+  $("cxAdd").onclick = () => pickCtx();
+  B.querySelectorAll("[data-cxrm]").forEach((el) => el.addEventListener("click", () => removeCtx(+el.dataset.cxrm)));
+  B.querySelectorAll("[data-cxre]").forEach((el) => el.addEventListener("click", () => reloadCtx(+el.dataset.cxre)));
+  B.querySelectorAll("[data-cxpath]").forEach((el) => el.addEventListener("change", () => {
+    const r = S.ctxRefs[+el.dataset.cxpath];
+    if (r) { setDtmDir(r.name, el.value); el.value = dtmDir(r.name); el.previousElementSibling.querySelector(".fn").title = dtmPath(r.name); renderTree(); scheduleSave(); }
+  }));
+}
 /* le sezioni lungo l'opera (0.9): quella dell'opera e le righe da/a; della riga scelta da/a e i raccordi
    sui capi che decide lei (fra sezioni compatibili: raccordo lungo a scelta o cambio netto) */
 function secRowsHtml() {
-  const rows = (W.secs || []).slice().sort((a, b) => a.p0 - b.p0), sel = secRow();
+  const rows = (W.secs || []).slice().sort((a, b) => secP0(a) - secP0(b)), sel = secRow();
   const chip = (id, label) => `<button class="chip${(sel ? sel.id : null) === id ? " on" : ""}" data-srow="${id == null ? "" : id}">${esc(label)}</button>`;
   let h = `<div class="sub">${esc(tr("sx.secs"))}</div><div class="chips">${chip(null, tr("sx.secWork", { t: typeShort(W.stype) }))}`;
-  for (const r of rows) h += chip(r.id, `${prog(r.p0, 0)} – ${prog(r.p1, 0)} · ${typeShort(r.stype)}`);
-  h += `<button class="chip" id="sxAdd"${D.axis ? "" : " disabled"}>${esc(tr("sx.secAdd"))}</button></div>`;
+  for (const r of rows) h += chip(r.id, `${prog(secP0(r), 0)} – ${r.toEnd ? tr("sx.secEnd").toLowerCase() : prog(secP1(r), 0)} · ${typeShort(r.stype)}`);
+  h += `<button class="chip" id="sxAdd"${D.axis ? "" : " disabled"} title="${esc(tr("sx.secAddT"))}">${esc(tr("sx.secAdd"))}</button></div>`;
   if (sel) {
-    const num = (id, label, v) => `<label for="${id}">${esc(label)}<span class="numbox"><input type="number" id="${id}" step="any" value="${v}"><span>m</span></span></label>`;
-    h += `<div class="pgrid">${num("sx_p0", tr("sx.secFrom"), sel.p0)}${num("sx_p1", tr("sx.secTo"), sel.p1)}</div>`;
+    const num = (id, label, v, off) => `<label for="${id}">${esc(label)}<span class="numbox"><input type="number" id="${id}" step="any" value="${Math.round(v * 1000) / 1000}"${off ? " disabled" : ""}><span>m</span></span></label>`;
+    h += `<div class="pgrid">${num("sx_p0", tr("sx.secFrom"), secP0(sel), sel.fromStart)}${num("sx_p1", tr("sx.secTo"), secP1(sel), sel.toEnd)}</div>`;
+    h += `<div class="pgrid"><div class="chips"><button class="chip${sel.fromStart ? " on" : ""}" data-sxe="fromStart">${esc(tr("sx.secFromStart"))}</button></div>`
+      + `<div class="chips"><button class="chip${sel.toEnd ? " on" : ""}" data-sxe="toEnd">${esc(tr("sx.secToEnd"))}</button></div></div>`;
     (D.joins || []).forEach((j, i) => {
       if (!j.owner || j.owner.row !== sel.id) return;
       const side = j.owner.side, lbl = (side ? tr("sx.secEnd") : tr("sx.secStart")) + " · " + prog(j.p, 2);
@@ -3957,9 +4388,11 @@ function wireSecRows(B, later) {
   const add = $("sxAdd");
   if (add) add.addEventListener("click", () => {
     if (!D.axis) return;
-    // il tratto nuovo: dopo l'ultimo (o a un terzo dell'asse), lungo un decimo dell'asse; scatolare su un canale, se no lo stesso tipo
-    const L = D.axis.length, last = (W.secs || []).reduce((a, r) => Math.max(a, r.p1), 0);
-    const p0 = Math.round((last > 0 && last < L - 20 ? last + 10 : L / 3) * 100) / 100, p1 = Math.round(Math.min(L, p0 + Math.max(10, L / 10)) * 100) / 100;
+    // il tratto nuovo: dalla sezione ⟂ se è accesa (0.13.2), se no dopo l'ultimo (o a un terzo dell'asse), lungo un decimo
+    // dell'asse; scatolare su un canale, se no lo stesso tipo
+    const L = D.axis.length, last = (W.secs || []).reduce((a, r) => Math.max(a, secP1(r)), 0);
+    const at = CUT.mode === "x" && Number.isFinite(CUT.p) && CUT.p < L - C.BLEND.min ? CUT.p : null;
+    const p0 = Math.round((at != null ? at : last > 0 && last < L - 20 ? last + 10 : L / 3) * 100) / 100, p1 = Math.round(Math.min(L, p0 + Math.max(10, L / 10)) * 100) / 100;
     const t = W.stype === "channel" ? "box" : W.stype === "box" ? "channel" : W.stype;
     const r = { id: S.seq++, p0, p1, stype: t, ditch: { ...W.ditch }, channel: { ...W.channel }, box: { ...W.box }, pipe: { ...W.pipe, partWalls: {} } };
     W.secs = [...(W.secs || []), r]; W.secSel = r.id;
@@ -3968,11 +4401,19 @@ function wireSecRows(B, later) {
   const sel = secRow();
   if (!sel) return;
   for (const [id, k] of [["sx_p0", "p0"], ["sx_p1", "p1"]]) $(id).addEventListener("change", (e) => {
-    const v = Number(e.target.value), L = D.axis ? D.axis.length : Infinity, o = { p0: sel.p0, p1: sel.p1, [k]: v };
-    if (e.target.value === "" || !Number.isFinite(v) || o.p0 < 0 || o.p1 > L + 1e-6 || o.p1 - o.p0 < C.BLEND.min) { toast(tr("sx.secBad", { l: nf(L, 2) }), true); e.target.value = sel[k]; return; }
+    const v = Number(e.target.value), L = D.axis ? D.axis.length : Infinity, o = { p0: secP0(sel), p1: secP1(sel), [k]: v };
+    if (e.target.value === "" || !Number.isFinite(v) || o.p0 < 0 || o.p1 > L + 1e-6 || o.p1 - o.p0 < C.BLEND.min) { toast(tr("sx.secBad", { l: nf(L, 2) }), true); renderSection(); return; }
     sel[k] = v;
     later(true);
   });
+  // dall'inizio / fino alla fine (0.13.2): il capo resta su quello dell'asse; spegnendolo resta dov'è
+  B.querySelectorAll(".chip[data-sxe]").forEach((el) => el.addEventListener("click", () => {
+    const f = el.dataset.sxe, L = D.axis ? D.axis.length : 0;
+    if (sel[f]) { if (f === "toEnd") sel.p1 = L; else sel.p0 = 0; delete sel[f]; later(true); return; }
+    if ((f === "toEnd" ? L - secP0(sel) : secP1(sel)) < C.BLEND.min) { toast(tr("sx.secBad", { l: nf(L, 2) }), true); return; }
+    sel[f] = true;
+    later(true);
+  }));
   B.querySelectorAll(".chip[data-jm]").forEach((el) => el.addEventListener("click", () => { const [sd, m] = el.dataset.jm.split(":"); sel["j" + sd] = { ...(sel["j" + sd] || {}), mode: m }; later(false); }));
   B.querySelectorAll("input[data-jl]").forEach((el) => el.addEventListener("change", () => {
     const v = Number(el.value), sd = el.dataset.jl;
@@ -3982,6 +4423,87 @@ function wireSecRows(B, later) {
   }));
   $("sxDel").addEventListener("click", () => { W.secs = W.secs.filter((r) => r !== sel); W.secSel = null; later(true); });
 }
+/* Ponti (0.15). Scelte dell'utente: il tool PROPONE i tratti fuori terra (fondo dell'opera sopra il terreno di
+   almeno l'altezza minima, per almeno la lunghezza minima), l'utente conferma col pulsante «Ponte» (o li lascia
+   in rilevato com'è); i ponti dell'opera con Da/A (anche dall'inizio / fino alla fine, come le righe da/a),
+   altezza massima e spazio riservato; «+ Ponte» a mano (dalla Sezione ⟂ se è accesa); «Vedi» porta profilo e 3D lì. */
+function renderBridge() {
+  const B = $("brBody");
+  if (!W || !D.axis) { B.innerHTML = `<p class="empty">${esc(tr("pv.empty"))}</p>`; $("brCnt").textContent = ""; return; }
+  const o = { ...C.BRIDGE, ...(W.brOpt || {}) }, L = D.axis.length;
+  const num = (id, label, v, off, unit = "m") => `<label for="${id}">${esc(label)}<span class="numbox"><input type="number" id="${id}" step="any" value="${Math.round(v * 1000) / 1000}"${off ? " disabled" : ""}><span>${unit}</span></span></label>`;
+  let h = "";
+  if (TIN) {
+    h += `<div class="pgrid">${num("br_h", tr("br.h"), o.h)}${num("br_l", tr("br.l"), o.l)}</div>`;
+    h += `<div class="sub">${esc(tr("br.cands"))}</div>`;
+    if (D.above.length) h += D.above.map((c, i) => `<div class="jump" data-brc="${i}" title="${esc(tr("br.show"))}"><span class="jr">${esc(tr("br.candV", { a: prog(c.p0, 0), b: prog(c.p1, 0), l: nf(c.length, 1), h: nf(c.hMax, 2) }))}</span>`
+      + `<button class="btn-sm" data-brmk="${i}" title="${esc(tr("br.makeT"))}">${esc(tr("br.make"))}</button></div>`).join("");
+    else h += `<p class="help">${esc((W.bridges || []).length ? tr("br.noneMore") : tr("br.none", { h: nf(o.h, 2), l: nf(o.l, 1) }))}</p>`;
+  } else h += `<p class="note">${esc(tr("br.noDtm"))}</p>`;
+  const list = (W.bridges || []).slice().sort((a, b) => secP0(a) - secP0(b));
+  if (list.length) h += `<div class="sub">${esc(tr("br.list"))}</div>`;
+  list.forEach((r, i) => {
+    const d = D.bridges.find((b) => b.id === r.id), id = r.id;
+    h += `<div class="brrow" data-br="${id}"><div class="file"><span class="fn">${esc(tr("br.name", { n: i + 1 }))}</span><span class="fm">${prog(secP0(r), 0)} – ${prog(secP1(r), 0)}</span>`
+      + `<button class="btn-sm" data-brshow="${id}">${esc(tr("br.show"))}</button><button class="btn-sm" data-brdel="${id}" title="${esc(tr("br.del"))}">×</button></div>`;
+    h += `<div class="pgrid">${num("br_p0_" + id, tr("sx.secFrom"), secP0(r), r.fromStart)}${num("br_p1_" + id, tr("sx.secTo"), secP1(r), r.toEnd)}</div>`;
+    h += `<div class="pgrid"><div class="chips"><button class="chip${r.fromStart ? " on" : ""}" data-bre="${id}:fromStart">${esc(tr("sx.secFromStart"))}</button></div>`
+      + `<div class="chips"><button class="chip${r.toEnd ? " on" : ""}" data-bre="${id}:toEnd">${esc(tr("sx.secToEnd"))}</button></div></div>`;
+    if (d && Number.isFinite(d.hMax)) h += kv(tr("br.hMax"), nf(d.hMax, 2) + " m");
+    if (d && d.void > 0) h += kv(tr("br.void"), nf(d.void, 1) + " m³");
+    h += `</div>`;
+  });
+  h += `<div class="btns"><button class="btn-sm" id="brAdd" title="${esc(tr("br.addT"))}">${esc(tr("br.add"))}</button></div>`;
+  h += `<p class="help">${esc(tr("br.help"))}</p>`;
+  B.innerHTML = h;
+  $("brCnt").textContent = list.length ? ni(list.length) : D.above.length ? "?" + ni(D.above.length) : "";
+  const later = sectionLaterFn(), bad = () => { toast(tr("sx.secBad", { l: nf(L, 2) }), true); renderBridge(); };
+  const show = (p0, p1, p) => { pvShow(p0, p1); zoomAt(p); };
+  for (const [id, k] of [["br_h", "h"], ["br_l", "l"]]) if ($(id)) $(id).addEventListener("change", (e) => {
+    const v = Number(e.target.value);
+    if (e.target.value === "" || !(v >= (k === "h" ? 0.1 : 0))) { renderBridge(); return; }
+    W.brOpt = { ...o, [k]: v };
+    later(false);
+  });
+  B.querySelectorAll("[data-brc]").forEach((el) => el.addEventListener("click", (e) => {
+    if (e.target.closest("button")) return;
+    const c = D.above[+el.dataset.brc];
+    if (c) show(c.p0, c.p1, c.pMax);
+  }));
+  B.querySelectorAll("[data-brmk]").forEach((el) => el.addEventListener("click", () => {
+    const c = D.above[+el.dataset.brmk];
+    if (!c) return;
+    W.bridges = [...(W.bridges || []), { id: S.seq++, p0: Math.round(c.p0 * 100) / 100, p1: Math.round(c.p1 * 100) / 100 }];
+    later(false);
+    toast(tr("br.made", { a: prog(c.p0, 1), b: prog(c.p1, 1) }));
+  }));
+  $("brAdd").addEventListener("click", () => {
+    const p0 = Math.round((CUT.mode === "x" && Number.isFinite(CUT.p) && CUT.p < L - C.BLEND.min ? CUT.p : L / 3) * 100) / 100;
+    W.bridges = [...(W.bridges || []), { id: S.seq++, p0, p1: Math.round(Math.min(L, p0 + 20) * 100) / 100 }];
+    later(false);
+  });
+  const rowOf = (id) => (W.bridges || []).find((r) => r.id === +id);
+  B.querySelectorAll("[data-brshow]").forEach((el) => el.addEventListener("click", () => { const r = rowOf(el.dataset.brshow); if (r) show(secP0(r), secP1(r), (secP0(r) + secP1(r)) / 2); }));
+  B.querySelectorAll("[data-brdel]").forEach((el) => el.addEventListener("click", () => { W.bridges = (W.bridges || []).filter((r) => r.id !== +el.dataset.brdel); later(false); }));
+  for (const r of list) for (const k of ["p0", "p1"]) {
+    const el = $(`br_${k}_${r.id}`);
+    if (el) el.addEventListener("change", (e) => {
+      const v = Number(e.target.value), q = { p0: secP0(r), p1: secP1(r), [k]: v };
+      if (e.target.value === "" || !Number.isFinite(v) || q.p0 < 0 || q.p1 > L + 1e-6 || q.p1 - q.p0 < C.BLEND.min) { bad(); return; }
+      r[k] = v;
+      later(false);
+    });
+  }
+  B.querySelectorAll(".chip[data-bre]").forEach((el) => el.addEventListener("click", () => {
+    const [id, f] = el.dataset.bre.split(":"), r = rowOf(id);
+    if (!r) return;
+    if (r[f]) { if (f === "toEnd") r.p1 = L; else r.p0 = 0; delete r[f]; later(false); return; }
+    if ((f === "toEnd" ? L - secP0(r) : secP1(r)) < C.BLEND.min) { bad(); return; }
+    r[f] = true;
+    later(false);
+  }));
+}
+
 /* parametri della sezione in modifica (dell'opera o della riga da/a): fosso trapezio, canale a U, scatolare
    o tubo (campi: [chiave, etichetta, unità, minimo]) */
 function renderSection() {
@@ -4277,7 +4799,8 @@ function renderQty() {
     for (const k of cols) tot[k] += pt.vol[k] || 0;
     const drop = pt.drops && pt.drops.length ? " · " + tr("cm.drop", { d: nf(pt.drops[0].dz) }) : "";
     const sec = mixed && pt.P ? " · " + secLabel(pt.stype, pt.P) + (pt.blends && pt.blends.length ? " · " + tr("cm.blend") : "") : "";
-    h += `<tr><td>${esc(tr("cm.partName", { n: pt.k }))}<span class="rng">${prog(pt.p0, 0)} – ${prog(pt.p1, 0)}${esc(drop)}${esc(sec)}</span></td><td>${nf(pt.length, 1)}</td>${cells(pt.vol)}</tr>`;
+    const brg = pt.bridge != null ? " · " + tr("br.tag") : "";
+    h += `<tr><td>${esc(tr("cm.partName", { n: pt.k }))}<span class="rng">${prog(pt.p0, 0)} – ${prog(pt.p1, 0)}${esc(drop)}${esc(sec)}${esc(brg)}</span></td><td>${nf(pt.length, 1)}</td>${cells(pt.vol)}</tr>`;
   }
   if (D.parts.length > 1) h += `<tr class="tot"><td>${esc(tr("cm.total"))}</td><td>${nf(tot.length, 1)}</td>${cells(tot)}</tr>`;
   const step = W[W.stype].step;
@@ -4345,7 +4868,7 @@ function renderWork() {
   if (on) el.innerHTML = `<span class="k">${esc(tr("pod.work"))}</span><b title="${esc(W.name)}">${esc(W.name)}</b>${S.works.length > 1 ? `<span class="n">${S.active + 1}/${S.works.length}</span>` : ""}`;
   $("pvWork").textContent = on && S.works.length > 1 ? W.name : "";
 }
-function renderPod() { renderWork(); renderPlan(); renderProf(); renderAnchors(); renderDtm(); renderSection(); renderAxis(); renderQty(); renderExport(); applyClosed(); }
+function renderPod() { renderWork(); renderPlan(); renderProf(); renderAnchors(); renderDtm(); renderCtx(); renderSection(); renderBridge(); renderAxis(); renderQty(); renderExport(); applyClosed(); }
 function applyClosed() { document.querySelectorAll("#pod .sec[data-sec]").forEach((s) => s.classList.toggle("closed", !!S.closed[s.dataset.sec])); }
 document.querySelectorAll("#pod .sec[data-sec] .sec-h").forEach((h) => h.addEventListener("click", () => {
   const k = h.parentElement.dataset.sec; S.closed[k] = !S.closed[k]; applyClosed(); saveUi();
@@ -4394,6 +4917,10 @@ const ICON = {
   restore: SVG('<path d="M1 2h12v3H1z" fill="#55585a"/>'),
   emb: SVG('<path d="M1 12l3-6h6l3 6z" fill="#a39d58" fill-opacity=".85"/>'),
   spare: SVG('<path d="M1 10l3-3 3 1 3-4 3 2" fill="none" stroke="var(--faint)" stroke-width="1.3" stroke-dasharray="2.2 1.6"/>'),
+  ctx: SVG('<path d="M1 12V6l3-2 3 2v6zM8 12V3h5v9z" fill="var(--muted)" fill-opacity=".3" stroke="var(--muted)" stroke-width="1.1" stroke-linejoin="round"/>'),
+  ctxf: SVG('<path d="M2 12V5l3-2 3 2v7zM9 12V6h3v6z" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-linejoin="round"/>'),
+  ctxc: SVG('<rect x="3" y="3" width="8" height="8" rx="1.5" fill="var(--muted)" fill-opacity=".45"/>'),
+  void: SVG('<path d="M1 3h12M3 3v9M11 3v9" fill="none" stroke="#5b9be0" stroke-width="1.4"/><path d="M3 5h8v7H3z" fill="#5b9be0" fill-opacity=".25"/>'),
 };
 const BTN = (inner) => `<svg viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
 const EYE_ON = BTN('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>');
@@ -4424,7 +4951,7 @@ function renderTree() {
     const chev = o.group ? `<button class="tc${o.open ? "" : " shut"}" data-tog="${esc(o.key)}" aria-label="${esc(o.label)}">${CHEV}</button>` : `<span class="tc none"></span>`;
     const eye = o.eye === undefined ? "" : `<button class="tb" data-eye="${esc(o.key)}" title="${esc(tr("tr.eye"))}" aria-label="${esc(tr("tr.eye"))}" aria-pressed="${!!o.eye}">${o.eye ? EYE_ON : EYE_OFF}</button>`;
     const rm = o.rm ? `<button class="tb rm${armed === o.key ? " armed" : ""}" data-rm="${esc(o.key)}" title="${esc(tr("tr.rm"))}">${armed === o.key ? esc(tr("tr.rmSure")) : "×"}</button>` : "";
-    const add = o.add ? `<button class="tb" data-add="${esc(o.key)}" title="${esc(tr("tr.dtmAdd"))}" aria-label="${esc(tr("tr.dtmAdd"))}">${PLUS}</button>` : "";
+    const add = o.add ? `<button class="tb" data-add="${esc(o.key)}" title="${esc(o.add)}" aria-label="${esc(o.add)}">${PLUS}</button>` : "";
     const cls = "tn" + (o.kind === "work" ? " work" : "") + (o.act ? " act" : "") + (o.off ? " off" : o.dim ? " dim" : "");
     rows.push(`<div class="${cls}" style="--d:${o.d}" data-key="${esc(o.key)}" role="treeitem"${o.group ? ` aria-expanded="${!!o.open}"` : ""}${o.title ? ` title="${esc(o.title)}"` : ""}>`
       + `${chev}${ICON[o.kind] || ""}<span class="tl"${o.kind === "work" ? ` data-ren="${esc(o.key)}"` : ""}>${esc(o.label)}</span>${o.sel || ""}`
@@ -4432,12 +4959,27 @@ function renderTree() {
   };
   // topografia esistente (condivisa)
   const dOpen = isOpen("dtm", false);
-  row({ key: "dtm", d: 0, kind: "dtm", label: tr("tr.dtm"), meta: S.dtms.length ? tr("tr.tris", { n: ni(dtmTris()) }) : S.dtmRefs.length ? tr("dt.miss") : "—", eye: S.dtms.length ? ly.dtm : undefined, off: S.dtms.length > 0 && !ly.dtm, group: S.dtms.length + S.dtmRefs.length > 0, open: dOpen, add: true });
+  row({ key: "dtm", d: 0, kind: "dtm", label: tr("tr.dtm"), meta: S.dtms.length ? tr("tr.tris", { n: ni(dtmTris()) }) : S.dtmRefs.length ? tr("dt.miss") : "—", eye: S.dtms.length ? ly.dtm : undefined, off: S.dtms.length > 0 && !ly.dtm, group: S.dtms.length + S.dtmRefs.length > 0, open: dOpen, add: tr("tr.dtmAdd") });
   if (dOpen) for (const t of S.dtms) {
     const k = "dtm:" + t.name;
     row({ key: k, d: 1, kind: "dtmf", label: t.name, meta: t.kind === "ifc" ? "IFC" : t.kind === "pts" ? "x,y,z" : "LandXML", eye: shown(k), off: !shown(k), dim: !ly.dtm, rm: true });
   }
-  if (dOpen) for (const r of S.dtmRefs) row({ key: "dtmref:" + r.name, d: 1, kind: "dtmf", label: r.name, meta: tr("dt.miss"), off: true, rm: true, title: S.dtmPaths[r.name] || r.name });
+  if (dOpen) for (const r of S.dtmRefs) row({ key: "dtmref:" + r.name, d: 1, kind: "dtmf", label: r.name, meta: tr("dt.miss"), off: true, rm: true, title: dtmPath(r.name) });
+  // IFC di contesto (0.14): file → classi, occhi a ogni livello
+  const cOpen = isOpen("ctx", true), cOn = ly.ctx !== false;
+  row({ key: "ctx", d: 0, kind: "ctx", label: tr("tr.ctx"), meta: S.ctx.length ? tr("tr.els", { n: ni(ctxEls()) }) : S.ctxRefs.length ? tr("dt.miss") : "—", eye: S.ctx.length ? cOn : undefined, off: S.ctx.length > 0 && !cOn, group: S.ctx.length + S.ctxRefs.length > 0, open: cOpen, add: tr("tr.ctxAdd") });
+  if (cOpen) for (const m of S.ctx) {
+    const k = "ctx:" + m.name, fOpen = isOpen(k, false), fOn = shown(k);
+    row({ key: k, d: 1, kind: "ctxf", label: m.name, meta: tr("tr.els", { n: ni(m.elements) }), eye: fOn, off: !fOn, dim: !cOn, rm: true, group: true, open: fOpen });
+    if (!fOpen) continue;
+    const per = new Map();
+    for (const p of m.parts) { const e = new Set(); for (let j = 4; j < p.E.length; j += 5) e.add(p.E[j]); const o = per.get(p.cls); per.set(p.cls, o ? new Set([...o, ...e]) : e); }
+    for (const [cls, e] of [...per].sort((a, b) => a[0].localeCompare(b[0]))) {
+      const kc = k + ":" + cls;
+      row({ key: kc, d: 2, kind: "ctxc", label: cls, meta: ni(e.size), eye: shown(kc), off: !shown(kc), dim: !cOn || !fOn });
+    }
+  }
+  if (cOpen) for (const r of S.ctxRefs) row({ key: "ctxref:" + r.name, d: 1, kind: "ctxf", label: r.name, meta: tr("dt.miss"), off: true, rm: true, title: dtmPath(r.name) });
   // opere
   if (!S.works.length) rows.push(`<p class="tree-empty">${esc(tr("tr.empty"))}</p>`);
   for (const w of S.works) {
@@ -4451,15 +4993,16 @@ function renderTree() {
     if (d.ax3 && d.ax3.pts.length) sub("axis", { kind: "axis", label: tr("tr.axis"), meta: nf(d.ax3.length3d, 1) + " m" });
     for (const p of d.parts) {
       const P = K + ":t" + p.k, pOpen = isOpen(P, false), pOn = shown(P);
-      const pl = tr("cm.partName", { n: p.k }) + (w.secs && w.secs.length ? " · " + typeShort(p.stype) : "");      // opere con sezioni diverse: il tipo del tratto
+      const pl = tr("cm.partName", { n: p.k }) + (w.secs && w.secs.length ? " · " + typeShort(p.stype) : "") + (p.bridge != null ? " · " + tr("br.tag") : "");      // il tipo del tratto, il ponte
       sub("t" + p.k, { kind: "part", label: pl, meta: prog(p.p0, 0) + " – " + prog(p.p1, 0), group: true, open: pOpen, title: p.P ? secLabel(p.stype, p.P) : "" });
       if (!pOpen) continue;
-      const leaf = (k, label, meta) => { const key = P + ":" + k; row({ key, d: 2, kind: k, label, meta, eye: shown(key), off: !shown(key), dim: !wOn || !pOn || !ly[k] }); };
+      const leaf = (k, label, meta) => { const key = P + ":" + k; row({ key, d: 2, kind: k, label, meta, eye: shown(key), off: !shown(key), dim: !wOn || !pOn || ly[k] === false }); };
       for (const s of solidsOfType(p.stype || w.stype)) {
         const v = p.vol[s.k] || 0;
         if (s.k === "pipe") leaf("pipe", s.l(), "DN " + Math.round((p.P || w.pipe).dn) + " · " + nf(p.length, 1) + " m");     // il tubo si conta a metri
         else if (s.k === "lining" || v > 0.01) leaf(s.k, s.l(), nf(v, 1) + " m³");
       }
+      if (p.mesh && p.mesh.void) leaf("void", tr("br.voidL"), nf(p.vol.void || 0, 1) + " m³");
     }
   }
   // profili non abbinati
@@ -4483,6 +5026,7 @@ function selectKey(k) {
 }
 function toggleEye(k) {
   if (k === "dtm") { S.view.layers.dtm = !S.view.layers.dtm; saveUi(); }
+  else if (k === "ctx") { S.view.layers.ctx = S.view.layers.ctx === false; saveUi(); }
   else { if (S.hidden[k]) delete S.hidden[k]; else S.hidden[k] = true; scheduleSave(); }
   buildScene(); renderTree();
   if (/^w\d+$/.test(k)) { renderQty(); renderExport(); }             // le opere spente non escono nei file
@@ -4494,6 +5038,8 @@ function removeKey(k) {
   else if (k.startsWith("dtm:")) removeDtm(S.dtms.findIndex((t) => "dtm:" + t.name === k));
   else if (k.startsWith("spare:")) { S.spare.splice(+k.slice(6), 1); renderTree(); scheduleSave(); }
   else if (k.startsWith("dtmref:")) { S.dtmRefs = S.dtmRefs.filter((r) => "dtmref:" + r.name !== k); refreshViews(); scheduleSave(); }
+  else if (k.startsWith("ctx:")) removeCtx(S.ctx.findIndex((m) => "ctx:" + m.name === k));
+  else if (k.startsWith("ctxref:")) { S.ctxRefs = S.ctxRefs.filter((r) => "ctxref:" + r.name !== k); refreshViews(); scheduleSave(); }
 }
 function removeWork(id) {
   const i = S.works.findIndex((w) => w.id === id);
@@ -4544,7 +5090,7 @@ $("treeScroll").addEventListener("click", (e) => {
     if (b.dataset.tog != null) { S.treeOpen[b.dataset.tog] = b.closest(".tn").getAttribute("aria-expanded") !== "true"; saveUi(); renderTree(); }
     else if (b.dataset.eye != null) toggleEye(b.dataset.eye);
     else if (b.dataset.rm != null) removeKey(b.dataset.rm);
-    else if (b.dataset.add != null) pickDtm();
+    else if (b.dataset.add != null) { if (b.dataset.add === "ctx") pickCtx(); else pickDtm(); }
     return;
   }
   if (e.target.closest("select,input")) return;
@@ -4569,7 +5115,7 @@ $("trNew").addEventListener("click", () => {
     return;
   }
   b.classList.remove("armed"); b.textContent = tr("tr.new");
-  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = ""; S.dtmRefs = []; S.dtmPaths = {};
+  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = ""; S.dtmRefs = []; S.dtmPaths = {}; S.ctx = []; S.ctxRefs = [];
   DW.clear(); TIN = null; setActive(-1);
   undo.length = 0; redo.length = 0; updateUndo();
   refreshViews(); scheduleSave(); openSheet();
@@ -4605,6 +5151,12 @@ function pviOf(d) {
     .filter((c) => c.a > p0 + 1e-6 && c.b < p1 - 1e-6) : [];
   return IO.profilePVI(ax, 1e-4, cs);
 }
+/* il ponte di un tratto per le uscite (0.15): numerato lungo l'opera */
+function bridgeOut(d, id) {
+  if (id == null) return null;
+  const i = (d.bridges || []).findIndex((b) => b.id === id), b = d.bridges[i];
+  return b ? { id, name: tr("br.name", { n: i + 1 }), p0: b.p0, p1: b.p1, length: b.length, hMax: b.hMax } : { id, name: tr("br.name", { n: 1 }) };
+}
 function exportWorks(needParts) {
   const O = projectOrigin();
   return exported().map((w) => ({ w, d: derivedOf(w) }))
@@ -4618,7 +5170,7 @@ function exportWorks(needParts) {
       return {
         w, name: w.name, axis: d.axis, ax3: d.ax3, pvi: pviOf(d), section: secObj(w.stype, w[w.stype]),
         channel: isCh(w), stype: w.stype, types: typesOf(w), solids: solidsOf(w), mixed: !!(w.secs && w.secs.length),
-        parts: d.parts.map((p) => ({ ...p, work: w.name, name: tr("cm.partName", { n: p.k }), mesh: mesh(p.mesh),
+        parts: d.parts.map((p) => ({ ...p, work: w.name, name: tr("cm.partName", { n: p.k }) + (p.bridge != null ? " - " + tr("br.tag") : ""), mesh: mesh(p.mesh), bridge: bridgeOut(d, p.bridge),
           section: secObj(p.stype || w.stype, p.P || w[w.stype]), sec: p.P ? secLabel(p.stype, p.P) : "", blendNote: blendNote(p) })),
       };
     });
@@ -4653,6 +5205,7 @@ function exportIFC() {
     bedL: tr("if.bedL"), surround: tr("if.surround"), coverL: tr("if.coverL"), restoreL: tr("if.restoreL"), bedMat: tr("if.bedMat"), surroundMat: tr("if.surroundMat"),
     coverMat: tr("if.coverMat"), fillMat: tr("if.fillMat"), wallsV: tr("if.wallsV"), wallsS: tr("if.wallsS"), shore: tr("sx.pShore"),
     emb: tr("if.emb"), embMat: tr("if.embMat"), embLen: tr("if.embLen"),
+    bridge: tr("if.bridge"), bridgeSpace: tr("if.bridgeSpace"), bridgeSpaceType: tr("if.bridgeSpaceType"), bridgeNote: tr("if.bridgeNote"), bridgeH: tr("if.bridgeH"),
   };
   const text = IO.ifcDitch({ name: S.name || ws[0].name || tr("sx.ditch"), fileName: fileBase(), origin: projectOrigin(),
     works: ws.map((x) => ({ name: x.name, axis: x.axis, pvi: x.pvi, section: x.section, parts: x.parts })),
@@ -4679,7 +5232,8 @@ async function export3dm() {
       classes: x.solids.map((c) => ({
         key: c.k, label: c.l(), rgb: c.k === "pipe" ? RGB3DM["pipe_" + ((x.parts.find((p) => p.stype === "pipe") || {}).P || x.section).mat] || RGB3DM.pipe_manual : RGB3DM[c.k],
         objects: x.parts.map((p) => ({ name: `${x.name} - ${p.name} - ${c.l()}`, mesh: p.mesh[c.k] })),
-      })),
+      })).concat(x.parts.some((p) => p.mesh.void) ? [{ key: "void", label: tr("br.voidL"), rgb: [91, 155, 224],
+        objects: x.parts.filter((p) => p.mesh.void).map((p) => ({ name: `${x.name} - ${p.name} - ${tr("br.voidL")}`, mesh: p.mesh.void })) }] : []),
     }));
     const dtm = S.dtms.filter((t) => shown("dtm:" + t.name)).map((t) => ({ name: t.name, positions: t.points, index: t.faces }));
     const names = { origin: tr("r3.origin"), originDot: tr("r3.originDot"), axis: tr("r3.axis"), dtm: tr("r3.dtm") };
@@ -4735,10 +5289,11 @@ function snapshot() {
     for (const [k, v] of Object.entries(src)) if (!DRAWING_KEYS.includes(k)) out[k] = v;
     return out;
   };
-  const names = new Set([...S.dtms, ...S.dtmRefs].map((t) => t.name));
+  const names = new Set([...S.dtms, ...S.dtmRefs, ...S.ctx, ...S.ctxRefs].map((t) => t.name));
   return {
     v: 2, name: S.name, active: S.active, seq: S.seq, dtms: S.dtms, hidden: S.hidden,
     dtmRefs: S.dtmRefs, dtmPaths: Object.fromEntries(Object.entries(S.dtmPaths).filter(([k]) => names.has(k))), dtmInFile: S.dtmInFile,
+    ctx: S.ctx, ctxRefs: S.ctxRefs, ctxInFile: S.ctxInFile,
     works: S.works.map((w) => ({ ...w, plan: strip(w.plan), prof: strip(w.prof) })),
     spare: S.spare.map(strip), drawings: [...drawings.values()],
   };
@@ -4772,6 +5327,7 @@ function restore(doc) {
   S.spare = (doc.spare || []).map(join).filter(Boolean);
   S.dtms = doc.dtms || []; S.hidden = doc.hidden || {}; S.name = doc.name || "";
   S.dtmRefs = doc.dtmRefs || []; S.dtmPaths = doc.dtmPaths || {}; S.dtmInFile = doc.dtmInFile !== false;
+  S.ctx = doc.ctx || []; S.ctxRefs = doc.ctxRefs || []; S.ctxInFile = doc.ctxInFile !== false;
   S.seq = Math.max(doc.seq || 1, ...S.works.map((w) => w.id + 1), ...S.works.flatMap((w) => w.secs.map((r) => r.id + 1)), ...[...dr.keys()].map((k) => k + 1));
   DW.clear();
   setActive(doc.active || 0);
@@ -4816,7 +5372,7 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
    ========================================================================= */
 const PRJ_EXT = ".profiles";
 const pipeBytes = async (u8, stream) => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(stream)).arrayBuffer());
-const projectEmpty = () => !S.works.length && !S.spare.length && !S.dtms.length && !S.dtmRefs.length;
+const projectEmpty = () => !S.works.length && !S.spare.length && !S.dtms.length && !S.dtmRefs.length && !S.ctx.length && !S.ctxRefs.length;
 function dlgOpen(title, body, buttons) {
   $("dlgTitle").textContent = title;
   $("dlgBody").innerHTML = body;
@@ -4839,12 +5395,14 @@ $("dlg").addEventListener("click", (e) => { if (e.target === $("dlg")) dlgClose(
 /* il dialogo di «Salva progetto»: nome del file, DTM dentro o fuori (coi percorsi). then: dopo il salvataggio */
 function saveProjectDialog(then = null) {
   if (projectEmpty()) { toast(tr("prj.empty"), true); return; }
-  const list = [...S.dtms.map((t) => ({ name: t.name, here: true })), ...S.dtmRefs.map((r) => ({ name: r.name, here: false }))];
+  const list = [...S.dtms.map((t) => ({ name: t.name, here: true, kind: "dtm" })), ...S.dtmRefs.map((r) => ({ name: r.name, here: false, kind: "dtm" })),
+    ...S.ctx.map((m) => ({ name: m.name, here: true, kind: "ctx" })), ...S.ctxRefs.map((r) => ({ name: r.name, here: false, kind: "ctx" }))];
   let h = `<div class="row"><label for="dlgName">${esc(tr("prj.file"))}</label><div class="numbox"><input id="dlgName" class="txt" value="${esc(fileBase())}" spellcheck="false"><span>${PRJ_EXT}</span></div></div>`;
   if (S.dtms.length) h += `<label class="check"><input type="checkbox" id="dlgDtm"${S.dtmInFile ? " checked" : ""}> ${esc(tr("prj.withDtm", { n: ni(dtmTris()) }))}</label>`;
+  if (S.ctx.length) h += `<label class="check"><input type="checkbox" id="dlgCtx"${S.ctxInFile ? " checked" : ""}> ${esc(tr("prj.withCtx", { n: ni(ctxTris()) }))}</label>`;
   if (list.length) {
     h += `<div id="dlgPaths"><p class="help">${esc(tr("prj.pathHelp"))}</p>`;
-    list.forEach((t, i) => { h += `<div class="dtp" data-here="${t.here ? 1 : 0}"><div class="fn" title="${esc(t.name)}">${esc(t.name)}${t.here ? "" : " · " + esc(tr("dt.miss"))}</div><input class="txt" data-dtp="${i}" value="${esc(S.dtmPaths[t.name] || t.name)}" spellcheck="false" aria-label="${esc(tr("dt.pathT"))}"></div>`; });
+    list.forEach((t, i) => { h += `<div class="dtp" data-here="${t.here ? 1 : 0}" data-kind="${t.kind}"><div class="fn" title="${esc(dtmPath(t.name))}">${esc(t.name)}${t.here ? "" : " · " + esc(tr("dt.miss"))}</div><input class="txt" data-dtp="${i}" value="${esc(dtmDir(t.name))}" placeholder="${esc(tr("dt.dirPh"))}" spellcheck="false" title="${esc(tr("dt.pathT"))}" aria-label="${esc(tr("dt.pathT"))}"></div>`; });
     h += `</div>`;
   }
   h += `<p class="help">${esc(tr("prj.saveHelp"))}</p>`;
@@ -4852,30 +5410,43 @@ function saveProjectDialog(then = null) {
     { label: tr("prj.cancel"), run: dlgClose },
     { label: tr("prj.save"), primary: true, run: () => {
       const name = $("dlgName").value.replace(/\.profiles$/i, "").replace(/[\\/:*?"<>|]+/g, "_").trim() || fileBase();
-      const withDtm = !!($("dlgDtm") && $("dlgDtm").checked);
-      document.querySelectorAll("#dlgBody [data-dtp]").forEach((el) => setDtmPath(list[+el.dataset.dtp].name, el.value));
+      const withDtm = !!($("dlgDtm") && $("dlgDtm").checked), withCtx = !!($("dlgCtx") && $("dlgCtx").checked);
+      document.querySelectorAll("#dlgBody [data-dtp]").forEach((el) => setDtmDir(list[+el.dataset.dtp].name, el.value));
       dlgClose();
-      saveProject(name, withDtm).then((ok) => { if (ok && then) then(); });
+      saveProject(name, withDtm, withCtx).then((ok) => { if (ok && then) then(); });
     } },
   ]);
-  // col DTM dentro, i percorsi servono solo per quelli che mancano
+  // col DTM (o il contesto) dentro, i percorsi servono solo per quelli che mancano
   const sync = () => {
-    const inFile = !!($("dlgDtm") && $("dlgDtm").checked);
-    document.querySelectorAll("#dlgBody .dtp").forEach((el) => { el.hidden = inFile && el.dataset.here === "1"; });
+    const inFile = { dtm: !!($("dlgDtm") && $("dlgDtm").checked), ctx: !!($("dlgCtx") && $("dlgCtx").checked) };
+    document.querySelectorAll("#dlgBody .dtp").forEach((el) => { el.hidden = inFile[el.dataset.kind] && el.dataset.here === "1"; });
     const p = $("dlgPaths");
     if (p) p.hidden = ![...p.querySelectorAll(".dtp")].some((el) => !el.hidden);
   };
-  if ($("dlgDtm")) $("dlgDtm").addEventListener("change", sync);
+  for (const id of ["dlgDtm", "dlgCtx"]) if ($(id)) $(id).addEventListener("change", sync);
   sync();
+  // più DTM: la cartella scritta in una riga va anche nelle righe vuote o che avevano la stessa
+  const dirs = [...document.querySelectorAll("#dlgBody [data-dtp]")];
+  for (const el of dirs) {
+    el.dataset.was = el.value;
+    el.addEventListener("input", () => {
+      for (const o of dirs) if (o !== el && (o.value === "" || o.value === el.dataset.was)) { o.value = el.value; o.dataset.was = el.value; }
+      el.dataset.was = el.value;
+    });
+  }
 }
-async function saveProject(name, withDtm) {
-  S.name = name; S.dtmInFile = withDtm;
+async function saveProject(name, withDtm, withCtx = S.ctxInFile) {
+  S.name = name; S.dtmInFile = withDtm; S.ctxInFile = withCtx;
   busy(tr("prj.saving")); await frame();
   try {
     const doc = snapshot();
     if (!withDtm) {                                       // fuori dal file: resta il riferimento (nome, tipo, triangoli)
       doc.dtmRefs = [...S.dtms.map((t) => ({ name: t.name, kind: t.kind, how: t.how, crs: t.crs, tris: t.faces.length / 3 })), ...S.dtmRefs];
       doc.dtms = [];
+    }
+    if (!withCtx) {                                       // contesto fuori: nome, elementi, triangoli
+      doc.ctxRefs = [...S.ctx.map((m) => ({ name: m.name, how: m.how, elements: m.elements, triangles: m.triangles })), ...S.ctxRefs];
+      doc.ctx = [];
     }
     const raw = IO.encodeProject(doc, { tool: TOOL_VERSION, saved: new Date().toISOString(), works: S.works.map((w) => w.name), dtm: doc.dtms.length, refs: doc.dtmRefs.map((r) => r.name) });
     const bytes = typeof CompressionStream === "function" ? await pipeBytes(raw, new CompressionStream("gzip")) : raw;
@@ -4914,6 +5485,8 @@ async function openProject(file, rest = []) {
   if (d && !isNaN(d)) b += kv(tr("prj.when"), esc(d.toLocaleString(LANG === "en" ? "en-GB" : "it-IT", { dateStyle: "medium", timeStyle: "short" })));
   b += kv(tr("prj.works"), esc(ws.length ? ws.join(" · ") : "—"));
   b += kv(tr("tr.dtm"), esc(res.doc.dtms && res.doc.dtms.length ? tr("prj.dtmIn", { n: ni(res.doc.dtms.reduce((a, t) => a + t.faces.length / 3, 0)) }) : refs.length ? tr("prj.dtmOut", { f: refs.join(", ") }) : "—"));
+  const cIn = res.doc.ctx || [], cOut = res.doc.ctxRefs || [];
+  if (cIn.length || cOut.length) b += kv(tr("prj.ctx"), esc(cIn.length ? tr("prj.ctxIn", { n: ni(cIn.reduce((a, m) => a + (m.elements || 0), 0)) }) : tr("prj.ctxOut", { f: cOut.map((r) => r.name).join(", ") })));
   b += `<p class="note warn">${esc(tr("prj.replace", { n: S.works.length }))}</p>`;
   dlgOpen(tr("prj.openTitle"), b, [
     { label: tr("prj.cancel"), run: dlgClose },
@@ -4934,12 +5507,21 @@ async function loadProject({ doc }, fname) {
     pvFit(); frameAll();
     saveNow();                                            // il progetto aperto è il nuovo salvataggio automatico
   } finally { busy(""); }
-  if (S.dtmRefs.length) toast(tr("prj.openedMiss", { f: fname, d: S.dtmRefs.map((r) => S.dtmPaths[r.name] || r.name).join(", ") }), true);
+  if (S.dtmRefs.length) toast(tr("prj.openedMiss", { f: fname, d: S.dtmRefs.map((r) => dtmPath(r.name)).join(", ") }), true);
+  else if (S.ctxRefs.length) toast(tr("prj.openedMissCtx", { f: fname, d: S.ctxRefs.map((r) => dtmPath(r.name)).join(", ") }), true);
   else toast(tr("prj.opened", { f: fname, n: S.works.length }));
 }
-/* un DTM da ricaricare: il selettore dei DTM; anche con un altro nome prende il suo posto */
+/* un DTM da ricaricare: il selettore dei DTM; anche con un altro nome prende il suo posto. Se si sa la
+   cartella, il percorso va prima negli appunti: nella finestra del browser si incolla nel nome del file */
 let reloadIdx = -1;
-function reloadDtm(i) { reloadIdx = i; $("dtmIn").click(); }
+function reloadDtm(i) {
+  reloadIdx = i;
+  const r = S.dtmRefs[i];
+  if (r && S.dtmPaths[r.name] && navigator.clipboard) {
+    navigator.clipboard.writeText(dtmPath(r.name)).then(() => toast(tr("dt.copied", { f: dtmPath(r.name) })), () => {});
+  }
+  $("dtmIn").click();
+}
 $("dtmIn").addEventListener("change", async (e) => {
   const f = e.target.files && e.target.files[0], r = S.dtmRefs[reloadIdx];
   e.target.value = "";
@@ -5140,12 +5722,20 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
   else openSheet();
 })();
 /* aggancio per le prove dal browser: stato e funzioni, niente dati in rete */
-window.__ps = { C, IO, get S() { return S; }, get W() { return W; }, get D() { return D; }, derivedOf, setActive: (i) => { setActive(i); refreshViews(); pvFit(); }, get PV() { return PV; }, camera, controls, frameAll, pvFit, pvShow, loadExample, openFiles, saveNow, drawPV, drawSection, snapshot, saveProjectDialog,
+window.__ps = { C, IO, get S() { return S; }, get W() { return W; }, get D() { return D; }, derivedOf, setActive: (i) => { setActive(i); refreshViews(); pvFit(); }, get PV() { return PV; }, camera, controls, frameAll, zoomAt, get flying() { return !!fly; }, pvFit, pvShow, loadExample, openFiles, saveNow, drawPV, drawSection, snapshot, saveProjectDialog,
   /* pivot d'orbita: stato e un passo del loop senza aspettare il rAF (fermo a pannello nascosto) */
   orb: { get drag() { return orbDrag; }, get pivot() { return orbPivot.toArray(); }, get dot() { return orbDot && orbDot.visible; },
     step() { orbApply(performance.now()); controls.update(); camera.updateMatrixWorld(true); scene.updateMatrixWorld(true); } },
   /* pan e rotella: la profondità sotto un punto dello schermo (client x, y), come al press */
   cursorDepth: (x, y) => cursorDepth({ clientX: x, clientY: y }), sceneBox,
+  /* DTM fuori dal file (0.13.2): cartella scritta, percorso intero */
+  dtmPath: { dir: dtmDir, set: setDtmDir, full: dtmPath },
+  /* IFC di contesto (0.14): apertura senza il selettore e i pezzi della scena */
+  openCtx: async (file) => { const m = await openCtx(file); if (m) ctxDone(m); return m; }, removeCtx, ctxMeshes: () => G.group.children.filter((o) => o.userData.src && o.userData.src.ctx),
+  /* un fotogramma subito (a pannello nascosto il rAF è fermo: volo e scena non si vedrebbero negli screenshot) */
+  renderNow: () => { if (fly) fly(performance.now() + 1e6); controls.update(); renderer.render(scene, camera); plDraw(); },
+  /* ricalcolo dell'opera attiva dopo aver toccato da script la sua linea o i suoi ponti (prove) */
+  rebuild: () => { rebuildProfile(); recompute(); },
   /* taglio della vista (0.10): stato, comandi e tappi della scena */
   cut: { get state() { return { mode: CUT.mode, p: CUT.p, side: CUT.side, off: CUT.off }; }, set: cutSet, apply: cutApply, step: cutStep, hidden: (x, y) => cutHidden({ x, y }),
     get field() { return cutField(); }, caps: () => G.group.children.filter((o) => o.userData.cap),
