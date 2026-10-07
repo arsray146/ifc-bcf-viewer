@@ -1359,3 +1359,581 @@ export function build3dm(rhino, { origin = { x: 0, y: 0 }, works = [], dtm = nul
   doc.delete && doc.delete();
   return { bytes, report };
 }
+
+/* -------------------------------------------------------------------------
+   Tavole (0.16): DXF R2000 (AC1015) — layer coi colori, tipo di linea
+   tratteggiato, stile di testo romans.shx, testi ruotati, layout con le
+   finestre. Collaudato in AutoCAD 2027 (2026-10-06): AUDIT senza errori,
+   «Salva con nome» in DWG. Il DWG non si scrive nel browser (LibreDWG del
+   vendor è compilato senza scrittura) e il .3dm non porta testi in scala.
+   Fatti del collaudo: ogni layout vuole la sua finestra principale (id 1)
+   prima delle altre, se no quelle dei layout non attivi non nascono;
+   PSLTSCALE vale per layout (flag 70 di AcDbLayout); romans.shx non ha la
+   lineetta «–» (si stampa «?»).
+   ------------------------------------------------------------------------- */
+
+const dxNum = (v) => { const r = Math.round(v * 1e6) / 1e6; return Number.isInteger(r) ? r.toFixed(1) : String(r); };
+/** Testo DXF R2000 (non UTF-8): i caratteri fuori dall'ASCII diventano \U+XXXX. */
+export const dxfText = (s) => String(s).replace(/[^\x20-\x7e]/g, (c) => "\\U+" + c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0"));
+
+/**
+ * Un DXF R2000 da riempire: layer(name, { color, ltype, plot }), ltype(name, desc, pattern
+ * [trattini > 0, vuoti < 0]), style(name, font); entità in `model` o in un layout (layout(name, paper)
+ * → l'elenco delle sue entità): { t: "line", a, b } · { t: "poly", pts ([x, y] o [x, y, bulge]), closed } · { t: "text", x, y, h,
+ * s, rot, style, ha (0 sin, 1 centro, 2 destra), va (0 base, 1 basso, 2 mezzo, 3 alto) } · { t: "solid",
+ * pts } · { t: "viewport", cx, cy, w, h (carta), vx, vy, vh (modello) }; ognuna con layer (e ltype,
+ * color facoltativi). toString() emette tutto e assegna gli handle.
+ */
+export function dxfR2000({ insunits = 6 } = {}) {
+  const layers = [{ name: "0", color: 7, ltype: "Continuous" }];
+  const ltypes = [], styles = [{ name: "Standard", font: "txt" }], model = [], layouts = [];
+  return {
+    model,
+    layer(name, { color = 7, ltype = "Continuous", plot = true } = {}) { if (!layers.some((l) => l.name === name)) layers.push({ name, color, ltype, plot }); return name; },
+    ltype(name, desc, pattern) { ltypes.push({ name, desc, pattern }); return name; },
+    style(name, font) { styles.push({ name, font }); return name; },
+    layout(name, paper = { w: 420, h: 297 }) { const L = { name, ents: [], paper }; layouts.push(L); return L.ents; },
+    toString() { return emit(); },
+  };
+
+  function emit() {
+    let hnd = 0x20;
+    const H = () => (hnd++).toString(16).toUpperCase();
+    const out = [];
+    const g = (c, v) => { out.push(String(c), typeof v === "number" ? dxNum(v) : String(v)); };
+    const gi = (c, v) => { out.push(String(c), String(Math.round(v))); };
+    const hRoot = H(), hGroups = H(), hLayouts = H(), hPsn = H(), hNormal = H();
+    const hTbl = {};
+    for (const t of ["VPORT", "LTYPE", "LAYER", "STYLE", "VIEW", "UCS", "APPID", "DIMSTYLE", "BLOCK_RECORD"]) hTbl[t] = H();
+    // blocchi: *Model_Space, *Paper_Space (il layout attivo, il primo), *Paper_Space0… gli altri
+    const lays = layouts.length ? layouts : [{ name: "Layout1", ents: [], paper: { w: 420, h: 297 } }];
+    const blocks = [{ name: "*Model_Space", layout: "Model", ents: model, ps: false },
+      ...lays.map((L, i) => ({ name: i ? "*Paper_Space" + (i - 1) : "*Paper_Space", layout: L.name, ents: L.ents, ps: true, paper: L.paper }))];
+    for (const b of blocks) {
+      b.hRec = H(); b.hBlk = H(); b.hEnd = H(); b.hLay = H();
+      if (!b.ps) continue;
+      // la finestra principale del layout (id 1, il foglio stesso) prima delle altre (id 2, 3…)
+      const P = b.paper;
+      let id = 2;
+      b.ents = [{ t: "viewport", cx: P.w / 2, cy: P.h / 2, w: P.w * 1.05, h: P.h * 1.05, vx: P.w / 2, vy: P.h / 2, vh: P.h * 1.05, id: 1, status: 1 },
+        ...b.ents.map((e) => (e.t === "viewport" ? { ...e, id: id, status: id++ } : e))];
+    }
+
+    g(0, "SECTION"); g(2, "HEADER");
+    g(9, "$ACADVER"); g(1, "AC1015"); g(9, "$ACADMAINTVER"); gi(70, 6); g(9, "$DWGCODEPAGE"); g(3, "ANSI_1252");
+    g(9, "$INSBASE"); g(10, 0); g(20, 0); g(30, 0);
+    g(9, "$LTSCALE"); g(40, 1); g(9, "$PSLTSCALE"); gi(70, 0);
+    g(9, "$TEXTSTYLE"); g(7, "Standard"); g(9, "$CLAYER"); g(8, "0"); g(9, "$CELTYPE"); g(6, "ByLayer"); g(9, "$DIMSTYLE"); g(2, "Standard");
+    g(9, "$INSUNITS"); gi(70, insunits); g(9, "$MEASUREMENT"); gi(70, 1);
+    const seed = out.length; g(9, "$HANDSEED"); g(5, "0");
+    g(0, "ENDSEC");
+    g(0, "SECTION"); g(2, "CLASSES"); g(0, "ENDSEC");
+
+    g(0, "SECTION"); g(2, "TABLES");
+    const table = (name, n, body, dim = false) => {
+      g(0, "TABLE"); g(2, name); g(5, hTbl[name]); g(330, "0"); g(100, "AcDbSymbolTable"); gi(70, n);
+      if (dim) g(100, "AcDbDimStyleTable");
+      body(); g(0, "ENDTAB");
+    };
+    const rec = (type, sub, name, codeH = 5) => { g(0, type); g(codeH, H()); g(330, hTbl[type]); g(100, "AcDbSymbolTableRecord"); g(100, sub); g(2, name); gi(70, 0); };
+    const ext = extentsOf(model) || { x0: 0, y0: 0, x1: 100, y1: 100 };
+    table("VPORT", 1, () => {
+      rec("VPORT", "AcDbViewportTableRecord", "*Active");
+      g(10, 0); g(20, 0); g(11, 1); g(21, 1); g(12, (ext.x0 + ext.x1) / 2); g(22, (ext.y0 + ext.y1) / 2);
+      g(13, 0); g(23, 0); g(14, 1); g(24, 1); g(15, 10); g(25, 10); g(16, 0); g(26, 0); g(36, 1); g(17, 0); g(27, 0); g(37, 0);
+      g(40, Math.max(ext.y1 - ext.y0, (ext.x1 - ext.x0) / 1.8) * 1.1); g(41, 1.8); g(42, 50); g(43, 0); g(44, 0); g(50, 0); g(51, 0);
+      gi(71, 0); gi(72, 1000); gi(73, 1); gi(74, 3); gi(75, 0); gi(76, 0); gi(77, 0); gi(78, 0);
+      gi(281, 0); gi(65, 1); g(110, 0); g(120, 0); g(130, 0); g(111, 1); g(121, 0); g(131, 0); g(112, 0); g(122, 1); g(132, 0); gi(79, 0); g(146, 0);
+    });
+    const allLt = [{ name: "ByBlock", desc: "", pattern: [] }, { name: "ByLayer", desc: "", pattern: [] }, { name: "Continuous", desc: "Solid line", pattern: [] }, ...ltypes];
+    table("LTYPE", allLt.length, () => {
+      for (const t of allLt) {
+        rec("LTYPE", "AcDbLinetypeTableRecord", t.name);
+        g(3, dxfText(t.desc)); gi(72, 65); gi(73, t.pattern.length); g(40, t.pattern.reduce((a, v) => a + Math.abs(v), 0));
+        for (const v of t.pattern) { g(49, v); gi(74, 0); }
+      }
+    });
+    table("LAYER", layers.length, () => {
+      for (const l of layers) {
+        rec("LAYER", "AcDbLayerTableRecord", l.name);
+        gi(62, l.color); g(6, l.ltype); if (l.plot === false) gi(290, 0); gi(370, -3); g(390, hNormal);
+      }
+    });
+    table("STYLE", styles.length, () => {
+      for (const s of styles) { rec("STYLE", "AcDbTextStyleTableRecord", s.name); g(40, 0); g(41, 1); g(50, 0); gi(71, 0); g(42, 2.5); g(3, s.font); g(4, ""); }
+    });
+    table("VIEW", 0, () => {});
+    table("UCS", 0, () => {});
+    table("APPID", 1, () => rec("APPID", "AcDbRegAppTableRecord", "ACAD"));
+    table("DIMSTYLE", 1, () => rec("DIMSTYLE", "AcDbDimStyleTableRecord", "Standard", 105), true);
+    table("BLOCK_RECORD", blocks.length, () => {
+      for (const b of blocks) {
+        g(0, "BLOCK_RECORD"); g(5, b.hRec); g(330, hTbl.BLOCK_RECORD); g(100, "AcDbSymbolTableRecord"); g(100, "AcDbBlockTableRecord");
+        g(2, b.name); g(340, b.hLay); gi(70, 0); gi(280, 1); gi(281, 0);
+      }
+    });
+    g(0, "ENDSEC");
+
+    // le entità dei layout non attivi stanno nel loro blocco, quelle del modello e del layout attivo in ENTITIES
+    g(0, "SECTION"); g(2, "BLOCKS");
+    for (const b of blocks) {
+      g(0, "BLOCK"); g(5, b.hBlk); g(330, b.hRec); g(100, "AcDbEntity"); if (b.ps) gi(67, 1); g(8, "0"); g(100, "AcDbBlockBegin");
+      g(2, b.name); gi(70, 0); g(10, 0); g(20, 0); g(30, 0); g(3, b.name); g(1, "");
+      if (b.ps && b.name !== "*Paper_Space") for (const e of b.ents) entity(e, b);
+      g(0, "ENDBLK"); g(5, b.hEnd); g(330, b.hRec); g(100, "AcDbEntity"); if (b.ps) gi(67, 1); g(8, "0"); g(100, "AcDbBlockEnd");
+    }
+    g(0, "ENDSEC");
+    g(0, "SECTION"); g(2, "ENTITIES");
+    for (const b of blocks) if (!b.ps || b.name === "*Paper_Space") for (const e of b.ents) entity(e, b);
+    g(0, "ENDSEC");
+
+    g(0, "SECTION"); g(2, "OBJECTS");
+    g(0, "DICTIONARY"); g(5, hRoot); g(330, "0"); g(100, "AcDbDictionary"); gi(281, 1);
+    g(3, "ACAD_GROUP"); g(350, hGroups); g(3, "ACAD_LAYOUT"); g(350, hLayouts); g(3, "ACAD_PLOTSTYLENAME"); g(350, hPsn);
+    const sub = (h) => { g(0, "DICTIONARY"); g(5, h); g(102, "{ACAD_REACTORS"); g(330, hRoot); g(102, "}"); g(330, hRoot); g(100, "AcDbDictionary"); gi(281, 1); };
+    sub(hGroups);
+    sub(hLayouts); for (const b of blocks) { g(3, dxfText(b.layout)); g(350, b.hLay); }
+    g(0, "ACDBDICTIONARYWDFLT"); g(5, hPsn); g(102, "{ACAD_REACTORS"); g(330, hRoot); g(102, "}"); g(330, hRoot); g(100, "AcDbDictionary"); gi(281, 1);
+    g(3, "Normal"); g(350, hNormal); g(100, "AcDbDictionaryWithDefault"); g(340, hNormal);
+    g(0, "ACDBPLACEHOLDER"); g(5, hNormal); g(102, "{ACAD_REACTORS"); g(330, hPsn); g(102, "}"); g(330, hPsn);
+    blocks.forEach((b, i) => {
+      const P = b.paper || { w: 420, h: 297 };
+      g(0, "LAYOUT"); g(5, b.hLay); g(102, "{ACAD_REACTORS"); g(330, hLayouts); g(102, "}"); g(330, hLayouts);
+      g(100, "AcDbPlotSettings"); g(1, ""); g(2, "none_device"); g(4, ""); g(6, "");
+      g(40, 0); g(41, 0); g(42, 0); g(43, 0); g(44, P.w); g(45, P.h); g(46, 0); g(47, 0); g(48, 0); g(49, 0); g(140, 0); g(141, 0);
+      g(142, 1); g(143, 1); gi(70, b.ps ? 640 : 1712); gi(72, 1); gi(73, 0); gi(74, b.ps ? 5 : 0); g(7, ""); gi(75, b.ps ? 16 : 0); g(147, 1); g(148, 0); g(149, 0);
+      // flag 70 = 0: PSLTSCALE spento anche nei layout (il tratteggio è in unità del modello)
+      g(100, "AcDbLayout"); g(1, dxfText(b.layout)); gi(70, 0); gi(71, i);
+      g(10, 0); g(20, 0); g(11, P.w); g(21, P.h); g(12, 0); g(22, 0); g(32, 0);
+      g(14, 0); g(24, 0); g(34, 0); g(15, P.w); g(25, P.h); g(35, 0); g(146, 0);
+      g(13, 0); g(23, 0); g(33, 0); g(16, 1); g(26, 0); g(36, 0); g(17, 0); g(27, 1); g(37, 0); gi(76, 0);
+      g(330, b.hRec);
+    });
+    g(0, "ENDSEC");
+    g(0, "EOF");
+    out[seed + 3] = (hnd + 0x100).toString(16).toUpperCase();
+    return out.join("\r\n") + "\r\n";
+
+    function head(type, e, b, subclass) {
+      g(0, type); g(5, H()); g(330, b.hRec); g(100, "AcDbEntity"); if (b.ps) gi(67, 1); g(8, e.layer || "0");
+      if (e.ltype) g(6, e.ltype);
+      if (e.color != null) gi(62, e.color);
+      g(100, subclass);
+    }
+    function entity(e, b) {
+      if (e.t === "line") {
+        head("LINE", e, b, "AcDbLine"); g(10, e.a[0]); g(20, e.a[1]); g(30, 0); g(11, e.b[0]); g(21, e.b[1]); g(31, 0);
+      } else if (e.t === "poly") {
+        head("LWPOLYLINE", e, b, "AcDbPolyline"); gi(90, e.pts.length); gi(70, e.closed ? 1 : 0); g(43, 0);
+        for (const p of e.pts) { g(10, p[0]); g(20, p[1]); if (p[2]) g(42, p[2]); }        // terzo valore: bulge del lato che parte dal vertice
+      } else if (e.t === "text") {
+        head("TEXT", e, b, "AcDbText");
+        g(10, e.x); g(20, e.y); g(30, 0); g(40, e.h); g(1, dxfText(e.s)); if (e.rot) g(50, e.rot); g(7, e.style || "Standard");
+        if (e.ha) gi(72, e.ha);
+        if (e.ha || e.va) { g(11, e.x); g(21, e.y); g(31, 0); }
+        g(100, "AcDbText"); if (e.va) gi(73, e.va);
+      } else if (e.t === "circle") {
+        head("CIRCLE", e, b, "AcDbCircle"); g(10, e.c[0]); g(20, e.c[1]); g(30, 0); g(40, e.r);
+      } else if (e.t === "solid") {
+        head("SOLID", e, b, "AcDbTrace");
+        const q = e.pts, q3 = q[3] || q[2];
+        g(10, q[0][0]); g(20, q[0][1]); g(30, 0); g(11, q[1][0]); g(21, q[1][1]); g(31, 0); g(12, q[2][0]); g(22, q[2][1]); g(32, 0); g(13, q3[0]); g(23, q3[1]); g(33, 0);
+      } else if (e.t === "viewport") {
+        head("VIEWPORT", { layer: e.layer || "0" }, b, "AcDbViewport");
+        g(10, e.cx); g(20, e.cy); g(30, 0); g(40, e.w); g(41, e.h); gi(68, e.status); gi(69, e.id);
+        g(12, e.vx); g(22, e.vy); g(13, 0); g(23, 0); g(14, 10); g(24, 10); g(15, 10); g(25, 10);
+        g(16, 0); g(26, 0); g(36, 1); g(17, 0); g(27, 0); g(37, 0);
+        g(42, 50); g(43, 0); g(44, 0); g(45, e.vh); g(50, 0); g(51, 0); gi(72, 1000);
+        gi(90, e.locked ? 32864 + 16384 : 32864); g(1, ""); gi(281, 0); gi(71, 1); gi(74, 0);
+        g(110, 0); g(120, 0); g(130, 0); g(111, 1); g(121, 0); g(131, 0); g(112, 0); g(122, 1); g(132, 0); gi(79, 0); g(146, 0); gi(170, 0);
+      }
+    }
+  }
+}
+
+/** Riquadro delle entità (linee, polilinee, solidi, punti d'inserimento dei testi). */
+export function extentsOf(ents) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const add = (x, y) => { if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y; };
+  for (const e of ents) {
+    if (e.t === "line") { add(e.a[0], e.a[1]); add(e.b[0], e.b[1]); }
+    else if (e.t === "poly" || e.t === "solid") for (const p of e.pts) add(p[0], p[1]);
+    else if (e.t === "text") add(e.x, e.y);
+    else if (e.t === "circle") { add(e.c[0] - e.r, e.c[1] - e.r); add(e.c[0] + e.r, e.c[1] + e.r); }
+  }
+  return x0 < Infinity ? { x0, y0, x1, y1 } : null;
+}
+
+/** Righe della chitarra nell'ordine del riferimento dell'utente, con l'altezza in carta (mm). */
+export const GUITAR_ROWS = Object.freeze([
+  { k: "pts", mm: 10 }, { k: "zT", mm: 16 }, { k: "dp", mm: 12 }, { k: "ds", mm: 16 }, { k: "ip", mm: 12 },
+  { k: "is", mm: 16 }, { k: "zS", mm: 16 }, { k: "zF", mm: 16 }, { k: "hF", mm: 12 }, { k: "gr", mm: 12 },
+]);
+/** Layer della tavola del profilo: nome, colore ACI, tipo di linea. */
+export const SHEET_LAYERS = Object.freeze({
+  terr: ["PRF_TERRENO", 3], des: ["PRF_SCORRIMENTO", 1], bot: ["PRF_FONDO_SCAVO", 30], ref: ["PRF_RIFERIMENTO", 5],
+  frame: ["CHT_CORNICE", 6], rows: ["CHT_RIGHE", 7], head: ["CHT_INTESTAZIONI", 7], val: ["CHT_VALORI", 7],
+  lead: ["CHT_RICHIAMI", 8, "TRATTEGGIO"], grade: ["CHT_LIVELLETTE", 7], title: ["TAV_TITOLI", 2],
+  sTerr: ["SEZ_TERRENO", 3], sWork: ["SEZ_OPERA", 7], sStrata: ["SEZ_STRATI", 42], sCut: ["SEZ_SCAVO", 30], sSurf: ["SEZ_PROGETTO", 1],
+  sAxis: ["SEZ_ASSE", 8, "TRATTEGGIO"], sMarks: ["SEZ_QUOTE", 4], sAreas: ["SEZ_AREE", 7],
+});
+/** Layer della pianta georeferita: nome, colore ACI, tipo di linea. */
+export const PLAN_LAYERS = Object.freeze({
+  axis: ["PLN_ASSE", 1, "ASSE_PIANTA"], stake: ["PLN_PICCHETTI", 7], cut: ["PLN_SEZIONI", 2], cutText: ["PLN_SEZIONI_TESTI", 7], text: ["PLN_TESTI", 2],
+  foot: ["PLN_INGOMBRO", 30], work: ["PLN_OPERA", 7],
+});
+/** Distanza fra i segmenti ab e cd (0 se si incrociano). */
+export function segDist(a, b, c, d) {
+  const or = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
+  if (or(a, b, c) * or(a, b, d) < 0 && or(c, d, a) * or(c, d, b) < 0) return 0;
+  const ps = (p, q, r) => {                                   // punto p, segmento qr
+    const dx = r[0] - q[0], dy = r[1] - q[1], l2 = dx * dx + dy * dy;
+    const t = l2 > 0 ? Math.max(0, Math.min(1, ((p[0] - q[0]) * dx + (p[1] - q[1]) * dy) / l2)) : 0;
+    return Math.hypot(p[0] - q[0] - t * dx, p[1] - q[1] - t * dy);
+  };
+  return Math.min(ps(a, c, d), ps(b, c, d), ps(c, a, b), ps(d, a, b));
+}
+/** Sposta un'entità del DXF di (dx, dy) (punti nuovi: un punto condiviso fra due entità non si sposta due volte). */
+function shiftEnt(e, dx, dy) {
+  const sp = (q) => [q[0] + dx, q[1] + dy, ...q.slice(2)];
+  if (e.t === "line") { e.a = sp(e.a); e.b = sp(e.b); }
+  else if (e.t === "poly" || e.t === "solid") e.pts = e.pts.map(sp);
+  else if (e.t === "text") { e.x += dx; e.y += dy; }
+  else if (e.t === "circle") e.c = sp(e.c);
+}
+/** Righe della chitarrina delle sezioni correnti (mm di carta): quote terreno e progetto, distanze parziali e dall'asse. */
+export const CROSS_ROWS = Object.freeze([{ k: "zT", mm: 14 }, { k: "zP", mm: 14 }, { k: "dp", mm: 10 }, { k: "da", mm: 12 }]);
+/**
+ * Testi in fila senza sovrapporsi: c = i centri voluti (crescenti o no), w = passo minimo fra due centri.
+ * I testi che si toccherebbero diventano un gruppo a passo w centrato sulla media dei loro centri (il più
+ * vicino possibile alle loro colonne); lo = centro minimo (non entrare nella cornice). Ritorna i centri,
+ * nello stesso ordine di c.
+ */
+export function spreadCenters(c, w, lo = -Infinity) {
+  const idx = c.map((_, i) => i).sort((a, b) => c[a] - c[b]);
+  const cl = [];
+  for (const i of idx) {
+    cl.push({ items: [i], sum: c[i] });
+    for (;;) {
+      const B = cl[cl.length - 1], x0 = Math.max(lo, B.sum / B.items.length - (B.items.length - 1) * w / 2);
+      B.x0 = x0;
+      const A = cl[cl.length - 2];
+      if (!A || A.x0 + A.items.length * w <= x0 + 1e-9) break;
+      A.items.push(...B.items); A.sum += B.sum; cl.pop();
+    }
+  }
+  const out = new Array(c.length);
+  for (const B of cl) B.items.forEach((i, k) => { out[i] = B.x0 + k * w; });
+  return out;
+}
+/** Progressiva come nei disegni: 0+125.00. */
+export const chainage = (p) => { const r = Math.round(p * 100) / 100, k = Math.floor(r / 1000 + 1e-9); return k + "+" + (r - 1000 * k).toFixed(2).padStart(6, "0"); };
+
+/**
+ * Le tavole del profilo con la chitarra, nello SPAZIO MODELLO di un DXF R2000 (l'impaginazione la fa
+ * l'utente): X = progressiva × v / h (1:1000 / 1:100 → progressiva / 10), Y = QUOTA VERA; una finestra a
+ * 1:v rende le distanze a 1:h. Le opere una accanto all'altra. Testi e righe in mm di carta (1 mm =
+ * v / 1000 unità). sheets = [{ name, lo, hi, zRef?, cols (C.guitarTable), terrain, design, bottom
+ * (pezzi [[p, z]…]), grades (C.gradeRuns), sections? (C.crossSheets) }]; rows = chiavi di GUITAR_ROWS da
+ * mettere (l'ordine resta quello di GUITAR_ROWS); labels = { rows: { k: testo }, title: (nome) => testo,
+ * cross: { rows: { zT, zP, dp, da }, marks: { inv, exc, crest, toe }, areas: { chiave: testo }, unit, title:
+ * (n, progressiva, kind, ponte) => testo } }. Le sezioni correnti (0.16): a 1:v non deformate (1 unità = 1 m,
+ * la stessa finestra del profilo), ognuna col suo piano di riferimento, in griglia sotto la chitarra della
+ * sua opera e larga quanto lei; cross = { guitar, marks, areas }: chitarrina, quote sul disegno, aree.
+ * La pianta georeferita (0.16, terzo passo): con plan = { scale (1:scale), step, every, tick } e per opera
+ * sh.plan = { verts (C.axisVertices), at (p → C.planAt), foot? (C.planFootprint: l'ingombro, anelli chiusi), work?
+ * (C.planWork: l'opera vista dall'alto) } l'asse va
+ * in coordinate VERE con le finche delle sezioni (tick mm per lato, la progressiva oltre il capo sinistro, il
+ * numero in un riquadro a destra; senza sezioni picchetti ogni step e progressive ogni every, più inizio e
+ * fine), nome dell'opera e freccia nel verso dello scorrimento; profili e sezioni si spostano sotto la
+ * pianta di multipli di 100 m (labels.plan.note(dy) ricorda che quota = Y − dy).
+ * Ritorna il testo del DXF.
+ */
+export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), labels, scale = { h: 1000, v: 100 }, text = { val: 2, head: 2.5, title: 4 }, gap = 40,
+  cross = { guitar: true, marks: true, areas: true }, plan = null }) {
+  const doc = dxfR2000();
+  const mm = scale.v / 1000, kx = scale.v / scale.h;           // unità del modello per mm di carta; X per metro di progressiva
+  const tx = (s, h) => String(s).length * h * 0.8 * mm;        // larghezza di un testo in romans.shx (~0,8 h per carattere)
+  doc.ltype("TRATTEGGIO", "Tratteggio __ __ __", [3 * mm, -1.5 * mm]);   // 3 mm pieno, 1,5 vuoto in carta
+  const L = {};
+  for (const [k, [name, color, ltype]] of Object.entries(SHEET_LAYERS)) L[k] = doc.layer(name, { color, ltype: ltype || "Continuous" });
+  doc.style("PROFILI", "romans.shx");
+  const M = doc.model;
+  const T = (layer, x, y, h, s, o = {}) => M.push({ t: "text", layer, style: "PROFILI", x, y, h: h * mm, s, ...o });
+  const f3 = (v) => (Number.isFinite(v) ? v.toFixed(3) : ""), f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : "");
+  const want = GUITAR_ROWS.filter((r) => rows.includes(r.k));
+  const headW = Math.max(40, ...want.map((r) => (labels.rows[r.k] || r.k).length * text.head * 0.8 + 8)) * mm;
+  const crossHeadW = Math.max(30, ...CROSS_ROWS.map((r) => ((((labels.cross || {}).rows) || {})[r.k] || r.k).length * text.head * 0.8 + 8)) * mm;
+  // valori verticali centrati sul loro asse a 0,4 mm dalla linea (a sinistra; il «dopo» di un salto a destra): con
+  // l'allineamento «in basso» AutoCAD lascia lo spazio delle discendenti (0,3 h) e due salti a 5 m si toccavano.
+  // In una riga i testi che si toccherebbero (colonne obbligate vicine) si distribuiscono attorno alle loro colonne.
+  const VOFF = (0.4 + text.val / 2) * mm, VW = (text.val + 0.4) * mm;
+  const vrow = (items, ym, lo) => {
+    const xs = spreadCenters(items.map((q) => q.c), VW, lo);
+    items.forEach((q, i) => T(L.val, xs[i], ym, text.val, q.s, { rot: 90, ha: 1, va: 2 }));
+  };
+  let X0 = 0;
+  for (const sh of sheets) {
+    // 6 mm fra la cornice e la prima colonna (i valori stanno a sinistra della loro linea), 6 dopo l'ultima
+    const X = (p) => X0 + 6 * mm + (p - sh.lo) * kx, xEnd = X(sh.hi) + 6 * mm;
+    const all = [...sh.cols.flatMap((c) => [c.zT, ...c.zS, ...c.zF]), ...[...sh.terrain, ...sh.design, ...sh.bottom].flat().map((q) => q[1])].filter(Number.isFinite);
+    const zMin = all.length ? Math.min(...all) : 0, zMax = all.length ? Math.max(...all) : 1;
+    const zRef = Number.isFinite(sh.zRef) ? sh.zRef : Math.floor(zMin - 1);
+    // profilo: terreno (DTM), scorrimento, fondo scavo
+    for (const [k, list] of [["terr", sh.terrain], ["des", sh.design], ["bot", sh.bottom]]) for (const l of list) M.push({ t: "poly", layer: L[k], pts: l.map(([p, z]) => [X(p), z]) });
+    // piano di riferimento: linea, quota col triangolino, asse verticale a sinistra
+    M.push({ t: "line", layer: L.ref, a: [X0 - headW, zRef], b: [xEnd, zRef] });
+    T(L.ref, X0 - 1.5 * mm, zRef + 2.5 * mm, text.head, zRef.toFixed(3), { ha: 2 });
+    M.push({ t: "poly", layer: L.ref, closed: true, pts: [[X0 - 9 * mm, zRef + 2 * mm], [X0 - 5 * mm, zRef + 2 * mm], [X0 - 7 * mm, zRef]] });
+    M.push({ t: "line", layer: L.frame, a: [X0, zRef], b: [X0, Math.max(zMax, zRef) + 5 * mm] });
+    // richiami: dalla quota più alta della colonna giù fino al piano di riferimento
+    for (const c of sh.cols) {
+      const top = Math.max(...[c.zT, ...c.zS].filter(Number.isFinite));
+      if (Number.isFinite(top) && top > zRef) M.push({ t: "line", layer: L.lead, a: [X(c.p), top], b: [X(c.p), zRef] });
+    }
+    T(L.title, X0 - headW, Math.max(zMax, zRef) + 12 * mm, text.title, labels.title(sh.name));
+    // chitarra: le righe scelte, sotto il piano di riferimento
+    let y = zRef;
+    for (const r of want) {
+      const h = r.mm * mm, ym = y - h / 2, yb = y - h;
+      M.push({ t: "line", layer: L.rows, a: [X0 - headW, yb], b: [xEnd, yb] });
+      T(L.head, X0 - headW + 3 * mm, ym, text.head, labels.rows[r.k] || r.k, { va: 2 });
+      const tick = (x) => M.push({ t: "line", layer: L.rows, a: [x, y], b: [x, yb] });
+      const it = [], vtx = (x, s, after = false) => { if (s) it.push({ c: x + (after ? 1 : -1) * VOFF, s }); };
+      const pair = (c, vals, fmt) => {                          // un valore a sinistra della colonna; due (prima | dopo) ai due lati
+        const v = vals.map(fmt);
+        vtx(X(c.p), v[0]);
+        if (v.length > 1 && v[1] !== v[0]) vtx(X(c.p), v[1], true);
+      };
+      for (let i = 0; i < sh.cols.length; i++) {
+        const c = sh.cols[i], x = X(c.p);
+        if (r.k === "pts") vtx(x, String(c.n));
+        else if (r.k === "zT") vtx(x, f3(c.zT));
+        else if (r.k === "ds") vtx(x, f2(c.p));
+        else if (r.k === "is") vtx(x, f2(c.ip));
+        else if (r.k === "zS") pair(c, c.zS, f3);
+        else if (r.k === "zF") pair(c, c.zF, f3);
+        else if (r.k === "hF") pair(c, c.hF, f2);
+        else if ((r.k === "dp" || r.k === "ip") && i) { const v = f2(r.k === "dp" ? c.dp : c.dip); if (v) it.push({ c: (X(sh.cols[i - 1].p) + x) / 2, s: v }); }
+        if ((r.k === "dp" || r.k === "ip") && i && i < sh.cols.length - 1) tick(x);
+      }
+      vrow(it, ym, X0 + VW / 2);
+      if (r.k === "gr") for (const gr of sh.grades) {
+        const xa = X(gr.p0), xb = X(gr.p1), w = xb - xa, s1 = (gr.g >= 0 ? "+" : "") + (gr.g * 100).toFixed(2) + "%", s2 = "L = " + gr.L.toFixed(2);
+        if (gr.p0 > sh.lo + 1e-6) tick(xa);
+        if (Math.max(tx(s1, text.val), tx(s2, text.val)) <= w - 2 * mm) {
+          T(L.grade, (xa + xb) / 2, ym + 1.5 * mm, text.val, s1, { ha: 1, va: 2 });
+          T(L.grade, (xa + xb) / 2, ym - 2 * mm, text.val, s2, { ha: 1, va: 2 });
+        } else if (tx(s1, text.val) <= h - 1 * mm) T(L.grade, (xa + xb) / 2, ym, text.val, s1, { rot: 90, ha: 1, va: 2 });
+      }
+      y = yb;
+    }
+    // cornice delle intestazioni e chiusura a destra
+    M.push({ t: "poly", layer: L.frame, closed: true, pts: [[X0 - headW, y], [X0, y], [X0, zRef], [X0 - headW, zRef]] });
+    M.push({ t: "line", layer: L.rows, a: [xEnd, zRef], b: [xEnd, y] });
+    const xMax = sh.sections && sh.sections.length ? crossGrid(sh.sections, X0 - headW, y - 20 * mm, xEnd - (X0 - headW)) : xEnd;
+    X0 = Math.max(xEnd, xMax) + gap * mm + headW;
+  }
+  if (plan && sheets.some((s) => s.plan)) drawPlan();
+  return doc.toString();
+
+  /* ---- pianta georeferita: l'asse in E/N veri, profili e sezioni spostati sotto ---- */
+  function drawPlan() {
+    const k = plan.scale / 1000, step = plan.step || 25, every = plan.every || 100, Lt = (plan.tick || 10) * k;   // k = metri per mm di carta
+    const hN = text.val, hP = text.val, hT = 3.5, pad = 0.4;                         // numeri delle sezioni, progressive, nome; margine dei riquadri (mm)
+    doc.ltype("ASSE_PIANTA", "Asse __ . __", [8 * k, -1.5 * k, 1 * k, -1.5 * k]);
+    const PL = {};
+    for (const [key, [name, color, ltype]] of Object.entries(PLAN_LAYERS)) PL[key] = doc.layer(name, { color, ltype: ltype || "Continuous" });
+    const PM = [];
+    const PT = (layer, x, y, h, s, o = {}) => PM.push({ t: "text", layer, style: "PROFILI", x, y, h: h * k, s, ...o });
+    // un testo lungo la direzione (dx, dy) ma sempre leggibile, flip = girato di 180°: rotazione in (−80°, 100°], così i testi
+    // quasi verticali leggono tutti dal basso in alto (con (−90°, 90°] due progressive vicine si capovolgevano l'una rispetto all'altra)
+    const rot = (dx, dy) => { const a = Math.atan2(dy, dx) * 180 / Math.PI, r = ((a % 360) + 360) % 360; return r > 100 + 1e-9 && r <= 280 + 1e-9 ? { r: r - 180, flip: true } : { r: r > 280 ? r - 360 : r, flip: false }; };
+    // testi di traverso sul prolungamento delle tacche, oltre Lt dal lato side (+1 sinistra, −1 destra), lungo l'asse occupano solo
+    // l'altezza del testo: ognuno al primo posto libero allontanandosi dall'asse (più file: ai salti le sezioni stanno a 2 m), con la
+    // distanza vera fra i testi (in curva i prolungamenti si stringono). Ritorna per testo { p, o (inizio), end (fine) } dall'asse.
+    const radial = (pos, at, items, side, h, layer) => {
+      const rowW = (Math.max(1, ...items.map((q) => q.s.length)) * 0.8 * h + 1.5) * k, clear = (h + 0.6) * k, placed = [];
+      for (const q of items) {
+        const len = q.s.length * 0.8 * h * k;
+        let r = 0, o, a, b;
+        for (;; r++) {
+          o = Lt + 1.5 * k + r * rowW; a = pos(q.p, side * o); b = pos(q.p, side * (o + len));
+          if (r >= 5 || !placed.some((z) => segDist(a, b, z.a, z.b) < clear)) break;
+        }
+        placed.push({ a, b, p: q.p, o, end: o + len });
+        const w = at(q.p), R = side > 0 ? rot(-w.ty, w.tx) : rot(w.ty, -w.tx);
+        PT(layer, a[0], a[1], h, q.s, { rot: R.r, ha: R.flip ? 2 : 0, va: 2 });
+      }
+      return placed;
+    };
+    for (const sh of sheets) {
+      if (!sh.plan) continue;
+      const { verts, at } = sh.plan, lo = sh.lo, hi = sh.hi;
+      const pos = (p, off) => { const w = at(p); return [w.x - w.ty * off, w.y + w.tx * off]; };        // off > 0 a sinistra guardando avanti
+      PM.push({ t: "poly", layer: PL.axis, pts: verts.map((v) => [v.x, v.y, v.b || 0]) });
+      for (const ring of sh.plan.foot || []) PM.push({ t: "poly", layer: PL.foot, closed: true, pts: ring.map((q) => [q[0], q[1]]) });   // ingombro (C.planFootprint)
+      const wk = sh.plan.work;                                                                            // l'opera vista dall'alto (C.planWork)
+      if (wk) {
+        for (const l of wk.lines) PM.push({ t: "poly", layer: PL.work, pts: l.map((q) => [q[0], q[1]]) });
+        for (const [a, b] of wk.cross) PM.push({ t: "line", layer: PL.work, a: [a[0], a[1]], b: [b[0], b[1]] });
+      }
+      // finche delle sezioni come quelle di Roads (esempio dell'utente): tutte lunghe Lt per lato e ⟂ al lato su cui cadono; la
+      // progressiva in metri («350.000») oltre il capo sinistro e il numero in un riquadro attaccato al capo destro, di traverso come
+      // la finca. Niente spostamenti né file: ai salti (sezioni a 2 m) le finche stanno vicine come in Roads (prima i numeri spostati
+      // su più file allungavano le tacche: «disordinate, non lunghe tutte uguali»)
+      const secs = sh.sections || [];
+      let bwMax = 0;
+      for (const s of secs) {
+        const w = at(s.p), R = rot(w.ty, -w.tx), r = [w.ty, -w.tx], tg = [w.tx, w.ty];
+        PM.push({ t: "line", layer: PL.cut, a: pos(s.p, Lt), b: pos(s.p, -Lt) });
+        const [px, py] = pos(s.p, Lt + 1 * k);
+        PT(PL.cutText, px, py, hP, s.p.toFixed(3), { rot: R.r, ha: R.flip ? 0 : 2, va: 2 });       // il testo finisce (o comincia, se girato) a 1 mm dal capo
+        const nb = String(s.n), bw = (nb.length * 0.8 * hN + 2 * pad) * k, bh = (hN + 2 * pad) * k;
+        bwMax = Math.max(bwMax, bw);
+        const [cx, cy] = pos(s.p, -(Lt + bw / 2));
+        const cn = (a, b) => [cx + r[0] * a * bw / 2 + tg[0] * b * bh / 2, cy + r[1] * a * bw / 2 + tg[1] * b * bh / 2];
+        PM.push({ t: "poly", layer: PL.cut, closed: true, pts: [cn(-1, -1), cn(1, -1), cn(1, 1), cn(-1, 1)] });
+        PT(PL.cutText, cx, cy, hN, nb, { rot: R.r, ha: 1, va: 2 });
+      }
+      // senza sezioni nel file: picchetti ogni step e progressive (ogni every, inizio e fine) a destra; con le sezioni no (scelta
+      // dell'utente: le finche portano già la progressiva)
+      if (!secs.length) {
+        for (let p = Math.ceil((lo - 1e-6) / step) * step; p <= hi + 1e-6; p += step) PM.push({ t: "line", layer: PL.stake, a: pos(p, -1.5 * k), b: pos(p, 1.5 * k) });
+        const lab = [lo, ...Array.from({ length: Math.max(0, Math.floor(hi / every) - Math.ceil(lo / every) + 1) }, (_, i) => (Math.ceil(lo / every) + i) * every), hi]
+          .filter((p, i, a) => p >= lo - 1e-6 && p <= hi + 1e-6 && a.findIndex((q) => Math.abs(q - p) < 1e-6) === i).sort((a, b) => a - b);
+        for (const q of radial(pos, at, lab.map((p) => ({ p, s: chainage(p) })), -1, hP, PL.stake)) PM.push({ t: "line", layer: PL.stake, a: pos(q.p, 2 * k), b: pos(q.p, -(q.o - 0.5 * k)) });
+      }
+      // nome dell'opera e freccia nel verso dello scorrimento (dove lo scorrimento scende) oltre i riquadri dei numeri (a destra;
+      // senza sezioni a sinistra, libera), nel tratto più dritto (un testo diritto lungo un asse che piega lo attraversava), a pari
+      // merito il più vicino a metà
+      const ds = (sh.design || []).filter((l) => l.length), z0 = ds.length ? ds[0][0][1] : 0, z1 = ds.length ? ds[ds.length - 1][ds[ds.length - 1].length - 1][1] : 0;
+      const span = Math.max(String(sh.name).length * 0.8 * hT, 20) * k + 4 * k, mid = (lo + hi) / 2;
+      const side = secs.length ? -1 : 1, oA = secs.length ? Lt + bwMax + 3 * k : 4 * k;
+      let pm = mid;
+      if (hi - lo > span) {
+        let best = Infinity;
+        const nc = Math.min(400, Math.ceil((hi - lo - span) / k));
+        for (let i = 0; i <= nc; i++) {
+          const p = lo + span / 2 + (hi - lo - span) * i / Math.max(1, nc), c = at(p);
+          let dev = 0;
+          for (let j = 0; j <= 8; j++) { const q = at(p - span / 2 + span * j / 8); dev = Math.max(dev, Math.abs((q.x - c.x) * c.ty - (q.y - c.y) * c.tx)); }
+          const sc = dev + 0.001 * Math.abs(p - mid);
+          if (sc < best - 1e-9) { best = sc; pm = p; }
+        }
+      }
+      const dir = z1 <= z0 + 1e-9 ? 1 : -1, w = at(pm), t = [w.tx * dir, w.ty * dir], n = [-w.ty, w.tx];
+      const [ax, ay] = pos(pm, side * oA), half = 10 * k, head = 3 * k, wing = 0.9 * k;
+      const tip = [ax + t[0] * half, ay + t[1] * half], hb = [tip[0] - t[0] * head, tip[1] - t[1] * head];
+      PM.push({ t: "line", layer: PL.text, a: [ax - t[0] * half, ay - t[1] * half], b: hb });
+      PM.push({ t: "solid", layer: PL.text, pts: [tip, [hb[0] + n[0] * wing, hb[1] + n[1] * wing], [hb[0] - n[0] * wing, hb[1] - n[1] * wing]] });
+      const RN = rot(w.tx, w.ty), [nx, ny] = pos(pm, side * (oA + (2 + hT / 2) * k));
+      PT(PL.text, nx, ny, hT, sh.name, { rot: RN.r, ha: 1, va: 2 });
+    }
+    // profili e sezioni sotto la pianta, spostati di multipli di 100 m (la quota si legge come Y − dy)
+    const pe = extentsOf(PM), ex = extentsOf(M);
+    const dx = Math.floor((pe.x0 - ex.x0) / 100) * 100, dy = Math.floor((pe.y0 - 30 * k - ex.y1 - 1) / 100) * 100;
+    for (const e of M) shiftEnt(e, dx, dy);
+    const note = labels.plan && labels.plan.note ? labels.plan.note(String(dy)) : "quota = Y - " + dy;
+    T(L.title, ex.x0 + dx, ex.y1 + dy + 8 * mm, 3, note);
+    M.push(...PM);
+  }
+
+  /* ---- sezioni correnti ---- */
+  function crossSize(s) {
+    const cs = s.cs;
+    const zs = [...cs.terrain.map((q) => q[1]), ...cs.design.map((q) => q[1]), ...(cs.cut || []).map((q) => q[1]), ...(cs.surface || []).flat().map((q) => q[1]),
+      ...cs.structure.polys.flat().map((q) => q[1]), ...cs.structure.circles.flatMap((c) => [c.z - c.r, c.z + c.r]), ...cs.strata.flatMap((x) => x.poly.map((q) => q[1])), cs.zS, cs.zF]
+      .filter(Number.isFinite);
+    const zMin = Math.min(...zs), zTop = Math.max(...zs), zRef = Math.floor(zMin - 1);
+    const hw = cross.guitar ? crossHeadW : 22 * mm, w = hw + 12 * mm + (cs.u1 - cs.u0), A = areaCols(cs, w);
+    const gH = cross.guitar ? CROSS_ROWS.reduce((a, r) => a + r.mm, 0) * mm : 0;
+    return { zRef, zTop, hw, w, A, h: 9 * mm + (zTop - zRef) + 3 * mm + gH + (A.ss.length ? 2 * mm + Math.ceil(A.ss.length / A.per) * 4 * mm : 0) };
+  }
+  /* le aree della sezione come testi, in colonne larghe quanto il più lungo dentro la larghezza w */
+  function areaCols(cs, w) {
+    const CL = labels.cross || {};
+    const ss = cross.areas ? cs.areas.map((a) => ((CL.areas || {})[a.key] || a.key) + " " + a.a.toFixed(3) + " " + (CL.unit || "m2")) : [];
+    const cw = ss.length ? Math.max(...ss.map((x) => x.length)) * text.val * mm + 6 * mm : 1;      // ~1 h per carattere: con 0,8 «mq» e il testo dopo si toccavano
+    return { ss, cw, per: Math.max(1, Math.floor((w + 4 * mm) / cw)) };
+  }
+  function crossGrid(secs, x0, y0, width) {
+    let bx = x0, by = y0, rowH = 0, xMax = x0;
+    for (const s of secs) {
+      const z = crossSize(s);
+      if (bx > x0 && bx + z.w > x0 + width) { bx = x0; by -= rowH + 15 * mm; rowH = 0; }
+      crossBlock(s, bx, by, z);
+      xMax = Math.max(xMax, bx + z.w);
+      bx += z.w + 15 * mm; rowH = Math.max(rowH, z.h);
+    }
+    return xMax;
+  }
+  function crossBlock(s, bx, by, size) {
+    const cs = s.cs, CL = labels.cross || {}, { zRef, zTop, hw } = size;
+    const X = (u) => bx + hw + 6 * mm + (u - cs.u0), xR = X(cs.u1) + 6 * mm;
+    const yD = by - 9 * mm - (zTop - zRef), Y = (z) => yD + (z - zRef);
+    const P = (pts) => pts.map(([u, z]) => [X(u), Y(z)]);
+    T(L.title, bx, by - 4 * mm, 3.5, CL.title ? CL.title(s.n, chainage(s.p), s.kind, cs.bridge) : s.n + " - " + chainage(s.p));
+    // sagome: terreno (spezzato fuori dal DTM), opera, strati, scavo, superficie finita, asse
+    let piece = [];
+    const flush = () => { if (piece.length > 1) M.push({ t: "poly", layer: L.sTerr, pts: P(piece) }); piece = []; };
+    for (const q of cs.terrain) { if (Number.isFinite(q[1])) piece.push(q); else flush(); }
+    flush();
+    for (const poly of cs.structure.polys) M.push({ t: "poly", layer: L.sWork, closed: true, pts: P(poly) });
+    for (const c of cs.structure.circles) M.push({ t: "circle", layer: L.sWork, c: [X(c.u), Y(c.z)], r: c.r });
+    for (const st of cs.strata) M.push({ t: "poly", layer: L.sStrata, closed: true, pts: P(st.poly) });
+    if (cs.cut) M.push({ t: "poly", layer: L.sCut, pts: P(cs.cut) });
+    for (const l of cs.surface || []) M.push({ t: "poly", layer: L.sSurf, pts: P(l) });          // a pezzi: nel canale aperto non attraversa l'acqua
+    M.push({ t: "line", layer: L.sAxis, a: [X(0), yD], b: [X(0), Y(zTop) + 3 * mm] });
+    // piano di riferimento con la quota e il triangolino, come nel profilo
+    M.push({ t: "line", layer: L.ref, a: [bx, yD], b: [xR, yD] });
+    T(L.ref, bx + hw - 1.5 * mm, yD + 2.5 * mm, text.head, zRef.toFixed(3), { ha: 2 });
+    M.push({ t: "poly", layer: L.ref, closed: true, pts: [[bx + hw - 9 * mm, yD + 2 * mm], [bx + hw - 5 * mm, yD + 2 * mm], [bx + hw - 7 * mm, yD]] });
+    // quote sul disegno: scorrimento e fondo scavo a destra dell'asse (sopra e sotto), cigli e piedi verso fuori;
+    // un'etichetta che toccherebbe una già messa sale di una riga (piede e ciglio quasi nello stesso punto)
+    if (cross.marks) {
+      const boxes = [], th = text.val * mm, gapY = 0.6 * th;
+      for (const m of cs.marks) {
+        const s1 = ((CL.marks || {})[m.key] || m.key) + " " + m.z.toFixed(3), x = X(m.u), yy = Y(m.z), out = m.u < -1e-6 ? -1 : 1, w = tx(s1, text.val);
+        M.push({ t: "line", layer: L.sMarks, a: [x, yy], b: [x + out * 1.5 * mm, yy] });
+        const down = m.key === "exc", tx0 = x + out * 2 * mm, bx0 = out < 0 ? tx0 - w : tx0;
+        let by0 = down ? yy - 0.6 * mm - th : yy + 0.6 * mm;
+        for (let k = 0; k < 8 && boxes.some((b) => b.x0 < bx0 + w && bx0 < b.x1 && b.y0 < by0 + th + gapY && by0 < b.y1 + gapY); k++) by0 += (down ? -1 : 1) * (th + gapY);
+        boxes.push({ x0: bx0, x1: bx0 + w, y0: by0, y1: by0 + th });
+        if (Math.abs(by0 - (down ? yy - 0.6 * mm - th : yy + 0.6 * mm)) > 1e-9) M.push({ t: "line", layer: L.sMarks, a: [x + out * 1.5 * mm, yy], b: [tx0, by0 + th / 2] });
+        T(L.sMarks, tx0, by0, text.val, s1, { ha: out < 0 ? 2 : 0, va: 1 });
+      }
+    }
+    let y = yD;
+    if (cross.guitar) {
+      const tb = s.table;
+      for (const c of tb) {
+        const top = Math.max(...[c.zT, ...c.zP].filter(Number.isFinite));
+        if (Number.isFinite(top) && top > zRef) M.push({ t: "line", layer: L.lead, a: [X(c.u), Y(top)], b: [X(c.u), yD] });
+      }
+      for (const r of CROSS_ROWS) {
+        const h = r.mm * mm, ym = y - h / 2, yb = y - h, it = [];
+        const vtx = (x, s, after = false) => it.push({ c: x + (after ? 1 : -1) * VOFF, s });
+        M.push({ t: "line", layer: L.rows, a: [bx, yb], b: [xR, yb] });
+        T(L.head, bx + 3 * mm, ym, text.head, (CL.rows || {})[r.k] || r.k, { va: 2 });
+        tb.forEach((c, i) => {
+          const x = X(c.u);
+          if (r.k === "zT") { if (Number.isFinite(c.zT)) vtx(x, c.zT.toFixed(3)); }
+          else if (r.k === "zP") { if (c.zP.length) vtx(x, c.zP[0].toFixed(3)); if (c.zP.length > 1) vtx(x, c.zP[1].toFixed(3), true); }
+          else if (r.k === "da") vtx(x, c.da.toFixed(2));
+          else if (r.k === "dp" && i) {
+            it.push({ c: (X(tb[i - 1].u) + x) / 2, s: c.dp.toFixed(2) });
+            if (i < tb.length - 1) M.push({ t: "line", layer: L.rows, a: [x, y], b: [x, yb] });
+          }
+        });
+        vrow(it, ym, bx + hw + VW / 2);
+        y = yb;
+      }
+      M.push({ t: "poly", layer: L.frame, closed: true, pts: [[bx, y], [bx + hw, y], [bx + hw, yD], [bx, yD]] });
+      M.push({ t: "line", layer: L.rows, a: [xR, yD], b: [xR, y] });
+    }
+    // aree sotto la chitarrina, in colonne larghe quanto il testo più lungo
+    const { ss, cw, per } = size.A;
+    ss.forEach((x, i) => T(L.sAreas, bx + (i % per) * cw, y - (4 + 4 * Math.floor(i / per)) * mm, text.val, x, { va: 2 }));
+  }
+}

@@ -246,6 +246,8 @@ body.pod-off #pod{display:none}
 .check{display:flex;align-items:center;gap:8px;margin:6px 0;font:400 12.5px/1.3 var(--sans);color:var(--text);cursor:pointer}
 .check input{accent-color:var(--lime-deep);width:15px;height:15px}
 .sub{font:600 11px/1 var(--disp);letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px}
+.tvrows{display:grid;grid-template-columns:1fr 1fr;column-gap:10px}.tvrows .check{margin:3px 0;font-size:12px;align-items:flex-start}
+.tvh{font:600 12px/1.3 var(--sans);color:var(--text);margin:10px 0 4px}
 .file{display:flex;align-items:center;gap:8px;margin:2px 0 8px;font:500 12.5px/1.3 var(--sans);min-width:0}
 .file .fn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .file .fm{font:400 10.5px/1 var(--mono);color:var(--faint);white-space:nowrap}
@@ -812,6 +814,23 @@ const I18N = {
     "dz.name": "Opera disegnata", "dz.planFile": "Pianta disegnata nel tool", "dz.profFile": "Profilo scritto nel tool",
     "dz.done": "«{w}»: {m} m. Il profilo è provvisorio (1 m sotto il DTM ai vertici della pianta): modificalo nella lastra (M).",
     "exp.plan": "Pianta 2D (DXF)", "exp.planT": "Le piante delle opere accese come polilinee 2D con gli archi, in coordinate di mappa: da riportare nel CAD",
+    "tv.sub": "Tavole (DXF)", "tv.btn": "Profili e sezioni (.dxf)", "tv.file": "tavole", "tv.subP": "Profilo longitudinale: righe della chitarra",
+    "sc.sub": "Sezioni correnti", "sc.on": "Nello stesso file, sotto il profilo", "sc.step": "Una sezione ogni", "sc.guitar": "Chitarrina", "sc.marks": "Quote sul disegno", "sc.areas": "Aree",
+    "sc.help": "1:100 non deformate (la stessa finestra delle quote del profilo), in griglia sotto la chitarra della loro opera, in ordine di progressiva. Oltre al passo: vertici di progetto, salti (1 m a monte e a valle), cambi di sezione, capi dei ponti. Terreno dal DTM, opera e scavo dalla sezione del tratto; nei ponti solo l'opera.",
+    "sc.rZT": "Quote terreno", "sc.rZP": "Quote progetto", "sc.rDp": "Distanze parziali", "sc.rDa": "Distanze dall'asse",
+    "sc.mInv": "scorr.", "sc.mExc": "f.s.", "sc.mCrest": "ciglio", "sc.mToe": "piede", "sc.unit": "mq", "sc.title": "Sezione {n} - {p}",
+    "sc.kUp": "a monte del salto", "sc.kDown": "a valle del salto", "sc.kBefore": "prima del cambio di sezione", "sc.kAfter": "dopo il cambio di sezione",
+    "sc.kBr0": "prima del ponte", "sc.kBr1": "dopo il ponte", "sc.kVertex": "vertice di progetto",
+    "pl.sub": "Pianta georeferita", "pl.on": "Nello stesso file, in coordinate vere", "pl.scale": "Scala della pianta",
+    "pl.help": "L'asse con gli archi in E/N veri (PLN_ASSE), una finca per sezione, tutte lunghe uguali, con la progressiva e il numero nel riquadro (PLN_SEZIONI, testi su PLN_SEZIONI_TESTI; senza sezioni nel file, picchetti ogni 25 m e progressive ogni 100 m su PLN_PICCHETTI), nome dell'opera e freccia nel verso dello scorrimento (PLN_TESTI), l'ingombro dell'opera: cigli dello scavo e piedi del riporto o del rilevato, nei ponti il bordo dell'opera (PLN_INGOMBRO), l'opera vista dall'alto: cigli, fondo dove non coincide, salti e cambi di sezione (PLN_OPERA); testi e tacche in mm di carta alla scala scelta. Profili e sezioni si spostano sotto la pianta di multipli di 100 m: la quota è Y meno lo spostamento scritto sopra i profili.",
+    "pl.note": "Profili e sezioni spostati sotto la pianta: quota = Y - {dy}",
+    "tv.rPts": "Punti dettaglio Terreno", "tv.rZT": "Quote Terreno", "tv.rDp": "Distanze parziali Terreno", "tv.rDs": "Distanze progressive Terreno",
+    "tv.rIp": "Distanze inclinate parziali Terreno", "tv.rIs": "Distanze inclinate progressive Terreno", "tv.rZS": "Quote Scorrimento",
+    "tv.rZF": "Quote Fondo Scavo", "tv.rHF": "Altezze di Scavo", "tv.rGr": "Livellette",
+    "tv.tol": "Punti del terreno: scarto", "tv.gap": "Colonne distanti almeno",
+    "tv.title": "{n} - Profilo longitudinale - Scale 1:1000 / 1:100",
+    "tv.help": "DXF R2000 per AutoCAD (per il DWG: «Salva con nome»). Nello spazio modello, le opere accese una accanto all'altra: X = progressiva / 10, Y = quota vera, cioè con una finestra a 1:100 distanze a 1:1000 e quote a 1:100. Colonne: i punti dove il terreno del DTM cambia pendenza oltre lo scarto, distanti almeno quanto scritto, e tutti i vertici di progetto, i salti, i cambi di sezione e i ponti. Scorrimento e fondo scavo dalla sezione di ogni tratto; nei ponti niente scavo.",
+    "tv.noDtm": "Senza DTM le righe del terreno restano vuote.", "tv.noRows": "Scegli almeno una riga della chitarra.",
     "st.at": "pianta {p} · profilo {q} · quota {z}", "st.cover": " · terreno {g} · copertura {c} m",
     "t.read": "Leggo {f}…", "t.readDwg": "Leggo {f}… (la prima volta scarico il lettore DWG, 9,5 MB)",
     "t.fail": "{f}: non riesco a leggerlo ({m}). Prova a salvarlo come DXF.", "t.binary": "{f}: è un DXF binario — salvalo come DXF ASCII.",
@@ -1042,6 +1061,23 @@ const I18N = {
     "dz.name": "Drawn work", "dz.planFile": "Plan drawn in the tool", "dz.profFile": "Profile written in the tool",
     "dz.done": "«{w}»: {m} m. The profile is provisional (1 m below the DTM at the plan vertices): edit it in the profile strip (M).",
     "exp.plan": "Plan 2D (DXF)", "exp.planT": "The plans of the visible works as 2D polylines with arcs, in map coordinates: to bring back into CAD",
+    "tv.sub": "Drawings (DXF)", "tv.btn": "Profiles and sections (.dxf)", "tv.file": "drawings", "tv.subP": "Longitudinal profile: table rows",
+    "sc.sub": "Cross sections", "sc.on": "In the same file, below the profile", "sc.step": "One section every", "sc.guitar": "Small table", "sc.marks": "Levels on the drawing", "sc.areas": "Areas",
+    "sc.help": "Undistorted 1:100 (the same viewport as the profile levels), in a grid below their work's table, by chainage. Besides the spacing: design vertices, drops (1 m upstream and downstream), section changes, bridge ends. Ground from the DTM, work and excavation from the stretch's section; on bridges only the work.",
+    "sc.rZT": "Ground levels", "sc.rZP": "Design levels", "sc.rDp": "Partial distances", "sc.rDa": "Distances from axis",
+    "sc.mInv": "inv.", "sc.mExc": "exc.", "sc.mCrest": "crest", "sc.mToe": "toe", "sc.unit": "sq m", "sc.title": "Section {n} - {p}",
+    "sc.kUp": "upstream of the drop", "sc.kDown": "downstream of the drop", "sc.kBefore": "before the section change", "sc.kAfter": "after the section change",
+    "sc.kBr0": "before the bridge", "sc.kBr1": "after the bridge", "sc.kVertex": "design vertex",
+    "pl.sub": "Georeferenced plan", "pl.on": "In the same file, in true coordinates", "pl.scale": "Plan scale",
+    "pl.help": "The axis with its arcs in true E/N (PLN_ASSE), one section line per section, all the same length, with its chainage and its number in a box (PLN_SEZIONI, texts on PLN_SEZIONI_TESTI; without sections in the file, a stake every 25 m and the chainage every 100 m on PLN_PICCHETTI), the work's name and an arrow in the flow direction (PLN_TESTI), the work's footprint: excavation crests and fill or embankment toes, on bridges the edge of the work (PLN_INGOMBRO), the work seen from above: top edges, bottom where it differs, drops and section changes (PLN_OPERA); texts and ticks in paper mm at the chosen scale. Profiles and sections move below the plan by multiples of 100 m: the level is Y minus the offset written above the profiles.",
+    "pl.note": "Profiles and sections moved below the plan: level = Y - {dy}",
+    "tv.rPts": "Ground detail points", "tv.rZT": "Ground levels", "tv.rDp": "Partial distances, ground", "tv.rDs": "Chainages, ground",
+    "tv.rIp": "Partial slope distances, ground", "tv.rIs": "Cumulative slope distances, ground", "tv.rZS": "Invert levels",
+    "tv.rZF": "Excavation bottom levels", "tv.rHF": "Excavation depths", "tv.rGr": "Grades",
+    "tv.tol": "Ground points: deviation", "tv.gap": "Columns at least",
+    "tv.title": "{n} - Longitudinal profile - Scales 1:1000 / 1:100",
+    "tv.help": "R2000 DXF for AutoCAD (for a DWG: «Save as»). In model space, the visible works side by side: X = chainage / 10, Y = true level, so a 1:100 viewport gives distances at 1:1000 and levels at 1:100. Columns: where the DTM ground changes slope beyond the deviation, at least the given distance apart, and every design vertex, drop, section change and bridge. Invert and excavation bottom from each stretch's section; no excavation on bridges.",
+    "tv.noDtm": "Without a DTM the ground rows stay empty.", "tv.noRows": "Pick at least one row of the table.",
     "st.at": "plan {p} · profile {q} · elevation {z}", "st.cover": " · ground {g} · cover {c} m",
     "t.read": "Reading {f}…", "t.readDwg": "Reading {f}… (the first time the DWG reader is downloaded, 9.5 MB)",
     "t.fail": "{f}: cannot read it ({m}). Try saving it as DXF.", "t.binary": "{f}: it is a binary DXF — save it as ASCII DXF.",
@@ -1069,10 +1105,10 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.15.0";
-import * as IO from "./profile-io.js?v=0.15.0";
+import * as C from "./profile-core.js?v=0.16.0";
+import * as IO from "./profile-io.js?v=0.16.0";
 
-const TOOL_VERSION = "0.15.0";
+const TOOL_VERSION = "0.16.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -1152,6 +1188,14 @@ function secLabel(t, P) {
   if (t === "pipe") return pipeMatName(P.mat) + " DN " + Math.round(P.dn);
   return typeShort(t) + " " + (t === "ditch" ? nf(P.b) + " × " + nf(P.h) : nf(P.B) + " × " + nf(P.H));
 }
+/* tavole (0.16): righe della chitarra nell'ordine del riferimento dell'utente (chiavi di IO.GUITAR_ROWS), scarto dei
+   punti del terreno (m) e distanza minima fra le colonne (m) */
+const TV_ROWS = [{ k: "pts", l: () => tr("tv.rPts") }, { k: "zT", l: () => tr("tv.rZT") }, { k: "dp", l: () => tr("tv.rDp") }, { k: "ds", l: () => tr("tv.rDs") },
+  { k: "ip", l: () => tr("tv.rIp") }, { k: "is", l: () => tr("tv.rIs") }, { k: "zS", l: () => tr("tv.rZS") }, { k: "zF", l: () => tr("tv.rZF") },
+  { k: "hF", l: () => tr("tv.rHF") }, { k: "gr", l: () => tr("tv.rGr") }];
+/* sezioni correnti (0.16, secondo passo): nello stesso file, passo (m), chitarrina, quote sul disegno, aree */
+const newTav = (t = {}) => ({ rows: TV_ROWS.map((r) => r.k), tol: 0.05, gap: 2.5, sec: true, step: 25, sGuitar: true, sMarks: true, sAreas: true, plan: true, pScale: 1000, ...t });
+const PL_SCALES = [500, 1000, 2000, 5000];       // scale della pianta georeferita nelle tavole (scelta dell'utente: più scale)
 const S = {
   works: [],             // opere del progetto
   active: -1,            // indice dell'opera attiva: pannello, profilo e ancoraggi parlano di lei
@@ -1165,6 +1209,7 @@ const S = {
   ctxRefs: [],           // IFC di contesto rimasti fuori da un file .profiles: [{ name, elements, triangles }] — da ricaricare (il percorso in dtmPaths)
   ctxInFile: true,       // «Salva progetto» mette il contesto dentro il file (l'ultima scelta)
   name: "",              // nome del progetto (file in uscita)
+  tav: newTav(),         // tavole (0.16): righe della chitarra, scarto del terreno, distanza fra le colonne
   hidden: {},            // elementi spenti: "w<id>", "w<id>:plan|prof|axis", "w<id>:t<k>", "w<id>:t<k>:lining|cut|fill", "dtm:<file>", "ctx:<file>", "ctx:<file>:<classe>"
   view: { ex: 2, layers: { dtm: true, lining: true, lean: true, mix: true, cut: true, fill: true, pipe: true, bed: true, surround: true, cover: true, restore: true, emb: true } }, podOff: false, pvOff: false, treeOff: false, closed: {}, treeOpen: {}, snap: true,
   treeW: null, podW: null,     // larghezze trascinate di albero e pannello (px); null = quella iniziale del CSS
@@ -4852,14 +4897,51 @@ function renderExport() {
     + `<p class="help">${esc(tr("exp.3dmNote", { x: ni(projectOrigin().x), y: ni(projectOrigin().y) }))}</p>`
     + `<div class="btns"><button id="expDxf"${okAx ? "" : " disabled"}>${esc(tr("exp.dxf"))}</button><button id="expXml"${okAx ? "" : " disabled"}>${esc(tr("exp.xml"))}</button>`
     + `<button id="expPlan"${exported().some((w) => derivedOf(w).axis) ? "" : " disabled"} title="${esc(tr("exp.planT"))}">${esc(tr("exp.plan"))}</button></div>`
-    + `<p class="help">${esc(tr("exp.note"))}</p>`;
+    + `<p class="help">${esc(tr("exp.note"))}</p>`
+    + renderTav(okAx);
   $("expName").addEventListener("change", (e) => { S.name = e.target.value.trim(); scheduleSave(); });
+  bindTav();
   $("expIfc").addEventListener("click", exportIFC);
   $("expCsv").addEventListener("click", exportCSV);
   $("expDxf").addEventListener("click", exportDXF);
   $("expXml").addEventListener("click", exportXML);
   $("expPlan").addEventListener("click", exportPlanDXF);
   $("exp3dm").addEventListener("click", export3dm);
+}
+/* tavole (0.16) nel pannello Esporta: le righe della chitarra da mettere (scelta dell'utente: si decide qui),
+   scarto dei punti del terreno (cm) e distanza minima fra le colonne (m) */
+function renderTav(ok) {
+  const T = S.tav, num = (id, label, v, unit) => `<label for="${id}">${esc(label)}<span class="numbox"><input type="number" id="${id}" step="any" min="0" value="${v}"><span>${unit}</span></span></label>`;
+  const chk = (k, label) => `<label class="check"><input type="checkbox" data-sc="${k}"${T[k] ? " checked" : ""}> ${esc(label)}</label>`;
+  return `<div class="sub">${esc(tr("tv.sub"))}</div>`
+    + `<p class="tvh">${esc(tr("tv.subP"))}</p>`
+    + `<div class="tvrows">${TV_ROWS.map((r) => `<label class="check"><input type="checkbox" data-tv="${r.k}"${T.rows.includes(r.k) ? " checked" : ""}> ${esc(r.l())}</label>`).join("")}</div>`
+    + `<div class="pgrid">${num("tvTol", tr("tv.tol"), Math.round(T.tol * 1000) / 10, "cm")}${num("tvGap", tr("tv.gap"), T.gap, "m")}</div>`
+    + `<p class="help">${esc(tr("tv.help"))}${TIN ? "" : " " + esc(tr("tv.noDtm"))}</p>`
+    + `<p class="tvh">${esc(tr("sc.sub"))}</p>${chk("sec", tr("sc.on"))}`
+    + `<div class="pgrid">${num("scStep", tr("sc.step"), T.step, "m")}</div>`
+    + `<div class="tvrows">${chk("sGuitar", tr("sc.guitar"))}${chk("sMarks", tr("sc.marks"))}${chk("sAreas", tr("sc.areas"))}</div>`
+    + `<p class="help">${esc(tr("sc.help"))}</p>`
+    + `<p class="tvh">${esc(tr("pl.sub"))}</p>${chk("plan", tr("pl.on"))}`
+    + `<div class="row"><label for="plScale">${esc(tr("pl.scale"))}</label><select id="plScale" class="txt">${PL_SCALES.map((s) => `<option value="${s}"${s === T.pScale ? " selected" : ""}>1:${s}</option>`).join("")}</select></div>`
+    + `<p class="help">${esc(tr("pl.help"))}</p>`
+    + `<div class="btns"><button id="expTav"${ok ? "" : " disabled"}>${esc(tr("tv.btn"))}</button></div>`;
+}
+function bindTav() {
+  $("expBody").querySelectorAll("[data-tv]").forEach((el) => el.addEventListener("change", () => {
+    const on = new Set([...$("expBody").querySelectorAll("[data-tv]:checked")].map((x) => x.dataset.tv));
+    S.tav = { ...S.tav, rows: TV_ROWS.map((r) => r.k).filter((k) => on.has(k)) };
+    scheduleSave();
+  }));
+  $("expBody").querySelectorAll("[data-sc]").forEach((el) => el.addEventListener("change", () => { S.tav = { ...S.tav, [el.dataset.sc]: el.checked }; scheduleSave(); }));
+  for (const [id, k, f, min] of [["tvTol", "tol", 0.01, 0.001], ["tvGap", "gap", 1, 0], ["scStep", "step", 1, 1]]) $(id).addEventListener("change", (e) => {
+    const v = Number(e.target.value) * f;
+    if (e.target.value === "" || !(v >= min)) { renderExport(); return; }
+    S.tav = { ...S.tav, [k]: v };
+    scheduleSave();
+  });
+  $("plScale").addEventListener("change", (e) => { S.tav = { ...S.tav, pScale: Number(e.target.value) }; scheduleSave(); });
+  $("expTav").addEventListener("click", exportSheets);
 }
 /* l'opera attiva in cima al pannello e nella lastra del profilo */
 function renderWork() {
@@ -5115,7 +5197,7 @@ $("trNew").addEventListener("click", () => {
     return;
   }
   b.classList.remove("armed"); b.textContent = tr("tr.new");
-  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = ""; S.dtmRefs = []; S.dtmPaths = {}; S.ctx = []; S.ctxRefs = [];
+  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = ""; S.dtmRefs = []; S.dtmPaths = {}; S.ctx = []; S.ctxRefs = []; S.tav = newTav();
   DW.clear(); TIN = null; setActive(-1);
   undo.length = 0; redo.length = 0; updateUndo();
   refreshViews(); scheduleSave(); openSheet();
@@ -5180,6 +5262,35 @@ function exportDXF() {
   if (!ws.length) return;
   const layers = IO.dxfLayerNames(ws.map((x) => x.name));
   download(fileBase() + " - asse 3D.dxf", IO.dxf3DPolylines(ws.map((x, i) => ({ pts: x.ax3.pts, layer: layers[i] }))), "application/dxf");
+}
+/* Tavole (0.16): per ogni opera accesa il profilo longitudinale con la chitarra, nello spazio modello di un DXF R2000.
+   Scelte dell'utente (2026-10-06): impaginazione sua, scale 1:1000 / 1:100, terreno SEMPRE dal DTM (la linea del
+   terreno del DWG del profilo non vale più se il tracciato cambia), colonne sui punti del terreno e sui vertici di
+   progetto, righe scelte nel pannello. Secondo passo: le sezioni correnti nello stesso file, sotto il profilo */
+const SC_KIND = { up: () => tr("sc.kUp"), down: () => tr("sc.kDown"), before: () => tr("sc.kBefore"), after: () => tr("sc.kAfter"),
+  bridge0: () => tr("sc.kBr0"), bridge1: () => tr("sc.kBr1"), vertex: () => tr("sc.kVertex") };
+const SC_AREA = { cut: () => tr("cm.cut"), fill: () => tr("cm.fill"), backfill: () => tr("cm.backfill"), lining: () => tr("cm.lining"), lean: () => tr("cm.lean"), mix: () => tr("cm.mix"),
+  pipe: () => tr("cm.pipe"), bed: () => tr("cm.bed"), surround: () => tr("cm.surround"), cover: () => tr("cm.cover"), restore: () => tr("cm.restore"), emb: () => tr("cm.emb") };
+function exportSheets() {
+  const T = S.tav, rows = TV_ROWS.map((r) => r.k).filter((k) => T.rows.includes(k));
+  if (!rows.length) { toast(tr("tv.noRows"), true); return; }
+  const z3 = TIN ? TIN.z : () => NaN;
+  const sheets = exported().map((w) => ({ w, d: derivedOf(w) })).filter(({ d }) => d.ax3 && d.ax3.pts.length > 1 && d.prof && d.map && d.edPts)
+    .map(({ w, d }) => {
+      const args = { axis: d.axis, prof: d.prof, map: d.map, ctl: d.edPts, zAt3: z3, lo: d.ax3.pts[0].p, hi: d.ax3.pts[d.ax3.pts.length - 1].p, square: hasType(w, "channel", "box"),
+        sweep: { runs: d.runs, drops: d.drops, bridges: d.bridges, specAt: d.specAt, parts: d.parts, joins: d.joins } };
+      return { name: w.name, ...C.profileSheet({ ...args, tol: T.tol, gap: T.gap }), sections: T.sec && d.specAt ? C.crossSheets({ ...args, step: T.step }) : [],
+        plan: T.plan ? { verts: C.axisVertices(d.axis), at: (p) => C.planAt(d.axis, p), foot: d.specAt ? C.planFootprint(args) : [],
+          work: d.specAt ? C.planWork(args) : null } : null };
+    });
+  if (!sheets.length) return;
+  const cross = { rows: { zT: tr("sc.rZT"), zP: tr("sc.rZP"), dp: tr("sc.rDp"), da: tr("sc.rDa") },
+    marks: { inv: tr("sc.mInv"), exc: tr("sc.mExc"), crest: tr("sc.mCrest"), toe: tr("sc.mToe") },
+    areas: Object.fromEntries(Object.entries(SC_AREA).map(([k, f]) => [k, f()])), unit: tr("sc.unit"),
+    title: (n, p, kind, br) => [tr("sc.title", { n, p }), SC_KIND[kind] ? SC_KIND[kind]() : "", br ? tr("br.tag") : ""].filter(Boolean).join(" - ") };
+  const labels = { rows: Object.fromEntries(TV_ROWS.map((r) => [r.k, r.l()])), title: (n) => tr("tv.title", { n }), cross, plan: { note: (dy) => tr("pl.note", { dy }) } };
+  download(fileBase() + " - " + tr("tv.file") + ".dxf", IO.profileSheetsDXF({ sheets, rows, labels, cross: { guitar: T.sGuitar, marks: T.sMarks, areas: T.sAreas },
+    plan: T.plan ? { scale: T.pScale } : null }), "application/dxf");
 }
 function exportXML() {
   const ws = exportWorks(false);
@@ -5293,7 +5404,7 @@ function snapshot() {
   return {
     v: 2, name: S.name, active: S.active, seq: S.seq, dtms: S.dtms, hidden: S.hidden,
     dtmRefs: S.dtmRefs, dtmPaths: Object.fromEntries(Object.entries(S.dtmPaths).filter(([k]) => names.has(k))), dtmInFile: S.dtmInFile,
-    ctx: S.ctx, ctxRefs: S.ctxRefs, ctxInFile: S.ctxInFile,
+    ctx: S.ctx, ctxRefs: S.ctxRefs, ctxInFile: S.ctxInFile, tav: S.tav,
     works: S.works.map((w) => ({ ...w, plan: strip(w.plan), prof: strip(w.prof) })),
     spare: S.spare.map(strip), drawings: [...drawings.values()],
   };
@@ -5328,6 +5439,7 @@ function restore(doc) {
   S.dtms = doc.dtms || []; S.hidden = doc.hidden || {}; S.name = doc.name || "";
   S.dtmRefs = doc.dtmRefs || []; S.dtmPaths = doc.dtmPaths || {}; S.dtmInFile = doc.dtmInFile !== false;
   S.ctx = doc.ctx || []; S.ctxRefs = doc.ctxRefs || []; S.ctxInFile = doc.ctxInFile !== false;
+  S.tav = newTav(doc.tav || {});
   S.seq = Math.max(doc.seq || 1, ...S.works.map((w) => w.id + 1), ...S.works.flatMap((w) => w.secs.map((r) => r.id + 1)), ...[...dr.keys()].map((k) => k + 1));
   DW.clear();
   setActive(doc.active || 0);

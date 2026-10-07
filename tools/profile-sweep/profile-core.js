@@ -2910,3 +2910,553 @@ export function ctxSlice(part, F, G = null) {
   }
   return { loops, segs, cut };
 }
+
+/* =========================================================================
+   Tavole (0.16): profilo longitudinale con la chitarra. Scelte dell'utente
+   (2026-10-06, riferimento «As_built_CTR»): DXF R2000 nello spazio modello
+   (l'impaginazione la fa lui), scale 1:1000 / 1:100; terreno SEMPRE dal DTM
+   (la linea del terreno del DWG del profilo non vale più quando si modifica
+   il tracciato); una colonna per ogni punto di dettaglio del terreno e per
+   ogni vertice di progetto; le righe si scelgono all'esportazione.
+   ========================================================================= */
+
+/**
+ * Quote di una sezione rispetto alla linea del profilo: scorrimento = z + lift (fondo interno del fosso
+ * e del canale, del tubo), fondo dello scavo = scorrimento + bottom (fosso: sotto il rivestimento del
+ * fondo; canale e scatolare: sotto il magrone della zona corrente; tubo: sotto il letto).
+ */
+export function sectionLevels(stype, sh) {
+  const lift = sh.lift || 0;
+  const bottom = stype === "pipe" ? sh.vF : stype === "channel" || stype === "box" ? sh.std.vE : -sh.tf;
+  return { lift, bottom };
+}
+
+/**
+ * Punti di dettaglio di una linea campionata [[p, z]] (z NaN = buco, fuori dal DTM): Douglas-Peucker
+ * sullo scarto VERTICALE dalla corda entro tol; ogni pezzo continuo tiene i suoi capi. Ritorna
+ * [{ p, z, w, r }] crescenti, w = lo scarto che il punto toglie (Infinity ai capi): il peso per scegliere
+ * quali tenere quando sono troppo fitti; r = il pezzo continuo (0, 1… da un buco all'altro).
+ */
+export function simplifyLine(samples, tol = 0.05) {
+  const out = [];
+  let run = [], r = 0;
+  const flush = () => {
+    const n = run.length;
+    if (!n) return;
+    const w = new Float64Array(n).fill(-1);
+    w[0] = Infinity; w[n - 1] = Infinity;
+    const stack = [[0, n - 1]];
+    while (stack.length) {
+      const [a, b] = stack.pop();
+      if (b - a < 2) continue;
+      const [pa, za] = run[a], [pb, zb] = run[b];
+      let best = -1, k = -1;
+      for (let i = a + 1; i < b; i++) {
+        const [p, z] = run[i];
+        const d = Math.abs(z - (pb - pa > EPS ? za + (zb - za) * (p - pa) / (pb - pa) : za));
+        if (d > best) { best = d; k = i; }
+      }
+      if (best > tol) { w[k] = best; stack.push([a, k], [k, b]); }
+    }
+    run.forEach(([p, z], i) => { if (w[i] >= 0) out.push({ p, z, w: w[i], r }); });
+    run = []; r++;
+  };
+  for (const [p, z] of samples) { if (Number.isFinite(z)) run.push([p, z]); else flush(); }
+  flush();
+  return out;
+}
+/** I pezzi continui di simplifyLine come linee [[ [p, z]… ]…] (un pezzo di un punto solo non è una linea). */
+export const linePieces = (pts) => {
+  const out = [];
+  for (const q of pts) { const l = out[out.length - 1]; if (l && l.r === q.r) l.pts.push([q.p, q.z]); else out.push({ r: q.r, pts: [[q.p, q.z]] }); }
+  return out.map((l) => l.pts).filter((l) => l.length > 1);
+};
+
+/**
+ * Lunghezza inclinata del terreno fra pa e pb lungo i campioni [[p, z]] (crescenti): somma dei tratti,
+ * coi capi interpolati. NaN se un tratto non ha il terreno.
+ */
+export function slopeLength(samples, pa, pb) {
+  const zAtS = (p) => {
+    let lo = 0, hi = samples.length - 1;
+    if (hi < 0 || p < samples[0][0] - 1e-9 || p > samples[hi][0] + 1e-9) return NaN;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (samples[m][0] <= p) lo = m; else hi = m; }
+    const [p0, z0] = samples[lo], [p1, z1] = samples[hi];
+    return p1 - p0 > EPS ? z0 + (z1 - z0) * (p - p0) / (p1 - p0) : z0;
+  };
+  const pts = [[pa, zAtS(pa)], ...samples.filter(([p]) => p > pa + 1e-9 && p < pb - 1e-9), [pb, zAtS(pb)]];
+  let L = 0;
+  for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+  return L;
+}
+
+/**
+ * Colonne della chitarra fra lo e hi: prima i punti obbligati (capi dell'opera, vertici di progetto
+ * coi salti, capi dei tratti di sezione e dei ponti: `design`, `edges`), poi i punti di dettaglio del
+ * terreno (`ground`, simplifyLine) dal più pesante, ognuno solo se dista almeno gap da quelli già
+ * presi (i testi verticali non si accavallano). Le colonne in `wide` (salti, cambi di sezione) hanno
+ * due valori, prima a sinistra e dopo a DESTRA della linea: lì a destra il terreno sta ad almeno
+ * wideGap. Ritorna [{ p, kind: "edge"|"design"|"ground" }] crescenti.
+ */
+export function guitarColumns({ lo, hi, design = [], edges = [], ground = [], gap = 2, wide = [], wideGap = gap }) {
+  const cols = [];
+  const add = (p, kind, d) => {
+    if (!(p >= lo - 1e-6 && p <= hi + 1e-6) || cols.some((c) => Math.abs(c.p - p) < d)) return;
+    if (kind === "ground" && wide.some((w) => p > w && p - w < wideGap)) return;
+    cols.push({ p: Math.min(hi, Math.max(lo, p)), kind });
+  };
+  add(lo, "edge", 1e-3); add(hi, "edge", 1e-3);
+  for (const p of design) add(p, "design", 1e-3);
+  for (const p of edges) add(p, "edge", 1e-3);
+  for (const g of [...ground].sort((a, b) => b.w - a.w)) add(g.p, "ground", gap);
+  return cols.sort((a, b) => a.p - b.p);
+}
+
+/**
+ * I valori della chitarra per colonna. ground(p) = quota del terreno (DTM, NaN fuori); samples =
+ * terreno campionato [[p, z]] per le distanze inclinate; at(p, side) = { zS, zF } scorrimento e fondo
+ * scavo prima (side −1) e dopo (+1) la colonna — diversi ai salti e ai cambi di sezione; zF NaN dove
+ * non si scava (ponte). Per colonna: { p, n, zT, zS: [prima, dopo], zF: [...], hF: [...] (terreno −
+ * fondo scavo), dp, dip (parziali orizzontale e inclinata dalla colonna prima, NaN alla prima), ip
+ * (inclinata progressiva dal primo punto) }; un valore solo dove prima e dopo coincidono (al mm).
+ */
+export function guitarTable(cols, { ground, samples = [], at }) {
+  let ip = 0;
+  return cols.map((c, i) => {
+    const zT = ground(c.p);
+    const A = at(c.p, -1), B = at(c.p, 1);
+    const two = (a, b) => (Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) > 5e-4 ? [a, b] : [Number.isFinite(b) ? b : a]);
+    const zS = two(A.zS, B.zS), zF = two(A.zF, B.zF);
+    const hF = zF.map((z) => zT - z);
+    let dp = NaN, dip = NaN;
+    if (i) {
+      dp = c.p - cols[i - 1].p;
+      dip = samples.length ? slopeLength(samples, cols[i - 1].p, c.p) : NaN;
+      ip += Number.isFinite(dip) ? dip : dp;
+    }
+    return { p: c.p, kind: c.kind, n: i + 1, zT, zS, zF, hF, dp, dip, ip };
+  });
+}
+
+/**
+ * Livellette fra i vertici di progetto [{ p, z }] (crescenti; due vertici alla stessa p = salto, non è
+ * una livelletta): [{ p0, p1, z0, z1, L, g }] con g = pendenza (Δz / Δp, positiva in salita).
+ */
+export function gradeRuns(pts) {
+  const out = [];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i], L = b.p - a.p;
+    if (L > 1e-6) out.push({ p0: a.p, p1: b.p, z0: a.z, z1: b.z, L, g: (b.z - a.z) / L });
+  }
+  return out;
+}
+
+/**
+ * Una linea di quote lungo le progressive ps (crescenti) da f(p, side): dove prima e dopo differiscono
+ * (salti, cambi di sezione) due punti alla stessa p; NaN spezza la linea. Ritorna [[ [p, z]… ]…] (pezzi).
+ */
+export function levelLine(ps, f) {
+  const out = [];
+  let cur = [];
+  const push = (p, z) => { if (Number.isFinite(z)) cur.push([p, z]); else if (cur.length) { out.push(cur); cur = []; } };
+  for (const p of ps) {
+    const a = f(p, -1), b = f(p, 1);
+    push(p, a);
+    if (!(Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 1e-6)) push(p, b);
+  }
+  if (cur.length) out.push(cur);
+  return out.filter((l) => l.length > 1);
+}
+
+/**
+ * I dati della tavola di un'opera fra lo e hi (progressive di pianta), senza disegno: { lo, hi, cols
+ * (guitarTable), terrain, design, bottom (pezzi [[p, z]…]: terreno, scorrimento, fondo scavo), grades }.
+ * axis = pianta, prof = linea di progetto vera (coi raccordi e i salti), map = anchorMap, ctl = vertici
+ * di progetto [{ s, z }] in progressiva del profilo (i PVI se ci sono raccordi), square = lati quasi
+ * verticali come salti (canale e scatolare, come squareDrops nella pagina), sweep = workSweep (runs,
+ * drops, bridges, specAt), zAt3 = DTM (NaN fuori). tol = scarto dei punti del terreno, gap = distanza
+ * minima fra le colonne, wide = quanto in più a destra di una colonna con due valori (salto, cambio
+ * di sezione: il valore «dopo» sta a destra della linea; 2,5 m = un testo di 2 mm a 1:1000), step = passo
+ * dei campioni del terreno.
+ */
+export function profileSheet({ axis, prof, map, ctl, sweep, zAt3, lo, hi, square = false, tol = 0.05, gap = 2.5, wide = 2.5, step = 0.25 }) {
+  const n = Math.max(2, Math.min(40000, Math.ceil((hi - lo) / step)));
+  const ground = (p) => { const w = planAt(axis, Math.min(axis.length, Math.max(0, p))); return zAt3(w.x, w.y); };
+  const samples = [];
+  for (let i = 0; i <= n; i++) { const p = lo + (hi - lo) * i / n; samples.push([p, ground(p)]); }
+  const bridges = sweep.bridges || [], runs = sweep.runs || [];
+  // scorrimento e fondo scavo da una parte (side −1 prima, +1 dopo): la sezione del tratto di quella parte
+  const at = (p, side) => {
+    const z = zAt(prof, map.toQ(p), side), pp = p + side * 1e-6;
+    const sp = sweep.specAt ? sweep.specAt(pp) : null;
+    if (!sp || !Number.isFinite(z)) return { zS: z, zF: NaN };
+    const lv = sectionLevels(sp.stype, sp.sh), zS = z + lv.lift;
+    return { zS, zF: bridges.some((b) => pp > b.p0 && pp < b.p1) ? NaN : zS + lv.bottom };
+  };
+  let cp = profileFromPoints(ctl);
+  if (square) cp = squareDrops(cp);
+  const dv = cp.pts.map((q) => ({ p: map.toP(q.s), z: q.z })).filter((q) => q.p >= lo - 1e-6 && q.p <= hi + 1e-6);
+  const edges = [...runs.flatMap((r) => [r.p0, r.p1]), ...bridges.flatMap((b) => [b.p0, b.p1])];
+  const design = [...dv.map((q) => q.p), ...(sweep.drops || []).map((d) => d.p)];
+  const two = (p) => { const a = at(p, -1), b = at(p, 1); return Math.abs(a.zS - b.zS) > 5e-4 || Math.abs(a.zF - b.zF) > 5e-4; };   // NaN: falso
+  const cols = guitarColumns({ lo, hi, design, edges, ground: simplifyLine(samples, tol), gap, wide: [...design, ...edges].filter(two), wideGap: gap + wide });
+  // le linee: dove la quota cambia pendenza (vertici del profilo, ancoraggi, capi dei tratti e dei raccordi)
+  const ps = [lo, hi, ...prof.pts.map((q) => map.toP(q.s)), ...(map.anchors || []).map((a) => a.p), ...edges,
+    ...runs.flatMap((r) => (r.blends || []).flatMap((b) => [b.a, b.b]))].filter((p) => p >= lo - 1e-9 && p <= hi + 1e-9)
+    .sort((a, b) => a - b).filter((p, i, a) => !i || p - a[i - 1] > 1e-6);
+  return {
+    lo, hi, cols: guitarTable(cols, { ground, samples, at }), terrain: linePieces(simplifyLine(samples, 0.01)),
+    design: levelLine(ps, (p, s) => at(p, s).zS), bottom: levelLine(ps, (p, s) => at(p, s).zF), grades: gradeRuns(dv),
+  };
+}
+
+/* =========================================================================
+   Sezioni correnti (0.16, secondo passo). Scelte dell'utente (2026-10-06):
+   nello STESSO DXF del profilo; una sezione ogni N metri (25 proposti) più i
+   punti notevoli (vertici di progetto, salti a monte e a valle, cambi di
+   sezione, capi dei ponti); in ogni sezione le sagome (terreno dal DTM,
+   opera, scavo, superficie finita, strati del tubo), la chitarrina (quote
+   terreno, quote progetto, distanze parziali e dall'asse), le quote sul
+   disegno (scorrimento, fondo scavo, cigli, piedi) e le aree; 1:100 non
+   deformata, in griglia sotto il profilo della stessa opera.
+   ========================================================================= */
+export const CROSS = Object.freeze({ step: 25, off: 1, near: 2, margin: 2 });
+
+/**
+ * Dove si tagliano le sezioni fra lo e hi: i punti notevoli (salti: off a monte e a valle; cambi di
+ * sezione: off prima e dopo, o i capi del raccordo; ponti: off fuori dai capi; vertici di progetto
+ * lontani da un salto) e uno ogni step dall'inizio, se non sta a meno di near da un punto notevole;
+ * sempre la fine. joins = [{ p, blend, h }] (workSweep). Ritorna [{ p, kind }] crescenti, kind: "up"|
+ * "down" (salto) | "before"|"after" (cambio di sezione) | "bridge0"|"bridge1" | "vertex" | "step".
+ */
+export function crossCuts({ lo, hi, step = CROSS.step, design = [], drops = [], joins = [], bridges = [], off = CROSS.off, near = CROSS.near }) {
+  const out = [];
+  const add = (p, kind, d = 1e-3) => {
+    if (!(p >= lo - 1e-6 && p <= hi + 1e-6) || out.some((c) => Math.abs(c.p - p) < d)) return;
+    out.push({ p: Math.min(hi, Math.max(lo, p)), kind });
+  };
+  for (const p of drops) { add(p - off, "up"); add(p + off, "down"); }
+  for (const j of joins) { const h = j.blend && j.h > off ? j.h : off; add(j.p - h, "before"); add(j.p + h, "after"); }
+  for (const b of bridges) { add(b.p0 - off, "bridge0"); add(b.p1 + off, "bridge1"); }
+  for (const p of design) if (!drops.some((d) => Math.abs(d - p) < off + 1e-6)) add(p, "vertex", near / 2);
+  add(lo, "step", near);
+  if (step > 0) for (let k = 1; lo + k * step <= hi + 1e-6; k++) add(lo + k * step, "step", near);
+  add(hi, "step", near);
+  return out.sort((a, b) => a.p - b.p);
+}
+
+const ringPoly = (r) => [...r.map(([u, l]) => [u, l]), ...r.slice().reverse().map(([u, , h]) => [u, h])];
+
+/**
+ * Una sezione corrente alla progressiva p (piano ⟂ all'asse, u a DESTRA guardando avanti), in QUOTE
+ * VERE: { p, stype, bridge, zP (linea del profilo), zS (scorrimento), zF (fondo scavo), u0, u1,
+ * terrain [[u, z]] (campioni ogni du, NaN fuori dal DTM), structure: { polys, circles: [{ u, z, r }] },
+ * strata [{ key, poly }] (tubo), cut [[u, z]] (linea dello scavo / piano di posa), surface [[[u, z]…]…]
+ * (superficie finita, se diversa, a pezzi: nel canale aperto due, a sinistra e a destra fino alla cima dei
+ * muri, senza attraversare l'acqua; vuoto se non c'è), design [[u, z]] (i vertici di progetto da sinistra a destra;
+ * due di fila alla stessa u = parete verticale), marks [{ key: "inv"|"exc"|"crest"|"toe", u, z }],
+ * areas [{ key, a }] (m²), ext [u sinistra, u destra] (i punti più esterni: cigli, piedi, bordo dell'opera) }.
+ * Nei tratti a ponte resta la sola opera (niente scavo né terre). lite: senza i campioni del terreno
+ * (per l'ingombro in pianta, che vuole solo ext).
+ */
+export function crossSection({ axis, prof, map, sweep, zAt3, p, margin = CROSS.margin, du = 0.1, reach = 50, lite = false }) {
+  const w = planAt(axis, Math.min(axis.length, Math.max(0, p)));
+  const z = zAt(prof, map.toQ(p), 1);
+  const sp = sweep.specAt ? sweep.specAt(p) : null;
+  if (!sp || !Number.isFinite(z)) return null;
+  const { stype, sh } = sp;
+  const part = (sweep.parts || []).find((t) => p >= t.p0 - 1e-6 && p <= t.p1 + 1e-6) || null;
+  const bridge = !!(part && part.bridge != null);
+  const zb = z + (sh.lift || 0);
+  const G = (u) => zAt3(w.x + w.ty * u, w.y - w.tx * u);
+  const T = (u) => G(u) - zb;
+  const A = (pts) => pts.map(([u, v]) => [u, zb + v]);
+  const out = { p, stype, bridge, zP: z, zS: zb, zF: NaN, structure: { polys: [], circles: [] }, strata: [], cut: null, surface: [], design: [], marks: [], areas: [] };
+  const mark = (key, u, v) => { if (Number.isFinite(v)) out.marks.push({ key, u, z: zb + v }); };
+  let ext = [0, 0];
+  if (stype === "channel" || stype === "box") {
+    let zone = sh.std;
+    if (part && part.sections) { let best = null; for (const s of part.sections) if (!best || Math.abs(s.p - p) < Math.abs(best.p - p)) best = s; if (best && best.zone && best.kind !== "std" && Math.abs(best.p - p) < 0.5) zone = best.zone; }
+    const { uo, uoT, um, ue, ub, H, vs, vm, hb, hbT } = sh;
+    out.structure.polys.push(A(sh.ring));
+    if (sh.roofRing) out.structure.polys.push(A(sh.roofRing));
+    if (zone.kind === "wall") out.structure.polys.push(A([[-um, zone.vD - sh.c.tm], [um, zone.vD - sh.c.tm], [um, zone.vD], [-um, zone.vD]]), A([[-uo, zone.vD], [uo, zone.vD], [uo, vs], [-uo, vs]]));
+    else out.structure.polys.push(A([[-um, vm], [um, vm], [um, vs], [-um, vs]]));
+    if (zone.kind === "wedge") out.structure.polys.push(A([[-um, zone.vE], [um, zone.vE], [um, vm], [-um, vm]]));
+    out.zF = zb + zone.vE;
+    out.areas.push({ key: "lining", a: sh.areaC + (zone.wall || 0) }, { key: "lean", a: sh.areaLean });
+    if (zone.mix) out.areas.push({ key: "mix", a: zone.mix });
+    const inner = sh.roof ? [] : [[-hbT, H], [-hb, 0], [hb, 0], [hbT, H]];
+    ext = [-Math.max(ub, ue), Math.max(ub, ue)];
+    if (bridge) {
+      out.design = A(sh.roof ? [[-uoT, sh.vC], [uoT, sh.vC]] : [[-uoT, H], ...inner, [uoT, H]]);
+    } else {
+      const cr = channelCross(sh, T, zone, { du, reach });
+      if (!cr.dry) {
+        out.cut = A([[cr.EL.u, cr.EL.v], [-ue, zone.vE], [ue, zone.vE], [cr.ER.u, cr.ER.v]]);
+        if (sh.roof) {
+          const us = [cr.L.u, -ub, ub, cr.R.u];
+          for (let u = Math.ceil(cr.L.u / 0.25) * 0.25; u < cr.R.u; u += 0.25) us.push(u);
+          out.surface = [A([...new Set(us)].sort((a, b) => a - b).map((u) => [u, u <= cr.L.u ? cr.L.v : u >= cr.R.u ? cr.R.v : cr.F(u)]))];
+          out.design = A([[cr.L.u, cr.L.v], [-ub, cr.F(-ub)], [ub, cr.F(ub)], [cr.R.u, cr.R.v]]);
+        } else {
+          // canale aperto: la superficie finita si ferma alla cima dei muri (come la sezione del pannello)
+          out.surface = [A([[cr.L.u, cr.L.v], [-ub, H], [-uoT, H]]), A([[uoT, H], [ub, H], [cr.R.u, cr.R.v]])];
+          out.design = A([[cr.L.u, cr.L.v], [-ub, H], [-uoT, H], ...inner, [uoT, H], [ub, H], [cr.R.u, cr.R.v]]);
+        }
+        for (const pt of [cr.EL, cr.ER]) if (pt.kind === "cut" && pt.ok) mark("crest", pt.u, pt.v);
+        for (const pt of [cr.L, cr.R]) if (pt.kind === "fill" && pt.ok) mark("toe", pt.u, pt.v);
+        out.areas.unshift({ key: "cut", a: cr.cut }, { key: "backfill", a: cr.fill });
+        ext = [Math.min(ext[0], cr.L.u, cr.EL.u), Math.max(ext[1], cr.R.u, cr.ER.u)];
+      } else out.design = A([[-uoT, H], ...inner, [uoT, H]]);
+    }
+    mark("inv", 0, 0);
+    if (!bridge) mark("exc", 0, zone.vE);
+  } else if (stype === "pipe") {
+    let Wd = part ? part.width : 0, m = 0;
+    if (part && part.sections) { let best = null; for (const s of part.sections) if (!best || Math.abs(s.p - p) < Math.abs(best.p - p)) best = s; if (best) { m = best.m || 0; if (best.W) Wd = best.W; } }
+    if (!Wd) { const depth = T(0) - sh.vF; Wd = sh.p.width || Math.ceil(en1610Width(sh.p.dn, sh.De, depth, true) * 20 - 1e-9) / 20; }
+    out.structure.circles.push({ u: 0, z: zb + sh.vc, r: sh.R }, { u: 0, z: zb + sh.vc, r: sh.r });
+    out.areas.push({ key: "pipe", a: sh.areaPipe });
+    out.zF = zb + sh.vF;
+    ext = [-Wd / 2, Wd / 2];
+    if (!bridge) {
+      const cr = pipeCross(sh, T, Wd, m, { du, reach });
+      if (!cr.dry) {
+        const rg = pipeRings(sh, cr, T);
+        for (const key of ["bed", "surroundLow", "surroundUp", "cover", "fill", "restore", "emb"]) if (rg[key] && ringArea(rg[key]) > 1e-4) out.strata.push({ key, poly: A(ringPoly(rg[key])) });
+        const hw = Wd / 2;
+        out.cut = A([[cr.SL.u, cr.SL.v], [-hw, sh.vF], [hw, sh.vF], [cr.SR.u, cr.SR.v]]);
+        const emb = cr.a.emb > 1e-4;
+        if (emb) {
+          const us = [cr.toeL.u, -cr.ub, -cr.uW, cr.uW, cr.ub, cr.toeR.u];
+          for (let u = Math.ceil(cr.toeL.u / 0.25) * 0.25; u < cr.toeR.u; u += 0.25) us.push(u);
+          out.surface = [A([...new Set(us)].sort((a, b) => a - b).map((u) => [u, cr.S(u)]))];
+          mark("toe", cr.toeL.u, T(cr.toeL.u)); mark("toe", cr.toeR.u, T(cr.toeR.u));
+          out.design = A([[cr.toeL.u, T(cr.toeL.u)], [-cr.ub, cr.S(-cr.ub)], [cr.SL.u, cr.SL.v], [-hw, sh.vF], [hw, sh.vF], [cr.SR.u, cr.SR.v], [cr.ub, cr.S(cr.ub)], [cr.toeR.u, T(cr.toeR.u)]]
+            .sort((a, b) => a[0] - b[0]));
+        } else out.design = A([[cr.SL.u, cr.SL.v], [-hw, sh.vF], [hw, sh.vF], [cr.SR.u, cr.SR.v]]);
+        for (const pt of [cr.EL, cr.ER]) if (pt.ok) mark("crest", pt.u, pt.v);
+        const a = cr.a;
+        out.areas.unshift({ key: "cut", a: a.cut }, { key: "bed", a: a.bed }, { key: "surround", a: a.surround }, { key: "cover", a: a.cover }, { key: "backfill", a: a.fill });
+        if (a.restore > 1e-4) out.areas.push({ key: "restore", a: a.restore });
+        if (a.emb > 1e-4) out.areas.push({ key: "emb", a: a.emb });
+        ext = [Math.min(ext[0], cr.EL.u, cr.SL.u, emb ? cr.toeL.u : 0), Math.max(ext[1], cr.ER.u, cr.SR.u, emb ? cr.toeR.u : 0)];
+      }
+    }
+    mark("inv", 0, 0);
+    if (!bridge) mark("exc", 0, sh.vF);
+  } else {
+    const { ue, uo, ui, hb, h } = sh;
+    out.structure.polys.push(A(sh.ring));
+    out.areas.push({ key: "lining", a: sh.liningArea });
+    out.zF = zb - sh.tf;
+    const inner = [[-ui, h], [-hb, 0], [hb, 0], [ui, h]];
+    ext = [-ue, ue];
+    if (bridge) out.design = A([[-uo, h], ...inner, [uo, h]]);
+    else {
+      const c = ditchCross(sh, T, { du, reach });
+      out.cut = A(c.D);
+      out.design = A([[c.L.u, c.L.v], [-ue, h], ...inner, [ue, h], [c.R.u, c.R.v]]);   // lo spigolo esterno del rivestimento (±uo) no: a 2 mm dal ciglio interno
+      for (const pt of [c.L, c.R]) if (pt.ok && pt.kind) mark(pt.kind === "cut" ? "crest" : "toe", pt.u, pt.v);
+      out.areas.unshift({ key: "cut", a: c.cut }, { key: "fill", a: c.fill });
+      ext = [Math.min(ext[0], c.L.u), Math.max(ext[1], c.R.u)];
+    }
+    mark("inv", 0, 0);
+    if (!bridge) mark("exc", 0, -sh.tf);
+  }
+  out.areas = out.areas.filter((x) => x.a > 5e-4);                                   // le aree nulle non si scrivono
+  out.ext = ext;
+  out.u0 = Math.floor((ext[0] - margin) * 10) / 10;
+  out.u1 = Math.ceil((ext[1] + margin) * 10) / 10;
+  out.terrain = [];
+  if (lite) return out;
+  const n = Math.max(2, Math.round((out.u1 - out.u0) / du));
+  for (let i = 0; i <= n; i++) { const u = out.u0 + (out.u1 - out.u0) * i / n; out.terrain.push([u, G(u)]); }
+  return out;
+}
+
+/**
+ * La chitarrina di una sezione: colonne sui vertici di progetto (due quote dove la parete è verticale),
+ * sull'asse (la quota di progetto è lo scorrimento) e sui punti del terreno che cambiano pendenza oltre
+ * tol, distanti almeno gap (e gap + wide a destra di una colonna con due quote). Per colonna { u, zT,
+ * zP: [quote di progetto] (vuoto se è solo del terreno), dp (dalla colonna prima), da (distanza
+ * dall'asse) }.
+ */
+export function crossTable(cs, { tol = 0.05, gap = 0.25, wide = 0.25 } = {}) {
+  const lo = cs.u0, hi = cs.u1, D = cs.design;
+  const byU = [];
+  for (const [u, z] of D) {
+    if (Math.abs(u) > 1e-6 && Math.abs(u) < 0.5 && Math.abs(z - cs.zS) < 1e-3) continue;      // spigoli del fondo accanto all'asse: la stessa quota dello scorrimento
+    const l = byU[byU.length - 1]; if (l && Math.abs(l.u - u) < 1e-6) l.z.push(z); else byU.push({ u, z: [z] });
+  }
+  const axis = byU.find((c) => Math.abs(c.u) < 1e-6);
+  if (axis) axis.z = [cs.zS]; else byU.push({ u: 0, z: [cs.zS] });
+  const two = byU.filter((c) => c.z.length > 1 && Math.abs(c.z[0] - c.z[c.z.length - 1]) > 5e-4).map((c) => c.u);
+  const cols = guitarColumns({ lo, hi, design: byU.map((c) => c.u), ground: simplifyLine(cs.terrain, tol), gap, wide: two, wideGap: gap + wide });
+  const ground = (u) => {
+    const T = cs.terrain;
+    if (u < T[0][0] - 1e-9 || u > T[T.length - 1][0] + 1e-9) return NaN;
+    let i = 1; while (i < T.length - 1 && T[i][0] < u) i++;
+    const [a, za] = T[i - 1], [b, zb] = T[i];
+    return b - a > 1e-12 ? za + (zb - za) * (u - a) / (b - a) : za;
+  };
+  return cols.map((c, i) => {
+    const d = byU.find((x) => Math.abs(x.u - c.p) < 1e-6);
+    const zP = d ? (d.z.length > 1 && Math.abs(d.z[0] - d.z[d.z.length - 1]) > 5e-4 ? [d.z[0], d.z[d.z.length - 1]] : [d.z[0]]) : [];
+    return { u: c.p, zT: ground(c.p), zP, dp: i ? c.p - cols[i - 1].p : NaN, da: Math.abs(c.p) };
+  });
+}
+
+/**
+ * Le sezioni correnti di un'opera: tagli (crossCuts) e per ognuna la sezione e la chitarrina.
+ * Gli stessi argomenti di profileSheet + step (passo, m). Ritorna [{ n, p, kind, cs, table }].
+ */
+export function crossSheets({ axis, prof, map, ctl, sweep, zAt3, lo, hi, square = false, step = CROSS.step }) {
+  let cp = profileFromPoints(ctl);
+  if (square) cp = squareDrops(cp);
+  const design = cp.pts.map((q) => map.toP(q.s)).filter((p) => p > lo + 1e-6 && p < hi - 1e-6);
+  const cuts = crossCuts({ lo, hi, step, design, drops: (sweep.drops || []).map((d) => d.p), joins: sweep.joins || [], bridges: sweep.bridges || [] });
+  const out = [];
+  for (const c of cuts) {
+    const cs = crossSection({ axis, prof, map, sweep, zAt3, p: c.p });
+    if (cs) out.push({ n: out.length + 1, p: c.p, kind: c.kind, cs, table: crossTable(cs) });
+  }
+  return out;
+}
+
+/** Le stazioni delle linee in pianta: ogni step metri fra lo e hi, più un centimetro prima e dopo salti, capi dei tratti e dei ponti. */
+function planStations(sweep, lo, hi, step) {
+  const ps = [];
+  for (let p = lo; p < hi - 1e-6; p += step) ps.push(p);
+  ps.push(hi);
+  const ev = [...(sweep.drops || []).map((d) => d.p), ...(sweep.runs || []).flatMap((r) => [r.p0, r.p1, ...(r.blends || []).flatMap((b) => [b.a, b.b])]),
+    ...(sweep.bridges || []).flatMap((b) => [b.p0, b.p1])];
+  for (const e of ev) for (const d of [-0.01, 0.01]) if (e + d > lo && e + d < hi) ps.push(e + d);
+  return ps.sort((a, b) => a - b);
+}
+
+/** Gli spigoli della pianta fra lo e hi (vertici dove la tangente gira più di mezzo grado): punto, normale a destra sulla bisettrice, 1/cos e tan di metà angolo. */
+function planCorners(axis, lo, hi) {
+  const out = [];
+  for (const v of axis.vtx.slice(1, -1)) {
+    if (v.s <= lo + 1e-6 || v.s >= hi - 1e-6) continue;
+    const a = planAt(axis, v.s - 1e-6), b = planAt(axis, v.s + 1e-6), c = a.tx * b.tx + a.ty * b.ty;
+    const nx = a.ty + b.ty, ny = -a.tx - b.tx, l = Math.hypot(nx, ny);
+    if (c > Math.cos(Math.PI / 360) || l < 1e-9) continue;
+    const half = Math.acos(Math.max(-1, Math.min(1, c))) / 2;
+    out.push({ s: v.s, x: v.x, y: v.y, nx: nx / l, ny: ny / l, k: 1 / Math.cos(half), t: Math.tan(half) });
+  }
+  return out;
+}
+
+/**
+ * Un filo a distanza u (a destra, uAt(s) allo spigolo) dai punti [{ p, x, y }] campionati ⟂ ai lati: a ogni spigolo i punti entro
+ * |u|·tan(metà angolo) lasciano il posto al punto sulla bisettrice (giunto a quartabuono, come la mesh del 3D). Senza, sul lato interno
+ * i punti dei due lati si scavalcavano e il filo faceva un ricciolo. Ritorna [[x, y]…].
+ */
+function cornerFix(pts, corners, uAt) {
+  let q = pts;
+  for (const c of corners) {
+    if (q.length < 2 || c.s <= q[0].p || c.s >= q[q.length - 1].p) continue;
+    const u = uAt(c.s);
+    if (!Number.isFinite(u)) continue;
+    const d = Math.abs(u) * c.t, n = q.length;
+    q = q.filter((r, i) => i === 0 || i === n - 1 || Math.abs(r.p - c.s) >= d);
+    const i = q.findIndex((r) => r.p > c.s);
+    q.splice(i < 0 ? q.length : i, 0, { p: c.s, x: c.x + c.nx * u * c.k, y: c.y + c.ny * u * c.k });
+  }
+  return q.map((r) => [r.x, r.y]);
+}
+
+/** Douglas-Peucker in pianta: i punti [[x, y]] che restano entro tol dalla linea (i capi sempre). */
+export function simplify2D(pts, tol = 0.02) {
+  const n = pts.length;
+  if (n < 3) return pts.slice();
+  const keep = new Uint8Array(n); keep[0] = keep[n - 1] = 1;
+  const stack = [[0, n - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const [xa, ya] = pts[a], dx = pts[b][0] - xa, dy = pts[b][1] - ya, l = Math.hypot(dx, dy);
+    let best = -1, k = -1;
+    for (let i = a + 1; i < b; i++) {
+      const d = l > EPS ? Math.abs((pts[i][0] - xa) * dy - (pts[i][1] - ya) * dx) / l : Math.hypot(pts[i][0] - xa, pts[i][1] - ya);
+      if (d > best) { best = d; k = i; }
+    }
+    if (best > tol) { keep[k] = 1; stack.push([a, k], [k, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+
+/**
+ * L'ingombro dell'opera in pianta (0.16, tavole; scelta dell'utente): a ogni stazione il punto più esterno
+ * a sinistra e a destra (cigli dello scavo, piedi del riporto o del rilevato, bordo dell'opera dove non c'è
+ * terra: nei ponti, fuori dal DTM) dalle stesse sezioni delle tavole (crossSection.ext), ogni step metri
+ * più un centimetro prima e dopo i salti, i capi dei tratti e dei ponti. Gli stessi argomenti di
+ * crossSheets. Ritorna i pezzi dove la sezione esiste come anelli chiusi [[x, y]…] in E/N (sinistra in
+ * avanti, destra all'indietro), semplificati entro tol.
+ */
+export function planFootprint({ axis, prof, map, sweep, zAt3, lo, hi, step = 1, tol = 0.02 }) {
+  const out = [], corners = planCorners(axis, lo, hi);
+  const ext = (s) => { const cs = crossSection({ axis, prof, map, sweep, zAt3, p: s, lite: true }); return cs ? cs.ext : [NaN, NaN]; };
+  let Ls = [], Rs = [];
+  const flush = () => {
+    if (Ls.length > 1) out.push([...simplify2D(cornerFix(Ls, corners, (s) => ext(s)[0]), tol), ...simplify2D(cornerFix(Rs, corners, (s) => ext(s)[1]), tol).reverse()]);
+    Ls = []; Rs = [];
+  };
+  for (const p of planStations(sweep, lo, hi, step)) {
+    const cs = crossSection({ axis, prof, map, sweep, zAt3, p, lite: true });
+    if (!cs || !cs.ext.every(Number.isFinite)) { flush(); continue; }
+    const w = planAt(axis, p);                                                       // u a DESTRA: (x + ty·u, y − tx·u)
+    Ls.push({ p, x: w.x + w.ty * cs.ext[0], y: w.y - w.tx * cs.ext[0] });
+    Rs.push({ p, x: w.x + w.ty * cs.ext[1], y: w.y - w.tx * cs.ext[1] });
+  }
+  flush();
+  return out;
+}
+
+/** I fili dell'opera visti dall'alto, come distanze dall'asse: in (filo interno in cima), out (filo esterno), bot (piede delle sponde). */
+function planEdges({ stype, sh }) {
+  if (stype === "pipe") return { out: sh.R };                                        // il diametro esterno
+  if (stype === "channel" || stype === "box") {
+    if (sh.roof) return { out: sh.uoT };                                             // scatolare: il filo esterno
+    return Math.abs(sh.hb - sh.hbT) > 0.01 ? { in: sh.hbT, out: sh.uoT, bot: sh.hb } : { in: sh.hbT, out: sh.uoT };   // muri verticali: il fondo coincide
+  }
+  return { in: sh.ui, out: sh.uo, bot: sh.hb };                                      // fosso: cigli del rivestimento e fondo
+}
+
+/**
+ * L'opera vista dall'alto (0.16, tavole; scelte dell'utente, tutte continue): i cigli (fosso: i due del rivestimento; canale a U: filo
+ * interno ed esterno dei muri; scatolare: il filo esterno; tubo: il diametro esterno) e il fondo dove non coincide coi cigli (fosso;
+ * canale coi muri a scarpa), dalla forma di ogni tratto (specAt, raccordi compresi) alle stazioni di planStations; un cambio di tratto
+ * spezza le linee. Linee trasversali: ai salti fra i fili interni (il gradino), ai cambi di sezione (o ai capi del raccordo) e ai
+ * capi dell'opera fra i fili esterni. Ritorna { lines: [[[x, y]…]…], cross: [[[x, y], [x, y]]…] } in E/N.
+ */
+export function planWork({ axis, sweep, lo, hi, step = 1, tol = 0.01 }) {
+  const lines = [], cross = [], open = {};
+  if (!sweep.specAt) return { lines, cross };
+  const pt = (w, u) => [w.x + w.ty * u, w.y - w.tx * u];                             // u a DESTRA
+  const corners = planCorners(axis, lo, hi);
+  const close = (id) => {
+    const side = id[0] === "L" ? -1 : 1, key = id.slice(1);
+    const uAt = (s) => { const sp = sweep.specAt(s); const E = sp && sp.sh ? planEdges(sp) : {}; return side * E[key]; };
+    if (open[id] && open[id].length > 1) lines.push(simplify2D(cornerFix(open[id], corners, uAt), tol));
+    delete open[id];
+  };
+  let run = null;
+  for (const p of planStations(sweep, lo, hi, step)) {
+    const sp = sweep.specAt(p), E = sp && sp.sh ? planEdges(sp) : {};
+    if (!sp || sp.run !== run) for (const id of Object.keys(open)) close(id);
+    run = sp ? sp.run : null;
+    for (const id of Object.keys(open)) if (!(id.slice(1) in E)) close(id);
+    const w = planAt(axis, p);
+    for (const [key, u] of Object.entries(E)) for (const s of [-1, 1]) { const [x, y] = pt(w, s * u); (open[(s < 0 ? "L" : "R") + key] ||= []).push({ p, x, y }); }
+  }
+  for (const id of Object.keys(open)) close(id);
+  const across = (p, half) => { if (!(half > 0) || p < lo - 1e-6 || p > hi + 1e-6) return; const w = planAt(axis, p); cross.push([pt(w, -half), pt(w, half)]); };
+  const edgesAt = (p) => { const sp = sweep.specAt(Math.min(hi, Math.max(lo, p))); return sp && sp.sh ? planEdges(sp) : {}; };
+  for (const d of sweep.drops || []) { const E = edgesAt(d.p + 1e-6); across(d.p, E.in || E.out); }
+  for (const j of sweep.joins || []) for (const p of j.blend && j.h > 0 ? [j.p - j.h, j.p + j.h] : [j.p]) across(p, Math.max(edgesAt(p - 1e-6).out || 0, edgesAt(p + 1e-6).out || 0));
+  across(lo, edgesAt(lo).out); across(hi, edgesAt(hi).out);
+  return { lines, cross };
+}
