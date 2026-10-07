@@ -676,6 +676,25 @@ export class TerrainDoc {
     this._push({ tiles });
     return true;
   }
+  /* annulla il tratto in corso senza lasciare voci di storia (touch: il
+     primo dito ha già dato qualche colpo quando arriva il secondo, che vuol
+     dire «navigo») → la regione rimessa com'era, o null */
+  abortStroke() {
+    const s = this._stroke;
+    this._stroke = null;
+    if (!s || !s.tiles.size) return null;
+    const n = this.ground.nx, z = this.ground.z;
+    let region = null;
+    for (const t of s.tiles.values()) {
+      const w = t.i1 - t.i0 + 1;
+      for (let j = t.j0; j <= t.j1; j++) z.set(t.v.subarray((j - t.j0) * w, (j - t.j0 + 1) * w), j * n + t.i0);
+      region = unionRegion(region, { i0: t.i0, i1: t.i1, j0: t.j0, j1: t.j1 });
+    }
+    this._groundRange();
+    this._rebuild();
+    this.refold(region);
+    return region;
+  }
   /* limite di pendenza su tutto il terreno scolpito (fase 4): una voce di
      storia coi soli riquadri cambiati (backup dell'intera griglia: 32 MB a
      4 M nodi, sotto HIST_BYTES). Le opere restano sopra, con le loro

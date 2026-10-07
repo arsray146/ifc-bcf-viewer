@@ -44,6 +44,13 @@
   il terreno, con un margine sotto la soglia perché nella mappa nessun
   nodo la superi; aree bloccate (L) che pennelli e limite non toccano
   (le opere sì); bilancio per singola opera.
+  Touch, passo 1 (2026-10-07, scelte dell'utente per l'iPad): un dito
+  lavora (pennelli, disegno, maniglie; in «Naviga» orbita), due dita
+  navigano come in Mappe (pizzico, sposta, ruota, su e giù per inclinare);
+  il secondo dito appena arrivato annulla il colpo partito; doppio tocco
+  nostro; barra del disegno (Chiudi/Fine, Togli l'ultimo, Scarta, 15°,
+  Togli vertice) al posto di Invio, Backspace, Esc e Shift. Restano: Apple
+  Pencil, iPad in verticale, robustezza di Safari.
 -->
 <html lang="it">
 <head>
@@ -51,7 +58,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Terrain Sculptor — topografie a pennelli e piattaforme per Revit e Rhino · viewifc.com</title>
 
-<meta name="description" content="Scolpisci una topografia nel browser: pennelli per alzare, abbassare, lisciare e appiattire, piattaforme a quota e rampe le cui scarpate trovano il terreno da sole, bilancio di sterri e riporti. Esporta il CSV di punti per la toposolid di Revit e il .3dm per Rhino (NURBS, curve di livello, mesh). Gratis, senza account, i file non escono dal browser.">
+<meta name="description" content="Scolpisci una topografia nel browser: pennelli, piattaforme anche inclinate, rampe a pendenza, scarpate fra due quote, limite di pendenza e aree bloccate; mappe delle pendenze e di sterri e riporti, bilancio per opera, plastico con l'acqua. Parte dalla toposolid di Revit (IFC) o da un DTM; esporta il CSV di punti per la toposolid e il .3dm per Rhino (NURBS, curve di livello, mesh, volume). Gratis, senza account, i file non escono dal browser.">
 <meta name="author" content="Alessandro Perugini">
 <meta name="theme-color" content="#f1f3ee">
 <link rel="canonical" href="https://viewifc.com/tools/terrain-sculptor/">
@@ -123,7 +130,8 @@ button.primary:hover:not(:disabled){background:#cae23f;border-color:var(--lime-d
 .glass{background:var(--panel);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
   border:1px solid var(--line);box-shadow:var(--shadow)}
 
-#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+body{touch-action:pan-x pan-y;-webkit-tap-highlight-color:transparent}      /* col dito: niente zoom della pagina (pizzico, doppio tocco) */
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 #cv.c-cross{cursor:crosshair}
 #cv.c-grab{cursor:grab}
 #cv.c-move{cursor:move}
@@ -267,6 +275,15 @@ input[type=range]{width:100%;accent-color:var(--lime-deep);cursor:pointer}
 #status{position:absolute;left:96px;right:calc(var(--pod-w) + 42px);bottom:14px;z-index:5;display:flex;justify-content:center;pointer-events:none}
 body.pod-off #status{right:28px}
 #status span{max-width:100%;padding:7px 14px;border-radius:999px;font:400 11px/1.2 var(--mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* barra del disegno: i comandi di Invio, Backspace, Esc e Shift a portata di dito */
+#drawBar{position:absolute;left:96px;right:calc(var(--pod-w) + 42px);bottom:54px;z-index:7;display:flex;justify-content:center;pointer-events:none}
+body.pod-off #drawBar{right:28px}
+#drawBar .bar{pointer-events:auto;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:6px;border-radius:16px;box-shadow:var(--shadow-lg)}
+#drawBar button{min-height:40px;padding:8px 14px;border-radius:11px;display:inline-flex;align-items:center;gap:7px}
+#drawBar button.on{background:var(--lime-soft);border-color:var(--lime-line)}
+#drawBar kbd{font:500 10px/1 var(--mono);color:var(--faint)}
+#drawBar button.primary kbd{color:var(--lime-ink);opacity:.6}
+body.has-bar #toast{bottom:116px}
 #toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);z-index:60;max-width:min(560px,80vw);padding:10px 18px;border-radius:12px;font:400 13px/1.45 var(--sans);display:none;
   border-color:var(--lime-deep);box-shadow:var(--shadow-lg)}
 #toast.on{display:block}
@@ -433,6 +450,7 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
 </aside>
 
 <div id="status"><span class="glass" id="statusText"></span></div>
+<div id="drawBar" hidden><div class="glass bar" id="drawBarIn"></div></div>
 <div id="toast" class="glass" role="status" aria-live="polite"></div>
 <div id="busy" class="glass" role="status" aria-live="polite"><i class="spin"></i><span id="busyText"></span></div>
 <div id="dragVeil" data-i18n="drop.veil">Rilascia per aprire il terreno</div>
@@ -446,7 +464,7 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
     <div data-panel="welcome">
       <div class="kicker" data-i18n="w.kicker">Strumento 16 · prima versione</div>
       <h1 id="sheetTitle" data-i18n="w.title">Scolpisci la topografia, esportala per Revit e Rhino</h1>
-      <p class="lead" data-i18n="w.lead">Pennelli per alzare, abbassare, lisciare e appiattire; piattaforme a quota e rampe a pendenza le cui scarpate trovano il terreno da sole; bilancio di sterri e riporti. Esce un CSV di punti per la toposolid di Revit e un .3dm per Rhino.</p>
+      <p class="lead" data-i18n="w.lead">Pennelli per alzare, abbassare, lisciare, appiattire e limitare la pendenza; piattaforme anche inclinate, rampe e scarpate che trovano il terreno da sole; mappe delle pendenze e bilancio di sterri e riporti opera per opera. Esce un CSV di punti per la toposolid di Revit e un .3dm per Rhino.</p>
       <div class="opts">
         <button class="opt" id="wNew"><svg viewBox="0 0 24 24"><path d="M3 18l6-8 4 5 3-3 5 6z"/><path d="M12 3v4M10 5h4"/></svg><span><b data-i18n="w.new">Nuovo terreno</b><span data-i18n="w.newS">piano, pendio o ondulato, fino a ~4 milioni di nodi</span></span></button>
         <button class="opt" id="wOpen"><svg viewBox="0 0 24 24"><path d="M4 20h16M12 4v12M7 11l5 5 5-5"/></svg><span><b data-i18n="w.open">Apri un file</b><span data-i18n="w.openS">progetto (.terrain), IFC (toposolid di Revit), LandXML, GeoTIFF, ESRI ASCII (.asc), punti x,y,z (.csv · .txt · .xyz) — o trascinalo qui</span></span></button>
@@ -597,7 +615,7 @@ const I18N = {
     "lay.major": "Curve di livello maestre", "lay.points": "Punti Revit", "lay.water": "Acqua", "lay.nurbsObj": "Terreno NURBS", "lay.meshObj": "Terreno mesh",
     "lay.volumeObj": "Volume terreno", "lay.level": "quota",
     "w.kicker": "Strumento 16 · prima versione", "w.title": "Scolpisci la topografia, esportala per Revit e Rhino",
-    "w.lead": "Pennelli per alzare, abbassare, lisciare e appiattire; piattaforme a quota e rampe a pendenza le cui scarpate trovano il terreno da sole; bilancio di sterri e riporti. Esce un CSV di punti per la toposolid di Revit e un .3dm per Rhino.",
+    "w.lead": "Pennelli per alzare, abbassare, lisciare, appiattire e limitare la pendenza; piattaforme anche inclinate, rampe e scarpate che trovano il terreno da sole; mappe delle pendenze e bilancio di sterri e riporti opera per opera. Esce un CSV di punti per la toposolid di Revit e un .3dm per Rhino.",
     "w.new": "Nuovo terreno", "w.newS": "piano, pendio o ondulato, fino a ~4 milioni di nodi",
     "w.open": "Apri un file", "w.openS": "progetto (.terrain), IFC (toposolid di Revit), LandXML, GeoTIFF, ESRI ASCII (.asc), punti x,y,z (.csv · .txt · .xyz) — o trascinalo qui",
     "w.ctx": "DTM reale dal tool Contesto 3D", "w.ctxS": "disegna l'area sulla mappa, genera, poi «Scolpisci il terreno»",
@@ -641,6 +659,9 @@ const I18N = {
     "t.deleted": "{name} eliminata — Ctrl+Z per riaverla.", "t.minVerts": "Ne servono almeno {n}.",
     "st.xy": "x {x} · y {y} · z {z} m · pendenza {s} %", "st.en": "E {x} · N {y} · z {z} m · pendenza {s} %",
     "st.draw": " · lato {a} m · totale {b} m", "st.idle": "Muovi il mouse sul terreno",
+    "st.idleTouch": "Un dito lavora; due dita: pizzica, sposta, ruota, su e giù insieme per inclinare",
+    "db.close": "Chiudi", "db.finish": "Fine", "db.back": "Togli l'ultimo", "db.cancel": "Scarta",
+    "db.snapTip": "Lati allineati a 15° (come tenere premuto Shift)", "db.delVertex": "Togli vertice",
     "drop.veil": "Rilascia per aprire il terreno",
     "privacy": "I file non escono dal browser: niente upload. Il lavoro si salva da solo in questo browser (IndexedDB).",
   },
@@ -758,7 +779,7 @@ const I18N = {
     "lay.major": "Index contours", "lay.points": "Revit points", "lay.water": "Water", "lay.nurbsObj": "Terrain NURBS", "lay.meshObj": "Terrain mesh",
     "lay.volumeObj": "Terrain volume", "lay.level": "level",
     "w.kicker": "Tool 16 · first release", "w.title": "Sculpt the topography, export it for Revit and Rhino",
-    "w.lead": "Brushes to raise, lower, smooth and flatten; pads at a level and ramps at a grade whose side slopes find the ground by themselves; cut and fill balance. Out comes a points CSV for the Revit toposolid and a .3dm for Rhino.",
+    "w.lead": "Brushes to raise, lower, smooth, flatten and limit the slope; pads (sloped too), ramps and banks that find the ground by themselves; slope maps and cut and fill work by work. Out comes a points CSV for the Revit toposolid and a .3dm for Rhino.",
     "w.new": "New terrain", "w.newS": "flat, slope or rolling, up to ~4 million nodes",
     "w.open": "Open a file", "w.openS": "project (.terrain), IFC (Revit toposolid), LandXML, GeoTIFF, ESRI ASCII (.asc), x,y,z points (.csv · .txt · .xyz) — or drop it here",
     "w.ctx": "Real DTM from the 3D Context tool", "w.ctxS": "draw the area on the map, generate, then «Sculpt the terrain»",
@@ -802,6 +823,9 @@ const I18N = {
     "t.deleted": "{name} deleted — Ctrl+Z to get it back.", "t.minVerts": "At least {n} are needed.",
     "st.xy": "x {x} · y {y} · z {z} m · slope {s}%", "st.en": "E {x} · N {y} · z {z} m · slope {s}%",
     "st.draw": " · side {a} m · total {b} m", "st.idle": "Move the mouse over the terrain",
+    "st.idleTouch": "One finger works; two fingers: pinch, drag, rotate, slide up or down together to tilt",
+    "db.close": "Close", "db.finish": "Finish", "db.back": "Remove last", "db.cancel": "Discard",
+    "db.snapTip": "Sides snapped to 15° (like holding Shift)", "db.delVertex": "Remove vertex",
     "drop.veil": "Drop to open the terrain",
     "privacy": "Files never leave the browser: no upload. Your work saves itself in this browser (IndexedDB).",
   },
@@ -814,11 +838,11 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as T from "./terrain-core.js?v=1.5.0";
-import * as IO from "./terrain-io.js?v=1.5.0";
+import * as T from "./terrain-core.js?v=1.6.0";
+import * as IO from "./terrain-io.js?v=1.6.0";
 import Delatin from "./vendor/delatin.js";
 
-const TOOL_VERSION = "1.5.0";
+const TOOL_VERSION = "1.6.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -849,7 +873,7 @@ const S = {
   bankDef: { face: 0.5, slope: 0.5, cutSlope: null, round: 0.5 },
   contour: 0.5, showPts: false, budget: 10000, nurbsMul: 1,
   parts: { nurbs: true, contours: true, mesh: true, volume: true, points: true, water: true },
-  podOff: false, podUser: false, closed: {}, lastSave: null, saveOk: true, range: { min: 0, max: 1 },
+  podOff: false, podUser: false, closed: {}, lastSave: null, saveOk: true, range: { min: 0, max: 1 }, snap15: false,
   look: { block: true },
   map: { mode: 0, slopeMax: 0.5, cfMax: 0, limit: "both" },   // analisi: 0 naturali, 1 pendenze, 2 sterri e riporti; cfMax 0 = scala automatica;
                                                                 // slopeMax e limit (cut / fill / both) valgono anche per il limite di pendenza
@@ -884,6 +908,10 @@ controls.maxPolarAngle = Math.PI * 0.495;
 controls.screenSpacePanning = false;
 controls.zoomToCursor = true;
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+/* touch (iPad): le dita di OrbitControls le decide setMode (un dito orbita solo in «Naviga»), le due dita
+   sono di twoFingerMove; col dito maniglie e vertici più grandi */
+const COARSE = matchMedia("(pointer: coarse)").matches;
+for (const t of ["gesturestart", "gesturechange"]) document.addEventListener(t, (e) => e.preventDefault(), { passive: false });   // Safari: niente zoom della pagina col pizzico
 
 /* Aspetto (fase 2, riferimenti dell'utente del 2026-10-02: il «plastico» con
    prato, sabbia e roccia — per ora colori e atmosfera, niente texture):
@@ -1517,6 +1545,7 @@ function setMode(m) {
   controls.mouseButtons = m === "nav"
     ? { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }
     : { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
+  controls.touches = { ONE: m === "nav" ? THREE.TOUCH.ROTATE : null, TWO: null };
   ring.visible = false;
   canvas.className = m === "nav" ? "c-grab" : m === "select" ? "" : "c-cross";
   rebuildOps();
@@ -1584,7 +1613,7 @@ let draft = [];
 function cancelDraft() { draft = []; drawDraft(); }
 function snapPoint(p, shift) {
   let r = [p.x, p.y];
-  if (shift && draft.length) {
+  if ((shift || S.snap15) && draft.length) {
     const q = draft[draft.length - 1], dx = p.x - q[0], dy = p.y - q[1], L = Math.hypot(dx, dy);
     const a = Math.round(Math.atan2(dy, dx) / (Math.PI / 12)) * (Math.PI / 12);
     r = [q[0] + L * Math.cos(a), q[1] + L * Math.sin(a)];
@@ -1608,10 +1637,11 @@ function drawDraft(extra) {
   draftGeo.setAttribute("position", new THREE.BufferAttribute(a, 3));
   draftGeo.setDrawRange(0, pts.length);
   const dp = new Float32Array(draft.length * 3), ds = new Float32Array(draft.length), dc = new Float32Array(draft.length * 3);
-  draft.forEach((p, s) => { const [lx, ly] = toLocal(p[0], p[1]); dp.set([lx, ly, hAt(p[0], p[1]) + 0.15], 3 * s); ds[s] = 9 * renderer.getPixelRatio(); dc.set([0.75, 0.84, 0.19], 3 * s); });
+  draft.forEach((p, s) => { const [lx, ly] = toLocal(p[0], p[1]); dp.set([lx, ly, hAt(p[0], p[1]) + 0.15], 3 * s); ds[s] = 9 * renderer.getPixelRatio() * (COARSE ? 1.5 : 1); dc.set([0.75, 0.84, 0.19], 3 * s); });
   draftDots.geometry.setAttribute("position", new THREE.BufferAttribute(dp, 3));
   draftDots.geometry.setAttribute("size", new THREE.BufferAttribute(ds, 1));
   draftDots.geometry.setAttribute("color", new THREE.BufferAttribute(dc, 3));
+  renderDrawBar();
 }
 function activePads() { return S.doc.ops.filter((o) => o.type === "pad" && o.on !== false).reverse(); }
 function finishDraft() {
@@ -1831,6 +1861,7 @@ function rebuildOps() {
   opsLines.geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(P), 3));
   opsLines.geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(C), 3));
   rebuildHandles();
+  renderDrawBar();
 }
 /* maniglie dell'opera selezionata: vertici (grandi) e metà lato (piccole) */
 let handleList = [];
@@ -1857,7 +1888,7 @@ function rebuildHandles() {
   handleList.forEach((h, s) => {
     const [lx, ly] = toLocal(h.x, h.y);
     P.set([lx, ly, h.z + 0.06], 3 * s);
-    Sz[s] = (h.kind === "m" ? 8 : h === hoverHandle ? 14 : 11) * pr;
+    Sz[s] = (h.kind === "m" ? 8 : h === hoverHandle || (h.kind === "v" && h.k === activeVertex) ? 14 : 11) * pr * (COARSE ? 1.5 : 1);
     Cl.set(h.kind === "v" ? [0.75, 0.84, 0.19] : h.kind === "dir" ? [0.95, 0.55, 0.15] : [0.95, 0.96, 0.92], 3 * s);
   });
   handles.geometry.dispose();
@@ -1867,8 +1898,8 @@ function rebuildHandles() {
   handles.geometry.setAttribute("color", new THREE.BufferAttribute(Cl, 3));
 }
 let hoverHandle = null;
-function handleAt(cx, cy) {
-  let best = null, bd = 12;
+function handleAt(cx, cy, reach = 12) {
+  let best = null, bd = reach;
   for (const h of handleList) {
     const [sx, sy] = toScreen(h.x, h.y, h.z), d = Math.hypot(sx - cx, sy - cy) - (h.kind !== "m" ? 2 : 0);
     if (d < bd) { bd = d; best = h; }
@@ -1896,6 +1927,7 @@ function opAt(p) {
 }
 function select(id) {
   S.sel = id;
+  activeVertex = null;
   rebuildOps();
   renderTool();
   renderOpsList();
@@ -1913,7 +1945,7 @@ function deleteVertex(h) {
   if (pts.length <= min) { toast(tr("t.minVerts", { n: min })); return; }
   pts.splice(h.k, 1);
   const r = S.doc.updateOp(o.id, { ...(isArea(o) ? { polygon: pts } : { line: pts }), ...padGeomPatch(o, pts) });
-  hoverHandle = null;
+  hoverHandle = null; activeVertex = null;
   edited(r, { ops: true });
   renderTool();
 }
@@ -1921,26 +1953,37 @@ function deleteVertex(h) {
 /* =========================================================================
    Puntatore
    ========================================================================= */
+/* col dito e con la penna: tocco più largo, maniglie da più lontano */
+const finger = (e) => e.pointerType === "touch" || e.pointerType === "pen";
+const tapPx = (e) => (e.pointerType === "touch" ? 12 : e.pointerType === "pen" ? 8 : 4);
+const reachPx = (e) => (e.pointerType === "touch" ? 26 : e.pointerType === "pen" ? 16 : 12);
 let downAt = null;
 canvas.addEventListener("pointerdown", (e) => {
+  if (e.pointerType === "touch") {
+    touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (touchPts.size === 1) multiTouch = false;
+    else { twoFingerStart(); return; }                  // il secondo dito: si naviga
+  }
   downAt = [e.clientX, e.clientY];
   if (e.button !== 0 || !S.doc || !renderer) return;
   if (BRUSH.includes(S.mode)) {
     const p = pick(e.clientX, e.clientY);
     if (!p) return;
     S.doc.beginStroke();
-    painting = { p, shift: e.shiftKey };
+    painting = { p, shift: e.shiftKey, id: e.pointerId, t0: performance.now() };
     lastDab = { x: p.x, y: p.y }; lastT = performance.now(); flatTarget = p.z;
     canvas.setPointerCapture(e.pointerId);
     return;
   }
   if (S.mode === "select" && S.sel) {
-    const o = S.doc.getOp(S.sel), h = handleAt(e.clientX, e.clientY);
+    const o = S.doc.getOp(S.sel), h = handleAt(e.clientX, e.clientY, reachPx(e));
     const zRef = zRefOf(o);
+    activeVertex = null;
     if (h && h.kind === "dir") drag = { kind: "dir", id: o.id, z: h.z, t0: Date.now(), moved: false };
     else if (h) {
       let pts = geomOf(o), k = h.k;
       if (h.kind === "m") { k = h.k + 1; pts.splice(k, 0, [h.x, h.y]); }
+      activeVertex = k;                                  // il vertice toccato: la barra offre «Togli vertice»
       drag = { kind: "vertex", id: o.id, k, pts, z: h.z, t0: Date.now(), moved: h.kind === "m" };
       if (h.kind === "m") applyGeom(o, pts);
     } else {
@@ -1950,16 +1993,22 @@ canvas.addEventListener("pointerdown", (e) => {
         if (q) drag = { kind: "move", id: o.id, start: q, orig: geomOf(o), z: zRef, t0: Date.now(), moved: false };
       }
     }
-    if (drag) { canvas.setPointerCapture(e.pointerId); controls.enabled = false; }
+    if (drag) { drag.pid = e.pointerId; canvas.setPointerCapture(e.pointerId); controls.enabled = false; }
+    rebuildHandles(); renderDrawBar();
   }
 });
 let pendingMove = null;
 canvas.addEventListener("pointermove", (e) => {
+  if (e.pointerType === "touch" && touchPts.has(e.pointerId)) {
+    touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (twoFinger) { twoFingerMove(); return; }
+    if (multiTouch) return;                              // il dito rimasto dopo un gesto a due: non lavora
+  }
   if (!S.doc) return;
   const p = pick(e.clientX, e.clientY);
   status(p);
-  if (painting) { if (p) painting = { p, shift: e.shiftKey }; return; }
-  if (drag) { pendingMove = { x: e.clientX, y: e.clientY, shift: e.shiftKey }; return; }
+  if (painting) { if (p && e.pointerId === painting.id) painting = { ...painting, p, shift: e.shiftKey }; return; }
+  if (drag) { if (e.pointerId === drag.pid) pendingMove = { x: e.clientX, y: e.clientY, shift: e.shiftKey }; return; }
   if (BRUSH.includes(S.mode) && p) showRing(p); else ring.visible = false;
   if (DRAW.includes(S.mode) && draft.length && p) drawDraft(snapPoint(p, e.shiftKey));
   if (S.mode === "select") {
@@ -1979,7 +2028,7 @@ function dragTick() {
   if (drag.kind === "dir") {                     /* la punta della freccia gira attorno al centro: azimut (Shift: a 15°) */
     const pl = T.padPlane(o);
     let a = Math.atan2(q.x - pl.px, q.y - pl.py) * 180 / Math.PI;
-    a = shift ? Math.round(a / 15) * 15 : Math.round(a);
+    a = shift || S.snap15 ? Math.round(a / 15) * 15 : Math.round(a);
     a = ((a % 360) + 360) % 360;
     if (a === +o.dir) return;
     view.update(S.doc.updateOp(o.id, { dir: a }, { coalesce: "dir:" + o.id + ":" + drag.t0 }));
@@ -1996,26 +2045,52 @@ function dragTick() {
   }
   applyGeom(o, drag.pts, off);
 }
-canvas.addEventListener("pointercancel", () => {
-  if (painting) { painting = null; if (S.doc.endStroke()) edited(null); updateUndo(); }
-  if (drag) { drag = null; controls.enabled = true; S.doc.sealHistory(); edited(null, { ops: true }); renderTool(); }
+function endPaint() {
+  painting = null;
+  if (S.doc.endStroke()) edited(null);
+  updateUndo();
+}
+function endDrag() {
+  dragTick();
+  const moved = drag.moved;
+  drag = null; controls.enabled = true;
+  S.doc.sealHistory();
+  if (moved) { edited(null, { ops: true }); renderTool(); }
+  return moved;
+}
+/* le dita che si alzano: fine del gesto a due (finché ne restano almeno due si riparte da dove sono) */
+function fingerUp(e) {
+  touchPts.delete(e.pointerId);
+  lastFingerUp = performance.now();
+  if (twoFinger) { if (touchPts.size >= 2) twoFingerStart(); else twoFinger = null; }
+  if (!multiTouch) return false;
+  if (!touchPts.size) multiTouch = false;
+  return true;
+}
+canvas.addEventListener("pointercancel", (e) => {
+  if (e.pointerType === "touch" && fingerUp(e)) return;
+  if (painting) endPaint();
+  if (drag) endDrag();
 });
 canvas.addEventListener("pointerup", (e) => {
-  if (painting) {
-    painting = null;
-    if (S.doc.endStroke()) edited(null);
-    updateUndo();
-    return;
-  }
+  if (e.pointerType === "touch") {
+    if (fingerUp(e)) return;                             // fine di un gesto a due dita: niente vertici né selezioni
+    ring.visible = false;
+  } else if (e.pointerType === "pen") lastFingerUp = performance.now();
+  if (painting) { if (e.pointerId === painting.id) endPaint(); return; }
   if (drag) {
-    dragTick();
-    const moved = drag.moved;
-    drag = null; controls.enabled = true;
-    S.doc.sealHistory();
-    if (moved) { edited(null, { ops: true }); renderTool(); }
+    if (e.pointerId !== drag.pid) return;
+    if (!endDrag() && finger(e) && fingerTap(e)) onDouble(e.clientX, e.clientY, reachPx(e));     // doppio tocco su un vertice
     return;
   }
-  if (e.button !== 0 || !downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4 || !S.doc) return;
+  if (e.button !== 0 || !downAt || !S.doc) return;
+  const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]), tap = moved <= tapPx(e);
+  /* col dito il vertice va dove si alza il dito (lo si guida guardando la linea), col mouse solo i clic fermi */
+  if (!tap && !(finger(e) && DRAW.includes(S.mode))) return;
+  if (finger(e)) {
+    if (!tap) lastTap = null;
+    else if (fingerTap(e)) { onDouble(e.clientX, e.clientY, reachPx(e)); return; }   // il secondo tocco non mette un vertice
+  }
   const p = pick(e.clientX, e.clientY);
   if (DRAW.includes(S.mode)) {
     if (!p) return;
@@ -2028,15 +2103,130 @@ canvas.addEventListener("pointerup", (e) => {
     select(o ? o.id : null);
   }
 });
-canvas.addEventListener("dblclick", (e) => {
+/* doppio clic e doppio tocco: chiudono il disegno, tolgono il vertice. Safari col dito il dblclick non
+   lo dà sempre (e a volte sì, dopo il nostro doppio tocco): col dito decide fingerTap */
+let lastTap = null;
+function fingerTap(e) {
+  const now = performance.now(), dbl = !!lastTap && now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30;
+  lastTap = dbl ? null : { t: now, x: e.clientX, y: e.clientY };
+  return dbl;
+}
+function onDouble(cx, cy, reach) {
   if (DRAW.includes(S.mode)) { finishDraft(); return; }
-  if (S.mode === "select" && S.sel) { const h = handleAt(e.clientX, e.clientY); if (h && h.kind === "v") deleteVertex(h); }
+  if (S.mode === "select" && S.sel) { const h = handleAt(cx, cy, reach); if (h && h.kind === "v") deleteVertex(h); }
+}
+canvas.addEventListener("dblclick", (e) => { if (performance.now() - lastFingerUp > 800) onDouble(e.clientX, e.clientY); });
+
+/* =========================================================================
+   Touch: due dita come in Mappe — pizzico = zoom verso le dita, trascinare
+   = spostare (il punto del terreno sotto le dita resta sotto le dita),
+   ruotare = girare attorno alla verticale, due dita affiancate che salgono
+   o scendono insieme = inclinare. Un dito resta allo strumento; in «Naviga»
+   l'orbita a un dito è di OrbitControls (setMode).
+   ========================================================================= */
+const touchPts = new Map();            // pointerId → { x, y } delle dita sul canvas
+let twoFinger = null, multiTouch = false, lastFingerUp = -1e9;
+const ZUP = new THREE.Vector3(0, 0, 1);
+function twoFingerStart() {
+  multiTouch = true; lastTap = null;
+  /* il primo dito aveva cominciato a lavorare: appena partito si annulla (voleva navigare), altrimenti resta */
+  if (painting) {
+    if (performance.now() - painting.t0 < 300) { const r = S.doc.abortStroke(); painting = null; if (r) view.update(r); updateUndo(); }
+    else endPaint();
+  }
+  if (drag) endDrag();
+  ring.visible = false;
+  const [a, b] = [...touchPts.values()], p = pick((a.x + b.x) / 2, (a.y + b.y) / 2);
+  twoFinger = { a0: { ...a }, b0: { ...b }, pa: { ...a }, pb: { ...b }, z: p ? p.z : controls.target.z, kind: null, turn: 0, turning: false };
+}
+/* dove il raggio del punto di schermo incontra il piano orizzontale alla quota z (null sopra l'orizzonte) */
+function planeHit(cx, cy, z) {
+  const r = rayAt(cx, cy);
+  if (Math.abs(r.direction.z) < 1e-6) return null;
+  const t = (z - r.origin.z) / r.direction.z;
+  return t > 0 && t < 50 * camera.position.distanceTo(controls.target) ? r.origin.clone().addScaledVector(r.direction, t) : null;
+}
+/* ripiego: il piano per il centro dell'orbita, di fronte alla camera */
+function viewHit(cx, cy) {
+  const r = rayAt(cx, cy), n = camera.getWorldDirection(new THREE.Vector3()), den = r.direction.dot(n);
+  const t = Math.abs(den) < 1e-9 ? -1 : controls.target.clone().sub(r.origin).dot(n) / den;
+  return t > 0 ? r.origin.clone().addScaledVector(r.direction, t) : null;
+}
+function twoFingerMove() {
+  const g = twoFinger, [a, b] = [...touchPts.values()];
+  if (!g.kind) {
+    /* si decide quando si sono mosse tutte e due (gli eventi arrivano un dito alla volta) o una sola di
+       parecchio (pizzico col pollice fermo): inclinare (dita affiancate, su o giù insieme, distanza ferma) o il resto */
+    const da = [a.x - g.a0.x, a.y - g.a0.y], db = [b.x - g.b0.x, b.y - g.b0.y], ma = Math.hypot(da[0], da[1]), mb = Math.hypot(db[0], db[1]);
+    if (Math.max(ma, mb) < 10 || (Math.min(ma, mb) < 5 && Math.max(ma, mb) < 30)) return;
+    const d0 = Math.hypot(g.b0.x - g.a0.x, g.b0.y - g.a0.y), d1 = Math.hypot(b.x - a.x, b.y - a.y);
+    const vert = (d) => Math.abs(d[1]) > 2 * Math.abs(d[0]), side = Math.abs(g.b0.y - g.a0.y) < 0.6 * Math.abs(g.b0.x - g.a0.x);
+    g.kind = side && vert(da) && vert(db) && da[1] * db[1] > 0 && Math.abs(d1 - d0) < 0.15 * d0 ? "tilt" : "free";
+  }
+  const off = camera.position.clone().sub(controls.target);
+  if (g.kind === "tilt") {                               // su = più di sbieco, giù = più dall'alto
+    const dy = (a.y - g.pa.y + b.y - g.pb.y) / 2, r = off.length(), th = Math.atan2(off.y, off.x);
+    const phi = Math.min(controls.maxPolarAngle, Math.max(0.02, Math.acos(Math.min(1, Math.max(-1, off.z / r))) - dy / innerHeight * Math.PI * 0.9));
+    off.set(r * Math.sin(phi) * Math.cos(th), r * Math.sin(phi) * Math.sin(th), r * Math.cos(phi));
+    camera.position.copy(controls.target).add(off);
+  } else {
+    const pm = [(g.pa.x + g.pb.x) / 2, (g.pa.y + g.pb.y) / 2], cm = [(a.x + b.x) / 2, (a.y + b.y) / 2];
+    const onPlane = planeHit(pm[0], pm[1], g.z), from = onPlane || viewHit(pm[0], pm[1]);
+    /* la rotazione parte dopo ~8° (un pizzico non è mai perfettamente dritto), poi segue le dita */
+    let dth = Math.atan2(b.y - a.y, b.x - a.x) - Math.atan2(g.pb.y - g.pa.y, g.pb.x - g.pa.x);
+    dth = Math.atan2(Math.sin(dth), Math.cos(dth));
+    if (!g.turning) { g.turn += dth; g.turning = Math.abs(g.turn) > 0.14; dth = 0; }
+    off.applyAxisAngle(ZUP, dth);
+    const s = Math.hypot(g.pb.x - g.pa.x, g.pb.y - g.pa.y) / Math.max(1, Math.hypot(b.x - a.x, b.y - a.y));
+    off.setLength(Math.min(5e4, Math.max(1, off.length() * s)));
+    camera.position.copy(controls.target).add(off);
+    camera.lookAt(controls.target); camera.updateMatrixWorld();
+    const to = onPlane ? planeHit(cm[0], cm[1], g.z) : from && viewHit(cm[0], cm[1]);
+    if (from && to) { const d = from.sub(to); d.z = 0; camera.position.add(d); controls.target.add(d); }
+  }
+  camera.lookAt(controls.target); camera.updateMatrixWorld();
+  g.pa = { ...a }; g.pb = { ...b };
+}
+
+/* =========================================================================
+   Barra del disegno: i comandi che senza tastiera non c'erano (Invio,
+   Backspace, Esc, Shift = 15°) mentre si disegna, e «Togli vertice» sul
+   vertice toccato in «Seleziona». Serve al dito, ma c'è anche col mouse
+   ========================================================================= */
+let activeVertex = null, barKey = "";
+function renderDrawBar() {
+  const o = S.mode === "select" && S.sel && S.doc ? S.doc.getOp(S.sel) : null;
+  const vOk = !!o && activeVertex !== null && activeVertex < (isArea(o) ? o.polygon : o.line).length;
+  const kind = DRAW.includes(S.mode) && draft.length ? "draw" : vOk ? "vertex" : "";
+  const key = [kind, S.mode, draft.length, S.snap15, LANG].join("|");
+  if (key === barKey) return;
+  barKey = key;
+  $("drawBar").hidden = !kind;
+  document.body.classList.toggle("has-bar", !!kind);          // il messaggio a comparsa sale sopra la barra
+  if (!kind) return;
+  const kb = (s) => (COARSE ? "" : `<kbd>${s}</kbd>`), closed = CLOSED.includes(S.mode);
+  $("drawBarIn").innerHTML = kind === "vertex"
+    ? `<button data-act="delv">${esc(tr("db.delVertex"))}</button>`
+    : `<button class="primary" data-act="done" ${draft.length < (closed ? 3 : 2) ? "disabled" : ""}>${esc(closed ? tr("db.close") : tr("db.finish"))}${kb("↵")}</button>`
+      + `<button data-act="back">${esc(tr("db.back"))}${kb("⌫")}</button>`
+      + `<button data-act="cancel">${esc(tr("db.cancel"))}${kb("Esc")}</button>`
+      + `<button data-act="snap" class="${S.snap15 ? "on" : ""}" aria-pressed="${S.snap15}" title="${esc(tr("db.snapTip"))}">15°</button>`;
+}
+$("drawBarIn").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b || b.disabled) return;
+  const a = b.dataset.act;
+  if (a === "done") finishDraft();
+  else if (a === "back") { draft.pop(); drawDraft(); }
+  else if (a === "cancel") cancelDraft();
+  else if (a === "snap") { S.snap15 = !S.snap15; renderDrawBar(); }
+  else if (a === "delv") { const h = handleList.find((q) => q.kind === "v" && q.k === activeVertex); if (h) deleteVertex(h); }
 });
 canvas.addEventListener("pointerleave", () => { ring.visible = false; if (!painting) status(null); });
 
 function status(p) {
   const el = $("statusText");
-  if (!p) { el.textContent = tr("st.idle"); return; }
+  if (!p) { el.textContent = COARSE ? tr("st.idleTouch") : tr("st.idle"); return; }
   const f = S.doc.final, c = f.cell;
   const g = (dx, dy) => hAt(p.x + dx, p.y + dy);
   const sx = (g(c, 0) - g(-c, 0)) / (2 * c), sy = (g(0, c) - g(0, -c)) / (2 * c);
@@ -3388,6 +3578,7 @@ function applyLang(lang) {
   if (S.doc) { renderPod(); refreshBalance(); refreshStats(); }
   if (!$("sheet").hidden && !document.querySelector('#sheet [data-panel="new"]').hidden) renderNew();
   status(null);
+  renderDrawBar();
 }
 document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("click", () => applyLang(b.dataset.lang)));
 (function initTheme() {
