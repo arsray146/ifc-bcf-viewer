@@ -530,7 +530,11 @@ const cloneOp = (o) => JSON.parse(JSON.stringify(o));
    e ripristinare sono la stessa operazione.
    ====================================================================== */
 const TILE = 64;
-const HIST_MAX = 200, HIST_BYTES = 256 * 1048576;
+const HIST_MAX = 200;
+let HIST_BYTES = 256 * 1048576;
+/* il tetto della storia (byte dei riquadri salvati per annullare): su telefono e tablet la pagina lo
+   abbassa, lì la memoria è meno (minimo 8 MB) → il tetto in vigore */
+export function setHistoryBudget(bytes) { HIST_BYTES = Math.max(8 * 1048576, +bytes || 0); return HIST_BYTES; }
 
 export class TerrainDoc {
   constructor(base, { ground = null, ops = [], meta = {} } = {}) {

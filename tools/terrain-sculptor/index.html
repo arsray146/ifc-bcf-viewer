@@ -49,13 +49,20 @@
   navigano come in Mappe (pizzico, sposta, ruota, su e giù per inclinare);
   il secondo dito appena arrivato annulla il colpo partito; doppio tocco
   nostro; barra del disegno (Chiudi/Fine, Togli l'ultimo, Scarta, 15°,
-  Togli vertice) al posto di Invio, Backspace, Esc e Shift. Restano: Apple
-  Pencil, iPad in verticale, robustezza di Safari.
+  Togli vertice) al posto di Invio, Backspace, Esc e Shift.
+  Passo 2 (2026-10-07): Apple Pencil — la pressione dosa la forza dei
+  pennelli (a metà = il cursore, a fondo = il doppio); alla prima Pencil
+  vista il dito solo naviga, interruttore nel pannello dello strumento.
+  Passi 3-4 (2026-10-07): sotto i 900 px il pannello è un foglio dal basso
+  (maniglia: metà / quasi tutto), mini-barra del pennello a pannello chiuso,
+  bersagli da dito e campi a 16 px, safe-area; su telefono e tablet tetto
+  dei nodi (1,5 M / 2,5 M) e della storia più bassi, contesto WebGL perso e
+  ripreso, file di iOS senza accept, avviso dei 7 giorni di Safari.
 -->
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Terrain Sculptor — topografie a pennelli e piattaforme per Revit e Rhino · viewifc.com</title>
 
 <meta name="description" content="Scolpisci una topografia nel browser: pennelli, piattaforme anche inclinate, rampe a pendenza, scarpate fra due quote, limite di pendenza e aree bloccate; mappe delle pendenze e di sterri e riporti, bilancio per opera, plastico con l'acqua. Parte dalla toposolid di Revit (IFC) o da un DTM; esporta il CSV di punti per la toposolid e il .3dm per Rhino (NURBS, curve di livello, mesh, volume). Gratis, senza account, i file non escono dal browser.">
@@ -224,6 +231,7 @@ input[type=range]{width:100%;accent-color:var(--lime-deep);cursor:pointer}
 .btns button{flex:1 1 auto}
 .btn-sm{padding:6px 10px;font-size:12px}
 .link{background:none;border:none;padding:0;color:var(--acc);font:500 12px/1 var(--sans);letter-spacing:0;text-decoration:underline;text-underline-offset:2px}
+.pen-b{padding:0 0 12px;margin-top:-4px}
 .check{display:flex;align-items:center;gap:8px;margin:6px 0;font:400 12.5px/1.3 var(--sans);color:var(--text);cursor:pointer}
 .check input{accent-color:var(--lime-deep);width:15px;height:15px}
 .check .dim{color:var(--muted);font-size:11.5px}
@@ -322,8 +330,66 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
 @media (max-width:980px){ .appname,.stats{display:none} }
 @media (max-width:760px){
   .crumbs .sep,.crumbs a span{display:none}
-  :root{--pod-w:calc(100vw - 100px)}
 }
+/* tacca e barra di casa (viewport-fit=cover): testata, rail, pannello e riga di stato ne stanno fuori */
+header{padding-top:max(14px,env(safe-area-inset-top));padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+#rail{left:max(14px,env(safe-area-inset-left))}
+#pod{right:max(14px,env(safe-area-inset-right))}
+#status{bottom:max(14px,env(safe-area-inset-bottom))}
+#grip{display:none}
+/* schermi stretti (iPad in verticale, telefono): il pannello è un foglio dal basso, a metà o quasi
+   tutto alto (la maniglia in cima), e rail, riga di stato e barra stanno sopra */
+@media (max-width:899px){
+  :root{--sheet-h:46vh;--sheet-gap:calc(var(--sheet-h) + 16px + env(safe-area-inset-bottom))}
+  @supports (height:1dvh){ :root{--sheet-h:46dvh} body.sheet-full{--sheet-h:84dvh} }
+  body.sheet-full{--sheet-h:84vh}
+  #pod{left:max(8px,env(safe-area-inset-left));right:max(8px,env(safe-area-inset-right));top:auto;bottom:calc(8px + env(safe-area-inset-bottom));
+    width:auto;height:var(--sheet-h);border-radius:20px 20px var(--r) var(--r)}
+  #grip{display:flex;justify-content:center;align-items:center;flex:none;width:100%;height:26px;padding:0;border:none;border-radius:0;background:none;cursor:pointer}
+  #grip i{width:44px;height:5px;border-radius:3px;background:var(--line-2)}
+  body:not(.pod-off) #rail{bottom:var(--sheet-gap)}
+  #status,#drawBar{left:calc(max(14px,env(safe-area-inset-left)) + 70px);right:max(12px,env(safe-area-inset-right))}
+  body:not(.pod-off) #status{bottom:var(--sheet-gap)}
+  #drawBar{bottom:calc(max(14px,env(safe-area-inset-bottom)) + 40px)}
+  body:not(.pod-off) #drawBar{bottom:calc(var(--sheet-gap) + 40px)}
+  body:not(.pod-off) #toast{bottom:calc(var(--sheet-gap) + 96px)}
+}
+@media (min-width:600px) and (max-width:899px){           /* iPad in verticale: foglio largo quanto serve, in basso a destra */
+  #pod{left:auto;width:min(520px,calc(100vw - 100px))}
+}
+@media (max-width:520px){
+  header{gap:6px}
+  .crumbs .here{display:none}
+  .crumbs{padding:11px 12px}
+  #btnOpen{padding:9px 13px}
+  .form .row{grid-template-columns:1fr;gap:5px;margin:10px 0}     /* fogli: l'etichetta sopra il campo */
+  .form .row>:nth-child(3):empty{display:none}
+}
+/* col dito: bersagli più grandi, campi a 16 px (sotto, Safari ingrandisce la pagina quando li tocchi),
+   e le azioni della lista delle opere sempre visibili (niente hover) */
+@media (pointer:coarse){
+  #rail{width:60px;gap:3px}
+  .rail-btn{width:44px;height:44px}
+  .chip{padding:9px 11px;font-size:12px}
+  .btn-sm{padding:10px 12px}
+  .sec-h{padding:15px 0 11px}
+  .check{min-height:34px}
+  .check input{width:20px;height:20px}
+  input[type=range]{height:30px}
+  .numbox input,#sheet input,#sheet select{font-size:16px;padding:8px}
+  .oprow{padding:8px 6px}
+  .oprow button{padding:7px}
+  .langsw button{padding:8px 10px}
+  .thm{width:38px;height:38px}
+}
+@media (hover:none){
+  .oprow .acts{display:flex}
+  .oprow:hover .op-v,.oprow:focus-within .op-v{display:inline}
+}
+/* mini-barra del pennello (pannello chiuso): raggio e forza */
+#drawBar .bb{display:flex;align-items:center;gap:8px;padding:0 6px;font:400 12px/1 var(--sans);color:var(--muted)}
+#drawBar .bb input{width:110px}
+#drawBar .bb output{font:400 11.5px/1 var(--mono);color:var(--text);min-width:40px;text-align:right}
 </style>
 
 <script type="importmap">
@@ -406,10 +472,12 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
 
 <!-- ================= PANNELLO ================= -->
 <aside id="pod" class="glass" aria-label="Pannello">
+  <button id="grip" data-i18n-title="pod.grip" title="Foglio più alto / più basso"><i></i></button>
   <div id="podScroll">
     <section class="sec tool" id="secTool">
       <div class="sec-h"><h2 id="toolTitle">—</h2><span class="kbd" id="toolKey"></span></div>
       <div class="sec-b" id="toolBody"></div>
+      <div class="pen-b" id="penBox" hidden></div>
     </section>
     <section class="sec" data-sec="ops">
       <div class="sec-h"><h2 data-i18n="ops.title">Opere</h2><span class="cnt" id="opsCount"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
@@ -662,6 +730,16 @@ const I18N = {
     "st.idleTouch": "Un dito lavora; due dita: pizzica, sposta, ruota, su e giù insieme per inclinare",
     "db.close": "Chiudi", "db.finish": "Fine", "db.back": "Togli l'ultimo", "db.cancel": "Scarta",
     "db.snapTip": "Lati allineati a 15° (come tenere premuto Shift)", "db.delVertex": "Togli vertice",
+    "pen.only": "Solo la Pencil lavora: il dito naviga (un dito gira, due come in Mappe)",
+    "n.capDevice": "Su questo dispositivo il tetto è più basso che su un computer (memoria).",
+    "t.bigForDevice": "Terreno di {n} nodi: oltre il tetto di {max} per questo dispositivo. Può funzionare, ma se la pagina si ricarica da sola apri il progetto su un computer.",
+    "t.glLost": "La grafica si è fermata (memoria del dispositivo): il lavoro è salvato. Se non riparte da sola, ricarica la pagina.",
+    "t.glBack": "Grafica ripartita.",
+    "t.itp": "Su iPhone e iPad Safari può cancellare il salvataggio automatico dopo 7 giorni senza visite: per tenerlo, salva il progetto (.terrain).",
+    "pod.grip": "Foglio più alto / più basso", "br.helpTouch": "Passa il dito sul terreno; con due dita navighi. Raggio e forza anche nella barra in basso, a pannello chiuso.", "bb.radius": "Raggio", "bb.strength": "Forza",
+    "pen.pressure": "La pressione della Pencil dosa la forza: leggera = poca, a metà = quella del cursore, a fondo = il doppio.",
+    "pen.seen": "Apple Pencil: ora lavora la Pencil e il dito naviga. Si cambia nel pannello dello strumento.",
+    "st.pen": " · Pencil ×{f}",
     "drop.veil": "Rilascia per aprire il terreno",
     "privacy": "I file non escono dal browser: niente upload. Il lavoro si salva da solo in questo browser (IndexedDB).",
   },
@@ -826,6 +904,16 @@ const I18N = {
     "st.idleTouch": "One finger works; two fingers: pinch, drag, rotate, slide up or down together to tilt",
     "db.close": "Close", "db.finish": "Finish", "db.back": "Remove last", "db.cancel": "Discard",
     "db.snapTip": "Sides snapped to 15° (like holding Shift)", "db.delVertex": "Remove vertex",
+    "pen.only": "Only the Pencil works: fingers navigate (one finger orbits, two like in Maps)",
+    "n.capDevice": "On this device the cap is lower than on a computer (memory).",
+    "t.bigForDevice": "Terrain of {n} nodes: over the {max} cap for this device. It may work, but if the page reloads by itself open the project on a computer.",
+    "t.glLost": "The graphics stopped (device memory): your work is saved. If it doesn't restart by itself, reload the page.",
+    "t.glBack": "Graphics restarted.",
+    "t.itp": "On iPhone and iPad Safari may erase the autosave after 7 days without visits: to keep it, save the project (.terrain).",
+    "pod.grip": "Taller / shorter sheet", "br.helpTouch": "Sweep your finger over the terrain; two fingers navigate. Radius and strength also in the bottom bar, with the panel closed.", "bb.radius": "Radius", "bb.strength": "Strength",
+    "pen.pressure": "Pencil pressure sets the strength: light = little, halfway = the slider's, full = double.",
+    "pen.seen": "Apple Pencil: now the Pencil works and fingers navigate. Change it in the tool panel.",
+    "st.pen": " · Pencil ×{f}",
     "drop.veil": "Drop to open the terrain",
     "privacy": "Files never leave the browser: no upload. Your work saves itself in this browser (IndexedDB).",
   },
@@ -838,11 +926,11 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as T from "./terrain-core.js?v=1.6.0";
-import * as IO from "./terrain-io.js?v=1.6.0";
+import * as T from "./terrain-core.js?v=1.8.0";
+import * as IO from "./terrain-io.js?v=1.8.0";
 import Delatin from "./vendor/delatin.js";
 
-const TOOL_VERSION = "1.6.0";
+const TOOL_VERSION = "1.8.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -874,19 +962,20 @@ const S = {
   contour: 0.5, showPts: false, budget: 10000, nurbsMul: 1,
   parts: { nurbs: true, contours: true, mesh: true, volume: true, points: true, water: true },
   podOff: false, podUser: false, closed: {}, lastSave: null, saveOk: true, range: { min: 0, max: 1 }, snap15: false,
+  penSeen: false, pencilOnly: true,          // Apple Pencil (touch, passo 2): vista almeno una volta; se sì, di norma il dito solo naviga
   look: { block: true },
   map: { mode: 0, slopeMax: 0.5, cfMax: 0, limit: "both" },   // analisi: 0 naturali, 1 pendenze, 2 sterri e riporti; cfMax 0 = scala automatica;
                                                                 // slopeMax e limit (cut / fill / both) valgono anche per il limite di pendenza
 };
 const UI_KEY = "viewifc_terrain_ui";
 function saveUi() {
-  try { localStorage.setItem(UI_KEY, JSON.stringify({ brush: S.brush, padDef: S.padDef, rampDef: S.rampDef, bankDef: S.bankDef, contour: S.contour, budget: S.budget, nurbsMul: S.nurbsMul, parts: S.parts, podOff: S.podOff, podUser: S.podUser, closed: S.closed, mode: S.mode, refGhost: !!S.refGhost, look: S.look, map: S.map })); } catch (e) {}
+  try { localStorage.setItem(UI_KEY, JSON.stringify({ brush: S.brush, padDef: S.padDef, rampDef: S.rampDef, bankDef: S.bankDef, contour: S.contour, budget: S.budget, nurbsMul: S.nurbsMul, parts: S.parts, podOff: S.podOff, podUser: S.podUser, penSeen: S.penSeen, pencilOnly: S.pencilOnly, closed: S.closed, mode: S.mode, refGhost: !!S.refGhost, look: S.look, map: S.map })); } catch (e) {}
 }
 (function loadUi() {
   try {
     const u = JSON.parse(localStorage.getItem(UI_KEY) || "null");
     if (u) for (const k of ["brush", "padDef", "rampDef", "bankDef", "parts", "closed", "look", "map"]) if (u[k]) Object.assign(S[k], u[k]);
-    if (u) for (const k of ["contour", "budget", "nurbsMul", "podOff", "podUser", "mode", "refGhost"]) if (u[k] !== undefined) S[k] = u[k];
+    if (u) for (const k of ["contour", "budget", "nurbsMul", "podOff", "podUser", "mode", "refGhost", "penSeen", "pencilOnly"]) if (u[k] !== undefined) S[k] = u[k];
   } catch (e) {}
 })();
 
@@ -898,6 +987,10 @@ let renderer = null;
 try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true }); }
 catch (e) { $("noGl").hidden = false; $("noGl").textContent = I18N.it["t.webgl"]; }
 if (renderer) renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+/* il sistema può togliere il contesto WebGL (memoria, scheda in secondo piano): si salva e si aspetta che
+   torni (preventDefault lo permette; three.js ricarica da solo buffer e shader al primo disegno) */
+canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); if (dirty) saveNow(); toast(tr("t.glLost"), true); });
+canvas.addEventListener("webglcontextrestored", () => toast(tr("t.glBack")));
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 10000);
 camera.up.set(0, 0, 1);
@@ -911,6 +1004,13 @@ canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 /* touch (iPad): le dita di OrbitControls le decide setMode (un dito orbita solo in «Naviga»), le due dita
    sono di twoFingerMove; col dito maniglie e vertici più grandi */
 const COARSE = matchMedia("(pointer: coarse)").matches;
+/* Safari su iPhone e iPad (passo 4): molta meno memoria che su un computer, e se una scheda la supera
+   iOS la ricarica senza dire niente. Stima: ~150 byte a nodo fra le tre griglie e la scena, più la
+   storia (a 4 M nodi ~600 MB). Sui dispositivi touch tetto dei nodi e della storia più bassi */
+const PHONE = COARSE && Math.min(screen.width, screen.height) < 600;
+const NODE_CAP = PHONE ? 1500000 : COARSE ? 2500000 : T.MAX_NODES;
+if (COARSE) T.setHistoryBudget((PHONE ? 64 : 128) * 1048576);
+const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 for (const t of ["gesturestart", "gesturechange"]) document.addEventListener(t, (e) => e.preventDefault(), { passive: false });   // Safari: niente zoom della pagina col pizzico
 
 /* Aspetto (fase 2, riferimenti dell'utente del 2026-10-02: il «plastico» con
@@ -1442,6 +1542,7 @@ function originFor(base) {
 }
 function setDoc(doc, { frameIt = true } = {}) {
   S.doc = doc;
+  if (doc.nx * doc.ny > NODE_CAP) toast(tr("t.bigForDevice", { n: ni(doc.nx * doc.ny), max: ni(NODE_CAP) }), true);
   S.origin = doc.meta.origin || originFor(doc.base);
   doc.meta.origin = S.origin;
   S.sel = null;
@@ -1545,19 +1646,37 @@ function setMode(m) {
   controls.mouseButtons = m === "nav"
     ? { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }
     : { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
-  controls.touches = { ONE: m === "nav" ? THREE.TOUCH.ROTATE : null, TWO: null };
+  applyTouches();
   ring.visible = false;
   canvas.className = m === "nav" ? "c-grab" : m === "select" ? "" : "c-cross";
   rebuildOps();
   renderTool();
+  renderPen();
   saveUi();
 }
+/* un dito: lavora, oppure (in «Naviga», o con la Pencil che lavora) orbita; le due dita sono di twoFingerMove */
+const fingerWorks = () => !(S.penSeen && S.pencilOnly);
+function applyTouches() { controls.touches = { ONE: S.mode === "nav" || !fingerWorks() ? THREE.TOUCH.ROTATE : null, TWO: null }; }
+/* la Pencil (passo 2, scelte dell'utente): la pressione dosa la forza; appena se ne vede una il dito
+   solo naviga, con l'interruttore qui nel pannello dello strumento */
+function renderPen() {
+  const box = $("penBox");
+  box.hidden = !S.penSeen;
+  if (!S.penSeen) return;
+  box.innerHTML = `<label class="check"><input type="checkbox" id="penOnly" ${S.pencilOnly ? "checked" : ""}>${esc(tr("pen.only"))}</label>`
+    + (BRUSH.includes(S.mode) ? `<p class="help">${esc(tr("pen.pressure"))}</p>` : "");
+  $("penOnly").addEventListener("change", () => { S.pencilOnly = $("penOnly").checked; applyTouches(); saveUi(); });
+}
+const penForce = (p) => Math.min(2, Math.max(0.1, 2 * (p || 0)));       // 0,5 (a metà) = la forza del cursore, a fondo il doppio
 document.querySelectorAll("#rail [data-mode]").forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
 $("bUndo").addEventListener("click", () => doUndo(false));
 $("bRedo").addEventListener("click", () => doUndo(true));
 $("bFrame").addEventListener("click", () => frameAll());
 $("bPod").addEventListener("click", () => { S.podOff = !S.podOff; S.podUser = true; applyPod(); saveUi(); });
-function applyPod() { document.body.classList.toggle("pod-off", S.podOff); $("bPod").classList.toggle("on", !S.podOff); resize(); }
+function applyPod() { document.body.classList.toggle("pod-off", S.podOff); $("bPod").classList.toggle("on", !S.podOff); resize(); renderDrawBar(); }
+/* schermi stretti: il pannello è un foglio dal basso; la maniglia lo porta da metà a quasi tutto alto */
+const SHEET = matchMedia("(max-width: 899px)");
+$("grip").addEventListener("click", () => { document.body.classList.toggle("sheet-full"); resize(); });
 function doUndo(redo) {
   if (!S.doc) return;
   cancelDraft();
@@ -1586,7 +1705,7 @@ function showRing(p) {
 function dab(x, y, dt) {
   let m = S.mode;
   if (painting.shift && (m === "raise" || m === "lower")) m = m === "raise" ? "lower" : "raise";
-  const { radius, strength, hardness } = S.brush;
+  const { radius, hardness } = S.brush, strength = S.brush.strength * painting.f;
   if (m === "raise" || m === "lower") return S.doc.brush("raise", { x, y, radius, hardness, amount: (m === "raise" ? 1 : -1) * strength * dt });
   if (m === "smooth") return S.doc.brush("smooth", { x, y, radius, hardness, strength: Math.min(1, strength * dt * 3) });
   if (m === "limit") return S.doc.brush("limit", { x, y, radius, hardness, slope: S.map.slopeMax, mode: S.map.limit, strength: Math.min(1, strength * dt * 2) });
@@ -1959,18 +2078,25 @@ const tapPx = (e) => (e.pointerType === "touch" ? 12 : e.pointerType === "pen" ?
 const reachPx = (e) => (e.pointerType === "touch" ? 26 : e.pointerType === "pen" ? 16 : 12);
 let downAt = null;
 canvas.addEventListener("pointerdown", (e) => {
+  if (e.pointerType === "pen" && !S.penSeen) {
+    S.penSeen = true; S.pencilOnly = true;
+    applyTouches(); renderPen(); saveUi();
+    toast(tr("pen.seen"));
+  }
   if (e.pointerType === "touch") {
     touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (touchPts.size === 1) multiTouch = false;
     else { twoFingerStart(); return; }                  // il secondo dito: si naviga
+    if (!fingerWorks()) return;                         // con la Pencil il dito orbita (OrbitControls) e basta
   }
+  if (painting || drag) return;                         // un altro puntatore mentre si lavora (il palmo sotto la Pencil): non comincia niente
   downAt = [e.clientX, e.clientY];
   if (e.button !== 0 || !S.doc || !renderer) return;
   if (BRUSH.includes(S.mode)) {
     const p = pick(e.clientX, e.clientY);
     if (!p) return;
     S.doc.beginStroke();
-    painting = { p, shift: e.shiftKey, id: e.pointerId, t0: performance.now() };
+    painting = { p, shift: e.shiftKey, id: e.pointerId, t0: performance.now(), touch: e.pointerType === "touch", pen: e.pointerType === "pen", f: e.pointerType === "pen" ? penForce(e.pressure) : 1 };
     lastDab = { x: p.x, y: p.y }; lastT = performance.now(); flatTarget = p.z;
     canvas.setPointerCapture(e.pointerId);
     return;
@@ -1993,7 +2119,7 @@ canvas.addEventListener("pointerdown", (e) => {
         if (q) drag = { kind: "move", id: o.id, start: q, orig: geomOf(o), z: zRef, t0: Date.now(), moved: false };
       }
     }
-    if (drag) { drag.pid = e.pointerId; canvas.setPointerCapture(e.pointerId); controls.enabled = false; }
+    if (drag) { drag.pid = e.pointerId; drag.touch = e.pointerType === "touch"; canvas.setPointerCapture(e.pointerId); controls.enabled = false; }
     rebuildHandles(); renderDrawBar();
   }
 });
@@ -2002,12 +2128,14 @@ canvas.addEventListener("pointermove", (e) => {
   if (e.pointerType === "touch" && touchPts.has(e.pointerId)) {
     touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (twoFinger) { twoFingerMove(); return; }
-    if (multiTouch) return;                              // il dito rimasto dopo un gesto a due: non lavora
+    if (multiTouch || !fingerWorks()) return;            // il dito rimasto dopo un gesto a due, o il dito con la Pencil: non lavora
   }
   if (!S.doc) return;
   const p = pick(e.clientX, e.clientY);
+  if (painting && p && e.pointerId === painting.id)      // la forza della Pencil, filtrata (prima della riga di stato, che la mostra)
+    painting = { ...painting, p, shift: e.shiftKey, f: painting.pen ? painting.f * 0.6 + penForce(e.pressure) * 0.4 : 1 };
   status(p);
-  if (painting) { if (p && e.pointerId === painting.id) painting = { ...painting, p, shift: e.shiftKey }; return; }
+  if (painting) return;
   if (drag) { if (e.pointerId === drag.pid) pendingMove = { x: e.clientX, y: e.clientY, shift: e.shiftKey }; return; }
   if (BRUSH.includes(S.mode) && p) showRing(p); else ring.visible = false;
   if (DRAW.includes(S.mode) && draft.length && p) drawDraft(snapPoint(p, e.shiftKey));
@@ -2074,7 +2202,7 @@ canvas.addEventListener("pointercancel", (e) => {
 });
 canvas.addEventListener("pointerup", (e) => {
   if (e.pointerType === "touch") {
-    if (fingerUp(e)) return;                             // fine di un gesto a due dita: niente vertici né selezioni
+    if (fingerUp(e) || !fingerWorks()) return;            // fine di un gesto a due dita (niente vertici né selezioni), o il dito con la Pencil
     ring.visible = false;
   } else if (e.pointerType === "pen") lastFingerUp = performance.now();
   if (painting) { if (e.pointerId === painting.id) endPaint(); return; }
@@ -2130,12 +2258,12 @@ const ZUP = new THREE.Vector3(0, 0, 1);
 function twoFingerStart() {
   multiTouch = true; lastTap = null;
   /* il primo dito aveva cominciato a lavorare: appena partito si annulla (voleva navigare), altrimenti resta */
-  if (painting) {
+  if (painting && painting.touch) {                   // la Pencil che lavora non si ferma per le dita
     if (performance.now() - painting.t0 < 300) { const r = S.doc.abortStroke(); painting = null; if (r) view.update(r); updateUndo(); }
     else endPaint();
   }
-  if (drag) endDrag();
-  ring.visible = false;
+  if (drag && drag.touch) endDrag();
+  if (!painting) ring.visible = false;
   const [a, b] = [...touchPts.values()], p = pick((a.x + b.x) / 2, (a.y + b.y) / 2);
   twoFinger = { a0: { ...a }, b0: { ...b }, pa: { ...a }, pb: { ...b }, z: p ? p.z : controls.target.z, kind: null, turn: 0, turning: false };
 }
@@ -2197,7 +2325,7 @@ let activeVertex = null, barKey = "";
 function renderDrawBar() {
   const o = S.mode === "select" && S.sel && S.doc ? S.doc.getOp(S.sel) : null;
   const vOk = !!o && activeVertex !== null && activeVertex < (isArea(o) ? o.polygon : o.line).length;
-  const kind = DRAW.includes(S.mode) && draft.length ? "draw" : vOk ? "vertex" : "";
+  const kind = DRAW.includes(S.mode) && draft.length ? "draw" : vOk ? "vertex" : S.doc && S.podOff && BRUSH.includes(S.mode) ? "brush" : "";
   const key = [kind, S.mode, draft.length, S.snap15, LANG].join("|");
   if (key === barKey) return;
   barKey = key;
@@ -2205,6 +2333,14 @@ function renderDrawBar() {
   document.body.classList.toggle("has-bar", !!kind);          // il messaggio a comparsa sale sopra la barra
   if (!kind) return;
   const kb = (s) => (COARSE ? "" : `<kbd>${s}</kbd>`), closed = CLOSED.includes(S.mode);
+  if (kind === "brush") {                      // raggio e forza senza aprire il pannello
+    const b = S.brush, rf = (v) => nf(v, v % 1 ? 1 : 0) + " m";
+    $("drawBarIn").innerHTML = `<label class="bb">${esc(tr("bb.radius"))}<input type="range" id="bbR" min="0.5" max="${radiusMax()}" step="0.5" value="${b.radius}"><output id="bbRO">${rf(b.radius)}</output></label>`
+      + `<label class="bb">${esc(tr("bb.strength"))}<input type="range" id="bbS" min="0.1" max="5" step="0.1" value="${b.strength}"><output id="bbSO">${nf(b.strength, 1)}</output></label>`;
+    $("bbR").addEventListener("input", () => { b.radius = +$("bbR").value; $("bbRO").textContent = rf(b.radius); saveUi(); });
+    $("bbS").addEventListener("input", () => { b.strength = +$("bbS").value; $("bbSO").textContent = nf(b.strength, 1); saveUi(); });
+    return;
+  }
   $("drawBarIn").innerHTML = kind === "vertex"
     ? `<button data-act="delv">${esc(tr("db.delVertex"))}</button>`
     : `<button class="primary" data-act="done" ${draft.length < (closed ? 3 : 2) ? "disabled" : ""}>${esc(closed ? tr("db.close") : tr("db.finish"))}${kb("↵")}</button>`
@@ -2236,6 +2372,7 @@ function status(p) {
     const last = draft[draft.length - 1], a = Math.hypot(p.x - last[0], p.y - last[1]);
     s += tr("st.draw", { a: nf(a, 1), b: nf(T.pathLength(draft) + a, 1) });
   }
+  if (painting && painting.pen) s += tr("st.pen", { f: nf(painting.f, 2) });
   el.textContent = s;
 }
 
@@ -2259,6 +2396,7 @@ addEventListener("keydown", (e) => {
     const step = S.brush.radius < 5 ? 0.5 : S.brush.radius < 20 ? 1 : 5;
     S.brush.radius = Math.max(0.5, Math.min(radiusMax(), S.brush.radius + (k === "]" ? step : -step)));
     renderTool(); saveUi();
+    barKey = ""; renderDrawBar();
     return;
   }
   if (DRAW.includes(S.mode)) {
@@ -2313,7 +2451,7 @@ function renderTool() {
       + rng("bS", tr("br.strength"), b.strength, 0.1, 5, 0.1, nf(b.strength, 1))
       + rng("bH", tr("br.hardness"), b.hardness, 0, 0.9, 0.05, nf(b.hardness, 2))
       + (m === "limit" ? slopeMaxRow("lm") + limitModeRow("lm") + `<p class="help">${tr("lim.help")}</p>`
-        : `<p class="help">${tr(m === "flatten" ? "br.flatHelp" : "br.help")}</p>`);
+        : `<p class="help">${m === "flatten" ? tr("br.flatHelp") : COARSE ? tr("br.helpTouch") : tr("br.help")}</p>`);
     const bind = (id, key, fmtf) => $(id).addEventListener("input", () => { b[key] = +$(id).value; $(id + "O").textContent = fmtf(b[key]); saveUi(); });
     bind("bR", "radius", (v) => nf(v, v % 1 ? 1 : 0) + " m");
     bind("bS", "strength", (v) => nf(v, 1));
@@ -2987,8 +3125,9 @@ function newNote() {
   ["nW", "nH", "nZ"].forEach((id) => ($(id).disabled = ex));
   $("nCell").querySelectorAll(".chip").forEach((c) => (c.disabled = ex));
   $("nGradeRow").hidden = NEW.shape !== "slope";
-  const nx = Math.round(NEW.w / NEW.cell) + 1, ny = Math.round(NEW.h / NEW.cell) + 1, n = nx * ny, over = !ex && n > T.MAX_NODES;
-  let h = ex ? esc(tr("n.exampleNote")) : over ? esc(tr("n.tooMany", { n: ni(n), max: ni(T.MAX_NODES) })) : tr("n.nodes", { w: ni(nx), h: ni(ny), n: ni(n) });
+  const nx = Math.round(NEW.w / NEW.cell) + 1, ny = Math.round(NEW.h / NEW.cell) + 1, n = nx * ny, over = !ex && n > NODE_CAP;
+  let h = ex ? esc(tr("n.exampleNote")) : over ? esc(tr("n.tooMany", { n: ni(n), max: ni(NODE_CAP) })) : tr("n.nodes", { w: ni(nx), h: ni(ny), n: ni(n) });
+  if (over && NODE_CAP < T.MAX_NODES) h += " " + esc(tr("n.capDevice"));
   if (hasWork()) h += `<br>${esc(tr("n.replace", { ops: workCount() }))}`;
   $("nNote").innerHTML = h;
   $("nNote").className = "note" + (over ? " warn" : "");
@@ -3035,7 +3174,7 @@ async function openFile(file) {
   showImport(src, { kind, file: file.name, name, extra, meta: { name, source: "file", sourceName: file.name, crs: src.crs || null } });
 }
 function showImport(src, info, keepCell = null) {
-  const co = IO.cellOptions(src, T.MAX_NODES), e = co.ext;
+  const co = IO.cellOptions(src, NODE_CAP), e = co.ext;
   const keep = keepCell != null && co.options.some((o) => o.ok && Math.abs(o.cell - keepCell) < 1e-9);
   pendingImport = { src, info, cell: keep ? keepCell : co.proposed };
   const data = src.kind === "raster" ? tr("i.dataRaster", { w: ni(src.W), h: ni(src.H), c: nf(src.dx, src.dx % 1 ? 2 : 0) })
@@ -3056,7 +3195,8 @@ function showImport(src, info, keepCell = null) {
       + `<div class="sub">${esc(tr("i.cell"))}</div><div class="chips" id="iCell">${chips.map((o) => `<button class="chip${o.cell === pendingImport.cell ? " on" : ""}" data-v="${o.cell}" ${o.ok ? "" : "disabled"} title="${esc(tr("i.nodesOf", { n: ni(o.nodes) }))}">${nf(o.cell, o.cell % 1 ? 2 : 0)} m${o.native ? " · " + esc(tr("i.native")) : ""}</button>`).join("")}</div>`
       + `<p class="note" id="iNote"></p>`;
     const cur = co.options.find((o) => o.cell === pendingImport.cell);
-    $("iNote").innerHTML = cur ? esc(tr("i.nodesOf", { n: ni(cur.nodes) })) + (hasWork() ? "<br>" + esc(tr("n.replace", { ops: workCount() })) : "") : "";
+    $("iNote").innerHTML = (cur ? esc(tr("i.nodesOf", { n: ni(cur.nodes) })) + (hasWork() ? "<br>" + esc(tr("n.replace", { ops: workCount() })) : "") : "")
+      + (NODE_CAP < T.MAX_NODES && chips.some((o) => !o.ok) ? (cur ? "<br>" : "") + esc(tr("n.capDevice")) : "");
     $("iCell").addEventListener("click", (ev) => { const c = ev.target.closest(".chip"); if (!c || c.disabled) return; pendingImport.cell = +c.dataset.v; render(); });
     if (info.ifc) { $("iBody").querySelectorAll("[data-el]").forEach((cb) => cb.addEventListener("change", () => ifcTogglePick(+cb.dataset.el, cb.checked))); ifcBindRows(info.ifc); }
     $("iGo").disabled = !cur;
@@ -3415,6 +3555,7 @@ addEventListener("drop", (e) => {
    Salvataggio automatico (IndexedDB) — un documento solo, sovrascritto
    ========================================================================= */
 const SDB = "viewifc_terrain_sculptor", SDBV = 1, SSTORE = "doc", SKEY = "current";
+if (IOS) for (const id of ["fileIn", "refIn"]) $(id).removeAttribute("accept");      // il tipo lo controlla openFile
 function idbOpen(name, ver, store) {
   return new Promise((res, rej) => {
     let r;
@@ -3444,6 +3585,7 @@ async function saveNow() {
     db.close();
     dirty = false; S.lastSave = Date.now();
     $("saveDot").classList.remove("wait");
+    if (IOS) itpOnce();
     const n = $("saveNote"); if (n) n.textContent = saveText();
   } catch (e) {
     console.warn("salvataggio:", e);
@@ -3461,6 +3603,11 @@ async function loadSaved() {
   } catch (e) { S.saveOk = false; return null; }
 }
 addEventListener("pagehide", () => { if (dirty) saveNow(); });
+function itpOnce() {
+  try { if (localStorage.getItem("viewifc_terrain_itp")) return; localStorage.setItem("viewifc_terrain_itp", "1"); } catch (e) { return; }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  toast(tr("t.itp"), true);
+}
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && dirty) saveNow(); });
 
 /* =========================================================================
@@ -3503,7 +3650,8 @@ function toast(msg, warn) {
    Vista: centrata nello spazio libero fra rail e pannello
    ========================================================================= */
 const RAIL_W = 82;
-const podW = () => (S.podOff ? 14 : $("pod").getBoundingClientRect().width + 28);
+const podW = () => (S.podOff || SHEET.matches ? 14 : $("pod").getBoundingClientRect().width + 28);
+const podH = () => (!S.podOff && SHEET.matches ? $("pod").getBoundingClientRect().height + 16 : 0);     // il foglio dal basso
 /* finestra 0×0 (pagina aperta in un riquadro nascosto): proporzioni e
    inquadratura verrebbero NaN e la scena resterebbe vuota anche dopo, quando la
    finestra compare — si rimandano al primo resize con una misura vera */
@@ -3514,7 +3662,7 @@ function resize() {
   if (!W || !H) return;
   renderer.setSize(W, H, false);
   camera.aspect = W / H;
-  camera.setViewOffset(W, H, -(RAIL_W - podW()) / 2, 0, W, H);
+  camera.setViewOffset(W, H, -(RAIL_W - podW()) / 2, podH() / 2, W, H);
   camera.updateProjectionMatrix();
   if (frameLater) frameAll();
 }
@@ -3530,7 +3678,7 @@ function frameAll() {
   const zlo = S.look.block ? look.base() : S.range.min, zhi = S.range.max;
   const pts = [];
   for (const x of [x0, x0 + Lx]) for (const y of [y0, y0 + Ly]) for (const z of [zlo, zhi]) pts.push(new THREE.Vector3(x, y, z));
-  const L = RAIL_W + 12, R = Math.max(L + 200, innerWidth - podW() - 12), Tp = 70, B = innerHeight - 54;
+  const L = RAIL_W + 12, R = Math.max(L + 200, innerWidth - podW() - 12), Tp = 70, B = innerHeight - 54 - podH();
   const vfov = THREE.MathUtils.degToRad(camera.fov), dir = new THREE.Vector3(-0.35, -0.8, 0.55).normalize();
   const tgt = new THREE.Vector3(x0 + Lx / 2, y0 + Ly / 2, (zlo + zhi) / 2), right = new THREE.Vector3(), up = new THREE.Vector3();
   let d = Math.max(20, Math.hypot(Lx, Ly, zhi - zlo));
@@ -3579,6 +3727,7 @@ function applyLang(lang) {
   if (!$("sheet").hidden && !document.querySelector('#sheet [data-panel="new"]').hidden) renderNew();
   status(null);
   renderDrawBar();
+  renderPen();
 }
 document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("click", () => applyLang(b.dataset.lang)));
 (function initTheme() {
@@ -3638,7 +3787,7 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
 window.__ts = { T, IO, get S() { return S; }, get draft() { return draft; }, get handles() { return handleList.map((h) => ({ kind: h.kind, k: h.k, screen: toScreen(h.x, h.y, h.z) })); },
   get refs() { return refs.map((r) => ({ name: r.name, state: r.state, how: r.how, notes: r.notes, elements: r.elements, tris: r.tris, simplified: r.simplified, box: r.meshes.length ? (({ min, max }) => [min.toArray(), max.toArray()])(new THREE.Box3().setFromObject(refGroup)) : null })); },
   get look() { return S.doc ? { block: !!S.look.block, ...lookOf(), baseEff: look.base(), waters: look.wOps.map((o) => ({ id: o.id, level: o.level, n: o.polygon.length })), meshes: look.wMeshes.length } : null; },
-  camera, controls, pick, setMode, frameAll, saveNow };
+  camera, controls, pick, setMode, frameAll, saveNow, get renderer() { return renderer; }, renderNow: () => renderer.render(scene, camera), get NODE_CAP() { return NODE_CAP; } };
 </script>
 </body>
 </html>
