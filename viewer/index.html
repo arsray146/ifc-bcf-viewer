@@ -366,8 +366,8 @@ main.left-off .left-resize{display:none}
 .tree-more:hover{text-decoration:underline}
 
 /* issues */
-#issueSearch,#reportSearch,#idsSearch,#qtoSearch,#qtoGroupMode,.qto-sel{width:100%;margin-top:9px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--text);font:inherit;font-size:13px;padding:6px 10px}
-#issueSearch:focus,#reportSearch:focus,#idsSearch:focus,#qtoSearch:focus,#qtoGroupMode:focus,.qto-sel:focus{outline:none;border-color:var(--lime-deep)}
+#issueSearch,#reportSearch,#idsSearch,#qtoSearch,#srchText,#qtoGroupMode,.qto-sel{width:100%;margin-top:9px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--text);font:inherit;font-size:13px;padding:6px 10px}
+#issueSearch:focus,#reportSearch:focus,#idsSearch:focus,#qtoSearch:focus,#srchText:focus,#qtoGroupMode:focus,.qto-sel:focus{outline:none;border-color:var(--lime-deep)}
 .qto-sel:disabled{opacity:.55}
 .only-loaded{display:flex;align-items:center;gap:7px;margin-top:9px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none}
 .only-loaded input{accent-color:var(--lime-deep)}
@@ -501,6 +501,60 @@ main.left-off .left-resize{display:none}
    quindi è dove si guadagna di più. NB: l'overflow va su #qtoBlock, non su
    .ltab-page, che è condivisa con gli altri pannelli di sinistra. */
 #qtoBlock{overflow-y:auto;overscroll-behavior:contain}
+/* ===== Cerca (v2.10.0) — stessa impaginazione del QTO: scorre il blocco intero ===== */
+#searchBlock{overflow-y:auto;overscroll-behavior:contain}
+#searchBlock>.panel-head{flex:0 0 auto}
+.srch-inparams{padding:8px 4px 0}
+.srch-k{display:flex;align-items:center;gap:8px;margin-top:11px}
+.srch-k .qto-lbl{margin-top:0;flex:1}
+.srch-comb{flex:0 0 auto}
+.srch-comb button{flex:none;padding:5px 9px}
+/* scheda filtro: colonna a passo unico (6 px) — niente margini sui figli, così
+   la riga operatore/valore ha lo stesso stacco delle tendine sopra; tutte le
+   celle alte uguali (32 px) anche tra <select> e <input> */
+.srch-rule{position:relative;display:flex;flex-direction:column;gap:6px;margin-top:8px;padding:8px 30px 8px 8px;border:1px solid var(--line);border-radius:9px;background:var(--panel-2)}
+.srch-rule .qto-sel,.srch-rule .srch-val{margin:0;height:32px;box-sizing:border-box}
+.srch-rule .srch-row{display:flex;gap:6px}
+.srch-rule .srch-row .srch-op{flex:0 0 42%;min-width:0}
+.srch-rule .srch-row .srch-val{flex:1;min-width:0}
+.srch-val{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:9px;color:var(--text);font:inherit;font-size:13px;padding:6px 10px}
+.srch-val:focus{outline:none;border-color:var(--lime-deep)}
+/* «è uno di»: conteggio al posto del valore + lista spuntabile dei valori presenti */
+.srch-pickn{display:flex;align-items:center;color:var(--muted);font-size:12px;background:none;border-style:dashed}
+.srch-pick{display:flex;flex-direction:column;gap:6px}
+.srch-pick-head{display:flex;gap:6px;align-items:center}
+.srch-pick-f{flex:1;min-width:0;height:30px;box-sizing:border-box;background:var(--panel);border:1px solid var(--line);border-radius:999px;color:var(--text);font:inherit;font-size:12px;padding:5px 11px}
+.srch-pick-f:focus{outline:none;border-color:var(--lime-deep)}
+.srch-pick-clr{font-size:11px;padding:4px 8px;border-radius:7px}
+.srch-pick-clr[hidden]{display:none}
+.srch-pick-list{max-height:210px;overflow-y:auto;overscroll-behavior:contain;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:3px}
+.srch-opt{display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:6px;font-size:12px;cursor:pointer;min-width:0}
+.srch-opt:hover{background:var(--panel-2)}
+.srch-opt input{flex:none;margin:0;accent-color:var(--lime-deep)}
+.srch-opt .v{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.srch-opt .n{flex:none;font-family:var(--mono);font-size:10px;color:var(--faint)}
+.srch-pick-note{display:flex;align-items:center;gap:7px;padding:7px 8px;font-size:11.5px;color:var(--faint);line-height:1.45}
+.srch-x{position:absolute;top:6px;right:5px;border:none;background:none;color:var(--faint);cursor:pointer;font-size:15px;line-height:1;padding:2px 5px;border-radius:5px}
+.srch-x:hover{color:var(--text);background:var(--lime-soft)}
+.srch-add{width:100%;margin-top:8px;padding:7px 10px;border:1px dashed var(--line-2);border-radius:9px;background:none;color:var(--muted);font:inherit;font-size:12px;cursor:pointer}
+.srch-add:hover:not(:disabled){border-color:var(--lime-deep);color:var(--text)}
+.srch-add:disabled{opacity:.5;cursor:not-allowed}
+.srch-acts{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.srch-acts[hidden]{display:none}
+.srch-acts button{flex:1 1 auto;padding:6px 9px;border:1px solid var(--line-2);border-radius:7px;background:var(--panel-2);color:var(--text);font-family:var(--disp);font-weight:700;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;white-space:nowrap}
+.srch-acts button:hover{border-color:var(--lime-deep)}
+#srchList{flex:0 0 auto;padding:6px 7px 12px}
+.srch-res{display:flex;flex-direction:column;gap:1px;padding:5px 8px;border-radius:7px;cursor:pointer;min-width:0}
+.srch-res:hover{background:var(--panel-2)}
+.srch-res.sel{background:var(--lime-soft);box-shadow:inset 2px 0 0 var(--lime-deep)}
+.srch-res .r1{display:flex;gap:8px;align-items:baseline;min-width:0}
+.srch-res .nm{flex:1;min-width:0;font-size:12.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srch-res .cl{flex:none;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.srch-res .r2{font-family:var(--mono);font-size:10px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.srch-res .pv{color:var(--muted)}
+.srch-res.hidden-el .nm{color:var(--faint);opacity:.6}
+.srch-more{width:100%;margin-top:6px;padding:6px;border:none;border-radius:7px;background:var(--panel-2);color:var(--muted);font:inherit;font-size:12px;cursor:pointer}
+.srch-more:hover{color:var(--text)}
 #qtoBlock>.panel-head{flex:0 0 auto}
 #qtoList{flex:0 0 auto;padding:9px}
 .qto-lbl{display:block;margin-top:9px;font-family:var(--disp);font-weight:600;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -1145,8 +1199,8 @@ main:has(#profilePanel:not([hidden])) #detailPanel{bottom:262px}
    se un browser aprisse comunque quello di sistema. */
 select option{background:var(--panel-solid);color:var(--text)}
 /* input di ricerca e select a pillola */
-#issueSearch,#reportSearch,#idsSearch,#qtoSearch{border-radius:999px;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line);border:none;padding:7px 13px}
-#issueSearch:focus,#reportSearch:focus,#idsSearch:focus,#qtoSearch:focus{box-shadow:inset 0 0 0 1px var(--lime-line)}
+#issueSearch,#reportSearch,#idsSearch,#qtoSearch,#srchText{border-radius:999px;background:var(--panel-2);box-shadow:inset 0 0 0 1px var(--line);border:none;padding:7px 13px}
+#issueSearch:focus,#reportSearch:focus,#idsSearch:focus,#qtoSearch:focus,#srchText:focus{box-shadow:inset 0 0 0 1px var(--lime-line)}
 #qtoGroupMode,.qto-sel{border-radius:9px}
 /* selezione morbida: fill + hairline lime, niente outline pieno */
 .tree-el.sel{background:var(--lime-soft);outline:none;box-shadow:inset 0 0 0 1px var(--lime-line)}
@@ -1300,6 +1354,10 @@ body.diff-embed #railDiff{display:flex}
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5M12 16h.01"/></svg>
       <span class="rail-dot" hidden></span>
     </button>
+    <button class="rail-btn" id="railSearch" data-railtab="search" data-i18n-title="tab.search" title="Cerca">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg>
+      <span class="rail-dot" hidden></span>
+    </button>
     <button class="rail-btn" id="railQto" data-railtab="qto" data-i18n-title="tab.qto" title="QTO">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>
       <span class="rail-dot" hidden></span>
@@ -1325,6 +1383,7 @@ body.diff-embed #railDiff{display:flex}
       <button class="ltab on" data-tab="models"><span data-i18n="tab.models">Modelli</span> <span class="tbadge" id="tabModelsCount">0</span></button>
       <button class="ltab" data-tab="diff"><span data-i18n="tab.diff">Confronto</span> <span class="tbadge" id="tabDiffCount">0</span></button>
       <button class="ltab" data-tab="issues"><span data-i18n="tab.issues">Issues</span> <span class="tbadge" id="tabIssuesCount">0</span></button>
+      <button class="ltab" data-tab="search"><span data-i18n="tab.search">Cerca</span> <span class="tbadge" id="tabSearchCount">0</span></button>
       <button class="ltab" data-tab="qto" data-i18n-title="title.qtoTab" title="Computo delle quantità (Quantity Take-Off) dai modelli caricati"><span data-i18n="tab.qto">QTO</span> <span class="tbadge" id="tabQtoCount">0</span></button>
       <button class="ltab" data-tab="clouds"><span data-i18n="pc.title">Nuvole di punti</span> <span class="tbadge" id="tabCloudsCount">0</span></button>
       <button id="leftCollapse" data-i18n-title="title.collapse" title="Comprimi il pannello laterale">«</button>
@@ -1523,6 +1582,36 @@ body.diff-embed #railDiff{display:flex}
           </div>
           <div class="empty-note" id="clashLeftNote" data-i18n-html="empty.noClash">Nessun clash eseguito.<br>Definisci <b>Set A</b> e <b>Set B</b>, il tipo di test e la tolleranza, poi premi <b>Esegui clash</b>: i risultati compaiono nel pannello a destra.</div>
         </div>
+      </div>
+    </div>
+    <!-- pagina "Cerca" (v2.10.0): testo libero + filtri su classe, modello,
+         contenitore e parametri dei pset; i risultati restano qui, le proprietà
+         dell'elemento cliccato vanno nel pannello Dettagli a destra -->
+    <div id="searchBlock" class="ltab-page" style="display:none">
+      <div class="panel-head">
+        <div id="srchWarmup" class="qto-warmup" hidden><span class="mini-spin"></span><span></span></div>
+        <input id="srchText" type="text" autocomplete="off" spellcheck="false" data-i18n-ph="srch.ph" placeholder="Nome, GUID, classe, Tag…">
+        <label class="c2d-prev srch-inparams"><input id="srchInParams" type="checkbox"> <span data-i18n="srch.inParams" data-i18n-title="srch.inParamsT" title="Il testo cerca anche nei valori di tutti i parametri dei pset (istanza e type)">Cerca anche nei valori dei parametri</span></label>
+        <div class="srch-k">
+          <span class="qto-lbl" data-i18n="srch.filters">Filtri</span>
+          <div class="dv-seg srch-comb" id="srchComb" role="group">
+            <button data-comb="and" class="on" data-i18n="srch.and" data-i18n-title="srch.andT" title="L'elemento deve rispettare tutti i filtri">Tutti</button>
+            <button data-comb="or" data-i18n="srch.or" data-i18n-title="srch.orT" title="Basta che l'elemento rispetti uno dei filtri">Almeno uno</button>
+          </div>
+        </div>
+        <div id="srchRules"></div>
+        <button id="btnSrchAddRule" class="srch-add" data-i18n="srch.addRule">＋ Aggiungi filtro</button>
+        <div id="srchSummary" class="ids-summary"></div>
+        <div id="srchActions" class="srch-acts" hidden>
+          <button id="btnSrchSel" data-i18n="srch.selAll" data-i18n-title="srch.selAllT" title="Evidenzia e inquadra tutti i risultati nel 3D">Seleziona</button>
+          <button id="btnSrchOnly" data-i18n="srch.only" data-i18n-title="srch.onlyT" title="Nasconde tutti gli elementi che non sono nei risultati">Solo questi</button>
+          <button id="btnSrchHide" data-i18n="srch.hide" data-i18n-title="srch.hideT" title="Nasconde i risultati nel 3D">Nascondi</button>
+          <button id="btnSrchShowAll" data-i18n="srch.showAll" data-i18n-title="srch.showAllT" title="Mostra di nuovo tutti gli elementi nascosti">Mostra tutto</button>
+          <button id="btnSrchCsv" data-i18n="srch.csv" data-i18n-title="srch.csvT" title="Scarica i risultati in CSV (separatore ; — si apre in Excel), con i parametri dei filtri come colonne">⤓ CSV</button>
+        </div>
+      </div>
+      <div id="srchList">
+        <div class="empty-note" data-i18n-html="srch.empty">Scrivi un testo o aggiungi un filtro.<br>Puoi filtrare per <b>classe IFC</b>, <b>modello</b>, <b>contenitore</b> (piano, zona) e per qualsiasi <b>parametro dei pset</b>.</div>
       </div>
     </div>
     <div id="qtoBlock" class="ltab-page" style="display:none">
@@ -1762,14 +1851,15 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
    bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
    ogni release il .js vecchio in cache non viene più usato. vendor/ resta
    senza versione: cambia solo quando si aggiornano three o web-ifc. */
-import { readLASHeader, parseLAS } from "./las.js?v=2.9.2";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
-import { parseE57, e57PointCount } from "./e57.js?v=2.9.2";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js?v=2.9.2";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.9.2";  // feature QTO (v2.5.0)
+import { readLASHeader, parseLAS } from "./las.js?v=2.10.0";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.10.0";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.10.0";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.0";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.9.2";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.0";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.9.2";  // studio verifica nuvola ↔ modello
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.0";  // studio verifica nuvola ↔ modello
+import * as SRCH from "./search.js?v=2.10.0";                          // feature Cerca (v2.10.0): confronti, regole, CSV
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -1808,6 +1898,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
    · snapshot overlay
    · caricamento file / drag&drop
    · QTO — tab, render, run
+   · Cerca — elementi, filtri, risultati
    · clash detection — adapter geometria, run, UI (feature/clash v2.6.0)
    · utilità UI
    · welcome screen (bootstrap UI)
@@ -1862,7 +1953,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.9.2";
+const APP_VERSION = "2.10.0";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2035,6 +2126,42 @@ const STRINGS = {
     "dv.tMod": "Elementi cambiati fra le due revisioni",
     "dv.tCand": "Coppie proposte sotto la soglia di ri-associazione",
     "dv.tSame": "Elementi identici nelle due revisioni (contesto)",
+    "tab.search": "Cerca",
+    "srch.ph": "Nome, GUID, classe, Tag…",
+    "srch.inParams": "Cerca anche nei valori dei parametri",
+    "srch.inParamsT": "Il testo cerca anche nei valori di tutti i parametri dei pset (istanza e type)",
+    "srch.filters": "Filtri",
+    "srch.and": "Tutti", "srch.andT": "L'elemento deve rispettare tutti i filtri",
+    "srch.or": "Almeno uno", "srch.orT": "Basta che l'elemento rispetti uno dei filtri",
+    "srch.addRule": "＋ Aggiungi filtro",
+    "srch.removeRule": "Rimuovi filtro",
+    "srch.empty": "Scrivi un testo o aggiungi un filtro.<br>Puoi filtrare per <b>classe IFC</b>, <b>modello</b>, <b>contenitore</b> (piano, zona) e per qualsiasi <b>parametro dei pset</b>.",
+    "srch.noModels": "Carica almeno un modello IFC.",
+    "srch.indexing": "Preparo l'elenco degli elementi… ({i}/{n})",
+    "srch.searching": "Cerco… {p}%",
+    "srch.noMatch": "Nessun elemento corrisponde alla ricerca.",
+    "srch.resN": "{n} risultati", "srch.ofN": "su {n} elementi",
+    "srch.more": "Mostra altri {n}",
+    "srch.selAll": "Seleziona", "srch.selAllT": "Evidenzia e inquadra tutti i risultati nel 3D",
+    "srch.only": "Solo questi", "srch.onlyT": "Nasconde tutti gli elementi che non sono nei risultati",
+    "srch.hide": "Nascondi", "srch.hideT": "Nasconde i risultati nel 3D",
+    "srch.showAll": "Mostra tutto", "srch.showAllT": "Mostra di nuovo tutti gli elementi nascosti",
+    "srch.csv": "⤓ CSV", "srch.csvT": "Scarica i risultati in CSV (separatore ; — si apre in Excel), con i parametri dei filtri come colonne",
+    "srch.tooMany": "Troppi risultati da evidenziare insieme ({n}, massimo {max}): restringi la ricerca oppure usa «Solo questi».",
+    "srch.f.class": "Classe IFC", "srch.f.model": "Modello", "srch.f.container": "Contenitore",
+    "srch.f.name": "Nome", "srch.f.pset": "Parametro (pset)",
+    "srch.anyPset": "— qualsiasi pset —",
+    "srch.pick": "— scegli —",
+    "srch.value": "valore",
+    "srch.opT": "≠ e «non contiene» valgono solo per gli elementi che hanno il parametro: per trovare chi non ce l'ha usa «non esiste»",
+    "srch.op.eq": "=", "srch.op.neq": "≠", "srch.op.contains": "contiene", "srch.op.ncontains": "non contiene",
+    "srch.op.starts": "inizia con", "srch.op.gt": ">", "srch.op.gte": "≥", "srch.op.lt": "<", "srch.op.lte": "≤",
+    "srch.op.exists": "esiste", "srch.op.missing": "non esiste", "srch.op.in": "è uno di",
+    "srch.pickN": "{n} selezionati", "srch.pickFilter": "Filtra i valori…", "srch.pickClear": "azzera",
+    "srch.pickLoading": "Leggo i valori presenti nei modelli…", "srch.pickNone": "Nessun valore per questo parametro.",
+    "srch.pickMore": "+{n} altri valori: affina il filtro", "srch.pickProp": "Scegli prima la proprietà: qui compariranno i valori presenti nei modelli.",
+    "srch.loose": "Fuori struttura spaziale",
+    "srch.csvName": "Nome", "srch.csvClass": "Classe IFC", "srch.csvModel": "Modello", "srch.csvCont": "Contenitore",
     "tab.qto": "QTO", "title.qtoTab": "Computo delle quantità (Quantity Take-Off) dai modelli caricati",
     "qto.groupBy": "Raggruppa per",
     "qto.groupClass": "Classe IFC",
@@ -2557,6 +2684,42 @@ const STRINGS = {
     "dv.tMod": "Elements changed between the two revisions",
     "dv.tCand": "Proposed pairs below the re-match threshold",
     "dv.tSame": "Elements identical in both revisions (context)",
+    "tab.search": "Search",
+    "srch.ph": "Name, GUID, class, Tag…",
+    "srch.inParams": "Also search parameter values",
+    "srch.inParamsT": "The text also searches the values of every pset parameter (instance and type)",
+    "srch.filters": "Filters",
+    "srch.and": "All", "srch.andT": "The element must match every filter",
+    "srch.or": "Any", "srch.orT": "The element only needs to match one filter",
+    "srch.addRule": "＋ Add filter",
+    "srch.removeRule": "Remove filter",
+    "srch.empty": "Type some text or add a filter.<br>You can filter by <b>IFC class</b>, <b>model</b>, <b>container</b> (storey, zone) and by any <b>pset parameter</b>.",
+    "srch.noModels": "Load at least one IFC model.",
+    "srch.indexing": "Listing the elements… ({i}/{n})",
+    "srch.searching": "Searching… {p}%",
+    "srch.noMatch": "No element matches the search.",
+    "srch.resN": "{n} results", "srch.ofN": "of {n} elements",
+    "srch.more": "Show {n} more",
+    "srch.selAll": "Select", "srch.selAllT": "Highlight and frame every result in 3D",
+    "srch.only": "Only these", "srch.onlyT": "Hides every element that is not in the results",
+    "srch.hide": "Hide", "srch.hideT": "Hides the results in 3D",
+    "srch.showAll": "Show all", "srch.showAllT": "Show every hidden element again",
+    "srch.csv": "⤓ CSV", "srch.csvT": "Download the results as CSV (separator ; — opens in Excel), with the filtered parameters as columns",
+    "srch.tooMany": "Too many results to highlight at once ({n}, maximum {max}): narrow the search or use “Only these”.",
+    "srch.f.class": "IFC class", "srch.f.model": "Model", "srch.f.container": "Container",
+    "srch.f.name": "Name", "srch.f.pset": "Parameter (pset)",
+    "srch.anyPset": "— any pset —",
+    "srch.pick": "— choose —",
+    "srch.value": "value",
+    "srch.opT": "≠ and “does not contain” only apply to elements that have the parameter: to find those without it use “missing”",
+    "srch.op.eq": "=", "srch.op.neq": "≠", "srch.op.contains": "contains", "srch.op.ncontains": "does not contain",
+    "srch.op.starts": "starts with", "srch.op.gt": ">", "srch.op.gte": "≥", "srch.op.lt": "<", "srch.op.lte": "≤",
+    "srch.op.exists": "exists", "srch.op.missing": "missing", "srch.op.in": "is one of",
+    "srch.pickN": "{n} selected", "srch.pickFilter": "Filter values…", "srch.pickClear": "clear",
+    "srch.pickLoading": "Reading the values found in the models…", "srch.pickNone": "No values for this parameter.",
+    "srch.pickMore": "+{n} more values: refine the filter", "srch.pickProp": "Choose the property first: the values found in the models will appear here.",
+    "srch.loose": "Outside the spatial structure",
+    "srch.csvName": "Name", "srch.csvClass": "IFC class", "srch.csvModel": "Model", "srch.csvCont": "Container",
     "tab.qto": "QTO", "title.qtoTab": "Quantity Take-Off from the loaded models",
     "qto.groupBy": "Group by",
     "qto.groupClass": "IFC class",
@@ -2927,6 +3090,7 @@ function refreshDynamicI18n() {
   try { renderIssueList(); renderReportList(); } catch (e) {}
   try { renderIdsChips(); renderIdsList(); } catch (e) {}
   try { renderQtoSelects(); renderQtoColChips(); renderQtoList(); } catch (e) {}
+  try { renderSearchRules(); renderSearch(); } catch (e) {}   /* Cerca: etichette di filtri e risultati */
   try { renderC2mBlock(); } catch (e) {}   /* righe codici + tabella classi (verifica nuvola) */
   try { if (models.length) renderModelList(); } catch (e) {}   /* tooltip e conteggi delle righe modello */
   try { updateNavHelp(); } catch (e) {}
@@ -3960,6 +4124,7 @@ async function buildModel(data, name) {
   classeCache.clear();   // i nuovi GUID possono ora risolvere la Classe (v1.7.6)
   idsInvalidate();       // l'universo elementi è cambiato: l'esito IDS va ricalcolato
   qtoInvalidate();       // idem per il computo quantità (feature/qto)
+  searchInvalidate();    // idem per la ricerca (feature Cerca, v2.10.0)
   clashInvalidate();     // idem per la clash detection (feature/clash)
   if (_PERF.cur) _PERF.cur.scnInv = Math.round(performance.now() - _tsi);
   prewarmModel(model);  // v1.9.4 — costruisce le mappe pset/type in background (idle),
@@ -4473,6 +4638,7 @@ function removeModel(model) {
   classeCache.clear();   // la risoluzione Classe dipende dai modelli presenti (v1.7.6)
   idsInvalidate();       // l'universo elementi è cambiato: l'esito IDS va ricalcolato
   qtoInvalidate();       // idem per il computo quantità (feature/qto)
+  searchInvalidate();    // idem per la ricerca (feature Cerca, v2.10.0)
   clashInvalidate();     // le mesh rimosse invalidano indice/cache clash (feature/clash)
   updateAlignUI();       // il bottone Asse dipende anche da models.length (LandXML, v2.1.0)
   if (!models.length && !PCLOUD.sources.length) {
@@ -5808,7 +5974,10 @@ function qtoInvalidate() {
   if (typeof renderQtoSelects === "function") { renderQtoSelects(); renderQtoList(); updateQtoBadge(); updateQtoRunBtn(); }
   /* tab QTO in vista: l'indice si ricostruisce in background (fusione + scan
      dei soli modelli senza contributo), mai in modo sincrono nel load path */
-  if (typeof qtoIndexWarmup === "function" && $("qtoBlock").style.display !== "none") qtoIndexWarmup();
+  /* v2.10.0 — anche con la pagina Cerca aperta: i suoi filtri usano lo stesso
+     indice, e senza questo dal secondo modello le tendine Pset restavano vuote */
+  if (typeof qtoIndexWarmup === "function" &&
+      ($("qtoBlock").style.display !== "none" || $("searchBlock").style.display !== "none")) qtoIndexWarmup();
 }
 
 /* Come readPset (che alimenta il pannello proprietà e NON va toccato) ma
@@ -9540,7 +9709,7 @@ function renderQtoSelects() {
    modelli nuovi (federazione in carico) il giro li raccoglie prima di fondere. */
 let _qtoWarmRun = null;
 function _qtoWarmupUI(on, i, n) {
-  for (const id of ["qtoWarmup", "clashWarmup"]) {
+  for (const id of ["qtoWarmup", "clashWarmup", "srchWarmup"]) {
     const el = $(id); if (!el) continue;
     el.hidden = !on;
     if (on) el.lastElementChild.textContent = tr("qto.warmup", { i, n });
@@ -9550,6 +9719,14 @@ function qtoIndexWarmup() {
   if (qtoPropIndex || !models.length || _qtoWarmRun) return;
   _qtoWarmRun = (async () => {
     try {
+      /* v2.10.0 — PRIMA di tutto si cede il turno. Se i contributi erano già
+         tutti pronti (prewarm finito: il caso normale con più modelli) il corpo
+         arrivava al finally SENZA mai sospendersi, cioè prima che l'assegnazione
+         qui sopra fosse eseguita: _qtoWarmRun = null, e subito dopo
+         _qtoWarmRun = <promise già risolta>. Da lì ogni warmup usciva su
+         «_qtoWarmRun» e l'indice azzerato dal modello seguente non si
+         ricostruiva più → tendine Pset vuote in QTO, clash e Cerca. */
+      await null;
       for (;;) {
         const todo = models.filter(m => !m._qtoPsetProps);
         if (!todo.length) break;
@@ -9561,6 +9738,7 @@ function qtoIndexWarmup() {
       _qtoWarmRun = null;
       _qtoWarmupUI(false);
       renderQtoSelects();
+      if ($("searchBlock").style.display !== "none") renderSearchRules();   /* tendine Pset → Proprietà dei filtri */
       if ($("clashPane").style.display !== "none") renderClashUI();
     }
   })();
@@ -9735,15 +9913,526 @@ $("btnQtoRun").addEventListener("click", runQto);
 $("qtoSearch").addEventListener("input", renderQtoList);
 updateQtoRunBtn();
 
+/* ===================== Cerca — elementi, filtri, risultati =====================
+   Feature "Cerca" (v2.10.0). La logica pura (confronti, regole E/O, CSV) sta in
+   viewer/search.js; qui c'è l'accoppiamento con web-ifc.
+   Universo: gli elementi dell'albero (ensureTree), cioè ogni elemento non
+   spaziale raggiungibile dalla struttura più quelli «fuori struttura» — gli
+   assembly compresi, con la geometria delle loro parti. Un record per elemento,
+   costruito una volta per modello e tenuto su m._srchRecs.
+   Pset: istanza + type, letti una volta per pid (m._srchPs), con i valori
+   GREZZI come nel pannello Dettagli (le quantità nelle unità del modello).
+   La ricerca scorre i record a fette di ~12 ms: il viewer resta usabile e una
+   ricerca nuova annulla quella in corso (srch.runId). */
+const SRCH_PAGE = 300;          /* righe disegnate per volta ("Mostra altri") */
+const SRCH_SEL_MAX = 5000;      /* come QTO_ISO_MAX: buildHighlight scala coi selezionati */
+const SRCH_FIELDS = ["pset", "class", "container", "model", "name"];
+const SRCH_ATTR_OPS = ["eq", "neq", "in", "contains", "ncontains", "starts"];
+const srch = { rules: [], combine: "and", q: null, results: null, total: 0, shown: SRCH_PAGE,
+               runId: 0, busy: false, prog: "", timer: 0,
+               valCache: new Map(), valGen: 0 };   /* liste di «è uno di» per pset.prop */
+
+function _srchRecords(m) {
+  if (m._srchRecs) return m._srchRecs;
+  const t = ensureTree(m), out = [];
+  const walk = (n) => {
+    if (!n) return;
+    for (const c of n.classes) for (const it of c.items)
+      out.push({ m, eid: it.eid, name: it.label, cls: c.typeName, cont: n.eid === -1 ? null : n.label, geo: it.geoIds });
+    for (const ch of n.children) walk(ch);
+  };
+  walk(t.root); walk(t.extra);
+  m._srchRecs = out;
+  return out;
+}
+const _srchCont = (r) => r.cont === null ? tr("srch.loose") : r.cont;
+/* GUID, Tag, ObjectType… letti alla prima ricerca testuale che li chiede */
+function _srchExtra(r) {
+  if (r.x === undefined) {
+    r.x = [];
+    try {
+      const l = r.m.api.GetLine(r.m.modelID, r.eid);
+      r.gid = unwrap(l.GlobalId);
+      for (const k of ["Tag", "ObjectType", "Description", "LongName"]) { const v = unwrap(l[k]); if (v) r.x.push(v); }
+    } catch (e) { /* riga illeggibile: restano nome e classe */ }
+  }
+  return r.x;
+}
+const _srchGuid = (r) => r.m.guidByExpress.get(r.eid) || (_srchExtra(r), r.gid) || "";
+
+/* valori di una proprietà: le enumerazioni e le liste diventano più valori
+   (così «= B» trova un'enumerazione [A, B]), i limiti sono due valori */
+function _srchPropVals(pr) {
+  const out = [];
+  const add = (v) => { const s = unwrap(v); out.push(s); };
+  if (pr.NominalValue !== undefined && pr.NominalValue !== null) add(pr.NominalValue);
+  for (const k of ["EnumerationValues", "ListValues"]) if (Array.isArray(pr[k])) for (const v of pr[k]) add(v);
+  for (const k of ["LowerBoundValue", "UpperBoundValue", "SetPointValue"]) if (pr[k] !== undefined && pr[k] !== null) add(pr[k]);
+  if (!out.length) out.push("");   /* la proprietà c'è anche se vuota: «esiste» deve trovarla */
+  return out;
+}
+const SRCH_QKEYS = ["VolumeValue", "AreaValue", "LengthValue", "CountValue", "WeightValue", "TimeValue"];
+function _srchPset(m, pid) {
+  const cache = m._srchPs || (m._srchPs = new Map());
+  let ps = cache.get(pid);
+  if (ps !== undefined) return ps;
+  ps = null;
+  try {
+    const p = m.api.GetLine(m.modelID, pid, true);
+    ps = { name: unwrap(p.Name), vals: new Map() };
+    for (const pr of p.HasProperties || []) if (pr) ps.vals.set(unwrap(pr.Name), _srchPropVals(pr));
+    for (const q of p.Quantities || []) {
+      if (!q) continue;
+      let v = "";
+      for (const k of SRCH_QKEYS) if (q[k] !== undefined && q[k] !== null) { v = unwrap(q[k]); break; }
+      ps.vals.set(unwrap(q.Name), [v]);
+    }
+  } catch (e) { ps = null; }
+  cache.set(pid, ps);
+  return ps;
+}
+/* pset del type prima, poi quelli dell'istanza (come nel QTO) */
+function _srchPids(r) {
+  const m = r.m, out = [];
+  const tId = m.typeOfElem ? m.typeOfElem.get(r.eid) : undefined;
+  if (tId !== undefined) for (const pid of m.typePsetIds.get(tId) || []) out.push(pid);
+  if (m.psetMap) for (const pid of m.psetMap.get(r.eid) || []) out.push(pid);
+  return out;
+}
+const _srchAcc = {
+  text: (r) => [r.name, _srchGuid(r), r.cls, ..._srchExtra(r)],
+  params: (r) => {
+    const out = [];
+    for (const pid of _srchPids(r)) { const ps = _srchPset(r.m, pid); if (ps) for (const vs of ps.vals.values()) for (const v of vs) out.push(v); }
+    return out;
+  },
+  attr: (r, f) => f === "class" ? r.cls : f === "model" ? r.m.name : f === "container" ? _srchCont(r) : r.name,
+  prop: (r, pset, prop) => {
+    const out = [];
+    for (const pid of _srchPids(r)) {
+      const ps = _srchPset(r.m, pid);
+      if (!ps || (pset && ps.name !== pset)) continue;
+      const vs = ps.vals.get(prop);
+      if (vs) for (const v of vs) out.push(v);
+    }
+    return out;
+  }
+};
+
+/* valori distinti per le tendine di classe / modello / contenitore */
+function _srchDistinct(field) {
+  const set = new Set();
+  for (const m of models) {
+    if (field === "model") { set.add(m.name); continue; }
+    for (const r of _srchRecords(m)) set.add(field === "class" ? r.cls : _srchCont(r));
+  }
+  return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+}
+/* tutte le proprietà di tutti i pset (per «qualsiasi pset») */
+function _srchAllProps() {
+  if (!qtoPropIndex) return [];
+  const set = new Set();
+  for (const props of qtoPropIndex.values()) for (const p of props) set.add(p);
+  return [...set].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+}
+
+const _srchYield = () => new Promise(r => setTimeout(r, 0));
+function scheduleSearch(delay) {
+  clearTimeout(srch.timer);
+  srch.timer = setTimeout(runSearch, delay === undefined ? 220 : delay);
+}
+async function runSearch() {
+  const id = ++srch.runId;
+  const q = SRCH.compileQuery({ text: $("srchText").value, inParams: $("srchInParams").checked,
+                                combine: srch.combine, rules: srch.rules });
+  srch.q = q;
+  if (!models.length || !q.hasFilter) {
+    srch.busy = false; srch.results = null; srch.total = 0;
+    renderSearch(); return;
+  }
+  srch.busy = true;
+  const prog = (s) => { srch.prog = s; renderSearchSummary(); };
+  try {
+    const needPsets = q.rules.some(r => r.field === "pset") || (q.tokens.length && $("srchInParams").checked);
+    const all = [];
+    for (let i = 0; i < models.length; i++) {
+      const m = models[i];
+      if (!m._srchRecs) { prog(tr("srch.indexing", { i: i + 1, n: models.length })); await _srchYield(); if (id !== srch.runId) return; }
+      if (needPsets) {
+        await _prewarmPsets(m); await _prewarmTypes(m);   /* a fette; poi il lazy sincrono se il prewarm è stato interrotto */
+        if (id !== srch.runId) return;
+        ensurePsetMap(m); ensureTypeMap(m);
+      }
+      for (const r of _srchRecords(m)) all.push(r);
+    }
+    const res = [];
+    let t0 = performance.now();
+    for (let i = 0; i < all.length; i++) {
+      if (performance.now() - t0 > 12) {
+        prog(tr("srch.searching", { p: Math.round(i * 100 / all.length) }));
+        await _srchYield();
+        if (id !== srch.runId) return;
+        t0 = performance.now();
+      }
+      if (q.test(all[i], _srchAcc)) res.push(all[i]);
+    }
+    srch.results = res; srch.total = all.length; srch.shown = SRCH_PAGE;
+  } catch (e) {
+    srch.results = null; toast("Cerca: " + e.message); console.warn(e);
+  } finally {
+    if (id === srch.runId) { srch.busy = false; renderSearch(); }
+  }
+}
+
+/* modelli cambiati: record e risultati non valgono più (i record dei modelli
+   rimasti restano su m._srchRecs, non si ricostruiscono) */
+function searchInvalidate() {
+  srch.runId++;
+  srch.busy = false; srch.results = null; srch.total = 0;
+  srch.valCache.clear(); srch.valGen++;
+  if (!$("searchBlock")) return;
+  renderSearchRules();
+  if (srch.q && srch.q.hasFilter && models.length) scheduleSearch(0);
+  else renderSearch();
+}
+
+function renderSearch() {
+  renderSearchSummary(); renderSearchList();
+  const b = $("tabSearchCount"); if (b) b.textContent = srch.results ? srch.results.length : 0;
+}
+function renderSearchSummary() {
+  const box = $("srchSummary"); if (!box) return;
+  if (srch.busy) box.innerHTML = `<span class="qto-warmup"><span class="mini-spin"></span><span>${esc(srch.prog)}</span></span>`;
+  else if (srch.results) box.innerHTML = `<span><b>${tr("srch.resN", { n: srch.results.length })}</b></span><span>${tr("srch.ofN", { n: srch.total })}</span>`;
+  else box.innerHTML = "";
+  $("srchActions").hidden = srch.busy || !srch.results || !srch.results.length;
+}
+
+function renderSearchList() {
+  const list = $("srchList"); if (!list) return;
+  if (!models.length) { list.innerHTML = `<div class="empty-note">${tr("srch.noModels")}</div>`; return; }
+  if (!srch.results) { if (!srch.busy) list.innerHTML = `<div class="empty-note">${tr("srch.empty")}</div>`; return; }
+  if (!srch.results.length) { list.innerHTML = `<div class="empty-note">${tr("srch.noMatch")}</div>`; return; }
+  /* sotto ogni risultato, il valore del primo filtro su parametro: si vede perché è uscito */
+  const pr = srch.q && srch.q.rules.find(r => r.field === "pset" && !SRCH.NO_VALUE_OPS.has(r.op));
+  const frag = document.createDocumentFragment();
+  for (const r of srch.results.slice(0, srch.shown)) {
+    const row = document.createElement("div");
+    row.className = "srch-res";
+    if (r.geo.length && r.geo.every(g => r.m.hiddenEids.has(g))) row.classList.add("hidden-el");
+    row.innerHTML = `<div class="r1"><span class="nm"></span><span class="cl"></span></div><div class="r2"></div>`;
+    row.querySelector(".nm").textContent = r.name;
+    row.querySelector(".cl").textContent = r.cls;
+    let r2 = (models.length > 1 ? r.m.name + " · " : "") + _srchCont(r);
+    if (pr) { const vs = _srchAcc.prop(r, pr.pset, pr.prop); if (vs.length) r2 += " · " + pr.prop + " = " + vs.join(" | "); }
+    row.querySelector(".r2").textContent = r2;
+    row.title = r.name + "\n" + r.cls + "\n" + r2;
+    const items = () => (r.geo.length ? r.geo : [r.eid]).map(eid => ({ model: r.m, eid }));
+    row.addEventListener("click", (e) => {
+      if (e.ctrlKey || e.metaKey) { toggleSelection(items(), row); return; }
+      selectElement(r.m, { eid: r.eid, geoIds: r.geo }, row);   /* proprietà nel pannello Dettagli */
+    });
+    row.addEventListener("dblclick", () => zoomSelection());
+    frag.appendChild(row);
+  }
+  list.innerHTML = "";
+  list.appendChild(frag);
+  const rest = srch.results.length - srch.shown;
+  if (rest > 0) {
+    const more = document.createElement("button");
+    more.className = "srch-more";
+    more.textContent = tr("srch.more", { n: Math.min(rest, SRCH_PAGE) });
+    more.addEventListener("click", () => { srch.shown += SRCH_PAGE; renderSearchList(); });
+    list.appendChild(more);
+  }
+}
+
+/* ---- «è uno di»: valori presenti nei modelli, da spuntare ----
+   Classe / modello / contenitore: dai record, subito. Parametro: si leggono i
+   pset di tutti gli elementi una volta (stesse cache della ricerca, a fette di
+   ~12 ms), poi la lista resta in srch.valCache finché non cambiano i modelli. */
+const SRCH_PICK_MAX = 500;      /* voci disegnate; oltre si chiede di affinare il filtro */
+async function _srchValuesOf(rule) {
+  if (rule.field !== "pset") {
+    const vals = [];
+    for (const m of models) {
+      if (rule.field === "model") { for (let i = 0; i < _srchRecords(m).length; i++) vals.push(m.name); continue; }
+      for (const r of _srchRecords(m)) vals.push(_srchAcc.attr(r, rule.field));
+    }
+    return SRCH.distinctValues(vals);
+  }
+  const key = rule.pset + "\u0001" + rule.prop;
+  if (srch.valCache.has(key)) return srch.valCache.get(key);
+  const gen = srch.valGen, vals = [];
+  let t0 = performance.now();
+  for (const m of models) {
+    await _prewarmPsets(m); await _prewarmTypes(m);
+    if (gen !== srch.valGen) return null;   /* modelli cambiati nel frattempo */
+    ensurePsetMap(m); ensureTypeMap(m);
+    for (const r of _srchRecords(m)) {
+      if (performance.now() - t0 > 12) {
+        await _srchYield();
+        if (gen !== srch.valGen) return null;
+        t0 = performance.now();
+      }
+      for (const v of _srchAcc.prop(r, rule.pset, rule.prop)) vals.push(v);
+    }
+  }
+  const out = SRCH.distinctValues(vals);
+  srch.valCache.set(key, out);
+  return out;
+}
+function _srchPickBox(rule, countEl) {
+  const box = document.createElement("div");
+  box.className = "srch-pick";
+  if (rule.field === "pset" && !rule.prop) {
+    box.innerHTML = `<div class="srch-pick-note">${esc(tr("srch.pickProp"))}</div>`;
+    return box;
+  }
+  box.innerHTML = `<div class="srch-pick-head"><input type="text" class="srch-pick-f" spellcheck="false" autocomplete="off"><button class="dv-only srch-pick-clr"></button></div>
+    <div class="srch-pick-list"><div class="srch-pick-note"><span class="mini-spin"></span> ${esc(tr("srch.pickLoading"))}</div></div>`;
+  const f = box.querySelector(".srch-pick-f"), list = box.querySelector(".srch-pick-list");
+  const clr = box.querySelector(".srch-pick-clr");
+  f.placeholder = tr("srch.pickFilter");
+  clr.textContent = tr("srch.pickClear");
+  let all = null;
+  const sync = () => {
+    countEl.textContent = tr("srch.pickN", { n: rule.value.length });
+    clr.hidden = !rule.value.length;
+  };
+  const draw = () => {
+    if (!all) return;
+    if (!all.length) { list.innerHTML = `<div class="srch-pick-note">${esc(tr("srch.pickNone"))}</div>`; return; }
+    const q = SRCH.normText(f.value);
+    const chosen = new Set(rule.value);
+    /* le spunte restano in cima anche se il filtro non le comprende */
+    const hits = all.filter(d => chosen.has(d.v) || !q || SRCH.normText(d.v).includes(q))
+                    .sort((a, b) => (chosen.has(b.v) ? 1 : 0) - (chosen.has(a.v) ? 1 : 0));
+    const frag = document.createDocumentFragment();
+    for (const d of hits.slice(0, SRCH_PICK_MAX)) {
+      const lab = document.createElement("label");
+      lab.className = "srch-opt";
+      lab.innerHTML = `<input type="checkbox"><span class="v"></span><span class="n">${d.n}</span>`;
+      lab.querySelector(".v").textContent = d.v;
+      lab.title = d.v;
+      const cb = lab.querySelector("input");
+      cb.checked = chosen.has(d.v);
+      cb.addEventListener("change", () => {
+        if (cb.checked) { if (!rule.value.includes(d.v)) rule.value.push(d.v); }
+        else rule.value = rule.value.filter(x => x !== d.v);
+        sync(); scheduleSearch(0);
+      });
+      frag.appendChild(lab);
+    }
+    list.innerHTML = "";
+    list.appendChild(frag);
+    if (hits.length > SRCH_PICK_MAX) {
+      const more = document.createElement("div");
+      more.className = "srch-pick-note";
+      more.textContent = tr("srch.pickMore", { n: hits.length - SRCH_PICK_MAX });
+      list.appendChild(more);
+    }
+  };
+  f.addEventListener("input", draw);
+  clr.addEventListener("click", () => { rule.value = []; sync(); draw(); scheduleSearch(0); });
+  sync();
+  _srchValuesOf(rule).then((vals) => {
+    if (!vals || !box.isConnected) return;
+    all = vals; draw();
+  }).catch((e) => { list.innerHTML = `<div class="srch-pick-note">${esc(e.message)}</div>`; });
+  return box;
+}
+
+/* ---- filtri: una scheda per regola ---- */
+function _srchSelect(cls, opts, cur) {
+  const sel = document.createElement("select");
+  sel.className = cls;
+  for (const [v, label] of opts) {
+    const o = document.createElement("option");
+    o.value = v; o.textContent = label;
+    sel.appendChild(o);
+  }
+  if (opts.some(o => o[0] === cur)) sel.value = cur;
+  return sel;
+}
+function renderSearchRules() {
+  const box = $("srchRules"); if (!box) return;
+  box.innerHTML = "";
+  srch.rules.forEach((rule, idx) => {
+    const card = document.createElement("div");
+    card.className = "srch-rule";
+    const fieldSel = _srchSelect("qto-sel", SRCH_FIELDS.map(f => [f, tr("srch.f." + f)]), rule.field);
+    fieldSel.addEventListener("change", () => {
+      rule.field = fieldSel.value;
+      if (rule.field !== "pset" && !SRCH_ATTR_OPS.includes(rule.op)) rule.op = "eq";
+      rule.value = rule.op === "in" ? [] : "";
+      renderSearchRules(); scheduleSearch(0);
+    });
+    card.appendChild(fieldSel);
+    if (rule.field === "pset") {
+      /* la scelta resta in tendina anche mentre l'indice Pset→Proprietà si
+         ricostruisce (un modello appena aggiunto lo azzera per qualche istante) */
+      const psets = qtoPropIndex ? [...qtoPropIndex.keys()] : [];
+      if (rule.pset && !psets.includes(rule.pset)) psets.unshift(rule.pset);
+      const psetSel = _srchSelect("qto-sel", [["", tr("srch.anyPset")], ...psets.map(p => [p, p])], rule.pset);
+      const props = (rule.pset ? (qtoPropIndex && qtoPropIndex.get(rule.pset)) || [] : _srchAllProps()).slice();
+      if (rule.prop && !props.includes(rule.prop)) props.unshift(rule.prop);
+      const propSel = _srchSelect("qto-sel", [["", tr("qto.selProp")], ...props.map(p => [p, p])], rule.prop);
+      psetSel.addEventListener("change", () => {
+        rule.pset = psetSel.value;
+        if (rule.pset && rule.prop && !((qtoPropIndex && qtoPropIndex.get(rule.pset)) || []).includes(rule.prop)) rule.prop = "";
+        if (rule.op === "in") rule.value = [];
+        renderSearchRules(); scheduleSearch(0);
+      });
+      propSel.addEventListener("change", () => {
+        rule.prop = propSel.value;
+        if (rule.op === "in") { rule.value = []; renderSearchRules(); }
+        scheduleSearch(0);
+      });
+      card.appendChild(psetSel); card.appendChild(propSel);
+    }
+    const row = document.createElement("div");
+    row.className = "srch-row";
+    const ops = rule.field === "pset" ? SRCH.OPS : SRCH_ATTR_OPS;
+    const opSel = _srchSelect("qto-sel srch-op", ops.map(o => [o, tr("srch.op." + o)]), rule.op);
+    if (rule.field === "pset") opSel.title = tr("srch.opT");
+    opSel.addEventListener("change", () => {
+      const was = rule.op;
+      rule.op = opSel.value;
+      /* = ↔ è uno di: il valore scritto diventa la prima spunta, e viceversa */
+      if (rule.op === "in" && was !== "in") rule.value = typeof rule.value === "string" && rule.value.trim() ? [rule.value] : [];
+      else if (rule.op !== "in" && was === "in") rule.value = Array.isArray(rule.value) && rule.value.length === 1 ? rule.value[0] : "";
+      renderSearchRules(); scheduleSearch(0);
+    });
+    row.appendChild(opSel);
+    if (rule.op === "in") {
+      const n = document.createElement("span");
+      n.className = "srch-val srch-pickn";
+      n.textContent = tr("srch.pickN", { n: rule.value.length });
+      row.appendChild(n);
+      card.appendChild(row);
+      card.appendChild(_srchPickBox(rule, n));
+    } else if (!SRCH.NO_VALUE_OPS.has(rule.op)) {
+      let val;
+      if (rule.field !== "pset" && rule.field !== "name" && (rule.op === "eq" || rule.op === "neq")) {
+        const vals = _srchDistinct(rule.field);
+        if (rule.value && !vals.includes(rule.value)) vals.unshift(rule.value);
+        val = _srchSelect("qto-sel srch-val", [["", tr("srch.pick")], ...vals.map(v => [v, v])], rule.value);
+        val.addEventListener("change", () => { rule.value = val.value; scheduleSearch(0); });
+      } else {
+        val = document.createElement("input");
+        val.type = "text"; val.className = "srch-val"; val.value = rule.value || "";
+        val.placeholder = tr("srch.value"); val.spellcheck = false;
+        if (SRCH.NUM_OPS.has(rule.op)) val.inputMode = "decimal";
+        val.addEventListener("input", () => { rule.value = val.value; scheduleSearch(); });
+      }
+      row.appendChild(val);
+    }
+    if (rule.op !== "in") card.appendChild(row);
+    const x = document.createElement("button");
+    x.className = "srch-x"; x.textContent = "×"; x.title = tr("srch.removeRule");
+    x.addEventListener("click", () => { srch.rules.splice(idx, 1); renderSearchRules(); scheduleSearch(0); });
+    card.appendChild(x);
+    box.appendChild(card);
+  });
+  $("btnSrchAddRule").disabled = !models.length;
+}
+
+/* ---- azioni sui risultati ---- */
+function _srchByModel(list) {
+  const by = new Map();
+  for (const r of list) {
+    if (!models.includes(r.m)) continue;
+    let s = by.get(r.m); if (!s) { s = new Set(); by.set(r.m, s); }
+    for (const g of r.geo) s.add(g);
+  }
+  return by;
+}
+function searchSelectAll() {
+  const res = srch.results || [];
+  if (!res.length) return;
+  if (res.length > SRCH_SEL_MAX) { toast(tr("srch.tooMany", { n: res.length, max: SRCH_SEL_MAX })); return; }
+  const items = [];
+  for (const [m, ids] of _srchByModel(res)) for (const eid of ids) items.push({ model: m, eid });
+  if (!items.length) return;
+  buildHighlight(items);
+  $("ftHint").textContent = tr("sel.count", { n: res.length, label: tr("tab.search") });
+  zoomSelection();
+}
+function searchHide() {
+  let n = 0;
+  for (const [m, ids] of _srchByModel(srch.results || [])) {
+    for (const id of ids) if (!m.hiddenEids.has(id)) n++;
+    setElementsHidden(m, [...ids], true);
+    _syncElemEyes(m);
+  }
+  _syncGroupEyes();
+  toast(tr("toast.hiddenN", { n }));
+  renderSearchList();
+}
+/* come «Nascondi tutto il resto», ma sull'insieme dei risultati; i risultati
+   nascosti in precedenza tornano visibili */
+function searchOnly() {
+  const keep = _srchByModel(srch.results || []);
+  let n = 0;
+  for (const m of models) {
+    const k = keep.get(m);
+    if (k && k.size) setElementsHidden(m, [...k], false);
+    const rest = [];
+    for (const mesh of m.meshes) for (const r of mesh.userData.fullRanges) if (!k || !k.has(r.expressID)) rest.push(r.expressID);
+    for (const id of rest) if (!m.hiddenEids.has(id)) n++;
+    if (rest.length) setElementsHidden(m, rest, true);
+    _syncElemEyes(m);
+  }
+  _syncGroupEyes();
+  toast(tr("toast.hiddenN", { n }));
+  renderSearchList();
+}
+function exportSearchCsv() {
+  const res = srch.results || [];
+  if (!res.length) return;
+  /* una colonna per ogni parametro citato dai filtri (senza doppioni) */
+  const pcols = [];
+  for (const r of (srch.q ? srch.q.rules : [])) if (r.field === "pset" && !pcols.some(c => c.pset === r.pset && c.prop === r.prop)) pcols.push({ pset: r.pset, prop: r.prop });
+  const header = [tr("srch.csvName"), "GlobalId", tr("srch.csvClass"), tr("srch.csvModel"), tr("srch.csvCont"),
+                  ...pcols.map(c => (c.pset ? c.pset + "." : "") + c.prop)];
+  const rows = res.map(r => [r.name, _srchGuid(r), r.cls, r.m.name, _srchCont(r),
+                             ...pcols.map(c => _srchAcc.prop(r, c.pset, c.prop).join(" | "))]);
+  const csv = SRCH.toCsv(header, rows, ";");
+  triggerDownload(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }), `${LANG === "it" ? "ricerca" : "search"}_${new Date().toISOString().slice(0, 10)}.csv`);
+}
+
+$("srchText").addEventListener("input", () => scheduleSearch());
+$("srchText").addEventListener("keydown", (e) => { if (e.key === "Enter") scheduleSearch(0); });
+$("srchInParams").addEventListener("change", () => scheduleSearch(0));
+document.querySelectorAll("#srchComb button").forEach(b => b.addEventListener("click", () => {
+  srch.combine = b.dataset.comb;
+  document.querySelectorAll("#srchComb button").forEach(x => x.classList.toggle("on", x === b));
+  scheduleSearch(0);
+}));
+$("btnSrchAddRule").addEventListener("click", () => {
+  srch.rules.push({ field: "pset", pset: "", prop: "", op: "eq", value: "" });
+  renderSearchRules();
+});
+$("btnSrchSel").addEventListener("click", searchSelectAll);
+$("btnSrchHide").addEventListener("click", searchHide);
+$("btnSrchOnly").addEventListener("click", searchOnly);
+$("btnSrchShowAll").addEventListener("click", () => { showAllHidden(); renderSearchList(); });
+$("btnSrchCsv").addEventListener("click", exportSearchCsv);
+renderSearchRules();
+renderSearch();
+
 /* ============================ utilità UI ============================ */
 function setLeftTab(which) {
   document.querySelectorAll(".ltab").forEach(b => b.classList.toggle("on", b.dataset.tab === which));
   $("modelsBlock").style.display = which === "models" ? "" : "none";
   $("issuesBlock").style.display = which === "issues" ? "" : "none";
   $("qtoBlock").style.display = which === "qto" ? "" : "none";
+  $("searchBlock").style.display = which === "search" ? "" : "none";
   $("cloudsBlock").style.display = which === "clouds" ? "" : "none";
   $("diffBlock").style.display = which === "diff" ? "" : "none";   /* pagina viva solo in ?embed=diff */
-  if (which === "qto") { renderQtoSelects(); qtoIndexWarmup(); }   /* indice Pset→Proprietà: costruito in background alla prima apertura */
+  if (which === "qto") { renderQtoSelects(); qtoIndexWarmup(); }
+  if (which === "search") { renderSearchRules(); qtoIndexWarmup(); setTimeout(() => $("srchText").focus(), 0); }   /* stesso indice Pset→Proprietà del QTO */   /* indice Pset→Proprietà: costruito in background alla prima apertura */
 }
 document.querySelectorAll(".ltab").forEach(b => b.addEventListener("click", () => setLeftTab(b.dataset.tab)));
 
@@ -9823,7 +10512,7 @@ $("railCollapse").addEventListener("click", () => {
 new MutationObserver(railSync).observe($("leftTabs"), { subtree: true, attributes: true, attributeFilter: ["class"], childList: true, characterData: true });
 new MutationObserver(railSync).observe($("main"), { attributes: true, attributeFilter: ["class"] });
 /* pallino lime sul rail quando la sezione ha contenuti (conteggio tab > 0) */
-[["tabModelsCount", "railModels"], ["tabIssuesCount", "railIssues"], ["tabQtoCount", "railQto"], ["tabCloudsCount", "railClouds"], ["tabDiffCount", "railDiff"]].forEach(([src, btn]) => {
+[["tabModelsCount", "railModels"], ["tabIssuesCount", "railIssues"], ["tabSearchCount", "railSearch"], ["tabQtoCount", "railQto"], ["tabCloudsCount", "railClouds"], ["tabDiffCount", "railDiff"]].forEach(([src, btn]) => {
   const el = $(src), dot = document.querySelector("#" + btn + " .rail-dot");
   if (!el || !dot) return;
   const upd = () => { dot.hidden = !(parseInt(el.textContent, 10) || 0); };
