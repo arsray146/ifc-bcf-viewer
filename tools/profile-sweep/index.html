@@ -518,6 +518,10 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
       <div class="sec-h"><h2 data-i18n="br.title">Ponti</h2><span class="cnt" id="brCnt"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
       <div class="sec-b" id="brBody"></div>
     </section>
+    <section class="sec" data-sec="trim">
+      <div class="sec-h"><h2 data-i18n="tg.title">Tagli</h2><span class="cnt" id="tgCnt"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div class="sec-b" id="tgBody"></div>
+    </section>
     <section class="sec" data-sec="axis">
       <div class="sec-h"><h2 data-i18n="ax.title">Asse 3D</h2><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
       <div class="sec-b" id="axBody"></div>
@@ -824,6 +828,27 @@ const I18N = {
     "pl.sub": "Pianta georeferita", "pl.on": "Nello stesso file, in coordinate vere", "pl.scale": "Scala della pianta",
     "pl.help": "L'asse con gli archi in E/N veri (PLN_ASSE), una finca per sezione, tutte lunghe uguali, con la progressiva e il numero nel riquadro (PLN_SEZIONI, testi su PLN_SEZIONI_TESTI; senza sezioni nel file, picchetti ogni 25 m e progressive ogni 100 m su PLN_PICCHETTI), nome dell'opera e freccia nel verso dello scorrimento (PLN_TESTI), l'ingombro dell'opera: cigli dello scavo e piedi del riporto o del rilevato, nei ponti il bordo dell'opera (PLN_INGOMBRO), l'opera vista dall'alto: cigli, fondo dove non coincide, salti e cambi di sezione (PLN_OPERA); testi e tacche in mm di carta alla scala scelta. Profili e sezioni si spostano sotto la pianta di multipli di 100 m: la quota è Y meno lo spostamento scritto sopra i profili.",
     "pl.note": "Profili e sezioni spostati sotto la pianta: quota = Y - {dy}",
+    "tb.sub": "Tabulato dei movimenti terra", "tb.on": "Nello stesso file, a destra delle sezioni",
+    "tb.help": "Una tabella per opera, a destra delle sue sezioni (layer TAB_): per ogni sezione l'area di ogni classe, il volume dalla riga prima a sezioni ragguagliate ((A1 + A2) / 2 × distanza) e il progressivo. Righe senza numero dove le aree cambiano di colpo: capi dei ponti, cambi di sezione netti, cuneo, muro di testa e salto dei canali; così il conto si rifà a mano. In fondo il totale, il computo dei tratti (passo 1 m, lo stesso del CSV e dell'IFC) e lo scarto; con più opere un riepilogo dopo l'ultima. Le blindature del tubo come altezza delle pareti (m) e superficie (m²).",
+    "tb.noSec": "Servono le sezioni correnti.",
+    "tb.title": "Tabulato movimenti terra - {n}", "tb.hN": "Sez.", "tb.hP": "Progressiva", "tb.hDp": "Dist. parz.", "tb.hNote": "Note", "tb.shore": "Blindature",
+    "tb.sA": "Area mq", "tb.sV": "Parz. mc", "tb.sC": "Progr. mc", "tb.sSa": "Alt. m", "tb.sSv": "Parz. mq", "tb.sSc": "Progr. mq",
+    "tb.kBrS": "inizio ponte", "tb.kBrE": "fine ponte", "tb.kJoin": "cambio di sezione", "tb.kWedge": "cuneo", "tb.kFace": "muro di testa", "tb.kDrop": "salto",
+    "tb.total": "Totale", "tb.tool": "Computo", "tb.diff": "Scarto %", "tb.summary": "Riepilogo movimenti terra", "tb.work": "Opera", "tb.unitV": "mc",
+    "tg.title": "Tagli", "tg.face": "Dalla faccia", "tg.faceT": "Clic su una faccia di un'opera del contesto (parete, testata): il piano verticale per quella faccia",
+    "tg.line": "Riga in pianta", "tg.lineT": "Due clic nella vista (meglio dall'alto, T), con l'aggancio ai vertici del contesto, degli assi e del disegno della pianta",
+    "tg.num": "A numeri", "tg.numT": "Un taglio ⟂ all'asse dove sta la Sezione ⟂ (o a metà opera), da correggere coi numeri",
+    "tg.noCtx": "Per «Dalla faccia» serve un IFC di contesto (pannello Contesto).", "tg.none": "Nessun taglio: l'opera va da capo a capo del tracciato.",
+    "tg.pickFace": "Clic su una faccia del contesto (Esc per uscire).", "tg.pick1": "Primo punto della riga (Esc per uscire).", "tg.pick2": "Secondo punto della riga (Esc per uscire).",
+    "tg.stop": "Esci", "tg.flat": "Faccia quasi orizzontale: scegline una verticale (parete, testata).", "tg.noFace": "Nessuna faccia del contesto sotto il cursore.",
+    "tg.name": "Taglio {n}", "tg.bad": "La traccia non incontra l'asse dell'opera: il taglio non vale.", "tg.par": "quasi parallelo all'asse",
+    "tg.ex": "Escludi", "tg.exAuto": "Proposta", "tg.exBefore": "Prima", "tg.exAfter": "Dopo", "tg.exNext": "Fino al successivo",
+    "tg.zones": "Tratti esclusi", "tg.zStart": "Dall'inizio", "tg.zEnd": "Fino alla fine", "tg.zMid": "Fra due tagli", "tg.del": "Togli il taglio",
+    "tg.E1": "E 1", "tg.N1": "N 1", "tg.E2": "E 2", "tg.N2": "N 2", "tg.made": "Taglio a {p}",
+    "tg.open": "{n} tappi non si chiudono (mesh non a tenuta lì): volumi e solidi vicino al taglio indicativi.",
+    "tg.help": "Il piano è sempre verticale, per la traccia scritta qui (due punti E/N, anche obliqua all'asse). Due tagli entro 50 m escludono il tratto fra loro, uno solo il pezzo verso il capo più vicino; si cambia con «Escludi». Sul piano si chiude tutto: opera, magrone, scavo, rinterri, riporto; il tracciato resta intero. Volumi, IFC, .3dm e tavole (sezione sul taglio, profilo interrotto, tabulato, pianta) ne tengono conto. Non entrano nell'annulla.",
+    "tg.kTrim": "sul taglio", "tg.kIn": "taglio obliquo: opera intera", "tg.kOut": "tratto escluso",
+    "tg.alone": "Da solo, a più di 50 m dai capi, non esclude niente: aggiungi l'altro taglio (l'altra parete del manufatto) o scegli Prima / Dopo.",
     "tv.rPts": "Punti dettaglio Terreno", "tv.rZT": "Quote Terreno", "tv.rDp": "Distanze parziali Terreno", "tv.rDs": "Distanze progressive Terreno",
     "tv.rIp": "Distanze inclinate parziali Terreno", "tv.rIs": "Distanze inclinate progressive Terreno", "tv.rZS": "Quote Scorrimento",
     "tv.rZF": "Quote Fondo Scavo", "tv.rHF": "Altezze di Scavo", "tv.rGr": "Livellette",
@@ -1071,6 +1096,27 @@ const I18N = {
     "pl.sub": "Georeferenced plan", "pl.on": "In the same file, in true coordinates", "pl.scale": "Plan scale",
     "pl.help": "The axis with its arcs in true E/N (PLN_ASSE), one section line per section, all the same length, with its chainage and its number in a box (PLN_SEZIONI, texts on PLN_SEZIONI_TESTI; without sections in the file, a stake every 25 m and the chainage every 100 m on PLN_PICCHETTI), the work's name and an arrow in the flow direction (PLN_TESTI), the work's footprint: excavation crests and fill or embankment toes, on bridges the edge of the work (PLN_INGOMBRO), the work seen from above: top edges, bottom where it differs, drops and section changes (PLN_OPERA); texts and ticks in paper mm at the chosen scale. Profiles and sections move below the plan by multiples of 100 m: the level is Y minus the offset written above the profiles.",
     "pl.note": "Profiles and sections moved below the plan: level = Y - {dy}",
+    "tb.sub": "Earthworks table", "tb.on": "In the same file, right of the sections",
+    "tb.help": "One table per work, right of its sections (TAB_ layers): for each section the area of every class, the volume from the row before by average end areas ((A1 + A2) / 2 × distance) and the running total. Unnumbered rows where the areas change suddenly: bridge ends, sharp section changes, wedge, headwall and drop of channels; so the sums can be checked by hand. At the bottom the total, the stretches' take-off (1 m step, the same as the CSV and the IFC) and the deviation; with several works a summary after the last. Pipe trench shoring as wall height (m) and area (m²).",
+    "tb.noSec": "Needs the cross sections.",
+    "tb.title": "Earthworks table - {n}", "tb.hN": "Sect.", "tb.hP": "Chainage", "tb.hDp": "Part. dist.", "tb.hNote": "Notes", "tb.shore": "Shoring",
+    "tb.sA": "Area sq m", "tb.sV": "Part. cu m", "tb.sC": "Cum. cu m", "tb.sSa": "Ht. m", "tb.sSv": "Part. sq m", "tb.sSc": "Cum. sq m",
+    "tb.kBrS": "bridge start", "tb.kBrE": "bridge end", "tb.kJoin": "section change", "tb.kWedge": "wedge", "tb.kFace": "headwall", "tb.kDrop": "drop",
+    "tb.total": "Total", "tb.tool": "Take-off", "tb.diff": "Deviation %", "tb.summary": "Earthworks summary", "tb.work": "Work", "tb.unitV": "cu m",
+    "tg.title": "Trims", "tg.face": "From a face", "tg.faceT": "Click a face of a context object (wall, headwall): the vertical plane through that face",
+    "tg.line": "Line in plan", "tg.lineT": "Two clicks in the view (best from above, T), snapping to the vertices of the context, the axes and the plan drawing",
+    "tg.num": "By numbers", "tg.numT": "A trim ⟂ to the axis at the Cross section ⟂ (or halfway), to adjust with the numbers",
+    "tg.noCtx": "«From a face» needs a context IFC (Context panel).", "tg.none": "No trims: the work runs from end to end of the alignment.",
+    "tg.pickFace": "Click a face of the context (Esc to leave).", "tg.pick1": "First point of the line (Esc to leave).", "tg.pick2": "Second point of the line (Esc to leave).",
+    "tg.stop": "Leave", "tg.flat": "Almost horizontal face: pick a vertical one (wall, headwall).", "tg.noFace": "No context face under the cursor.",
+    "tg.name": "Trim {n}", "tg.bad": "The trace does not meet the work's axis: the trim does not apply.", "tg.par": "almost parallel to the axis",
+    "tg.ex": "Exclude", "tg.exAuto": "Proposed", "tg.exBefore": "Before", "tg.exAfter": "After", "tg.exNext": "Up to the next",
+    "tg.zones": "Excluded stretches", "tg.zStart": "From the start", "tg.zEnd": "To the end", "tg.zMid": "Between two trims", "tg.del": "Remove the trim",
+    "tg.E1": "E 1", "tg.N1": "N 1", "tg.E2": "E 2", "tg.N2": "N 2", "tg.made": "Trim at {p}",
+    "tg.open": "{n} caps do not close (mesh not watertight there): volumes and solids near the trim are approximate.",
+    "tg.help": "The plane is always vertical, through the trace written here (two E/N points, also oblique to the axis). Two trims within 50 m exclude the stretch between them, a single one the piece towards the nearer end; change it with «Exclude». Everything closes on the plane: work, blinding, excavation, backfill, fill; the alignment stays whole. Volumes, IFC, .3dm and drawings (section on the trim, interrupted profile, earthworks table, plan) take it into account. Not part of undo.",
+    "tg.kTrim": "on the trim", "tg.kIn": "oblique trim: whole work", "tg.kOut": "excluded stretch",
+    "tg.alone": "On its own, more than 50 m from the ends, it excludes nothing: add the other trim (the structure's other wall) or choose Before / After.",
     "tv.rPts": "Ground detail points", "tv.rZT": "Ground levels", "tv.rDp": "Partial distances, ground", "tv.rDs": "Chainages, ground",
     "tv.rIp": "Partial slope distances, ground", "tv.rIs": "Cumulative slope distances, ground", "tv.rZS": "Invert levels",
     "tv.rZF": "Excavation bottom levels", "tv.rHF": "Excavation depths", "tv.rGr": "Grades",
@@ -1105,10 +1151,12 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.16.0";
-import * as IO from "./profile-io.js?v=0.16.0";
+import * as C from "./profile-core.js?v=0.18.0";
+import * as IO from "./profile-io.js?v=0.18.0";
 
-const TOOL_VERSION = "0.16.0";
+const TOOL_VERSION = "0.18.0";
+/* il triangolatore dei tappi dei tagli (0.18): earcut di three.js, passato al motore (che resta senza import) */
+const TRI = (c, h) => THREE.ShapeUtils.triangulateShape(c.map(([x, y]) => new THREE.Vector2(x, y)), h.map((r) => r.map(([x, y]) => new THREE.Vector2(x, y))));
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -1153,6 +1201,7 @@ const newWork = (id, name) => ({
   secSel: null,          // la riga da/a in modifica nel pannello Sezione (null = la sezione dell'opera)
   bridges: [],           // tratti a ponte (0.15): [{ id, p0, p1, fromStart?, toEnd? }] — senza terre, spazio riservato fino al terreno
   brOpt: { h: 2, l: 5 },  // proposta dei tratti fuori terra: altezza del fondo sul terreno e lunghezza minime
+  trims: [],             // tagli (0.18): [{ id, a: [E, N], b: [E, N], ex: "auto"|"before"|"after"|"next" }] — traccia del piano verticale, a numeri
 });
 const isCh = (w) => w.stype === "channel", isPipe = (w) => w.stype === "pipe";
 /* i tipi di sezione di un'opera: il suo e quelli delle righe da/a (0.9) */
@@ -1194,7 +1243,8 @@ const TV_ROWS = [{ k: "pts", l: () => tr("tv.rPts") }, { k: "zT", l: () => tr("t
   { k: "ip", l: () => tr("tv.rIp") }, { k: "is", l: () => tr("tv.rIs") }, { k: "zS", l: () => tr("tv.rZS") }, { k: "zF", l: () => tr("tv.rZF") },
   { k: "hF", l: () => tr("tv.rHF") }, { k: "gr", l: () => tr("tv.rGr") }];
 /* sezioni correnti (0.16, secondo passo): nello stesso file, passo (m), chitarrina, quote sul disegno, aree */
-const newTav = (t = {}) => ({ rows: TV_ROWS.map((r) => r.k), tol: 0.05, gap: 2.5, sec: true, step: 25, sGuitar: true, sMarks: true, sAreas: true, plan: true, pScale: 1000, ...t });
+/* tabulato dei movimenti terra (0.17): nello stesso file, a destra delle sezioni (serve che ci siano) */
+const newTav = (t = {}) => ({ rows: TV_ROWS.map((r) => r.k), tol: 0.05, gap: 2.5, sec: true, step: 25, sGuitar: true, sMarks: true, sAreas: true, earth: true, plan: true, pScale: 1000, ...t });
 const PL_SCALES = [500, 1000, 2000, 5000];       // scale della pianta georeferita nelle tavole (scelta dell'utente: più scale)
 const S = {
   works: [],             // opere del progetto
@@ -1378,12 +1428,14 @@ function projectOrigin() {
    righe da/a con una sezione loro (e i raccordi fra sezioni compatibili): C.workSweep */
 function rebuildDitch() {
   D.parts = []; D.shape = null; D.O = null; D.drops = []; D.runs = []; D.joins = []; D.specAt = null; D.clear = []; D.bridges = []; D.above = [];
+  D.trims = { at: [], zones: [] }; D.excluded = () => false;
   if (!D.axis || !D.prof || !D.ax3 || D.ax3.pts.length < 2) return;
   const z3 = TIN ? TIN.z : () => NaN, O = originOf(D.axis);
   const spec = { stype: W.stype, P: W[W.stype], rows: (W.secs || []).map((r) => ({ id: r.id, p0: secP0(r), p1: secP1(r), stype: r.stype, P: r[r.stype], j0: r.j0, j1: r.j1 })) };
   const bridges = (W.bridges || []).map((b) => ({ id: b.id, p0: secP0(b), p1: secP1(b) }));
-  const sw = C.workSweep(D.axis, D.prof, W.anchors, spec, z3, { O, cuts: W.cuts, partWalls: W.pipe.partWalls, bridges });
-  D.parts = sw.parts; D.drops = sw.drops; D.runs = sw.runs; D.joins = sw.joins; D.specAt = sw.specAt; D.O = O;
+  const trims = (W.trims || []).map((t) => ({ id: t.id, a: t.a, b: t.b, ex: t.ex || "auto" }));       // tagli (0.18): mesh chiuse sul piano (tappi da earcut)
+  const sw = C.workSweep(D.axis, D.prof, W.anchors, spec, z3, { O, cuts: W.cuts, partWalls: W.pipe.partWalls, bridges, trims, tri: TRI });
+  D.parts = sw.parts; D.drops = sw.drops; D.runs = sw.runs; D.joins = sw.joins; D.specAt = sw.specAt; D.O = O; D.trims = sw.trims; D.excluded = sw.excluded;
   // tratti fuori terra (0.15): il fondo della struttura sopra il terreno sull'asse; i candidati che toccano un ponte no
   D.clear = TIN ? C.clearance(D.axis, D.prof, W.anchors, D.specAt, z3, { step: 1 }) : [];
   D.bridges = sw.bridges.map((b) => {
@@ -2024,6 +2076,13 @@ function themeColors() {
   mats.jump = mats.jump || new THREE.LineBasicMaterial({ linewidth: 1 });
   mats.jump.color.set(light ? 0xa86f06 : 0xe0a63a);
   mats.mark = mats.mark || new THREE.MeshBasicMaterial();
+  // tagli (0.18): la traccia del piano verticale (magenta come nelle tavole); grigia quella che non vale
+  mats.trim = mats.trim || new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false });
+  mats.trim.color.set(light ? 0xc0279a : 0xe060c8);
+  mats.trimLine = mats.trimLine || new THREE.LineBasicMaterial();
+  mats.trimLine.color.set(light ? 0xc0279a : 0xe060c8);
+  mats.trimBadM = mats.trimBadM || new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false, color: 0x888888 });
+  mats.trimBad = mats.trimBad || new THREE.LineBasicMaterial({ color: 0x888888 });
   mats.mark.color.set(light ? 0x2f6fbf : 0x5b9be0);
   mats.lining = mats.lining || new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
   mats.lining.color.set(light ? 0xb9bcb4 : 0xc9ccc4);
@@ -2156,6 +2215,16 @@ function buildScene() {
         tag(addMesh(m, mat, off, { edges: !!s.e }), P + ":" + s.k);
       }
       if (part.mesh.void && part.mesh.void.index.length && shown(P + ":void")) tag(addMesh(part.mesh.void, mats.void, off), P + ":void");   // ponte (0.15)
+    }
+    // tagli (0.18): la traccia del piano, un rettangolo verticale trasparente attorno alla quota dell'asse sul taglio
+    if (shown(K + ":axis")) for (const t of w.trims || []) {
+      const a = ((d.trims && d.trims.at) || []).find((x) => x.id === t.id), ok = !!(a && a.ok);
+      const z = ok ? C.zAt(d.prof, d.map.toQ(a.p), 1) : NaN, zc = Number.isFinite(z) ? Zs(z) : zBase, hh = Math.max(2, 2.5 * S.view.ex);
+      const ax = t.a[0] - G.O.x, ay = t.a[1] - G.O.y, bx = t.b[0] - G.O.x, by = t.b[1] - G.O.y, z0 = zc - hh, z1 = zc + hh;
+      const g = new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute([ax, ay, z0, bx, by, z0, bx, by, z1, ax, ay, z0, bx, by, z1, ax, ay, z1], 3));
+      const o = tag(new THREE.Mesh(g, ok ? mats.trim : mats.trimBadM), K + ":axis");
+      o.userData.noFrame = true; G.group.add(o);
+      tag(line([ax, ay, z0, bx, by, z0, bx, by, z1, ax, ay, z1, ax, ay, z0], ok ? mats.trimLine : mats.trimBad), K + ":axis").userData.noFrame = true;
     }
     // terreno del profilo, riportato sulla pianta
     if (d.ground && shown(K + ":prof")) {
@@ -2579,7 +2648,7 @@ function orbApply(now) {
    delle sezioni; il DTM tagliato è una linea. I raggi (orbita, pan, rotella) saltano la parte nascosta. */
 const CUT = { mode: null, p: NaN, side: 1, off: 0, plane: null, field: null, fieldAxis: null, fieldO: null, cache: new WeakMap(), raf: 0, mats: new Map() };
 const CUTU = { uCut: { value: new THREE.Vector4() }, uCutPlane: { value: new THREE.Vector4() } };
-const CUT_SKIP = new Set(["axis", "axisOther", "base", "ground", "curtain", "jump", "mark"]);
+const CUT_SKIP = new Set(["axis", "axisOther", "base", "ground", "curtain", "jump", "mark", "trim", "trimLine", "trimBadM", "trimBad"]);
 function cutPatch(m) {
   if (!m || m.userData.cut) return;
   m.userData.cut = true;
@@ -4549,6 +4618,164 @@ function renderBridge() {
   }));
 }
 
+/* =========================================================================
+   Tagli (0.18). Scelte dell'utente (2026-10-08): dalla faccia di un'opera del
+   contesto (il piano verticale per la sua traccia) o da una riga in pianta
+   (due clic con l'aggancio ai vertici), poi a numeri; due tagli vicini
+   escludono il tratto fra loro, uno solo il pezzo verso il capo («Escludi»
+   per cambiare); sul piano si chiude tutto, il tracciato resta intero. Come i
+   ponti, fuori dall'annulla.
+   ========================================================================= */
+const TRM = { mode: null, a: null, dot: null };          // presa in corso: "face" | "line" (a = primo punto della riga)
+const TRIM_EX = { auto: () => tr("tg.exAuto"), before: () => tr("tg.exBefore"), after: () => tr("tg.exAfter"), next: () => tr("tg.exNext") };
+/* i tagli validi di un'opera (incontrano l'asse, non quasi paralleli) */
+function trimsOk(w, d) {
+  return (w.trims || []).filter((t) => { const a = ((d.trims && d.trims.at) || []).find((x) => x.id === t.id); return a && a.ok; });
+}
+function trimStop() {
+  TRM.mode = null; TRM.a = null;
+  if (TRM.dot) { G.group.remove(TRM.dot); TRM.dot.geometry.dispose(); TRM.dot = null; }
+  canvas.style.cursor = "";
+}
+function trimStart(mode) {
+  if (!W || !D.axis) return;
+  trimStop();
+  TRM.mode = mode;
+  canvas.style.cursor = "crosshair";
+  toast(mode === "face" ? tr("tg.pickFace") : tr("tg.pick1"));
+  renderTrim();
+}
+/* un taglio nuovo dalla sua traccia (E/N, al mm), proposta automatica di cosa escludere */
+function trimAdd(a, b) {
+  const r = (v) => Math.round(v * 1000) / 1000, id = S.seq++;
+  W.trims = [...(W.trims || []), { id, a: [r(a[0]), r(a[1])], b: [r(b[0]), r(b[1])], ex: "auto" }];
+  trimStop();
+  sectionLaterFn()(false);
+  setTimeout(() => { const t = D.trims.at.find((x) => x.id === id); toast(t && t.ok ? tr("tg.made", { p: prog(t.p, 2) }) : tr("tg.bad"), !(t && t.ok)); }, 60);
+}
+const trimRay = (e) => {
+  const r = canvas.getBoundingClientRect();
+  orbNdc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
+  orbRay.setFromCamera(orbNdc, camera);
+  return r;
+};
+/* clic su una faccia del contesto: il piano verticale per la sua traccia orizzontale (normale vera: la vista esagera le quote) */
+function trimFace(e) {
+  trimRay(e);
+  const hit = orbRay.intersectObjects(orbTargets().filter((o) => (o.userData.key || "").startsWith("ctx:")), false)[0];
+  if (!hit || !hit.face) { toast(tr("tg.noFace"), true); return; }
+  const n = hit.face.normal, h = Math.hypot(n.x, n.y);
+  if (h < 0.3 * Math.hypot(n.x, n.y, n.z * S.view.ex)) { toast(tr("tg.flat"), true); return; }
+  const dx = -n.y / h, dy = n.x / h, E = hit.point.x + G.O.x, N = hit.point.y + G.O.y;
+  trimAdd([E - 6 * dx, N - 6 * dy], [E + 6 * dx, N + 6 * dy]);
+}
+/* E/N del punto sotto il cursore (la superficie colpita o il piano delle piante), agganciato entro 14 px ai vertici del triangolo
+   colpito (il contesto), ai vertici degli assi delle opere e del disegno della pianta dell'opera attiva */
+function trimPoint(e) {
+  const r = trimRay(e), hit = orbRay.intersectObjects(orbTargets(), false)[0] || null;
+  let P = hit ? hit.point.clone() : null;
+  if (!P) {
+    const dz = orbRay.ray.direction.z;
+    if (Math.abs(dz) < 1e-9) return null;
+    const t = (G.zBase - orbRay.ray.origin.z) / dz;
+    if (!(t > 0)) return null;
+    P = orbRay.ray.at(t, new THREE.Vector3());
+  }
+  const cand = [];
+  if (hit && hit.face && hit.object.geometry) { const pa = hit.object.geometry.getAttribute("position"); for (const i of [hit.face.a, hit.face.b, hit.face.c]) cand.push(new THREE.Vector3().fromBufferAttribute(pa, i)); }
+  for (const w of S.works) { const d = derivedOf(w); if (d.axis) for (const v of C.axisVertices(d.axis)) cand.push(new THREE.Vector3(v.x - G.O.x, v.y - G.O.y, G.zBase)); }
+  if (W && W.plan && W.plan.polys) for (const pl of W.plan.polys) for (const v of pl.pts) cand.push(new THREE.Vector3(v.x - G.O.x, v.y - G.O.y, G.zBase));
+  let best = null, bd = 14;
+  const v = new THREE.Vector3();
+  for (const c of cand) {
+    v.copy(c).project(camera);
+    if (v.z > 1) continue;
+    const d = Math.hypot((v.x + 1) / 2 * r.width - (e.clientX - r.left), (1 - v.y) / 2 * r.height - (e.clientY - r.top));
+    if (d < bd) { bd = d; best = c; }
+  }
+  if (best) P = best;
+  return { e: P.x + G.O.x, n: P.y + G.O.y, x: P.x, y: P.y, z: P.z };
+}
+window.addEventListener("pointerdown", (e) => {
+  if (!TRM.mode || e.target !== canvas || e.button !== 0) return;
+  e.stopPropagation(); e.preventDefault();
+  if (TRM.mode === "face") { trimFace(e); return; }
+  const q = trimPoint(e);
+  if (!q) return;
+  if (!TRM.a) {
+    TRM.a = q;
+    TRM.dot = new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.3, camera.position.distanceTo(new THREE.Vector3(q.x, q.y, q.z)) * 0.006), 12, 8), mats.trimLine ? new THREE.MeshBasicMaterial({ color: mats.trimLine.color }) : mats.mark);
+    TRM.dot.position.set(q.x, q.y, q.z); TRM.dot.userData.noFrame = true;
+    G.group.add(TRM.dot);
+    toast(tr("tg.pick2"));
+    renderTrim();
+    return;
+  }
+  if (Math.hypot(q.e - TRM.a.e, q.n - TRM.a.n) < 0.05) return;
+  trimAdd([TRM.a.e, TRM.a.n], [q.e, q.n]);
+}, true);
+window.addEventListener("keydown", (e) => { if (TRM.mode && e.key === "Escape") { e.stopPropagation(); trimStop(); renderTrim(); } }, true);
+
+/* pannello dei tagli dell'opera attiva: presa, elenco con la traccia a numeri, cosa escludere, i tratti esclusi */
+function renderTrim() {
+  const B = $("tgBody");
+  if (!W || !D.axis) { B.innerHTML = `<p class="empty">${esc(tr("pv.empty"))}</p>`; $("tgCnt").textContent = ""; return; }
+  const L = D.axis.length, list = W.trims || [], at = (id) => (D.trims.at || []).find((x) => x.id === id);
+  const sorted = list.slice().sort((a, b) => ((at(a.id) || {}).p ?? 1e12) - ((at(b.id) || {}).p ?? 1e12));
+  const num = (id, label, v) => `<label for="${id}">${esc(label)}<span class="numbox"><input type="number" id="${id}" step="any" value="${v}"><span>m</span></span></label>`;
+  let h = "";
+  if (TRM.mode) h += `<p class="note">${esc(TRM.mode === "face" ? tr("tg.pickFace") : TRM.a ? tr("tg.pick2") : tr("tg.pick1"))} <button class="btn-sm" id="tgStop">${esc(tr("tg.stop"))}</button></p>`;
+  h += `<div class="btns"><button class="btn-sm" id="tgFace"${S.ctx.length ? "" : " disabled"} title="${esc(tr("tg.faceT"))}">${esc(tr("tg.face"))}</button>`
+    + `<button class="btn-sm" id="tgLine" title="${esc(tr("tg.lineT"))}">${esc(tr("tg.line"))}</button><button class="btn-sm" id="tgNum" title="${esc(tr("tg.numT"))}">${esc(tr("tg.num"))}</button></div>`;
+  if (!S.ctx.length) h += `<p class="help">${esc(tr("tg.noCtx"))}</p>`;
+  if (!list.length) h += `<p class="help">${esc(tr("tg.none"))}</p>`;
+  const zs = D.trims.zones || [];
+  if (zs.length) {
+    h += `<div class="sub">${esc(tr("tg.zones"))}</div>`;
+    for (const z of zs) h += kv(z.kind === "before" ? tr("tg.zStart") : z.kind === "after" ? tr("tg.zEnd") : tr("tg.zMid"), `${prog(z.p0, 2)} – ${prog(z.p1, 2)} (${nf(z.p1 - z.p0, 2)} m)`);
+  }
+  sorted.forEach((t, i) => {
+    const a = at(t.id), id = t.id;
+    const state = !a ? "" : !a.ok ? (Number.isFinite(a.p) ? tr("tg.par") : tr("tg.bad")) : `${prog(a.p, 2)} · ${nf(Math.asin(Math.min(1, a.sin)) * 180 / Math.PI, 1)}°`;
+    const alone = a && a.ok && a.alone ? `<p class="note">${esc(tr("tg.alone"))}</p>` : "";
+    h += `<div class="brrow" data-tg="${id}"><div class="file"><span class="fn">${esc(tr("tg.name", { n: i + 1 }))}</span><span class="fm">${esc(state)}</span>`
+      + `<button class="btn-sm" data-tgshow="${id}"${a && a.ok ? "" : " disabled"}>${esc(tr("br.show"))}</button><button class="btn-sm" data-tgdel="${id}" title="${esc(tr("tg.del"))}">×</button></div>`;
+    h += `<div class="pgrid">${num(`tg_a0_${id}`, tr("tg.E1"), t.a[0])}${num(`tg_a1_${id}`, tr("tg.N1"), t.a[1])}${num(`tg_b0_${id}`, tr("tg.E2"), t.b[0])}${num(`tg_b1_${id}`, tr("tg.N2"), t.b[1])}</div>`;
+    h += alone;
+    h += `<div class="row"><span class="lbl">${esc(tr("tg.ex"))}</span><div class="chips">${Object.entries(TRIM_EX).map(([x, f]) => `<button class="chip${(t.ex || "auto") === x ? " on" : ""}" data-tgex="${id}:${x}">${esc(f())}</button>`).join("")}</div></div>`;
+    h += `</div>`;
+  });
+  if (D.trims.open > 0) h += `<p class="note">${esc(tr("tg.open", { n: ni(D.trims.open) }))}</p>`;
+  h += `<p class="help">${esc(tr("tg.help"))}</p>`;
+  B.innerHTML = h;
+  $("tgCnt").textContent = list.length ? ni(list.length) : "";
+  const later = sectionLaterFn(), rowOf = (id) => (W.trims || []).find((r) => r.id === +id);
+  if ($("tgStop")) $("tgStop").addEventListener("click", () => { trimStop(); renderTrim(); });
+  $("tgFace").addEventListener("click", () => trimStart("face"));
+  $("tgLine").addEventListener("click", () => trimStart("line"));
+  $("tgNum").addEventListener("click", () => {                 // ⟂ all'asse dove sta la Sezione ⟂, o a metà opera
+    const p = CUT.mode === "x" && Number.isFinite(CUT.p) ? CUT.p : L / 2, w = C.planAt(D.axis, p);
+    trimAdd([w.x + 6 * w.ty, w.y - 6 * w.tx], [w.x - 6 * w.ty, w.y + 6 * w.tx]);
+  });
+  B.querySelectorAll("[data-tgshow]").forEach((el) => el.addEventListener("click", () => { const a = at(+el.dataset.tgshow); if (a && a.ok) { pvShow(a.p - 25, a.p + 25); zoomAt(a.p); } }));
+  B.querySelectorAll("[data-tgdel]").forEach((el) => el.addEventListener("click", () => { W.trims = (W.trims || []).filter((r) => r.id !== +el.dataset.tgdel); later(false); }));
+  B.querySelectorAll(".chip[data-tgex]").forEach((el) => el.addEventListener("click", () => {
+    const [id, x] = el.dataset.tgex.split(":"), r = rowOf(id);
+    if (!r || (r.ex || "auto") === x) return;
+    r.ex = x;
+    later(false);
+  }));
+  for (const t of list) for (const [k, i, j] of [["a0", "a", 0], ["a1", "a", 1], ["b0", "b", 0], ["b1", "b", 1]]) {
+    const el = $(`tg_${k}_${t.id}`);
+    if (el) el.addEventListener("change", (e) => {
+      const v = Number(e.target.value);
+      if (e.target.value === "" || !Number.isFinite(v)) { renderTrim(); return; }
+      t[i] = t[i].slice(); t[i][j] = v;
+      later(false);
+    });
+  }
+}
+
 /* parametri della sezione in modifica (dell'opera o della riga da/a): fosso trapezio, canale a U, scatolare
    o tubo (campi: [chiave, etichetta, unità, minimo]) */
 function renderSection() {
@@ -4912,7 +5139,7 @@ function renderExport() {
    scarto dei punti del terreno (cm) e distanza minima fra le colonne (m) */
 function renderTav(ok) {
   const T = S.tav, num = (id, label, v, unit) => `<label for="${id}">${esc(label)}<span class="numbox"><input type="number" id="${id}" step="any" min="0" value="${v}"><span>${unit}</span></span></label>`;
-  const chk = (k, label) => `<label class="check"><input type="checkbox" data-sc="${k}"${T[k] ? " checked" : ""}> ${esc(label)}</label>`;
+  const chk = (k, label, off = false) => `<label class="check"><input type="checkbox" data-sc="${k}"${T[k] ? " checked" : ""}${off ? " disabled" : ""}> ${esc(label)}</label>`;
   return `<div class="sub">${esc(tr("tv.sub"))}</div>`
     + `<p class="tvh">${esc(tr("tv.subP"))}</p>`
     + `<div class="tvrows">${TV_ROWS.map((r) => `<label class="check"><input type="checkbox" data-tv="${r.k}"${T.rows.includes(r.k) ? " checked" : ""}> ${esc(r.l())}</label>`).join("")}</div>`
@@ -4922,6 +5149,8 @@ function renderTav(ok) {
     + `<div class="pgrid">${num("scStep", tr("sc.step"), T.step, "m")}</div>`
     + `<div class="tvrows">${chk("sGuitar", tr("sc.guitar"))}${chk("sMarks", tr("sc.marks"))}${chk("sAreas", tr("sc.areas"))}</div>`
     + `<p class="help">${esc(tr("sc.help"))}</p>`
+    + `<p class="tvh">${esc(tr("tb.sub"))}</p>${chk("earth", tr("tb.on"), !T.sec)}`
+    + `<p class="help">${esc(tr("tb.help"))}${T.sec ? "" : " " + esc(tr("tb.noSec"))}</p>`
     + `<p class="tvh">${esc(tr("pl.sub"))}</p>${chk("plan", tr("pl.on"))}`
     + `<div class="row"><label for="plScale">${esc(tr("pl.scale"))}</label><select id="plScale" class="txt">${PL_SCALES.map((s) => `<option value="${s}"${s === T.pScale ? " selected" : ""}>1:${s}</option>`).join("")}</select></div>`
     + `<p class="help">${esc(tr("pl.help"))}</p>`
@@ -4933,7 +5162,11 @@ function bindTav() {
     S.tav = { ...S.tav, rows: TV_ROWS.map((r) => r.k).filter((k) => on.has(k)) };
     scheduleSave();
   }));
-  $("expBody").querySelectorAll("[data-sc]").forEach((el) => el.addEventListener("change", () => { S.tav = { ...S.tav, [el.dataset.sc]: el.checked }; scheduleSave(); }));
+  $("expBody").querySelectorAll("[data-sc]").forEach((el) => el.addEventListener("change", () => {
+    S.tav = { ...S.tav, [el.dataset.sc]: el.checked };
+    scheduleSave();
+    if (el.dataset.sc === "sec") renderExport();                     // il tabulato sta accanto alle sezioni: senza, la sua casella si spegne
+  }));
   for (const [id, k, f, min] of [["tvTol", "tol", 0.01, 0.001], ["tvGap", "gap", 1, 0], ["scStep", "step", 1, 1]]) $(id).addEventListener("change", (e) => {
     const v = Number(e.target.value) * f;
     if (e.target.value === "" || !(v >= min)) { renderExport(); return; }
@@ -4950,7 +5183,7 @@ function renderWork() {
   if (on) el.innerHTML = `<span class="k">${esc(tr("pod.work"))}</span><b title="${esc(W.name)}">${esc(W.name)}</b>${S.works.length > 1 ? `<span class="n">${S.active + 1}/${S.works.length}</span>` : ""}`;
   $("pvWork").textContent = on && S.works.length > 1 ? W.name : "";
 }
-function renderPod() { renderWork(); renderPlan(); renderProf(); renderAnchors(); renderDtm(); renderCtx(); renderSection(); renderBridge(); renderAxis(); renderQty(); renderExport(); applyClosed(); }
+function renderPod() { renderWork(); renderPlan(); renderProf(); renderAnchors(); renderDtm(); renderCtx(); renderSection(); renderBridge(); renderTrim(); renderAxis(); renderQty(); renderExport(); applyClosed(); }
 function applyClosed() { document.querySelectorAll("#pod .sec[data-sec]").forEach((s) => s.classList.toggle("closed", !!S.closed[s.dataset.sec])); }
 document.querySelectorAll("#pod .sec[data-sec] .sec-h").forEach((h) => h.addEventListener("click", () => {
   const k = h.parentElement.dataset.sec; S.closed[k] = !S.closed[k]; applyClosed(); saveUi();
@@ -5252,7 +5485,7 @@ function exportWorks(needParts) {
       return {
         w, name: w.name, axis: d.axis, ax3: d.ax3, pvi: pviOf(d), section: secObj(w.stype, w[w.stype]),
         channel: isCh(w), stype: w.stype, types: typesOf(w), solids: solidsOf(w), mixed: !!(w.secs && w.secs.length),
-        parts: d.parts.map((p) => ({ ...p, work: w.name, name: tr("cm.partName", { n: p.k }) + (p.bridge != null ? " - " + tr("br.tag") : ""), mesh: mesh(p.mesh), bridge: bridgeOut(d, p.bridge),
+        parts: d.parts.filter((p) => !p.gone).map((p) => ({ ...p, work: w.name, name: tr("cm.partName", { n: p.k }) + (p.bridge != null ? " - " + tr("br.tag") : ""), mesh: mesh(p.mesh), bridge: bridgeOut(d, p.bridge),
           section: secObj(p.stype || w.stype, p.P || w[w.stype]), sec: p.P ? secLabel(p.stype, p.P) : "", blendNote: blendNote(p) })),
       };
     });
@@ -5268,9 +5501,12 @@ function exportDXF() {
    terreno del DWG del profilo non vale più se il tracciato cambia), colonne sui punti del terreno e sui vertici di
    progetto, righe scelte nel pannello. Secondo passo: le sezioni correnti nello stesso file, sotto il profilo */
 const SC_KIND = { up: () => tr("sc.kUp"), down: () => tr("sc.kDown"), before: () => tr("sc.kBefore"), after: () => tr("sc.kAfter"),
-  bridge0: () => tr("sc.kBr0"), bridge1: () => tr("sc.kBr1"), vertex: () => tr("sc.kVertex") };
+  bridge0: () => tr("sc.kBr0"), bridge1: () => tr("sc.kBr1"), vertex: () => tr("sc.kVertex"), trim: () => tr("tg.kTrim") };
 const SC_AREA = { cut: () => tr("cm.cut"), fill: () => tr("cm.fill"), backfill: () => tr("cm.backfill"), lining: () => tr("cm.lining"), lean: () => tr("cm.lean"), mix: () => tr("cm.mix"),
   pipe: () => tr("cm.pipe"), bed: () => tr("cm.bed"), surround: () => tr("cm.surround"), cover: () => tr("cm.cover"), restore: () => tr("cm.restore"), emb: () => tr("cm.emb") };
+/* le righe del tabulato senza disegno (0.17): capi dei ponti, cambi di sezione netti, zone dei salti (C.earthSheet) */
+const TB_KIND = { brStart: () => tr("tb.kBrS"), brEnd: () => tr("tb.kBrE"), join: () => tr("tb.kJoin"), zWedge: () => tr("tb.kWedge"), zFace: () => tr("tb.kFace"), zDrop: () => tr("tb.kDrop"),
+  trimIn: () => tr("tg.kIn"), trimOut: () => tr("tg.kOut") };
 function exportSheets() {
   const T = S.tav, rows = TV_ROWS.map((r) => r.k).filter((k) => T.rows.includes(k));
   if (!rows.length) { toast(tr("tv.noRows"), true); return; }
@@ -5278,19 +5514,30 @@ function exportSheets() {
   const sheets = exported().map((w) => ({ w, d: derivedOf(w) })).filter(({ d }) => d.ax3 && d.ax3.pts.length > 1 && d.prof && d.map && d.edPts)
     .map(({ w, d }) => {
       const args = { axis: d.axis, prof: d.prof, map: d.map, ctl: d.edPts, zAt3: z3, lo: d.ax3.pts[0].p, hi: d.ax3.pts[d.ax3.pts.length - 1].p, square: hasType(w, "channel", "box"),
-        sweep: { runs: d.runs, drops: d.drops, bridges: d.bridges, specAt: d.specAt, parts: d.parts, joins: d.joins } };
-      return { name: w.name, ...C.profileSheet({ ...args, tol: T.tol, gap: T.gap }), sections: T.sec && d.specAt ? C.crossSheets({ ...args, step: T.step }) : [],
+        sweep: { runs: d.runs, drops: d.drops, bridges: d.bridges, specAt: d.specAt, parts: d.parts, joins: d.joins, trims: d.trims, excluded: d.excluded, O: d.O } };
+      const sections = T.sec && d.specAt ? C.crossSheets({ ...args, step: T.step }) : [];
+      // tabulato (0.17): sezioni ragguagliate fra le sezioni correnti, più le righe ai capi di ponti, cambi netti e zone dei salti;
+      // in fondo il computo dei tratti (lo stesso di CSV, IFC e .3dm) e lo scarto
+      const earth = T.earth && sections.length ? C.earthSheet({ ...args, secs: sections, tool: C.earthTool(d.parts || []) }) : null;
+      return { name: w.name, ...C.profileSheet({ ...args, tol: T.tol, gap: T.gap }), sections, earth,
         plan: T.plan ? { verts: C.axisVertices(d.axis), at: (p) => C.planAt(d.axis, p), foot: d.specAt ? C.planFootprint(args) : [],
-          work: d.specAt ? C.planWork(args) : null } : null };
+          work: d.specAt ? C.planWork(args) : null, trims: trimsOk(w, d).map((t) => ({ a: t.a, b: t.b })) } : null };
     });
   if (!sheets.length) return;
   const cross = { rows: { zT: tr("sc.rZT"), zP: tr("sc.rZP"), dp: tr("sc.rDp"), da: tr("sc.rDa") },
     marks: { inv: tr("sc.mInv"), exc: tr("sc.mExc"), crest: tr("sc.mCrest"), toe: tr("sc.mToe") },
     areas: Object.fromEntries(Object.entries(SC_AREA).map(([k, f]) => [k, f()])), unit: tr("sc.unit"),
     title: (n, p, kind, br) => [tr("sc.title", { n, p }), SC_KIND[kind] ? SC_KIND[kind]() : "", br ? tr("br.tag") : ""].filter(Boolean).join(" - ") };
-  const labels = { rows: Object.fromEntries(TV_ROWS.map((r) => [r.k, r.l()])), title: (n) => tr("tv.title", { n }), cross, plan: { note: (dy) => tr("pl.note", { dy }) } };
+  // nelle scritte del tabulato «Computo», mai il nome del programma (scelta dell'utente)
+  const earth = { title: (n) => tr("tb.title", { n }), head: { n: tr("tb.hN"), p: tr("tb.hP"), dp: tr("tb.hDp"), note: tr("tb.hNote") },
+    classes: { ...cross.areas, shore: tr("tb.shore") }, sub: { a: tr("tb.sA"), v: tr("tb.sV"), c: tr("tb.sC"), sa: tr("tb.sSa"), sv: tr("tb.sSv"), sc: tr("tb.sSc") },
+    kinds: { ...Object.fromEntries(Object.entries(SC_KIND).map(([k, f]) => [k, f()])), ...Object.fromEntries(Object.entries(TB_KIND).map(([k, f]) => [k, f()])) },
+    total: tr("tb.total"), tool: tr("tb.tool"), diff: tr("tb.diff"), summary: tr("tb.summary"), work: tr("tb.work"), unitV: tr("tb.unitV"), unitS: tr("sc.unit") };
+  const labels = { rows: Object.fromEntries(TV_ROWS.map((r) => [r.k, r.l()])), title: (n) => tr("tv.title", { n }), cross, earth, plan: { note: (dy) => tr("pl.note", { dy }) } };
+  const withEarth = sheets.filter((s) => s.earth);
+  const summary = withEarth.length > 1 ? C.earthSummary(withEarth.map((s) => ({ name: s.name, table: s.earth }))) : null;
   download(fileBase() + " - " + tr("tv.file") + ".dxf", IO.profileSheetsDXF({ sheets, rows, labels, cross: { guitar: T.sGuitar, marks: T.sMarks, areas: T.sAreas },
-    plan: T.plan ? { scale: T.pScale } : null }), "application/dxf");
+    plan: T.plan ? { scale: T.pScale } : null, summary }), "application/dxf");
 }
 function exportXML() {
   const ws = exportWorks(false);

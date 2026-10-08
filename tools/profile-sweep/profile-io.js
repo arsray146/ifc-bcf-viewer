@@ -1582,6 +1582,14 @@ export const PLAN_LAYERS = Object.freeze({
   axis: ["PLN_ASSE", 1, "ASSE_PIANTA"], stake: ["PLN_PICCHETTI", 7], cut: ["PLN_SEZIONI", 2], cutText: ["PLN_SEZIONI_TESTI", 7], text: ["PLN_TESTI", 2],
   foot: ["PLN_INGOMBRO", 30], work: ["PLN_OPERA", 7],
 });
+/** Layer dei tagli (0.18): la linea verticale nel profilo, la traccia nella sezione sul taglio e in pianta; nome, colore ACI. */
+export const TRIM_LAYERS = Object.freeze({ prf: ["PRF_TAGLI", 6], sez: ["SEZ_TAGLIO", 6], pln: ["PLN_TAGLI", 6] });
+/** Layer del tabulato dei movimenti terra (0.17): nome, colore ACI. */
+export const EARTH_LAYERS = Object.freeze({ frame: ["TAB_CORNICE", 6], rows: ["TAB_RIGHE", 7], text: ["TAB_TESTI", 7], tot: ["TAB_TOTALI", 2] });
+/** Altezze del tabulato in mm di carta: intestazione (classi, sottotitoli), righe. */
+export const EARTH_MM = Object.freeze({ head: 8, sub: 6, row: 5, gap: 10, off: 20 });
+/** Uno scarto in % col segno, al centesimo («0.00» senza segno quando arrotonda a zero, non «-0.00»); vuoto se non c'è. */
+export const diffText = (v) => { if (!Number.isFinite(v)) return ""; const r = Math.round(v * 100) / 100; return r === 0 ? "0.00" : (r > 0 ? "+" : "") + r.toFixed(2); };
 /** Distanza fra i segmenti ab e cd (0 se si incrociano). */
 export function segDist(a, b, c, d) {
   const or = (p, q, r) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]));
@@ -1647,11 +1655,21 @@ export const chainage = (p) => { const r = Math.round(p * 100) / 100, k = Math.f
  * numero in un riquadro a destra; senza sezioni picchetti ogni step e progressive ogni every, più inizio e
  * fine), nome dell'opera e freccia nel verso dello scorrimento; profili e sezioni si spostano sotto la
  * pianta di multipli di 100 m (labels.plan.note(dy) ricorda che quota = Y − dy).
+ * Il tabulato dei movimenti terra (0.17): con sh.earth (C.earthSheet) una tabella a destra delle sezioni dell'opera, in alto, in più
+ * colonne se è più alta della griglia (layer EARTH_LAYERS, misure EARTH_MM); con summary (C.earthSummary) e almeno due opere col
+ * tabulato il riepilogo dopo l'ultima. labels.earth = { title: (nome) => testo, head: { n, p, dp, note }, classes: { chiave: testo },
+ * sub: { a, v, c, sa, sv, sc } (sottotitoli di area, parziale, progressivo; s… per le blindature), kinds: { kind: nota }, total, tool,
+ * diff, summary, work, unitV, unitS }.
+ * I tagli (0.18, layer TRIM_LAYERS solo se ce ne sono): sh.trims (C.profileSheet) = una linea verticale nel profilo dal fondo scavo
+ * al terreno o alla linea di progetto; cs.trim (C.clipCross) = la traccia del piano nella sezione sul taglio; sh.plan.trims =
+ * [{ a, b }] le tracce in pianta.
  * Ritorna il testo del DXF.
  */
 export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), labels, scale = { h: 1000, v: 100 }, text = { val: 2, head: 2.5, title: 4 }, gap = 40,
-  cross = { guitar: true, marks: true, areas: true }, plan = null }) {
+  cross = { guitar: true, marks: true, areas: true }, plan = null, summary = null }) {
   const doc = dxfR2000();
+  let EL = null, tabTop = null;                                 // layer del tabulato (solo se serve), cima della prima tabella
+  const TL = {}, trimLayer = (k) => (TL[k] ||= doc.layer(TRIM_LAYERS[k][0], { color: TRIM_LAYERS[k][1] }));   // layer dei tagli, solo se ce ne sono
   const mm = scale.v / 1000, kx = scale.v / scale.h;           // unità del modello per mm di carta; X per metro di progressiva
   const tx = (s, h) => String(s).length * h * 0.8 * mm;        // larghezza di un testo in romans.shx (~0,8 h per carattere)
   doc.ltype("TRATTEGGIO", "Tratteggio __ __ __", [3 * mm, -1.5 * mm]);   // 3 mm pieno, 1,5 vuoto in carta
@@ -1681,6 +1699,7 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
     const zRef = Number.isFinite(sh.zRef) ? sh.zRef : Math.floor(zMin - 1);
     // profilo: terreno (DTM), scorrimento, fondo scavo
     for (const [k, list] of [["terr", sh.terrain], ["des", sh.design], ["bot", sh.bottom]]) for (const l of list) M.push({ t: "poly", layer: L[k], pts: l.map(([p, z]) => [X(p), z]) });
+    for (const t of sh.trims || []) M.push({ t: "line", layer: trimLayer("prf"), a: [X(t.p), t.z0], b: [X(t.p), t.z1] });       // i tagli (0.18): opera chiusa sul piano
     // piano di riferimento: linea, quota col triangolino, asse verticale a sinistra
     M.push({ t: "line", layer: L.ref, a: [X0 - headW, zRef], b: [xEnd, zRef] });
     T(L.ref, X0 - 1.5 * mm, zRef + 2.5 * mm, text.head, zRef.toFixed(3), { ha: 2 });
@@ -1731,11 +1750,126 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
     // cornice delle intestazioni e chiusura a destra
     M.push({ t: "poly", layer: L.frame, closed: true, pts: [[X0 - headW, y], [X0, y], [X0, zRef], [X0 - headW, zRef]] });
     M.push({ t: "line", layer: L.rows, a: [xEnd, zRef], b: [xEnd, y] });
-    const xMax = sh.sections && sh.sections.length ? crossGrid(sh.sections, X0 - headW, y - 20 * mm, xEnd - (X0 - headW)) : xEnd;
+    const yTop = y - 20 * mm;
+    let xMax = xEnd, yBot = yTop;
+    if (sh.sections && sh.sections.length) ({ x: xMax, y: yBot } = crossGrid(sh.sections, X0 - headW, yTop, xEnd - (X0 - headW)));
+    // tabulato dei movimenti terra a destra delle sezioni, in alto; più colonne se è più alto della griglia
+    if (sh.earth && sh.earth.rows.length) { tabTop = tabTop == null ? yTop : tabTop; xMax = drawEarth(sh.earth, sh.name, Math.max(xMax, xEnd) + EARTH_MM.off * mm, yTop, yTop - yBot); }
     X0 = Math.max(xEnd, xMax) + gap * mm + headW;
   }
+  const withEarth = sheets.filter((s) => s.earth && s.earth.rows.length);
+  if (summary && withEarth.length > 1) drawSummary(summary, X0 - headW, tabTop);
   if (plan && sheets.some((s) => s.plan)) drawPlan();
   return doc.toString();
+
+  /* ---- tabulato dei movimenti terra (0.17): una tabella per opera, a sezioni ragguagliate ---- */
+  function earthLayers() {
+    if (!EL) { EL = {}; for (const [k, [name, color]] of Object.entries(EARTH_LAYERS)) EL[k] = doc.layer(name, { color }); }
+    return EL;
+  }
+  // una tabella: cols = [{ w (mm), head, sub?, group? }] (group = testo sopra più colonne: { text, span }); ritorna
+  // { x (ascisse dei bordi), row(i, valori, layer), lines(yb) } per disegnare righe e bordi
+  function tableFrame(x0, yTop, cols) {
+    const E = earthLayers(), xs = [x0];
+    for (const c of cols) xs.push(xs[xs.length - 1] + c.w * mm);
+    const hH = (EARTH_MM.head + EARTH_MM.sub) * mm, yH = yTop - hH, yS = yTop - EARTH_MM.head * mm;
+    M.push({ t: "poly", layer: E.frame, closed: true, pts: [[xs[0], yTop], [xs[xs.length - 1], yTop], [xs[xs.length - 1], yH], [xs[0], yH]] });
+    cols.forEach((c, i) => {
+      if (i) M.push({ t: "line", layer: E.frame, a: [xs[i], c.group || c.cont ? yS : yTop], b: [xs[i], yH] });
+      if (c.group) {
+        const x1 = xs[i + c.group.span];
+        M.push({ t: "line", layer: E.frame, a: [xs[i], yS], b: [x1, yS] });
+        if (i) M.push({ t: "line", layer: E.frame, a: [xs[i], yTop], b: [xs[i], yS] });
+        T(E.text, (xs[i] + x1) / 2, (yTop + yS) / 2, text.head, c.group.text, { ha: 1, va: 2 });
+      }
+      if (c.sub != null) T(E.text, (xs[i] + xs[i + 1]) / 2, (yS + yH) / 2, text.val, c.sub, { ha: 1, va: 2 });
+      else T(E.text, (xs[i] + xs[i + 1]) / 2, (yTop + yH) / 2, text.val, c.head, { ha: 1, va: 2 });
+    });
+    const rh = EARTH_MM.row * mm, pad = 1.5 * mm;
+    return {
+      xs, yH,
+      // una riga: vals[i] = testo della colonna i (null = niente); align[i] 0 sinistra, 1 centro, 2 destra
+      row(k, vals, layer, align) {
+        const yb = yH - (k + 1) * rh, ym = yb + rh / 2;
+        vals.forEach((s, i) => {
+          if (s == null || s === "") return;
+          const a = align[i], x = a === 0 ? xs[i] + pad : a === 1 ? (xs[i] + xs[i + 1]) / 2 : xs[i + 1] - pad;
+          T(layer, x, ym, text.val, s, { ha: a, va: 2 });
+        });
+        M.push({ t: "line", layer: E.rows, a: [xs[0], yb], b: [xs[xs.length - 1], yb] });
+      },
+      // i bordi verticali delle righe fino a yb; merge = colonne da 0 a merge-1 senza bordi dentro (la scritta dei totali)
+      close(yb, from = 0, merge = 0) {
+        xs.forEach((x, i) => { if (!(i > 0 && i < merge)) M.push({ t: "line", layer: E.rows, a: [x, from ? from : yH], b: [x, yb] }); });
+      },
+    };
+  }
+  // larghezza di una colonna in mm per i suoi testi più 4 mm di margine: in romans.shx maiuscole e spazi ~1 h, cifre ~0,85 h, il resto
+  // ~0,8 h (con 0,8 h per tutti «VI02 come tubo PVC 315» sbordava nella colonna dopo)
+  function glyphW(s, h) { return [...String(s)].reduce((a, c) => a + h * (/[A-Z ]/.test(c) ? 1 : /[0-9]/.test(c) ? 0.85 : /[.,:;'|!]/.test(c) ? 0.5 : 0.8), 0); }
+  function colW(strs, h = text.val, min = 10) { return Math.max(min, ...strs.map((s) => glyphW(s, h) + 4)); }
+  function drawEarth(et, name, x0, yTop, gridH) {
+    const E = earthLayers(), EL0 = labels.earth || {}, H0 = EL0.head || {}, CL = EL0.classes || {}, SB = EL0.sub || {}, KD = EL0.kinds || {};
+    const fA = (v) => (Number.isFinite(v) ? v.toFixed(3) : ""), fV = (v) => (Number.isFinite(v) ? v.toFixed(2) : "");
+    const fD = diffText;
+    const rows = et.rows, keys = et.keys;
+    // testi per colonna: numero, progressiva, distanza, per classe area | parziale | progressivo, nota
+    const cells = rows.map((r, i) => [r.n == null ? "" : String(r.n), chainage(r.p), i ? fV(r.dp) : "",
+      ...keys.flatMap((k) => [fA(r.a[k]), i ? fV(r.v[k]) : "", fV(r.c[k])]), KD[r.kind] || ""]);
+    const tots = [[EL0.total || "Totale", et.total], ...(et.tool ? [[EL0.tool || "Computo", et.tool]] : [])];
+    const sub = (k) => (k === "shore" ? [SB.sa || "Alt. m", SB.sv || "Parz. mq", SB.sc || "Progr. mq"] : [SB.a || "Area mq", SB.v || "Parz. mc", SB.c || "Progr. mc"]);
+    const cols = [{ head: H0.n || "Sez." }, { head: H0.p || "Progressiva" }, { head: H0.dp || "Dist. parz." }];
+    for (const k of keys) sub(k).forEach((s, j) => cols.push({ sub: s, ...(j ? { cont: true } : { group: { text: CL[k] || k, span: 3 } }) }));
+    cols.push({ head: H0.note || "Note" });
+    cols.forEach((c, i) => {
+      const vals = cells.map((r) => r[i]);
+      if (i >= 3 && i < 3 + 3 * keys.length && (i - 3) % 3 === 1) for (const [, t] of tots) vals.push(fV(t[keys[(i - 3) / 3 | 0]]));
+      c.w = colW([c.sub != null ? c.sub : c.head, ...vals]);
+    });
+    // la scritta del gruppo ci deve stare nelle sue tre colonne
+    cols.forEach((c, i) => { if (c.group) { const need = glyphW(c.group.text, text.head) + 4, have = c.w + cols[i + 1].w + cols[i + 2].w; if (need > have) c.w += need - have; } });
+    // i totali (e lo scarto) portano la scritta nelle prime tre colonne
+    const lead = colW([...tots.map(([s]) => s), EL0.diff || "Scarto %"]);
+    const w3 = cols[0].w + cols[1].w + cols[2].w;
+    if (lead > w3) cols[1].w += lead - w3;
+    const nT = tots.length + (et.tool ? 1 : 0), rh = EARTH_MM.row;
+    const hH = EARTH_MM.head + EARTH_MM.sub, per = Math.max(20, Math.floor((gridH / mm - hH - nT * rh) / rh));
+    const align = cols.map((_, i) => (i === 0 || i === 1 ? 1 : i === cols.length - 1 ? 0 : 2));
+    T(L.title, x0, yTop + 4 * mm, 3.5, EL0.title ? EL0.title(name) : name);
+    let x = x0, xEndT = x0;
+    for (let c0 = 0; c0 < rows.length; c0 += per) {
+      const chunk = cells.slice(c0, c0 + per), last = c0 + per >= rows.length;
+      const F = tableFrame(x, yTop, cols);
+      chunk.forEach((vals, k) => F.row(k, vals, E.text, align));
+      let yb = F.yH - chunk.length * rh * mm;
+      F.close(yb);
+      if (last) {
+        const y0 = yb;
+        const tv = (t) => ["", "", "", ...keys.flatMap((k) => ["", fV(t[k]), ""]), ""];
+        tots.forEach(([s, t], j) => { const v = tv(t); v[0] = s; F.row(chunk.length + j, v, E.tot, align.map((a, i) => (i === 0 ? 0 : a))); });
+        if (et.tool) { const v = ["", "", "", ...keys.flatMap((k) => ["", fD(et.diff[k]), ""]), ""]; v[0] = EL0.diff || "Scarto %"; F.row(chunk.length + tots.length, v, E.tot, align.map((a, i) => (i === 0 ? 0 : a))); }
+        yb = y0 - nT * rh * mm;
+        F.close(yb, y0, 3);
+      }
+      xEndT = F.xs[F.xs.length - 1];
+      x = xEndT + EARTH_MM.gap * mm;
+    }
+    return xEndT;
+  }
+  // il riepilogo di tutte le opere (C.earthSummary): una riga per opera coi volumi per classe, totale, computo, scarto
+  function drawSummary(sm, x0, yTop) {
+    const E = earthLayers(), EL0 = labels.earth || {}, CL = EL0.classes || {};
+    const fV = (v) => (Number.isFinite(v) ? v.toFixed(2) : ""), fD = diffText;
+    const lines = [...sm.rows.map((r) => [r.name, r.total]), [EL0.total || "Totale", sm.total], ...(sm.tool ? [[EL0.tool || "Computo", sm.tool]] : [])];
+    const cells = lines.map(([s, t]) => [s, ...sm.keys.map((k) => fV(t[k]))]);
+    if (sm.tool) cells.push([EL0.diff || "Scarto %", ...sm.keys.map((k) => fD(sm.diff[k]))]);
+    const cols = [{ head: EL0.work || "Opera" }, ...sm.keys.map((k) => ({ group: { text: CL[k] || k, span: 1 }, sub: k === "shore" ? EL0.unitS || "mq" : EL0.unitV || "mc" }))];
+    cols.forEach((c, i) => { c.w = colW([c.sub != null ? c.sub : c.head, ...cells.map((r) => r[i])]); if (c.group) c.w = Math.max(c.w, glyphW(c.group.text, text.head) + 4); });
+    T(L.title, x0, yTop + 4 * mm, 3.5, EL0.summary || "Riepilogo");
+    const F = tableFrame(x0, yTop, cols), align = cols.map((_, i) => (i ? 2 : 0)), nW = sm.rows.length;
+    cells.forEach((v, k) => F.row(k, v, k < nW ? E.text : E.tot, align));
+    F.close(F.yH - cells.length * EARTH_MM.row * mm);
+  }
 
   /* ---- pianta georeferita: l'asse in E/N veri, profili e sezioni spostati sotto ---- */
   function drawPlan() {
@@ -1772,6 +1906,7 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
       const { verts, at } = sh.plan, lo = sh.lo, hi = sh.hi;
       const pos = (p, off) => { const w = at(p); return [w.x - w.ty * off, w.y + w.tx * off]; };        // off > 0 a sinistra guardando avanti
       PM.push({ t: "poly", layer: PL.axis, pts: verts.map((v) => [v.x, v.y, v.b || 0]) });
+      for (const t of sh.plan.trims || []) PM.push({ t: "line", layer: trimLayer("pln"), a: [t.a[0], t.a[1]], b: [t.b[0], t.b[1]] });   // le tracce dei tagli (0.18)
       for (const ring of sh.plan.foot || []) PM.push({ t: "poly", layer: PL.foot, closed: true, pts: ring.map((q) => [q[0], q[1]]) });   // ingombro (C.planFootprint)
       const wk = sh.plan.work;                                                                            // l'opera vista dall'alto (C.planWork)
       if (wk) {
@@ -1866,7 +2001,7 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
       xMax = Math.max(xMax, bx + z.w);
       bx += z.w + 15 * mm; rowH = Math.max(rowH, z.h);
     }
-    return xMax;
+    return { x: xMax, y: by - rowH };
   }
   function crossBlock(s, bx, by, size) {
     const cs = s.cs, CL = labels.cross || {}, { zRef, zTop, hw } = size;
@@ -1885,6 +2020,7 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
     if (cs.cut) M.push({ t: "poly", layer: L.sCut, pts: P(cs.cut) });
     for (const l of cs.surface || []) M.push({ t: "poly", layer: L.sSurf, pts: P(l) });          // a pezzi: nel canale aperto non attraversa l'acqua
     M.push({ t: "line", layer: L.sAxis, a: [X(0), yD], b: [X(0), Y(zTop) + 3 * mm] });
+    if (cs.trim) M.push({ t: "line", layer: trimLayer("sez"), a: [X(cs.trim.u), yD], b: [X(cs.trim.u), Y(zTop) + 3 * mm] });   // la traccia del piano del taglio
     // piano di riferimento con la quota e il triangolino, come nel profilo
     M.push({ t: "line", layer: L.ref, a: [bx, yD], b: [xR, yD] });
     T(L.ref, bx + hw - 1.5 * mm, yD + 2.5 * mm, text.head, zRef.toFixed(3), { ha: 2 });

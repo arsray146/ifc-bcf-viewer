@@ -2392,8 +2392,8 @@ export function sectionRuns(base, rows, lo, hi) {
  * Ritorna { parts (ognuno con stype, P, run, blends: [{ p0, p1, to }], bridge?), drops, runs, joins, miss,
  * bridges: [{ id, p0, p1, length, parts: [k], void }], specAt(p) }.
  */
-export function workSweep(axis, prof, anchors, spec, zAt3, { O = { x: 0, y: 0 }, cuts: cuts0 = [], partWalls = {}, du = 0.1, reach = 50, bridges: br0 = [] } = {}) {
-  const res = { parts: [], drops: [], runs: [], joins: [], miss: 0, bridges: [], specAt: () => null };
+export function workSweep(axis, prof, anchors, spec, zAt3, { O = { x: 0, y: 0 }, cuts: cuts0 = [], partWalls = {}, du = 0.1, reach = 50, bridges: br0 = [], trims = [], tri = null } = {}) {
+  const res = { parts: [], drops: [], runs: [], joins: [], miss: 0, bridges: [], specAt: () => null, trims: { at: [], zones: [] }, excluded: () => false };
   const ax3 = buildAxis3D(axis, prof, anchors);
   if (ax3.pts.length < 2) return res;
   const lo = ax3.pts[0].p, hi = ax3.pts[ax3.pts.length - 1].p;
@@ -2475,6 +2475,15 @@ export function workSweep(axis, prof, anchors, spec, zAt3, { O = { x: 0, y: 0 },
     }
     res.bridges.push(B);
   }
+  // tagli (0.18): le zone escluse ritagliano mesh e volumi dei tratti; il tracciato resta intero
+  if (trims.length) {
+    res.trims = trimZones(axis, trims, { lo, hi });
+    const Z = res.trims.zones;
+    res.excluded = (p) => Z.some((z) => (z.kind === "before" ? p < z.p1 - 1e-9 : z.kind === "after" ? p > z.p0 + 1e-9 : p > z.p0 + 1e-9 && p < z.p1 - 1e-9));
+    if (tri) Object.assign(res.trims, trimParts(res.parts, axis, Z, { O, tri }));
+    for (const z of Z) if (!isNum(z.w0) && z.w0 !== -Infinity) { const mg = 30 / Math.max(TRIM.minSin, z.sin) + TRIM.pad; z.w0 = z.kind === "before" ? -Infinity : z.p0 - mg; z.w1 = z.kind === "after" ? Infinity : z.p1 + mg; }
+  }
+  res.O = O;
   return res;
 }
 
@@ -3085,18 +3094,20 @@ export function profileSheet({ axis, prof, map, ctl, sweep, zAt3, lo, hi, square
   const samples = [];
   for (let i = 0; i <= n; i++) { const p = lo + (hi - lo) * i / n; samples.push([p, ground(p)]); }
   const bridges = sweep.bridges || [], runs = sweep.runs || [];
-  // scorrimento e fondo scavo da una parte (side −1 prima, +1 dopo): la sezione del tratto di quella parte
+  const ends = trimEnds(sweep, axis, lo, hi), out = (p) => (sweep.excluded ? sweep.excluded(p) : false);
+  // scorrimento e fondo scavo da una parte (side −1 prima, +1 dopo): la sezione del tratto di quella parte; nei tratti esclusi dai
+  // tagli (0.18) la linea di progetto resta (il tracciato), il fondo scavo no
   const at = (p, side) => {
     const z = zAt(prof, map.toQ(p), side), pp = p + side * 1e-6;
     const sp = sweep.specAt ? sweep.specAt(pp) : null;
     if (!sp || !Number.isFinite(z)) return { zS: z, zF: NaN };
     const lv = sectionLevels(sp.stype, sp.sh), zS = z + lv.lift;
-    return { zS, zF: bridges.some((b) => pp > b.p0 && pp < b.p1) ? NaN : zS + lv.bottom };
+    return { zS, zF: bridges.some((b) => pp > b.p0 && pp < b.p1) || out(pp) ? NaN : zS + lv.bottom };
   };
   let cp = profileFromPoints(ctl);
   if (square) cp = squareDrops(cp);
   const dv = cp.pts.map((q) => ({ p: map.toP(q.s), z: q.z })).filter((q) => q.p >= lo - 1e-6 && q.p <= hi + 1e-6);
-  const edges = [...runs.flatMap((r) => [r.p0, r.p1]), ...bridges.flatMap((b) => [b.p0, b.p1])];
+  const edges = [...runs.flatMap((r) => [r.p0, r.p1]), ...bridges.flatMap((b) => [b.p0, b.p1]), ...ends.map((e) => e.p)];
   const design = [...dv.map((q) => q.p), ...(sweep.drops || []).map((d) => d.p)];
   const two = (p) => { const a = at(p, -1), b = at(p, 1); return Math.abs(a.zS - b.zS) > 5e-4 || Math.abs(a.zF - b.zF) > 5e-4; };   // NaN: falso
   const cols = guitarColumns({ lo, hi, design, edges, ground: simplifyLine(samples, tol), gap, wide: [...design, ...edges].filter(two), wideGap: gap + wide });
@@ -3107,6 +3118,9 @@ export function profileSheet({ axis, prof, map, ctl, sweep, zAt3, lo, hi, square
   return {
     lo, hi, cols: guitarTable(cols, { ground, samples, at }), terrain: linePieces(simplifyLine(samples, 0.01)),
     design: levelLine(ps, (p, s) => at(p, s).zS), bottom: levelLine(ps, (p, s) => at(p, s).zF), grades: gradeRuns(dv),
+    // i tagli: una linea verticale dal fondo scavo del lato che resta fin su al terreno o alla linea di progetto, se più alta
+    trims: ends.map((e) => { const a = at(e.p, -e.dir), g = ground(e.p); return { p: e.p, z0: a.zF, z1: Math.max(a.zS, Number.isFinite(g) ? g : -Infinity) }; })
+      .filter((t) => Number.isFinite(t.z0) && Number.isFinite(t.z1)),
   };
 }
 
@@ -3129,19 +3143,22 @@ export const CROSS = Object.freeze({ step: 25, off: 1, near: 2, margin: 2 });
  * sempre la fine. joins = [{ p, blend, h }] (workSweep). Ritorna [{ p, kind }] crescenti, kind: "up"|
  * "down" (salto) | "before"|"after" (cambio di sezione) | "bridge0"|"bridge1" | "vertex" | "step".
  */
-export function crossCuts({ lo, hi, step = CROSS.step, design = [], drops = [], joins = [], bridges = [], off = CROSS.off, near = CROSS.near }) {
+export function crossCuts({ lo, hi, step = CROSS.step, design = [], drops = [], joins = [], bridges = [], off = CROSS.off, near = CROSS.near, gaps = [], trims = [] }) {
   const out = [];
+  // tagli (0.18): una sezione su ogni taglio (kind "trim"); niente sezioni nei tratti esclusi (gaps, aperti) né a meno di near / 2 da un taglio
+  for (const p of trims) if (p >= lo - 1e-6 && p <= hi + 1e-6) out.push({ p, kind: "trim" });
+  const gone = (p) => gaps.some(([a, b]) => p > a + 1e-6 && p < b - 1e-6) || trims.some((t) => Math.abs(t - p) < near / 2);
   const add = (p, kind, d = 1e-3) => {
-    if (!(p >= lo - 1e-6 && p <= hi + 1e-6) || out.some((c) => Math.abs(c.p - p) < d)) return;
+    if (!(p >= lo - 1e-6 && p <= hi + 1e-6) || gone(p) || out.some((c) => Math.abs(c.p - p) < d)) return;
     out.push({ p: Math.min(hi, Math.max(lo, p)), kind });
   };
   for (const p of drops) { add(p - off, "up"); add(p + off, "down"); }
   for (const j of joins) { const h = j.blend && j.h > off ? j.h : off; add(j.p - h, "before"); add(j.p + h, "after"); }
   for (const b of bridges) { add(b.p0 - off, "bridge0"); add(b.p1 + off, "bridge1"); }
   for (const p of design) if (!drops.some((d) => Math.abs(d - p) < off + 1e-6)) add(p, "vertex", near / 2);
-  add(lo, "step", near);
-  if (step > 0) for (let k = 1; lo + k * step <= hi + 1e-6; k++) add(lo + k * step, "step", near);
-  add(hi, "step", near);
+  add(lo, "step");                                                   // inizio e fine sempre, anche accanto a un punto notevole: il
+  if (step > 0) for (let k = 1; lo + k * step < hi - near + 1e-6; k++) add(lo + k * step, "step", near);   // tabulato va da capo a capo
+  add(hi, "step");
   return out.sort((a, b) => a.p - b.p);
 }
 
@@ -3155,7 +3172,8 @@ const ringPoly = (r) => [...r.map(([u, l]) => [u, l]), ...r.slice().reverse().ma
  * (superficie finita, se diversa, a pezzi: nel canale aperto due, a sinistra e a destra fino alla cima dei
  * muri, senza attraversare l'acqua; vuoto se non c'è), design [[u, z]] (i vertici di progetto da sinistra a destra;
  * due di fila alla stessa u = parete verticale), marks [{ key: "inv"|"exc"|"crest"|"toe", u, z }],
- * areas [{ key, a }] (m²), ext [u sinistra, u destra] (i punti più esterni: cigli, piedi, bordo dell'opera) }.
+ * areas [{ key, a }] (m²), shore (tubo: altezza delle pareti da blindare, le due, m; 0 senza), ext [u sinistra, u destra] (i punti
+ * più esterni: cigli, piedi, bordo dell'opera) }.
  * Nei tratti a ponte resta la sola opera (niente scavo né terre). lite: senza i campioni del terreno
  * (per l'ingombro in pianta, che vuole solo ext).
  */
@@ -3171,12 +3189,25 @@ export function crossSection({ axis, prof, map, sweep, zAt3, p, margin = CROSS.m
   const G = (u) => zAt3(w.x + w.ty * u, w.y - w.tx * u);
   const T = (u) => G(u) - zb;
   const A = (pts) => pts.map(([u, v]) => [u, zb + v]);
-  const out = { p, stype, bridge, zP: z, zS: zb, zF: NaN, structure: { polys: [], circles: [] }, strata: [], cut: null, surface: [], design: [], marks: [], areas: [] };
+  const out = { p, stype, bridge, zP: z, zS: zb, zF: NaN, structure: { polys: [], circles: [] }, strata: [], cut: null, surface: [], design: [], marks: [], areas: [], shore: 0 };
   const mark = (key, u, v) => { if (Number.isFinite(v)) out.marks.push({ key, u, z: zb + v }); };
   let ext = [0, 0];
   if (stype === "channel" || stype === "box") {
     let zone = sh.std;
-    if (part && part.sections) { let best = null; for (const s of part.sections) if (!best || Math.abs(s.p - p) < Math.abs(best.p - p)) best = s; if (best && best.zone && best.kind !== "std" && Math.abs(best.p - p) < 0.5) zone = best.zone; }
+    if (part && part.sections) {
+      const S = part.sections;
+      let best = null; for (const s of S) if (!best || Math.abs(s.p - p) < Math.abs(best.p - p)) best = s;
+      if (best && best.zone && best.kind !== "std" && Math.abs(best.p - p) < 0.5) zone = best.zone;
+      // fra due stazioni del computo della stessa zona (cuneo, muro) la zona interpolata: il fondo del cuneo scende lineare dalla
+      // faccia del muro, e con la zona della stazione più vicina sezione e area stavano alla profondità di quella (misto -19 %)
+      let a = null, b = null;
+      for (const s of S) { if (s.p <= p + 1e-9) a = s; if (!b && s.p >= p - 1e-9) b = s; }
+      if (a && b && a.zone && b.zone && a.kind === b.kind && a.kind !== "std" && b.p - a.p > 1e-6) {
+        const t = (p - a.p) / (b.p - a.p);
+        zone = { ...a.zone };
+        for (const k of Object.keys(a.zone)) if (typeof a.zone[k] === "number" && typeof b.zone[k] === "number") zone[k] = a.zone[k] + (b.zone[k] - a.zone[k]) * t;
+      }
+    }
     const { uo, uoT, um, ue, ub, H, vs, vm, hb, hbT } = sh;
     out.structure.polys.push(A(sh.ring));
     if (sh.roofRing) out.structure.polys.push(A(sh.roofRing));
@@ -3241,6 +3272,7 @@ export function crossSection({ axis, prof, map, sweep, zAt3, p, margin = CROSS.m
         out.areas.unshift({ key: "cut", a: a.cut }, { key: "bed", a: a.bed }, { key: "surround", a: a.surround }, { key: "cover", a: a.cover }, { key: "backfill", a: a.fill });
         if (a.restore > 1e-4) out.areas.push({ key: "restore", a: a.restore });
         if (a.emb > 1e-4) out.areas.push({ key: "emb", a: a.emb });
+        if (T(0) - sh.vF > sh.p.deep) out.shore = cr.shore;                          // pareti da blindare (le due), come il computo: verticali e oltre la soglia
         ext = [Math.min(ext[0], cr.EL.u, cr.SL.u, emb ? cr.toeL.u : 0), Math.max(ext[1], cr.ER.u, cr.SR.u, emb ? cr.toeR.u : 0)];
       }
     }
@@ -3316,13 +3348,149 @@ export function crossSheets({ axis, prof, map, ctl, sweep, zAt3, lo, hi, square 
   let cp = profileFromPoints(ctl);
   if (square) cp = squareDrops(cp);
   const design = cp.pts.map((q) => map.toP(q.s)).filter((p) => p > lo + 1e-6 && p < hi - 1e-6);
-  const cuts = crossCuts({ lo, hi, step, design, drops: (sweep.drops || []).map((d) => d.p), joins: sweep.joins || [], bridges: sweep.bridges || [] });
+  const args = { axis, prof, map, sweep, zAt3 }, ends = trimEnds(sweep, axis, lo, hi);
+  const cuts = crossCuts({ lo, hi, step, design, drops: (sweep.drops || []).map((d) => d.p), joins: sweep.joins || [], bridges: sweep.bridges || [],
+    gaps: trimGaps(sweep, axis, lo, hi, args), trims: ends.map((e) => e.p) });
   const out = [];
   for (const c of cuts) {
-    const cs = crossSection({ axis, prof, map, sweep, zAt3, p: c.p });
+    let cs;
+    if (c.kind === "trim") {                                   // sul taglio: la sezione appena prima del piano, ritagliata dove la traccia la incontra
+      const e = ends.find((x) => Math.abs(x.p - c.p) < 1e-6), q = c.p - e.dir * 0.01;
+      cs = crossSection({ ...args, p: q });
+      if (cs) { clipCross(cs, axis, e.plane); cs.areas = sliceAreas(sweep, axis, q); }
+    } else cs = crossSection({ ...args, p: c.p });
     if (cs) out.push({ n: out.length + 1, p: c.p, kind: c.kind, cs, table: crossTable(cs) });
   }
   return out;
+}
+
+/* =========================================================================
+   Tabulato dei movimenti terra (0.17). Scelte dell'utente (2026-10-07): nel
+   DXF delle tavole, una tabella per opera accanto alle sue sezioni; colonne =
+   le classi che l'opera ha (aree, volumi parziali e progressivi), le pareti da
+   blindare del tubo come superficie; volumi a SEZIONI RAGGUAGLIATE fra le
+   sezioni correnti ((A1 + A2) / 2 · d: si rifà a mano dalle righe) con in
+   fondo il computo del tool (passo 1 m, quello di CSV, IFC e .3dm) e lo
+   scarto; un riepilogo con i totali di tutte le opere.
+   ========================================================================= */
+/** Le classi del tabulato nell'ordine delle colonne: prima le terre, poi i materiali dell'opera, le blindature in fondo. */
+export const EARTH_KEYS = Object.freeze(["cut", "fill", "backfill", "emb", "restore", "lining", "lean", "mix", "pipe", "bed", "surround", "cover", "shore"]);
+
+/**
+ * Il tabulato dalle righe [{ n, p, kind, a: { classe: area } }] crescenti in p: colonne = le classi di EARTH_KEYS con un'area (o un
+ * volume del computo) non nullo;
+ * per riga la distanza parziale dp (NaN sulla prima), il volume dalla riga prima v (sezioni ragguagliate) e il progressivo c.
+ * tool = { classe: volume } (earthTool): il computo del tool per classe e lo scarto del tabulato in % (NaN dove il computo è nullo).
+ * Ritorna { keys, rows: [{ n, p, kind, dp, a, v, c }], total, tool, diff }.
+ */
+export function earthTable(rows, { tool = null } = {}) {
+  // anche le classi che il computo ha e le sezioni no (un riporto piccolo fra due sezioni): a zero, con lo scarto in vista
+  const keys = EARTH_KEYS.filter((k) => rows.some((r) => (r.a[k] || 0) > 5e-4) || (tool && tool[k] > 1e-3));
+  const total = Object.fromEntries(keys.map((k) => [k, 0]));
+  const out = rows.map((r, i) => {
+    const dp = i ? r.p - rows[i - 1].p : NaN, a = {}, v = {}, c = {};
+    for (const k of keys) {
+      a[k] = r.a[k] || 0;
+      if (i) { v[k] = (a[k] + (rows[i - 1].a[k] || 0)) / 2 * dp; total[k] += v[k]; }
+      c[k] = total[k];
+    }
+    return { n: r.n, p: r.p, kind: r.kind, dp, a, v, c };
+  });
+  const T = tool ? Object.fromEntries(keys.map((k) => [k, tool[k] || 0])) : null;
+  const diff = T ? Object.fromEntries(keys.map((k) => [k, T[k] > 1e-3 ? (total[k] - T[k]) / T[k] * 100 : NaN])) : null;
+  return { keys, rows: out, total, tool: T, diff };
+}
+
+/**
+ * Il computo del tool per le classi del tabulato, dai tratti di workSweep: il riporto del fosso è «fill», il rinterro di canale,
+ * scatolare e tubo «backfill» (nel computo stanno tutti e due in vol.fill); le pareti da blindare del tubo (m²) «shore».
+ */
+export function earthTool(parts) {
+  const t = {};
+  const add = (k, v) => { if (v > 0) t[k] = (t[k] || 0) + v; };
+  for (const p of parts) {
+    for (const [k, v] of Object.entries(p.vol || {})) if (k !== "void") add(k === "fill" && p.stype !== "ditch" ? "backfill" : k, v);
+    add("shore", p.shore || 0);
+  }
+  return t;
+}
+
+/** Le aree di una sezione corrente per classe (le blindature: l'altezza delle pareti). */
+function earthAreas(cs) {
+  const a = {};
+  for (const x of cs.areas) a[x.key] = (a[x.key] || 0) + x.a;
+  if (cs.shore > 0) a.shore = cs.shore;
+  return a;
+}
+
+/**
+ * Il tabulato di un'opera dalle sue sezioni correnti (crossSheets): una riga per sezione, più le righe senza disegno (n = null) dove
+ * le aree cambiano di colpo, così il conto si rifà a mano e torna col computo (scelta dell'utente):
+ * - capi dei ponti e cambi di sezione netti: due righe alla stessa progressiva (side 0 prima, 1 dopo), kind "brStart"/"brEnd"/"join";
+ *   fra i capi di un ponte le terre restano a zero;
+ * - salti del canale e dello scatolare: le stazioni del computo ai capi delle zone del cuneo (kind "zWedge") e del muro di testa
+ *   (sulla faccia "zFace", sul salto "zDrop", con la prima stazione del tratto dopo), con le loro aree: muro, dente e cuneo sono lunghi
+ *   1-2 m e la media fra sezioni lontane li spalmava (inalveazione: misto +101 %).
+ * Gli argomenti di crossSection, secs, e tool (earthTool).
+ */
+export function earthSheet({ axis, prof, map, sweep, zAt3, secs, lo, hi, tool = null }) {
+  const rows = secs.map((s) => ({ n: s.n, p: s.p, kind: s.kind, a: earthAreas(s.cs), o: 0 }));
+  const at = (p) => crossSection({ axis, prof, map, sweep, zAt3, p, lite: true });
+  const pair = (p, kind) => {
+    if (!(p > lo + 1e-6 && p < hi - 1e-6)) return;
+    [at(p - 1e-3), at(p + 1e-3)].forEach((cs, side) => { if (cs) rows.push({ n: null, p, kind, side, a: earthAreas(cs), o: 1 + side }); });
+  };
+  for (const b of sweep.bridges || []) { pair(b.p0, "brStart"); pair(b.p1, "brEnd"); }
+  for (const j of sweep.joins || []) if (!j.blend) pair(j.p, "join");
+  // salti: le stazioni del computo (sections dei tratti di canale e scatolare) al primo e all'ultimo posto di ogni zona, più quella
+  // del tratto accanto alla stessa progressiva quando la zona tocca il capo del tratto (il salto: di là il fondo è più basso)
+  const parts = sweep.parts || [], seen = new Set();
+  const station = (ti, j, drops = parts[ti].drops) => {
+    const t = parts[ti], s = t.sections[j], key = ti + ":" + j;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const d = (drops || []).find((x) => Math.abs(x.face - s.p) < 1e-6 || Math.abs(x.p - s.p) < 1e-6);
+    const kind = s.kind === "wedge" && !(d && Math.abs(d.face - s.p) < 1e-6) ? "zWedge" : d && Math.abs(d.p - s.p) < 1e-6 && Math.abs(d.face - s.p) > 1e-6 && s.p > lo + 1e-6 && s.p < hi - 1e-6 ? "zDrop" : "zFace";
+    rows.push({ n: null, p: s.p, kind, a: { lining: s.a.lining, lean: s.a.lean, mix: s.a.mix, cut: s.a.cut, backfill: s.a.fill }, o: 10 + ti * 1e4 + j });
+  };
+  parts.forEach((t, ti) => {
+    const S = t.sections || [];
+    if (t.bridge != null || !(t.stype === "channel" || t.stype === "box") || !S.some((s) => s.kind && s.kind !== "std")) return;
+    S.forEach((s, j) => {
+      if (s.kind === "std") return;
+      if (j === 0 || S[j - 1].kind !== s.kind) station(ti, j);
+      if (j === S.length - 1 || S[j + 1].kind !== s.kind) station(ti, j);
+    });
+    const A = parts[ti - 1], B = parts[ti + 1];
+    if (S[0].kind !== "std" && A && A.sections && A.sections.length && Math.abs(A.sections[A.sections.length - 1].p - S[0].p) < 1e-6) station(ti - 1, A.sections.length - 1, t.drops);
+    if (S[S.length - 1].kind !== "std" && B && B.sections && B.sections.length && Math.abs(B.sections[0].p - S[S.length - 1].p) < 1e-6) station(ti + 1, 0, t.drops);
+  });
+  // tagli (0.18): niente righe nei tratti esclusi; su ogni taglio la sezione ritagliata (crossSheets), prima la riga piena dove il
+  // piano comincia a toccare l'opera (kind "trimIn"), dopo la riga a zero dove la lascia ("trimOut"); con un piano ⟂ la sezione e lo
+  // zero alla stessa progressiva, come ai capi dei ponti
+  const targs = { axis, prof, map, sweep, zAt3 }, gaps = trimGaps(sweep, axis, lo, hi, targs);
+  for (let i = rows.length - 1; i >= 0; i--) if (rows[i].kind !== "trim" && gaps.some(([a, b]) => rows[i].p > a + 1e-6 && rows[i].p < b - 1e-6)) rows.splice(i, 1);
+  for (const e of trimEnds(sweep, axis, lo, hi)) {
+    const m = trimBand(e, targs);
+    if (m >= 0.01) {
+      const pin = Math.min(hi, Math.max(lo, e.p - e.dir * m)), cs = crossSection({ ...targs, p: pin });
+      if (cs) rows.push({ n: null, p: pin, kind: "trimIn", a: earthAreas(cs), o: 0 });
+      rows.push({ n: null, p: Math.min(hi, Math.max(lo, e.p + e.dir * m)), kind: "trimOut", a: {}, o: 0 });
+    } else rows.push({ n: null, p: e.p, kind: "trimOut", a: {}, o: 0.5 * e.dir });
+  }
+  rows.sort((x, y) => x.p - y.p || x.o - y.o);
+  const tb = earthTable(rows, { tool });
+  tb.rows.forEach((r, i) => { if (rows[i].side != null) r.side = rows[i].side; });
+  return tb;
+}
+
+/** Il riepilogo di più opere: list = [{ name, table (earthTable) }] → { keys, rows: [{ name, total, tool }], total, tool, diff }. */
+export function earthSummary(list) {
+  const keys = EARTH_KEYS.filter((k) => list.some((w) => w.table.keys.includes(k)));
+  const sum = (f) => Object.fromEntries(keys.map((k) => [k, list.reduce((s, w) => s + (f(w)[k] || 0), 0)]));
+  const total = sum((w) => w.table.total), hasTool = list.every((w) => w.table.tool), tool = hasTool ? sum((w) => w.table.tool) : null;
+  const diff = tool ? Object.fromEntries(keys.map((k) => [k, tool[k] > 1e-3 ? (total[k] - tool[k]) / tool[k] * 100 : NaN])) : null;
+  return { keys, rows: list.map((w) => ({ name: w.name, total: w.table.total, tool: w.table.tool })), total, tool, diff };
 }
 
 /** Le stazioni delle linee in pianta: ogni step metri fra lo e hi, più un centimetro prima e dopo salti, capi dei tratti e dei ponti. */
@@ -3400,8 +3568,14 @@ export function planFootprint({ axis, prof, map, sweep, zAt3, lo, hi, step = 1, 
   const out = [], corners = planCorners(axis, lo, hi);
   const ext = (s) => { const cs = crossSection({ axis, prof, map, sweep, zAt3, p: s, lite: true }); return cs ? cs.ext : [NaN, NaN]; };
   let Ls = [], Rs = [];
+  const zones = (sweep.trims && sweep.trims.zones) || [];
+  const ring = (L, R) => [...simplify2D(cornerFix(L, corners, (s) => ext(s)[0]), tol), ...simplify2D(cornerFix(R, corners, (s) => ext(s)[1]), tol).reverse()];
   const flush = () => {
-    if (Ls.length > 1) out.push([...simplify2D(cornerFix(Ls, corners, (s) => ext(s)[0]), tol), ...simplify2D(cornerFix(Rs, corners, (s) => ext(s)[1]), tol).reverse()]);
+    if (Ls.length > 1) {
+      // tagli (0.18): i due bordi spezzati dove entrano in una zona esclusa; i pezzi in ordine si chiudono sul piano
+      const LP = zoneSplit(Ls, zones), RP = zoneSplit(Rs, zones);
+      if (LP.length === RP.length) LP.forEach((L, i) => out.push(ring(L, RP[i]))); else out.push(ring(Ls, Rs));
+    }
     Ls = []; Rs = [];
   };
   for (const p of planStations(sweep, lo, hi, step)) {
@@ -3436,11 +3610,14 @@ export function planWork({ axis, sweep, lo, hi, step = 1, tol = 0.01 }) {
   const lines = [], cross = [], open = {};
   if (!sweep.specAt) return { lines, cross };
   const pt = (w, u) => [w.x + w.ty * u, w.y - w.tx * u];                             // u a DESTRA
-  const corners = planCorners(axis, lo, hi);
+  const corners = planCorners(axis, lo, hi), zones = (sweep.trims && sweep.trims.zones) || [], hits = [];
   const close = (id) => {
     const side = id[0] === "L" ? -1 : 1, key = id.slice(1);
     const uAt = (s) => { const sp = sweep.specAt(s); const E = sp && sp.sh ? planEdges(sp) : {}; return side * E[key]; };
-    if (open[id] && open[id].length > 1) lines.push(simplify2D(cornerFix(open[id], corners, uAt), tol));
+    // tagli (0.18): i fili spezzati dove entrano in una zona esclusa; dove esce il filo esterno, il punto sul piano
+    const ends = key === "out" ? [] : null;
+    if (open[id] && open[id].length > 1) for (const l of zoneSplit(open[id], zones, ends)) if (l.length > 1) lines.push(simplify2D(cornerFix(l, corners, uAt), tol));
+    if (ends) for (const e of ends) hits.push({ ...e, side });
     delete open[id];
   };
   let run = null;
@@ -3453,10 +3630,434 @@ export function planWork({ axis, sweep, lo, hi, step = 1, tol = 0.01 }) {
     for (const [key, u] of Object.entries(E)) for (const s of [-1, 1]) { const [x, y] = pt(w, s * u); (open[(s < 0 ? "L" : "R") + key] ||= []).push({ p, x, y }); }
   }
   for (const id of Object.keys(open)) close(id);
-  const across = (p, half) => { if (!(half > 0) || p < lo - 1e-6 || p > hi + 1e-6) return; const w = planAt(axis, p); cross.push([pt(w, -half), pt(w, half)]); };
+  const across = (p, half) => { if (!(half > 0) || p < lo - 1e-6 || p > hi + 1e-6 || (sweep.excluded && sweep.excluded(p))) return; const w = planAt(axis, p); cross.push([pt(w, -half), pt(w, half)]); };
+  // sul taglio la testata dell'opera: fra i due punti del filo esterno sullo stesso piano (i più vicini, se l'asse ripassa)
+  for (const a of hits.filter((h) => h.side < 0)) {
+    let best = null, bd = Infinity;
+    for (const b of hits) if (b.side > 0 && b.plane === a.plane) { const d = Math.hypot(b.x - a.x, b.y - a.y); if (d < bd) { bd = d; best = b; } }
+    if (best) cross.push([[a.x, a.y], [best.x, best.y]]);
+  }
   const edgesAt = (p) => { const sp = sweep.specAt(Math.min(hi, Math.max(lo, p))); return sp && sp.sh ? planEdges(sp) : {}; };
   for (const d of sweep.drops || []) { const E = edgesAt(d.p + 1e-6); across(d.p, E.in || E.out); }
   for (const j of sweep.joins || []) for (const p of j.blend && j.h > 0 ? [j.p - j.h, j.p + j.h] : [j.p]) across(p, Math.max(edgesAt(p - 1e-6).out || 0, edgesAt(p + 1e-6).out || 0));
   across(lo, edgesAt(lo).out); across(hi, edgesAt(hi).out);
   return { lines, cross };
+}
+
+/* =========================================================================
+   Tagli (0.18). Scelte dell'utente (2026-10-08): opera e scavo si tagliano
+   sulle opere del contesto (tombini, manufatti, ponti) e alle estremità, con
+   un piano SEMPRE VERTICALE (dalla faccia cliccata o da una riga in pianta,
+   anche obliquo all'asse); fra due tagli un tratto escluso, con un taglio solo
+   il pezzo verso il capo; sul piano si chiude TUTTO (opera, magrone, scavo,
+   rinterri, riporto, rilevato) a parete verticale; il tracciato resta intero.
+   I tagli vivono nell'opera a numeri (due punti E/N della traccia).
+   ========================================================================= */
+
+/**
+ * Ritaglio di una mesh CHIUSA (per posizione, come quelle del motore) col livello 0 del campo per vertice F: keep = la parte con
+ * F ≤ 0, cut = quella con F > 0, tutte e due chiuse da tappi sul taglio. Il taglio deve stare su piani VERTICALI (distanze con segno
+ * da tracce in pianta, anche più d'una come min di più piani): ogni anello del taglio si proietta sulla sua traccia orizzontale
+ * (ascissa lungo la traccia, quota) e gli anelli sulla stessa traccia diventano regioni coi loro fori (nestLoops), triangolate da
+ * tri(contorno, fori) → [[i, j, k]…] (indici del contorno seguiti da quelli dei fori, come THREE.ShapeUtils.triangulateShape coi
+ * punti [x, y]). Le regioni più sottili di 1 mm restano senza tappo (thin: earcut ci mette secondi), come gli anelli che non si
+ * chiudono o non stanno su una traccia (open). Ritorna { keep, cut, open, thin }.
+ */
+export function trimMesh({ positions: P, index: I }, F, { tri } = {}) {
+  const n = P.length / 3, wid = new Int32Array(n), rep = [], keyOf = new Map();
+  for (let v = 0; v < n; v++) {
+    const k = Math.round(P[3 * v] * 1e6) + "," + Math.round(P[3 * v + 1] * 1e6) + "," + Math.round(P[3 * v + 2] * 1e6);
+    let w = keyOf.get(k);
+    if (w === undefined) { w = rep.length; keyOf.set(k, w); rep.push(v); }
+    wid[v] = w;
+  }
+  // un piano che passa SUI vertici (un taglio sulla progressiva di una stazione, la generatrice di un tubo) lascerebbe triangolini
+  // degeneri e lati doppi: si sposta verso il pezzo tolto, di un millimetro o poco più, finché nessun vertice gli sta a meno di 0,1 mm.
+  // Con 1e-5 m due punti di taglio sui lati di uno stesso vertice nascevano a un decimo di micron: chi unisce per posizione li fondeva
+  let dF = 0;
+  for (const d of [0, 1e-3, 1.7e-3, 2.9e-3, 4.3e-3, 6.1e-3]) {
+    dF = d;
+    let hit = false;
+    for (const r of rep) if (Math.abs(F[r] - d) < (d ? 1e-4 : 1e-7)) { hit = true; break; }
+    if (!hit) break;
+  }
+  const f = (v) => { const x = F[rep[wid[v]]] - dF; return Math.abs(x) < 1e-9 ? -1e-9 : x; };
+  const side = (v) => f(v) > 0;
+  // punti sui lati tagliati: uno per lato (coppia di vertici uniti), calcolato sempre nello stesso verso (stessi numeri dai due triangoli)
+  const EP = [], epOf = new Map();
+  const ep = (a, b) => {
+    let wa = wid[a], wb = wid[b];
+    if (wa > wb) [wa, wb] = [wb, wa];
+    const k = wa + "|" + wb;
+    let id = epOf.get(k);
+    if (id === undefined) {
+      const ra = rep[wa], rb = rep[wb], fa = f(ra), fb = f(rb), t = fa / (fa - fb);
+      id = EP.length / 3; epOf.set(k, id);
+      EP.push(P[3 * ra] + (P[3 * rb] - P[3 * ra]) * t, P[3 * ra + 1] + (P[3 * rb + 1] - P[3 * ra + 1]) * t, P[3 * ra + 2] + (P[3 * rb + 2] - P[3 * ra + 2]) * t);
+    }
+    return id;
+  };
+  const piece = () => {
+    const pos = [], idx = [], ov = new Map(), oe = new Map();
+    const vx = (v) => { let i = ov.get(v); if (i === undefined) { i = pos.length / 3; ov.set(v, i); pos.push(P[3 * v], P[3 * v + 1], P[3 * v + 2]); } return i; };
+    const ex = (e) => { let i = oe.get(e); if (i === undefined) { i = pos.length / 3; oe.set(e, i); pos.push(EP[3 * e], EP[3 * e + 1], EP[3 * e + 2]); } return i; };
+    return { pos, idx, tri: (...q) => idx.push(...q.map((x) => (x.e !== undefined ? ex(x.e) : vx(x)))), ex };
+  };
+  const K = piece(), C = piece(), seg = [];                    // seg: lati del taglio nel verso dei triangoli di keep [e0, e1]
+  for (let k = 0; k < I.length; k += 3) {
+    const t = [I[k], I[k + 1], I[k + 2]], s = t.map(side), nc = s.filter(Boolean).length;
+    if (nc === 0) { K.tri(...t); continue; }
+    if (nc === 3) { C.tri(...t); continue; }
+    const j = s[0] !== s[1] && s[0] !== s[2] ? 0 : s[1] !== s[0] && s[1] !== s[2] ? 1 : 2;
+    const a = t[j], b = t[(j + 1) % 3], c = t[(j + 2) % 3], ab = { e: ep(a, b) }, ca = { e: ep(c, a) };
+    const lone = s[j] ? C : K, rest = s[j] ? K : C;
+    lone.tri(a, ab, ca);
+    rest.tri(ab, b, c); rest.tri(ab, c, ca);
+    seg.push(s[j] ? [ca.e, ab.e] : [ab.e, ca.e]);
+  }
+  // anelli del taglio: i lati di seguito (nel verso di keep)
+  const from = new Map();
+  seg.forEach(([a], i) => { const l = from.get(a); if (l) l.push(i); else from.set(a, [i]); });
+  const used = new Uint8Array(seg.length), loops = [];
+  let open = 0, thin = 0;
+  for (let s0 = 0; s0 < seg.length; s0++) {
+    if (used[s0]) continue;
+    used[s0] = 1;
+    const chain = [seg[s0][0]];
+    let cur = seg[s0][1], closed = false;
+    for (let guard = 0; guard <= seg.length; guard++) {
+      if (cur === chain[0]) { closed = true; break; }
+      chain.push(cur);
+      const nx = (from.get(cur) || []).find((i) => !used[i]);
+      if (nx === undefined) break;
+      used[nx] = 1; cur = seg[nx][1];
+    }
+    if (closed && chain.length >= 3) loops.push(chain); else open++;
+  }
+  // tracce: anelli sulla stessa retta orizzontale (lo stesso piano verticale)
+  const X = (e) => EP[3 * e], Y = (e) => EP[3 * e + 1], Z = (e) => EP[3 * e + 2];
+  const groups = [];
+  for (const L of loops) {
+    let a = L[0], b = L[0], dm = -1;
+    for (const e of L) { const d = Math.hypot(X(e) - X(a), Y(e) - Y(a)); if (d > dm) { dm = d; b = e; } }
+    if (!(dm > 1e-6)) { open++; continue; }
+    const dx = (X(b) - X(a)) / dm, dy = (Y(b) - Y(a)) / dm, off = (e) => (X(e) - X(a)) * dy - (Y(e) - Y(a)) * dx;
+    if (L.some((e) => Math.abs(off(e)) > 1e-4)) { open++; continue; }     // non sta su un piano verticale (due piani che si incrociano dentro la mesh)
+    let g = groups.find((q) => Math.abs(q.dx * dy - q.dy * dx) < 1e-6 && L.every((e) => Math.abs((X(e) - q.x) * q.dy - (Y(e) - q.y) * q.dx) < 1e-4));
+    if (!g) { g = { x: X(a), y: Y(a), dx, dy, loops: [] }; groups.push(g); }
+    g.loops.push(L);
+  }
+  for (const g of groups) {
+    const L2 = g.loops.map((L) => L.map((e) => [(X(e) - g.x) * g.dx + (Y(e) - g.y) * g.dy, Z(e)]));
+    for (const r of nestLoops(L2)) {
+      const ids = [r.outer, ...r.holes], lo = L2[r.outer];
+      let per = 0;
+      for (let i = 0; i < lo.length; i++) { const q = lo[(i + 1) % lo.length]; per += Math.hypot(q[0] - lo[i][0], q[1] - lo[i][1]); }
+      if (r.area < 5e-4 * per || !tri) { thin++; continue; }
+      let faces;
+      try { faces = tri(L2[r.outer], r.holes.map((h) => L2[h])); } catch (_) { open++; continue; }
+      const all = ids.flatMap((h) => g.loops[h]);
+      // verso: il tappo di keep percorre il bordo al contrario dei suoi triangoli → normale opposta all'area orientata dell'anello esterno
+      const o = g.loops[r.outer];
+      let ax = 0, ay = 0, az = 0;
+      for (let i = 0; i < o.length; i++) {
+        const p = o[i], q = o[(i + 1) % o.length];
+        ax += Y(p) * Z(q) - Z(p) * Y(q); ay += Z(p) * X(q) - X(p) * Z(q); az += X(p) * Y(q) - Y(p) * X(q);
+      }
+      let nx = 0, ny = 0, nz = 0;
+      for (const [i, j, k] of faces) {
+        const p = all[i], q = all[j], s = all[k], ux = X(q) - X(p), uy = Y(q) - Y(p), uz = Z(q) - Z(p), wx = X(s) - X(p), wy = Y(s) - Y(p), wz = Z(s) - Z(p);
+        nx += uy * wz - uz * wy; ny += uz * wx - ux * wz; nz += ux * wy - uy * wx;
+      }
+      const flip = nx * ax + ny * ay + nz * az > 0;
+      for (const [i, j, k] of faces) {
+        const [p, q, s] = flip ? [all[i], all[k], all[j]] : [all[i], all[j], all[k]];
+        K.idx.push(K.ex(p), K.ex(q), K.ex(s));
+        C.idx.push(C.ex(p), C.ex(s), C.ex(q));
+      }
+    }
+  }
+  const out = (Q) => ({ positions: Float64Array.from(Q.pos), index: Uint32Array.from(Q.idx) });
+  return { keep: out(K), cut: out(C), open, thin };
+}
+
+/**
+ * Una zona esclusa = intersezione di semipiani verticali [{ x, y, nx, ny }] (punto e normale in E/N; dentro la zona dove
+ * (p − punto)·normale > 0); mesh in coordinate attorno a O. Un piano alla volta (il minimo delle distanze interpolato lungo un
+ * lato lungo non vede il taglio): quello che resta fuori da un piano si mette da parte, il resto passa al piano dopo. I pezzi messi
+ * da parte non si toccano se i piani non si incrociano dentro la mesh. win(x, y) (E/N veri) = quanto il punto sta FUORI dalla
+ * finestra di progressive della zona (> 0 fuori): alla fine il pezzo da togliere che esce dalla finestra torna a restare (un piano
+ * infinito non deve toccare l'opera dove l'asse ripassa lontano). Va fatto alla fine: forzato prima, sul primo piano, faceva un
+ * taglio finto al bordo della finestra e due tappi uno contro l'altro. Ritorna { keep, cut, open, thin }.
+ */
+export function trimZone(mesh, planes, { O = { x: 0, y: 0 }, tri, win = null } = {}) {
+  const kept = [];
+  let rest = mesh, open = 0, thin = 0;
+  const field = (fn) => { const P = rest.positions, F = new Float64Array(P.length / 3); for (let v = 0; v < F.length; v++) F[v] = fn(P[3 * v] + O.x, P[3 * v + 1] + O.y); return F; };
+  for (const q of planes) {
+    if (!rest.index.length) break;
+    const t = trimMesh(rest, field((x, y) => (x - q.x) * q.nx + (y - q.y) * q.ny), { tri });
+    kept.push(t.keep); rest = t.cut; open += t.open; thin += t.thin;
+  }
+  if (win && rest.index.length) {
+    const G = field(win);
+    if (G.some((g) => g > 0)) { const t = trimMesh(rest, G, { tri }); kept.push(t.cut); rest = t.keep; open += t.open; thin += t.thin; }
+  }
+  return { keep: mergeMeshes(kept), cut: rest, open, thin };
+}
+
+/** Tagli: distanza entro cui due tagli vicini fanno un tratto escluso da soli (m), seno minimo dell'angolo con l'asse, margine (m). */
+export const TRIM = Object.freeze({ near: 50, minSin: 0.1, pad: 2 });
+
+/**
+ * Le tracce dei tagli sull'asse e le zone escluse. trims = [{ id, a: [x, y], b: [x, y], ex }] in E/N veri (la traccia orizzontale
+ * del piano verticale, retta infinita); ex = "auto" | "before" (il pezzo verso l'inizio) | "after" (verso la fine) | "next" (il
+ * tratto fino al taglio dopo). Per taglio la progressiva p dove la traccia incontra l'asse più vicino al suo punto medio e il seno
+ * dell'angolo con l'asse; non vale (ok = false) se non lo incontra fra lo e hi o se è quasi parallela (sin < TRIM.minSin).
+ * «auto» (proposta del tool): due tagli entro near = il tratto fra loro, un taglio solo = il pezzo verso il capo più vicino se dista
+ * al più near (altrimenti niente, alone = true: aspetta l'altro taglio o la scelta dell'utente).
+ * Zone [{ p0, p1, kind: "between"|"before"|"after", a, b (id dei tagli), planes: [{ x, y, nx, ny }], sin }]: dentro la zona dove
+ * (punto − traccia)·normale > 0 per tutti i piani (orientati verso la zona).
+ * Ritorna { at: [{ id, ok, p, x, y, sin, ex }], zones }.
+ */
+export function trimZones(axis, trims, { lo = 0, hi = axis.length, near = TRIM.near } = {}) {
+  const pts = planPoints(axis, 0.01);
+  const at = trims.map((t) => {
+    const ax = t.a[0], ay = t.a[1], L = Math.hypot(t.b[0] - ax, t.b[1] - ay), ex = t.ex || "auto";
+    if (!(L > 1e-6)) return { id: t.id, ok: false, ex };
+    const dx = (t.b[0] - ax) / L, dy = (t.b[1] - ay) / L, nx = -dy, ny = dx, mx = (ax + t.b[0]) / 2, my = (ay + t.b[1]) / 2;
+    const d = (q) => (q.x - ax) * nx + (q.y - ay) * ny;
+    let best = null;
+    for (let i = 1; i < pts.length; i++) {
+      const A = pts[i - 1], B = pts[i], da = d(A), db = d(B);
+      if (da * db > 0 || da === db) continue;
+      let s0 = A.s, s1 = B.s;                                  // sull'asse vero (le corde degli archi sono solo la guida)
+      const g = (s) => d(planAt(axis, s));
+      for (let it = 0; it < 50 && s1 - s0 > 1e-9; it++) { const m = (s0 + s1) / 2; if ((g(m) > 0) === (g(s0) > 0)) s0 = m; else s1 = m; }
+      const s = (s0 + s1) / 2, q = planAt(axis, s), dist = Math.hypot(q.x - mx, q.y - my);
+      if (!best || dist < best.dist) best = { s, x: q.x, y: q.y, dist, sin: Math.abs(q.tx * dy - q.ty * dx) };
+    }
+    if (!best || best.s < lo - 1e-6 || best.s > hi + 1e-6) return { id: t.id, ok: false, ex };
+    return { id: t.id, ok: best.sin >= TRIM.minSin, p: best.s, x: best.x, y: best.y, sin: best.sin, ex, ax, ay, nx, ny };
+  });
+  const plane = (t, dir) => {
+    const q = planAt(axis, t.p + dir * 0.01), sg = (q.x - t.ax) * t.nx + (q.y - t.ay) * t.ny > 0 ? 1 : -1;
+    return { x: t.ax, y: t.ay, nx: sg * t.nx, ny: sg * t.ny };
+  };
+  const ok = at.filter((t) => t.ok).sort((a, b) => a.p - b.p), used = new Set(), zones = [];
+  ok.forEach((t, i) => {
+    if (used.has(t.id)) return;
+    used.add(t.id);
+    const nx = ok[i + 1];
+    const pair = nx && !used.has(nx.id) && (t.ex === "next" || (t.ex === "auto" && (nx.ex === "auto" || nx.ex === "next") && nx.p - t.p <= near));
+    if (pair) {
+      used.add(nx.id);
+      zones.push({ p0: t.p, p1: nx.p, kind: "between", a: t.id, b: nx.id, planes: [plane(t, 1), plane(nx, -1)], sin: Math.min(t.sin, nx.sin) });
+      return;
+    }
+    // da solo, in proposta, solo se un capo sta entro near (le estremità): a metà opera è il primo muro di un tombino e aspetta
+    // l'altro (prima toglieva tutto fino al capo più vicino, centinaia di metri)
+    if (t.ex === "auto" && Math.min(t.p - lo, hi - t.p) > near) { t.alone = true; return; }
+    const before = t.ex === "before" || (t.ex !== "after" && t.p - lo <= hi - t.p);
+    zones.push(before ? { p0: lo, p1: t.p, kind: "before", a: t.id, b: null, planes: [plane(t, -1)], sin: t.sin }
+      : { p0: t.p, p1: hi, kind: "after", a: t.id, b: null, planes: [plane(t, 1)], sin: t.sin });
+  });
+  return { at, zones };
+}
+
+/**
+ * I tratti dentro le zone escluse (in place): ogni mesh ritagliata (trimZone) dove la finestra di progressive della zona li tocca
+ * (dai capi la larghezza massima dell'opera / seno + TRIM.pad: oltre, un piano infinito non taglia), i volumi scalati come i volumi
+ * delle mesh (quello che resta / tutto: la proporzione regge anche dove mesh e sezioni differiscono di poco), la lunghezza e le pareti
+ * da blindare tolte per il pezzo d'asse dentro la zona (t.trim = metri esclusi). tri = il triangolatore dei tappi (trimMesh).
+ * Ritorna { open, thin } (tappi mancanti, vedi trimMesh).
+ */
+export function trimParts(parts, axis, zones, { O = { x: 0, y: 0 }, tri } = {}) {
+  const out = { open: 0, thin: 0 };
+  if (!zones.length) return out;
+  const fld = axisField(planPoints(axis, 0.01));
+  let W = 0;                                                  // la larghezza massima dell'opera (dall'asse), dai vertici delle mesh
+  for (const t of parts) for (const m of Object.values(t.mesh || {})) {
+    const P = m && m.positions;
+    if (!P) continue;
+    for (let v = 0; v < P.length; v += 21) W = Math.max(W, Math.abs(fld.at(P[v] + O.x, P[v + 1] + O.y)));
+  }
+  for (const z of zones) {
+    const mg = W / Math.max(TRIM.minSin, z.sin) + TRIM.pad;
+    const w0 = z.kind === "before" ? -Infinity : z.p0 - mg, w1 = z.kind === "after" ? Infinity : z.p1 + mg;
+    z.w0 = w0; z.w1 = w1;                                     // la finestra serve anche alle linee in pianta (zoneSplit)
+    const win = (x, y) => { fld.at(x, y); return Math.max(w0 - fld.s, fld.s - w1); };
+    for (const t of parts) {
+      if (t.p1 < w0 || t.p0 > w1 || !t.mesh) continue;
+      const len0 = t.p1 - t.p0, ov = Math.max(0, Math.min(t.p1, z.p1) - Math.max(t.p0, z.p0));
+      for (const k of Object.keys(t.mesh)) {
+        const m = t.mesh[k];
+        if (!m || !m.index || !m.index.length) continue;
+        const solid = k !== "surface";                         // la superficie del fosso è aperta (solo vista): niente tappi
+        const r = trimZone(m, z.planes, { O, tri: solid ? tri : null, win });
+        if (solid) { out.open += r.open; out.thin += r.thin; }
+        const vk = Math.abs(meshVolume(r.keep)), vc = Math.abs(meshVolume(r.cut));
+        if (!r.cut.index.length) continue;
+        if (r.keep.index.length) t.mesh[k] = r.keep; else delete t.mesh[k];
+        if (t.vol && isNum(t.vol[k])) t.vol[k] = r.keep.index.length && vk + vc > 1e-12 ? t.vol[k] * vk / (vk + vc) : 0;
+      }
+      // tutto dentro la zona: il tratto non c'è più (fuori da IFC, .3dm e computo; la pagina lo salta)
+      if (!Object.entries(t.mesh).some(([k, m]) => k !== "surface" && m && m.index && m.index.length)) t.gone = true;
+      if (ov > 0) {
+        t.trim = (t.trim || 0) + ov;
+        if (isNum(t.length)) t.length = Math.max(0, t.length - ov);
+        if (isNum(t.shore) && len0 > 0) t.shore *= Math.max(0, 1 - ov / len0);
+      }
+    }
+  }
+  return out;
+}
+
+/* ---- tagli nelle tavole (0.18, scelte dell'utente): sezioni e finche dentro il tratto escluso tolte, una sezione su ogni
+   taglio (dove il piano incontra l'asse, la parte oltre il piano tolta); profilo con la linea di progetto intera, fondo scavo
+   interrotto e una linea verticale sul taglio; tabulato con le righe del taglio e zero dentro; in pianta ingombro e opera
+   chiusi sul piano ---- */
+
+/**
+ * I capi delle zone escluse dentro (lo, hi), cioè i tagli che chiudono l'opera: [{ p, dir (+1: la zona sta dopo, −1: prima),
+ * plane (normale verso la zona), sin (angolo fra traccia e asse lì), z }] crescenti.
+ */
+export function trimEnds(sweep, axis, lo, hi) {
+  const out = [];
+  const add = (p, dir, plane, z) => { const w = planAt(axis, p); out.push({ p, dir, plane, z, sin: Math.abs(w.tx * plane.nx + w.ty * plane.ny) }); };
+  for (const z of (sweep.trims && sweep.trims.zones) || []) {
+    if (z.kind !== "before" && z.p0 > lo + 1e-6 && z.p0 < hi - 1e-6) add(z.p0, 1, z.planes[0], z);
+    if (z.kind !== "after" && z.p1 > lo + 1e-6 && z.p1 < hi - 1e-6) add(z.p1, -1, z.planes[z.kind === "between" ? 1 : 0], z);
+  }
+  return out.sort((a, b) => a.p - b.p);
+}
+
+/**
+ * Quanto un taglio obliquo si allunga sull'asse: dalla sezione appena prima del piano, la larghezza dell'opera (ext, cigli e piedi
+ * compresi) per la cotangente dell'angolo. Fra p − m e p + m il piano taglia la sezione a metà. args = quelli di crossSection.
+ */
+export function trimBand(e, args) {
+  const cs = crossSection({ ...args, p: e.p - e.dir * 0.01, lite: true });
+  const W = cs ? Math.max(Math.abs(cs.ext[0]), Math.abs(cs.ext[1])) : 0, s = Math.max(TRIM.minSin, Math.min(1, e.sin));
+  return W * Math.sqrt(Math.max(0, 1 - s * s)) / s;
+}
+
+/** Gli intervalli di progressiva dove le sezioni non vanno (zone escluse allargate della banda dei loro tagli): [[a, b]…] aperti. */
+export function trimGaps(sweep, axis, lo, hi, args) {
+  const ends = trimEnds(sweep, axis, lo, hi);
+  return ((sweep.trims && sweep.trims.zones) || []).map((z) => {
+    const e0 = ends.find((e) => e.z === z && e.dir > 0), e1 = ends.find((e) => e.z === z && e.dir < 0);
+    return [z.kind === "before" ? -Infinity : z.p0 - (e0 ? trimBand(e0, args) : 0), z.kind === "after" ? Infinity : z.p1 + (e1 ? trimBand(e1, args) : 0)];
+  });
+}
+
+/** Ritaglio 2D di un poligono chiuso [[u, z]…] dal lato keep(u) della retta verticale u = uc (Sutherland-Hodgman). */
+function clipPolyU(poly, uc, keepLeft) {
+  const inn = (q) => (keepLeft ? q[0] <= uc : q[0] >= uc), out = [];
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length], ia = inn(a), ib = inn(b);
+    if (ia) out.push(a);
+    if (ia !== ib) { const t = (uc - a[0]) / (b[0] - a[0]); out.push([uc, a[1] + (b[1] - a[1]) * t]); }
+  }
+  return out.length >= 3 ? out : null;
+}
+/** Ritaglio 2D di una polilinea [[u, z]…]: i pezzi dal lato che resta. */
+function clipLineU(line, uc, keepLeft) {
+  const inn = (q) => (keepLeft ? q[0] <= uc : q[0] >= uc), out = [];
+  let cur = [];
+  for (let i = 0; i < line.length; i++) {
+    const a = line[i];
+    if (i) {
+      const b = line[i - 1];
+      if (inn(a) !== inn(b)) { const t = (uc - b[0]) / (a[0] - b[0]), q = [uc, b[1] + (a[1] - b[1]) * t]; if (inn(b)) { cur.push(q); out.push(cur); cur = []; } else cur.push(q); }
+    }
+    if (inn(a)) cur.push(a);
+  }
+  if (cur.length) out.push(cur);
+  return out.filter((l) => l.length > 1);
+}
+
+/**
+ * La sezione corrente sul taglio (crossSection appena prima del piano) ritagliata dove la traccia del piano incontra la linea della
+ * sezione (u = uc): opera, strati, scavo, superficie finita, linea di progetto e quote solo dal lato che resta; il terreno resta
+ * intero; i cerchi del tubo a cavallo diventano poligoni. Un piano ⟂ all'asse non taglia niente. cs.trim = { u, keepLeft } (la
+ * traccia nella sezione, per disegnarla), o null.
+ */
+export function clipCross(cs, axis, plane) {
+  const w = planAt(axis, cs.p), k = w.ty * plane.nx - w.tx * plane.ny, d0 = (w.x - plane.x) * plane.nx + (w.y - plane.y) * plane.ny;
+  if (Math.abs(k) < 1e-6) { cs.trim = null; return cs; }
+  const uc = -d0 / k, keepLeft = k > 0, inn = (u) => (keepLeft ? u <= uc + 1e-9 : u >= uc - 1e-9);
+  const polys = [];
+  for (const p of cs.structure.polys) { const c = clipPolyU(p, uc, keepLeft); if (c) polys.push(c); }
+  const circles = [];
+  for (const c of cs.structure.circles) {
+    if (keepLeft ? c.u + c.r <= uc : c.u - c.r >= uc) circles.push(c);
+    else if (keepLeft ? c.u - c.r < uc : c.u + c.r > uc) { const g = Array.from({ length: 72 }, (_, i) => [c.u + c.r * Math.cos(i * Math.PI / 36), c.z + c.r * Math.sin(i * Math.PI / 36)]), q = clipPolyU(g, uc, keepLeft); if (q) polys.push(q); }
+  }
+  cs.structure = { polys, circles };
+  cs.strata = cs.strata.map((s) => ({ ...s, poly: clipPolyU(s.poly, uc, keepLeft) })).filter((s) => s.poly);
+  if (cs.cut) { const c = clipLineU(cs.cut, uc, keepLeft); cs.cut = c.length ? c[0] : null; }
+  cs.surface = cs.surface.flatMap((l) => clipLineU(l, uc, keepLeft));
+  const d = clipLineU(cs.design, uc, keepLeft);
+  cs.design = d.length ? d[0] : [];
+  cs.marks = cs.marks.filter((m) => inn(m.u));
+  cs.ext = keepLeft ? [Math.min(cs.ext[0], uc), Math.min(cs.ext[1], uc)] : [Math.max(cs.ext[0], uc), Math.max(cs.ext[1], uc)];
+  cs.trim = { u: uc, keepLeft };
+  return cs;
+}
+
+/**
+ * Le aree della sezione alla progressiva p dalle mesh (ritagliate) dei tratti: fetta col piano ⟂ all'asse (sliceLoops), anelli
+ * annidati (nestLoops), area netta per classe. Le chiavi come crossSection.areas (il riporto del fosso «fill», il rinterro degli
+ * altri «backfill»). Solo gli anelli vicini all'asse (un asse che ripassa non conta). Ritorna [{ key, a }] con le aree non nulle.
+ */
+export function sliceAreas(sweep, axis, p, { reach = 80 } = {}) {
+  const w = planAt(axis, p), O = sweep.O || { x: 0, y: 0 }, A = {};
+  for (const t of sweep.parts || []) {
+    if (p < t.p0 - 1 || p > t.p1 + 1 || !t.mesh) continue;
+    for (const [k, m] of Object.entries(t.mesh)) {
+      if (k === "surface" || k === "void" || !m || !m.index || !m.index.length) continue;
+      const P = m.positions, n = P.length / 3, F = new Float64Array(n), G = new Float64Array(n);
+      for (let v = 0; v < n; v++) { const x = P[3 * v] + O.x - w.x, y = P[3 * v + 1] + O.y - w.y; F[v] = x * w.tx + y * w.ty; G[v] = x * w.ty - y * w.tx; }
+      const { loops } = sliceLoops(m, F, G);
+      const L2 = loops.filter((l) => l.g.every((g) => Math.abs(g) < reach)).map((l) => l.g.map((g, i) => [g, l.xyz[3 * i + 2]]));
+      let a = 0;
+      for (const r of nestLoops(L2)) a += r.area;
+      const key = k === "fill" && t.stype !== "ditch" ? "backfill" : k;
+      if (a > 0) A[key] = (A[key] || 0) + a;
+    }
+  }
+  return EARTH_KEYS.filter((k) => A[k] > 5e-4).map((k) => ({ key: k, a: A[k] }));
+}
+
+/**
+ * Una linea in pianta [{ p, x, y }…] (p = progressiva della stazione) spezzata dove entra in una zona esclusa (dentro la finestra
+ * di progressive della zona e dalla parte della zona di tutti i suoi piani): i pezzi fuori, col punto sul piano dove entrano o
+ * escono (bisezione sul segmento). ends: se c'è, vi si aggiungono i punti sul piano { x, y, zone, plane } (per chiudere l'ingombro).
+ */
+export function zoneSplit(pts, zones, ends = null) {
+  if (!zones.length) return [pts];
+  const g = (z, x, y) => Math.min(...z.planes.map((q) => (x - q.x) * q.nx + (y - q.y) * q.ny));
+  const inZ = (q) => zones.find((z) => q.p >= z.w0 && q.p <= z.w1 && g(z, q.x, q.y) > 0) || null;
+  const out = [];
+  let cur = [], prevZ = null;
+  pts.forEach((q, i) => {
+    const zq = inZ(q);
+    if (i) {
+      const a = pts[i - 1], z = zq || prevZ;
+      if (!!zq !== !!prevZ && z) {
+        let t0 = 0, t1 = 1;
+        const at = (t) => [a.x + (q.x - a.x) * t, a.y + (q.y - a.y) * t];
+        const inside0 = g(z, a.x, a.y) > 0;
+        for (let it = 0; it < 50; it++) { const t = (t0 + t1) / 2, [x, y] = at(t); if ((g(z, x, y) > 0) === inside0) t0 = t; else t1 = t; }
+        const t = (t0 + t1) / 2, [x, y] = at(t), b = { p: a.p + (q.p - a.p) * t, x, y };
+        if (ends) { let pl = z.planes[0], best = Infinity; for (const pq of z.planes) { const d = Math.abs((x - pq.x) * pq.nx + (y - pq.y) * pq.ny); if (d < best) { best = d; pl = pq; } } ends.push({ x, y, zone: z, plane: pl }); }
+        if (zq) { cur.push(b); out.push(cur); cur = []; } else cur.push(b);
+      }
+    }
+    if (!zq) cur.push(q);
+    prevZ = zq;
+  });
+  if (cur.length) out.push(cur);
+  return out.filter((l) => l.length > 1);
 }
