@@ -1151,10 +1151,10 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.18.0";
-import * as IO from "./profile-io.js?v=0.18.0";
+import * as C from "./profile-core.js?v=0.18.1";
+import * as IO from "./profile-io.js?v=0.18.1";
 
-const TOOL_VERSION = "0.18.0";
+const TOOL_VERSION = "0.18.1";
 /* il triangolatore dei tappi dei tagli (0.18): earcut di three.js, passato al motore (che resta senza import) */
 const TRI = (c, h) => THREE.ShapeUtils.triangulateShape(c.map(([x, y]) => new THREE.Vector2(x, y)), h.map((r) => r.map(([x, y]) => new THREE.Vector2(x, y))));
 const $ = (id) => document.getElementById(id);

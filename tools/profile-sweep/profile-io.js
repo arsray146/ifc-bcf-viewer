@@ -1285,11 +1285,22 @@ export function sharpEdges({ positions: P, index: I }, deg = 30) {
 
 const RHINO_NAMES = { origin: "Origine", originDot: "Origine E {x} · N {y}", axis: "Asse 3D", dtm: "Terreno (DTM)" };
 
-/* mesh in blocco (come il Terrain Sculptor): createFromThreejsJSON parla three.js (Y in alto), Rhino (X, Y, Z) → (X, Z, −Y) */
-function rhinoMesh(rhino, P, I) {
+/* mesh in blocco (come il Terrain Sculptor): createFromThreejsJSON parla three.js (Y in alto), Rhino (X, Y, Z) → (X, Z, −Y).
+   Via le facce con due vertici che in float cadono nello stesso punto (distinti in double per meno di un decimo
+   di millimetro, a qualche km dall'origine): per Rhino una faccia così rende INVALIDA tutta la mesh (Grasshopper
+   «Invalid mesh»). Togliendola la mesh resta chiusa: i suoi due lati veri coincidono e Rhino li cuce. */
+export function rhinoMesh(rhino, P, I) {
   const n = P.length / 3, pos = new Float32Array(n * 3);
   for (let k = 0; k < n; k++) { pos[3 * k] = P[3 * k]; pos[3 * k + 1] = P[3 * k + 2]; pos[3 * k + 2] = -P[3 * k + 1]; }
-  const me = rhino.Mesh.createFromThreejsJSON({ data: { attributes: { position: { itemSize: 3, type: "Float32Array", array: pos } }, index: { array: I instanceof Uint32Array ? I : Uint32Array.from(I) } } });
+  const eq = (a, b) => (a *= 3, b *= 3, pos[a] === pos[b] && pos[a + 1] === pos[b + 1] && pos[a + 2] === pos[b + 2]);
+  const J = new Uint32Array(I.length);
+  let m = 0;
+  for (let k = 0; k < I.length; k += 3) {
+    const a = I[k], b = I[k + 1], c = I[k + 2];
+    if (eq(a, b) || eq(b, c) || eq(a, c)) continue;
+    J[m++] = a; J[m++] = b; J[m++] = c;
+  }
+  const me = rhino.Mesh.createFromThreejsJSON({ data: { attributes: { position: { itemSize: 3, type: "Float32Array", array: pos } }, index: { array: J.slice(0, m) } } });
   me.normals().computeNormals(); me.compact();
   return me;
 }
