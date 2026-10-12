@@ -1,6 +1,6 @@
 /* =========================================================================
    Modulo Pset comune — modelli di Property Set configurabili (tool 18 Trazione
-   elettrica, F3; pensato anche per Sviluppo profili, che lo collega a parte)
+   elettrica, F3; Sviluppo profili dalla sua 0.19.0)
    Autore: Alessandro Perugini — BIM Coordinator. Licenza AGPL-3.0.
 
    Niente import, niente DOM: si prova in Node (test/test_pset_core.js).
@@ -21,14 +21,15 @@
    Un modello si salva nel progetto e si esporta in .json per riusarlo.
    ========================================================================= */
 
-export const PSET_VERSION = "1.0.0";
+export const PSET_VERSION = "1.1.0";
 export const FORMAT = "viewifc-pset";
 export const SOURCES = ["field", "const", "attr"];
-/* tipo → entità IFC del valore e natura (testo, numero, intero, logico) */
+/* tipo → entità IFC del valore e natura (testo, numero, intero, logico). 1.1.0: «ratio» = le scarpe 3/2 di
+   Sviluppo profili (IfcPositiveRatioMeasure, come scriveva già il suo Pset) */
 export const TYPES = {
   label: { ifc: "IFCLABEL", k: "s" }, text: { ifc: "IFCTEXT", k: "s" }, identifier: { ifc: "IFCIDENTIFIER", k: "s" },
   length: { ifc: "IFCLENGTHMEASURE", k: "n" }, area: { ifc: "IFCAREAMEASURE", k: "n" }, volume: { ifc: "IFCVOLUMEMEASURE", k: "n" },
-  angle: { ifc: "IFCPLANEANGLEMEASURE", k: "n" }, real: { ifc: "IFCREAL", k: "n" }, int: { ifc: "IFCINTEGER", k: "i" },
+  angle: { ifc: "IFCPLANEANGLEMEASURE", k: "n" }, ratio: { ifc: "IFCPOSITIVERATIOMEASURE", k: "n" }, real: { ifc: "IFCREAL", k: "n" }, int: { ifc: "IFCINTEGER", k: "i" },
   bool: { ifc: "IFCBOOLEAN", k: "b" },
 };
 const str = (v) => (v == null ? "" : String(v)).trim();
