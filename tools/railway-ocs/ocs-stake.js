@@ -20,7 +20,7 @@
      alternata (anche rispetto ai pali fissi vicini);
    - pali appaiati: le stesse sezioni sul binario parallelo (projectStations).
    ========================================================================= */
-import { trackFrame, crossOffset } from "./ocs-core.js?v=0.8.0";
+import { trackFrame, crossOffset } from "./ocs-core.js?v=0.8.1";
 
 export const AUTO_DEFAULTS = { Lmax: 60, a: 0.2, b: 0.2, ratio: 1.25, Rout: 1500, ends: true, side: 1, table: [], excl: [], must: [], follow: null };
 const STEP = 1;                                           // campionamento del limite (m)

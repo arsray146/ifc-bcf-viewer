@@ -266,6 +266,7 @@ body.pv-off #pv{display:none}
 #pvHead button{padding:4px 9px;font-size:11.5px;border-radius:8px;white-space:nowrap;flex:0 0 auto}
 #pvc{position:absolute;left:0;top:0;width:100%;height:100%;display:block;cursor:crosshair}
 #pvc.grab{cursor:grabbing}
+#pvc.cut{cursor:ew-resize}
 
 /* ---------- stato, avvisi ---------- */
 #status{position:absolute;left:calc(var(--tree-w) + 98px);right:calc(var(--pod-w) + 42px);bottom:calc(var(--pv-h) + 22px);z-index:5;display:flex;justify-content:center;pointer-events:none}
@@ -874,13 +875,13 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./ocs-core.js?v=0.8.0";
-import * as IO from "./ocs-io.js?v=0.8.0";
-import * as K from "./ocs-catalog.js?v=0.8.0";
-import * as AU from "./ocs-stake.js?v=0.8.0";
+import * as C from "./ocs-core.js?v=0.8.1";
+import * as IO from "./ocs-io.js?v=0.8.1";
+import * as K from "./ocs-catalog.js?v=0.8.1";
+import * as AU from "./ocs-stake.js?v=0.8.1";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 
-const TOOL_VERSION = "0.8.0";
+const TOOL_VERSION = "0.8.1";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -2234,7 +2235,17 @@ function drawPV() {
     g.stroke(); g.setLineDash([]);
   };
   if (S.pt != null) vline(S.pt, blue, false);
-  if (CUT.mode === "x" && Number.isFinite(CUT.p)) { g.fillStyle = css("--text"); label(tr("pv.cutX"), Math.round(xOf(CUT.p)) + 4, bot - 4); vline(CUT.p, css("--text"), false); }
+  // sezione ⟂ della vista 3D (come Sviluppo profili): la linea (si trascina) con la progressiva e una freccia verso la parte che resta
+  if (CUT.mode === "x" && Number.isFinite(CUT.p)) {
+    const x = Math.round(xOf(CUT.p)) + 0.5;
+    g.strokeStyle = lime; g.lineWidth = 2; g.setLineDash([]);
+    g.beginPath(); g.moveTo(x, sy0); g.lineTo(x, bot); g.stroke(); g.lineWidth = 1;
+    g.fillStyle = lime; g.beginPath(); g.moveTo(x, top + 2); g.lineTo(x + 7 * CUT.side, top + 6); g.lineTo(x, top + 10); g.fill();
+    const was = g.font, lbl = "⟂ " + prog(T.s0 + CUT.p);
+    g.font = "600 10.5px 'IBM Plex Mono', monospace";
+    if (!label(lbl, x + 6, top + 22)) label(lbl, x - 6, top + 22, true);
+    g.font = was;
+  }
   if (PV.hover != null) vline(PV.hover, muted, true);
 }
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -2246,18 +2257,22 @@ pvc.addEventListener("wheel", (e) => {
   PV.x0 = u - t * span; PV.x1 = PV.x0 + span;
   drawPV();
 }, { passive: false });
+/* la linea della sezione ⟂ sotto il puntatore (±6 px): si trascina invece di spostare il profilo (come Sviluppo profili) */
+const nearCut = (x) => CUT.mode === "x" && Number.isFinite(CUT.p) && Math.abs(x - xOf(CUT.p)) <= 6;
 pvc.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return;
-  PV.drag = { id: e.pointerId, x: e.clientX, x0: PV.x0, x1: PV.x1, moved: false };
+  PV.drag = { id: e.pointerId, x: e.clientX, x0: PV.x0, x1: PV.x1, moved: false, cut: nearCut(e.clientX - pvc.getBoundingClientRect().left) };
   try { pvc.setPointerCapture(e.pointerId); } catch (_) {}
 });
 pvc.addEventListener("pointermove", (e) => {
   const r = pvc.getBoundingClientRect(), T = TA();
   if (PV.drag && e.pointerId === PV.drag.id) {
     const dx = e.clientX - PV.drag.x;
-    if (Math.abs(dx) > 3) { PV.drag.moved = true; pvc.classList.add("grab"); }
-    if (PV.drag.moved) { const du = dx / (PV.W - M.l - M.r) * (PV.drag.x1 - PV.drag.x0); PV.x0 = PV.drag.x0 - du; PV.x1 = PV.drag.x1 - du; }
+    if (Math.abs(dx) > 3) { PV.drag.moved = true; if (!PV.drag.cut) pvc.classList.add("grab"); }
+    if (PV.drag.moved && PV.drag.cut && T) { CUT.p = Math.max(0, Math.min(T.H.length, uOf(e.clientX - r.left))); cutLater(); }
+    else if (PV.drag.moved) { const du = dx / (PV.W - M.l - M.r) * (PV.drag.x1 - PV.drag.x0); PV.x0 = PV.drag.x0 - du; PV.x1 = PV.drag.x1 - du; }
   }
+  pvc.classList.toggle("cut", PV.drag ? !!PV.drag.cut : nearCut(e.clientX - r.left));
   if (!T) return;
   const u = uOf(e.clientX - r.left);
   PV.hover = u >= 0 && u <= T.H.length ? u : null;
@@ -2267,8 +2282,9 @@ pvc.addEventListener("pointermove", (e) => {
 });
 pvc.addEventListener("pointerup", (e) => {
   if (!PV.drag || e.pointerId !== PV.drag.id) return;
-  const moved = PV.drag.moved;
+  const moved = PV.drag.moved, onCut = PV.drag.cut;
   PV.drag = null; pvc.classList.remove("grab");
+  if (onCut) return;                                     // la sezione ⟂ presa e lasciata: il punto scelto non cambia
   try { pvc.releasePointerCapture(e.pointerId); } catch (_) {}
   if (!moved && PV.hover != null) {
     const x = e.clientX - pvc.getBoundingClientRect().left;   // clic su una tacca: sceglie il palo

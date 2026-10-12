@@ -144,13 +144,24 @@ export const EQUIPMENT = {
 /* ---- valori di partenza di un binario e risoluzione di un sostegno ---------------------------------- */
 export const TRACK_DEFAULTS = {
   mast: "LSU18b", dr: 2.25, hm: 6.02, hw: 5.20, stag: 0.20, found: "B3", c1: 0.25, baseDz: -0.525,
-  span: 60, prefix: "", numMode: "parity", oddLeft: true,
+  pilOut: 0.25, span: 60, prefix: "", numMode: "parity", oddLeft: true,
 };
+/* fondazione sul supercompattato (0.7.0, scelta dell'utente 2026-10-12): la testa del pilastrino (= la piastra
+   del palo) esce di pilOut (di partenza 0,25 m, E 64865: «pilastrino 250 mm fuori terra», modificabile per palo,
+   tratto e binario) dalla quota del supercompattato sotto l'asse del palo; senza superficie resta baseDz sotto il
+   piano del ferro. DROP_MAX = dislivello massimo piano del ferro → filo pilastrino (E 64865) */
+export const DROP_MAX = 0.75;
+/* lev = quota del supercompattato sotto il piede, RELATIVA al piano del ferro dell'asse del binario del palo:
+   { sc, d (distanza in pianta dal bordo, 0 = sopra la superficie) } o null; → { baseDz, fromSc, sc, scOut } */
+function baseFrom(lev, pilOut, baseDz) {
+  const on = !!(lev && Number.isFinite(lev.sc));
+  return on ? { baseDz: lev.sc + pilOut, fromSc: true, sc: lev.sc, scOut: lev.d || 0 } : { baseDz, fromSc: false, sc: null, scOut: null };
+}
 /* un sostegno: { id, track, u, side (+1 sinistra / −1 destra guardando avanti), num, numUser,
    mast, dr, L, hm, hw, stag, sosp, susp, found, c1, eq: { trafo, sez } } — null = valore del binario.
    geo = per ogni sospensione in più col binario servito, { off, dz } misurati sulla geometria al palo
    (ocs-core crossOffset: interasse e dislivello del piano del ferro); senza, l'interasse scritto o INTERAXIS */
-export function resolveSupport(sup, def = TRACK_DEFAULTS, geo = null) {
+export function resolveSupport(sup, def = TRACK_DEFAULTS, geo = null, lev = null) {
   const d = { ...TRACK_DEFAULTS, ...(def || {}) };
   const pick = (k) => (sup[k] != null && sup[k] !== "" ? sup[k] : d[k]);
   const m = mastType(pick("mast")) || mastType(TRACK_DEFAULTS.mast);
@@ -166,8 +177,10 @@ export function resolveSupport(sup, def = TRACK_DEFAULTS, geo = null) {
   let f = foundation(pick("found"));
   if (!f) f = foundation(TRACK_DEFAULTS.found);
   const c1 = Math.max(f.C1min, Math.min(f.C1max, +pick("c1")));
+  const pilOut = +pick("pilOut"), B = baseFrom(lev, pilOut, +pick("baseDz"));
   return {
-    mast: m, dr, stag, hm: +pick("hm"), hw: +pick("hw"), baseDz: +pick("baseDz"),
+    mast: m, dr, stag, hm: +pick("hm"), hw: +pick("hw"), baseDz: B.baseDz, pilOut, fromSc: B.fromSc, sc: B.sc, scOut: B.scOut,
+    drop: -B.baseDz, dropOver: -B.baseDz > DROP_MAX + 1e-9,
     mens, Lauto: sup.L == null || sup.L === "", Lshort: L < auto.L - 1e-9, tir: tiranteFor(L),
     sosp: sup.sosp || "", susp, ties: tiesFor(L, dr, [{ off: 0, stag }, ...susp]),
     found: f, c1, vol: foundationVolume(f, c1),
@@ -208,8 +221,10 @@ export const PORTAL_REACH = 40;                          // binari serviti: entr
    (intradosso della trave sul PF, solo PO), hw, found, c1, skip (id dei binari davanti esclusi a mano),
    pend: { idBinario: { stag, type } } }.
    geo = binari serviti [{ id, q, dz }]: scostamento dell'asse dal binario di riferimento (+ a sinistra) e
-   dislivello del piano del ferro, misurati sulla geometria (ocs-core crossTracks) */
-export function resolvePortal(p, def = TRACK_DEFAULTS, geo = []) {
+   dislivello del piano del ferro, misurati sulla geometria (ocs-core crossTracks).
+   lev = { L, R }: quota del supercompattato sotto i due montanti (come in resolveSupport, relativa al piano del
+   ferro del binario di riferimento) o null */
+export function resolvePortal(p, def = TRACK_DEFAULTS, geo = [], lev = null) {
   const d = { ...TRACK_DEFAULTS, ...(def || {}) };
   const pick = (k) => (filled(p[k]) ? p[k] : d[k]);
   const trk = (geo && geo.length ? geo : [{ id: p.track, q: 0, dz: 0 }]).slice().sort((a, b) => b.q - a.q);
@@ -221,7 +236,9 @@ export function resolvePortal(p, def = TRACK_DEFAULTS, geo = []) {
   const needL = top.q + HALF_GAUGE + drL + w / 2, needR = bot.q - HALF_GAUGE - drR - w / 2, span = needL - needR;
   const auto = beamFor(span), beam = (filled(p.beam) && beamType(p.beam)) || auto;
   const mid = (needL + needR) / 2, qL = mid + beam.L / 2, qR = mid - beam.L / 2;
-  const hw = +pick("hw"), baseDz = +pick("baseDz"), zBaseL = top.dz + baseDz, zBaseR = bot.dz + baseDz;
+  const hw = +pick("hw"), baseDz = +pick("baseDz"), pilOut = +pick("pilOut");
+  const bL = baseFrom(lev && lev.L, pilOut, top.dz + baseDz), bR = baseFrom(lev && lev.R, pilOut, bot.dz + baseDz);
+  const zBaseL = bL.baseDz, zBaseR = bR.baseDz, dropL = top.dz - zBaseL, dropR = bot.dz - zBaseR;
   let hb, H;                                              // intradosso della trave e altezza dei montanti (dalla piastra)
   if (M) { const topZ = Math.min(zBaseL, zBaseR) + 0.045 + M.H; hb = topZ - BEAM_TOP_GAP - beam.h; H = M.H; }
   else { hb = filled(p.hb) ? +p.hb : PORTAL_DEFAULTS.hb; H = null; }
@@ -234,6 +251,7 @@ export function resolvePortal(p, def = TRACK_DEFAULTS, geo = []) {
     kind: "portal", up, mast: M, pole: M ? null : PO_POLE, w, beam, Bauto: !filled(p.beam), short: beam.L < span - 1e-9, span,
     qL, qR, drL: qL - w / 2 - HALF_GAUGE - top.q, drR: bot.q - HALF_GAUGE - (qR + w / 2), drLmin: drL, drRmin: drR,
     zBaseL, zBaseR, hb, H, hw, baseDz, susp, found: f, c1, vol: 2 * foundationVolume(f, c1),
+    pilOut, fromSc: bL.fromSc || bR.fromSc, scL: bL, scR: bR, dropL, dropR, dropOver: Math.max(dropL, dropR) > DROP_MAX + 1e-9,
     fits: M ? foundationFits(f, M) : true,
   };
 }
@@ -253,15 +271,16 @@ export const PSET_FIELDS = [
   { key: "stag", kinds: ["mast"], type: "length" }, { key: "sosp", kinds: MP, type: "label" }, { key: "served", kinds: MP, type: "label" },
   { key: "nSusp", kinds: MP, type: "int" }, { key: "found", kinds: ALL, type: "label" }, { key: "c1", kinds: ALL, type: "length" },
   { key: "vol", kinds: ALL, type: "volume" }, { key: "E", kinds: ALL, type: "length" }, { key: "N", kinds: ALL, type: "length" },
-  { key: "top", kinds: MP, type: "length" },
+  { key: "top", kinds: MP, type: "length" }, { key: "zPil", kinds: ALL, type: "length" }, { key: "zSc", kinds: ALL, type: "length" },
 ];
 /* i valori dei campi di un sostegno risolto (palo: resolveSupport; portale: resolvePortal). ctx = { track (nome),
-   s0 (progressiva iniziale del binario), E, N, top, served: [nomi dei binari serviti] } — calcolati dalla pagina.
+   s0 (progressiva iniziale del binario), E, N, top, served: [nomi dei binari serviti], zPil (quota della testa
+   del pilastrino), zSc (del supercompattato, se c'è) } — calcolati dalla pagina.
    vol = calcestruzzo del sostegno (portale: le due fondazioni); per kind «foundation» di un portale, di una sola */
 export function psetValues(s, R, ctx = {}, kind = "") {
   const portal = R && R.kind === "portal", v = {
     num: s.num, track: ctx.track, sta: (ctx.s0 || 0) + s.u, found: R.found.id, c1: R.c1, vol: portal && kind === "foundation" ? R.vol / 2 : R.vol,
-    E: ctx.E, N: ctx.N, top: ctx.top, hw: R.hw, served: (ctx.served || []).join(", "),
+    E: ctx.E, N: ctx.N, top: ctx.top, hw: R.hw, served: (ctx.served || []).join(", "), zPil: ctx.zPil, zSc: ctx.zSc,
   };
   if (portal) Object.assign(v, { mast: R.mast ? R.mast.id : "PO", drL: R.drL, drR: R.drR, beam: R.beam.id, beamL: R.beam.L, hb: R.hb, nSusp: R.susp.length, sosp: [...new Set(R.susp.map((x) => x.type).filter(Boolean))].join(", ") });
   else Object.assign(v, { side: s.side > 0 ? "S" : "D", dr: R.dr, mast: R.mast.id, mens: R.mens.L, mensCode: R.mens.code, hm: R.hm, stag: R.stag, nSusp: 1 + R.susp.length, sosp: [R.sosp, ...R.susp.map((x) => x.type)].filter(Boolean).join(", ") });
@@ -269,10 +288,10 @@ export function psetValues(s, R, ctx = {}, kind = "") {
 }
 
 /* ---- tratti (valori del binario da una progressiva a un'altra) ---------------------------------------
-   ocs.rows = [{ id, u0, u1, mast, found, dr, hm, hw, span, c1 }]: dentro il tratto i campi scritti
+   ocs.rows = [{ id, u0, u1, mast, found, dr, hm, hw, span, c1, pilOut }]: dentro il tratto i campi scritti
    sostituiscono quelli del binario; i vuoti lasciano quelli del binario; fra tratti sovrapposti vince
    l'ultimo dell'elenco. Precedenza: palo → tratto → binario → catalogo (resolveSupport col risultato). */
-export const ROW_KEYS = ["mast", "found", "dr", "hm", "hw", "span", "c1"];
+export const ROW_KEYS = ["mast", "found", "dr", "hm", "hw", "span", "c1", "pilOut"];
 const filled = (v) => v != null && v !== "";
 export function defaultsAt(ocs, u) {
   const { rows, ...base } = ocs || {};
