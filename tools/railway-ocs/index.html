@@ -55,7 +55,7 @@ try{
   --bg:#0d120b; --panel:rgba(15,20,13,.82); --panel-2:rgba(237,242,226,.05); --panel-solid:#141b10;
   --line:rgba(237,242,226,.09); --line-2:rgba(237,242,226,.15);
   --text:#edf2e2; --muted:#a9b59b; --faint:#79856c;
-  --canvas:#262b24; --red:#e0523f; --amber:#e0a63a; --blue:#5b9be0; --earth:#b98a55; --steel:#9aa3ab;
+  --canvas:#262b24; --red:#e0523f; --amber:#e0a63a; --hl:#ff6a2b; --blue:#5b9be0; --earth:#b98a55; --steel:#9aa3ab;
   --shadow:0 1px 3px rgba(0,0,0,.30),0 6px 18px rgba(0,0,0,.26);
   --shadow-lg:0 2px 8px rgba(0,0,0,.28),0 18px 44px rgba(0,0,0,.42);
   --r:16px; --r-sm:11px; --r-xs:8px;
@@ -73,7 +73,7 @@ html[data-theme="light"]{
   --bg:#f1f3ee; --panel:rgba(255,255,255,.86); --panel-2:rgba(33,42,35,.055); --panel-solid:#ffffff;
   --line:rgba(33,42,35,.11); --line-2:rgba(33,42,35,.17);
   --text:#212a23; --muted:#68756a; --faint:#9aa69c;
-  --canvas:#dde2d5; --red:#b03a2a; --amber:#a86f06; --blue:#2f6fbf; --earth:#8a5a2b; --steel:#4a5158;
+  --canvas:#dde2d5; --red:#b03a2a; --amber:#a86f06; --hl:#ff6a2b; --blue:#2f6fbf; --earth:#8a5a2b; --steel:#4a5158;
   --shadow:0 1px 2px rgba(30,40,28,.10),0 6px 16px rgba(30,40,28,.12);
   --shadow-lg:0 1px 3px rgba(30,40,28,.10),0 14px 40px rgba(30,40,28,.18);
   color-scheme:light;
@@ -170,6 +170,9 @@ body.tree-off #tree{display:none}
 .tn:hover .tb.rm,.tn .tb.rm:focus-visible,.tn .tb.rm.armed{opacity:1}
 .tn .tb.rm.armed{color:var(--red);border:1px solid var(--red)}
 .tn.off>.tl,.tn.off>.tm,.tn.off>.ti{opacity:.4}
+.tn.dim>.tl,.tn.dim>.tm,.tn.dim>.ti{opacity:.55}
+.tn .tc.none{visibility:hidden}
+.tn input.tren{flex:1;min-width:0;font:600 13px/1 var(--disp);color:var(--text);background:var(--panel-solid);border:1px solid var(--lime-deep);border-radius:6px;padding:4px 6px}
 .tree-empty{font:400 12.5px/1.5 var(--sans);color:var(--muted);padding:8px 10px}
 .tree-f{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px 10px;border-top:1px solid var(--line)}
 .tree-f button{flex:1 1 auto}
@@ -254,6 +257,12 @@ body.pv-off #pv{display:none}
 .lg i.dash{border-top-style:dashed}
 .lg i.box{width:10px;height:10px;border:none;border-radius:2px}
 #pvHead .sp{flex:1}
+#pvHead button.on{background:var(--lime-soft);border-color:var(--lime-line)}
+#cutBar{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+#cutBar[hidden]{display:none}
+#cutBar label{font:400 11px/1 var(--mono);color:var(--faint);white-space:nowrap}
+#cutBar input{width:84px;font:400 11.5px/1 var(--mono);color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:4px 6px}
+#cutBar input:focus{outline:none;border-color:var(--lime-deep)}
 #pvHead button{padding:4px 9px;font-size:11.5px;border-radius:8px;white-space:nowrap;flex:0 0 auto}
 #pvc{position:absolute;left:0;top:0;width:100%;height:100%;display:block;cursor:crosshair}
 #pvc.grab{cursor:grabbing}
@@ -304,6 +313,14 @@ html[data-theme="light"] #sheet,html[data-theme="light"] #dlg{background:rgba(22
 i.src{font:500 9.5px/1 var(--mono);font-style:normal;color:var(--lime-ink);background:var(--lime);border-radius:5px;padding:2px 4px;margin-left:4px}
 .chk{display:flex;align-items:center;gap:6px;font:400 12.5px/1.3 var(--sans);color:var(--text);cursor:pointer}
 body.placing #cv{cursor:copy}
+body.scpick #cv{cursor:crosshair}
+.wl{display:flex;flex-direction:column;gap:1px;margin:4px 0;max-height:190px;overflow:auto;scrollbar-width:thin}
+.wl button{all:unset;cursor:pointer;font:400 11.5px/1.35 var(--mono);color:var(--amber);padding:2px 4px;border-radius:5px}
+.wl button:hover{background:var(--panel-2)}
+.kv.fr{align-items:center}
+.kv.fr span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kv.fr b{flex:none;white-space:nowrap;display:flex;align-items:center}
+.kv b .btn-sm{margin-left:6px;padding:1px 7px}
 #cv.dragging{cursor:grabbing}
 .btn-sm.on{background:var(--lime-soft);border-color:var(--lime-line);color:var(--text)}
 .addrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;min-width:0}
@@ -427,6 +444,10 @@ body.placing #cv{cursor:copy}
       <div class="sec-h"><h2 data-i18n="su.title">Sostegni</h2><span class="cnt" id="suCnt"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
       <div class="sec-b" id="suBody"></div>
     </section>
+    <section class="sec" data-sec="sc">
+      <div class="sec-h"><h2 data-i18n="sc.title">Supercompattato</h2><span class="cnt" id="scCnt"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div class="sec-b" id="scBody"></div>
+    </section>
     <section class="sec" data-sec="auto">
       <div class="sec-h"><h2 data-i18n="au.title">Picchettamento automatico</h2><span class="cnt" id="auCnt"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
       <div class="sec-b" id="auBody"></div>
@@ -465,6 +486,13 @@ body.placing #cv{cursor:copy}
       <span class="lg"><i class="box" style="background:rgba(91,155,224,.45)"></i><span data-i18n="pv.cant">sopraelevazione</span></span>
     </span>
     <span class="sp"></span>
+    <!-- taglio della vista 3D (0.8.0, come Sviluppo profili): sezione ⟂ al binario o lungo l'asse; solo vista -->
+    <span id="cutBar" hidden>
+      <label for="cutIn" id="cutLbl"></label><input id="cutIn" type="text" inputmode="decimal" autocomplete="off" spellcheck="false">
+      <button id="cutFlip" data-i18n-title="pv.flipT" title="Mostra l'altra parte"></button>
+    </span>
+    <button id="cutX" data-i18n="pv.cutX" data-i18n-title="pv.cutXT" title="Taglio ⟂ al binario attivo a una progressiva (X): clic sul profilo, ←/→ di 1 m (Maiusc 10 m), Esc lo toglie. Solo vista.">Sezione ⟂</button>
+    <button id="cutL" data-i18n="pv.cutL" data-i18n-title="pv.cutLT" title="Taglio verticale lungo il binario attivo (L): resta metà modello; ←/→ sposta il taglio di 10 cm (Maiusc 1 m), Esc lo toglie. I sostegni restano interi o spariscono secondo il loro piede. Solo vista.">Lungo l'asse</button>
     <button id="pvFit" data-i18n="pv.fit" data-i18n-title="pv.fitT" title="Tutto il profilo · sul profilo: rotella zoom, trascina sposta, clic sceglie il punto, doppio clic porta la vista 3D lì">Tutto</button>
   </div>
 </section>
@@ -476,6 +504,7 @@ body.placing #cv{cursor:copy}
 <input type="file" id="fileIn" accept=".xml,.landxml,.ifc,.dwg,.dxf,.ocs" multiple hidden>
 <input type="file" id="tabIn" accept=".csv,.txt,.xlsx" hidden>
 <input type="file" id="psIn" accept=".json" hidden>
+<input type="file" id="ctxIn" accept=".ifc" multiple hidden>
 
 <!-- ================= DIALOGO ================= -->
 <div id="dlg" hidden>
@@ -518,7 +547,7 @@ const I18N = {
     "w.privacy": "I file non escono dal browser. Il lavoro si salva da solo in questo browser.", "w.close": "Chiudi",
     "tr.title": "Elementi", "tr.close": "Chiudi l'albero (E)", "tr.save": "Salva progetto", "tr.saveT": "Scarica il progetto in un file .ocs, da riaprire qui o su un altro PC (Ctrl+S)",
     "tr.new": "Nuovo progetto", "tr.newArm": "Clic ancora: svuota tutto", "tr.empty": "Nessun binario: apri gli assi in LandXML.",
-    "tr.rails": "Rotaie e asse", "tr.deck": "Piano del ferro", "tr.align": "Asse ricevuto", "tr.eye": "Mostra / nascondi", "tr.rm": "Togli il binario (due clic)",
+    "tr.rails": "Rotaie e asse", "tr.deck": "Piano del ferro", "tr.align": "Asse ricevuto", "tr.eye": "Mostra / nascondi", "tr.rm": "Togli (due clic)", "tr.rmSure": "Togli?", "tr.portal": "portale",
     "tr.rmArm": "Clic ancora per togliere", "tr.rename": "Doppio clic: rinomina",
     "tk.title": "Binario", "tk.none": "Apri un LandXML con gli assi dei binari.", "tk.name": "Nome", "tk.file": "File", "tk.app": "Programma",
     "tk.sta": "Progressive", "tk.len": "Lunghezza", "tk.elems": "Elementi", "tk.elemsV": "{l} rette · {a} archi · {c} clotoidi",
@@ -536,7 +565,7 @@ const I18N = {
     "pt.line": "rettifilo", "pt.arc": "curva R {r} m", "pt.clo": "clotoide (R {r} m qui)", "pt.left": "a sinistra", "pt.right": "a destra",
     "pt.inner": "rotaia interna", "pt.cap": "Sezione a {p}, guardando avanti · scala vera", "pt.capHov": "Cursore a {p}, guardando avanti · scala vera", "pt.offV": "Offset", "pt.offVv": "{h} m lat. · {v} m vert.",
     "vw.title": "Vista", "vw.step": "Passo", "vw.stepHelp": "Il passo con cui il binario si disegna (sempre anche ai capi degli elementi). In modalità fast si lavora a 10 m: più leggero e veloce.",
-    "vw.lod": "Fusto dei pali", "vw.lodBox": "pieno", "vw.lodUpn": "2 UPN", "vw.lodLat": "2 UPN + traliccio",
+    "vw.lod": "Fusto dei pali", "vw.lodBox": "pieno", "vw.lodUpn": "2 UPN senza traliccio", "vw.lodLat": "2 UPN + traliccio",
     "vw.lodHelp": "Il fusto LSU è fatto di due UPN affacciate unite da un traliccio a X (modulo 266 mm). La geometria si fa una volta per tipo di palo e la condividono tutti i pali di quel tipo: anche col traliccio la scena resta leggera.",
     "vw.fast": "Fast (10 m)", "vw.fastOn": "Modalità fast accesa: passo di 10 m. Spegnila (Q) per il passo pieno.", "vw.plan": "Pianta ortografica", "vw.planHelp": "In pianta (T) la vista è ortografica: distanze vere in ogni punto dello schermo, sotto il cursore Est, Nord e la progressiva del binario. Trascina per spostare, rotella per lo zoom verso il cursore.",
     "pv.title": "Profilo", "pv.inner": "livelletta (rotaia interna)", "pv.axis": "asse del binario", "pv.ground": "terreno", "pv.cant": "sopraelevazione",
@@ -579,7 +608,34 @@ const I18N = {
     "su.added": "Palo {n} a {p}, a {s}.", "su.deleted": "Palo {n} tolto.", "su.undone": "Annullato.", "su.redone": "Ripristinato.", "su.noUndo": "Niente da annullare.",
     "su.dragSt": "Palo {n} → {p}", "st.sup": "{n} pali", "st.sup1": "1 palo",
     "t.placeOn": "Piazzamento: clic vicino a un binario mette un palo.", "t.placeOff": "Piazzamento spento.",
-    "t.ifcOld": "{f}: schema {s}, che non ha IfcAlignment (c'è dall'IFC 4x3): servono il LandXML o i DWG dell'asse.",
+    "pv.cutX": "Sezione ⟂", "pv.cutXT": "Taglio ⟂ al binario attivo a una progressiva (X): clic sul profilo, ←/→ di 1 m (Maiusc 10 m), Esc lo toglie. Solo vista.",
+    "pv.cutL": "Lungo l'asse", "pv.cutLT": "Taglio verticale lungo il binario attivo (L): resta metà modello; ←/→ sposta il taglio di 10 cm (Maiusc 1 m), Esc lo toglie. I sostegni restano interi o spariscono secondo il loro piede. Solo vista.",
+    "pv.cutAt": "pr.", "pv.cutAtT": "Progressiva del taglio (es. 0+250,5 o 250,5)", "pv.cutOff": "scost.", "pv.cutOffT": "Scostamento del taglio dall'asse del binario in metri, + a destra guardando verso le progressive crescenti",
+    "pv.keepA": "Resta: dopo", "pv.keepB": "Resta: prima", "pv.keepR": "Resta: destra", "pv.keepL": "Resta: sinistra", "pv.flipT": "Mostra l'altra parte",
+    "pv.cutNone": "Il taglio vuole un binario attivo.", "pv.cutBad": "Scrivi una progressiva (0+250,5) o un numero di metri.", "pv.cutLoad": "Preparo il taglio…",
+    "sc.title": "Supercompattato", "sc.ctx": "IFC di contesto", "sc.ctxAdd": "Aggiungi un IFC di contesto", "sc.ctxRm": "Togli questo IFC dalla vista",
+    "sc.ctxNone": "Nessun IFC di contesto. Aprine uno col corpo ferroviario (anche IFC 2x3): si vede attorno ai binari e ci si sceglie il supercompattato. È solo da vedere: nel progetto si salva la sola superficie scelta.",
+    "sc.ctxRow": "{n} el. · {g}", "sc.how.map": "IfcMapConversion", "sc.how.site": "placement dell'IfcSite", "sc.how.context": "origine di Revit", "sc.how.none": "coordinate del file",
+    "sc.sub": "Superficie scelta", "sc.sel": "{n} el. · {t} triangoli", "sc.rm": "Togli gli elementi di questo IFC", "sc.clear": "Togli tutto",
+    "sc.none": "Nessun supercompattato scelto: le fondazioni stanno alla quota di partenza (testa del pilastrino {v} m sotto il piano del ferro).",
+    "sc.pick": "Scegli col clic", "sc.pickOn": "Scelta col clic: attiva",
+    "sc.pickHelp": "Clic su un elemento del contesto: diventa il supercompattato. Ctrl+clic ne aggiunge o ne toglie uno; «Tutti quelli uguali» prende gli altri pezzi. Esc per uscire. La superficie si salva nel progetto: le quote restano anche senza riaprire l'IFC.",
+    "sc.cand": "Elemento #{id}", "sc.by": "Uguali per", "sc.same": "Tutti quelli uguali ({n})", "sc.kName": "Nome", "sc.kType": "Tipo", "sc.kOt": "ObjectType", "sc.kLayer": "Layer",
+    "sc.noCrit": "L'elemento non ha nome, tipo, layer né Pset da confrontare: aggiungi gli altri pezzi con Ctrl+clic.",
+    "sc.found": "Fondazioni", "sc.rule": "Testa del pilastrino = supercompattato sotto l'asse del palo + {v} m (valore del binario; si cambia nei tratti e sul palo). Fuori dalla superficie vale il bordo entro {d} m; oltre, la quota di partenza. Dislivello massimo piano del ferro → filo pilastrino {m} m (E 64865).",
+    "sc.stOn": "Piedi sul supercompattato", "sc.stEdge": "di cui presi dal bordo", "sc.stMiss": "Piedi senza supercompattato", "sc.stDrop": "Filo pilastrino oltre il dislivello massimo", "sc.stShort": "Pali che non arrivano al tirante",
+    "sc.warns": "Da controllare ({n})", "sc.wOut": "{n} · {p}: bordo del supercompattato a {d} m", "sc.wMiss": "{n} · {p}: nessun supercompattato entro {d} m", "sc.wDrop": "{n} · {p}: filo pilastrino {v} m sotto il PF", "sc.wShort": "{n} · {p}: il palo non arriva al tirante",
+    "sc.picked": "Supercompattato: {n} el. da {f}.", "sc.nothing": "Nessun elemento del contesto sotto il cursore.", "sc.pickOnT": "Scelta del supercompattato: clic su un elemento (Ctrl+clic aggiunge o toglie, Esc esce).", "sc.pickOffT": "Scelta del supercompattato finita.",
+    "sc.needCtx": "Prima apri un IFC di contesto.", "sc.noFaces": "{f}: gli elementi scelti non hanno facce non verticali.",
+    "cx.opening": "Apro {f}…", "cx.reading": "{f}: triangolo {d} di {t} elementi…", "cx.simplify": "{f}: web-ifc è fermo sulle booleane, lo rileggo semplificato…", "cx.timeout": "tempo scaduto",
+    "cx.loaded": "Contesto: {f}, {n} elementi attorno ai binari.", "cx.asCtx": "{f}: nessun asse, aperto come IFC di contesto ({n} elementi).",
+    "cx.none": "{f}: nessun elemento con geometria attorno ai binari (± 200 m): controlla le coordinate.", "cx.fail": "{f}: non riesco a leggerlo come contesto ({m}).",
+    "tr.ctx": "Contesto (IFC)", "tr.sc": "Supercompattato", "tr.els": "{n} el.",
+    "su.pilOut": "Pilastrino sul SC", "su.sc": "Supercompattato", "su.scV": "{z} m sotto il palo", "su.scEdge": "{z} m dal bordo a {d} m", "su.scMiss": "non trovato entro {d} m: quota di partenza", "su.scNone": "— (quota di partenza)",
+    "su.pil": "Testa del pilastrino", "su.pilV": "{z} m · PF − {d} m", "su.dropOver": "Filo pilastrino {d} m sotto il piano del ferro: oltre {m} m (E 64865).",
+    "su.short": "Il palo non arriva all'attacco del tirante: testa a {h} m sul PF, tirante a {t} m. Scegli un palo più alto.", "su.lSc": "SC {v}", "su.fWarn": "Fondazione da controllare",
+    "po.pil": "Testa pilastrino {s}", "po.pilV": "{z} m · PF − {d} m · {c}", "po.cSc": "sul supercompattato", "po.cEdge": "dal bordo a {d} m", "po.cDef": "quota di partenza",
+    "pf.zPil": "Quota testa pilastrino", "pf.zSc": "Quota supercompattato",
     "dw.title": "Asse da disegno: pianta e profilo", "dw.plan": "Pianta", "dw.layer": "Polilinea", "dw.sta0": "Progressiva iniziale", "dw.rev": "Inverti il verso",
     "dw.prof": "Profilo", "dw.design": "Livelletta", "dw.ground": "Terreno", "dw.none": "nessuno",
     "dw.cal": "Taratura del profilo", "dw.k": "Scala verticale", "dw.sx": "Scala delle distanze", "dw.sxAuto": "dalla lunghezza della pianta",
@@ -656,7 +712,7 @@ const I18N = {
     "w.privacy": "Files never leave the browser. Your work saves itself in this browser.", "w.close": "Close",
     "tr.title": "Items", "tr.close": "Close the tree (E)", "tr.save": "Save project", "tr.saveT": "Download the project as a .ocs file, to reopen here or on another PC (Ctrl+S)",
     "tr.new": "New project", "tr.newArm": "Click again: clear everything", "tr.empty": "No tracks: open the LandXML alignments.",
-    "tr.rails": "Rails and axis", "tr.deck": "Rail level plane", "tr.align": "Received alignment", "tr.eye": "Show / hide", "tr.rm": "Remove the track (two clicks)",
+    "tr.rails": "Rails and axis", "tr.deck": "Rail level plane", "tr.align": "Received alignment", "tr.eye": "Show / hide", "tr.rm": "Remove (two clicks)", "tr.rmSure": "Remove?", "tr.portal": "portal",
     "tr.rmArm": "Click again to remove", "tr.rename": "Double-click: rename",
     "tk.title": "Track", "tk.none": "Open a LandXML with the track alignments.", "tk.name": "Name", "tk.file": "File", "tk.app": "Software",
     "tk.sta": "Chainages", "tk.len": "Length", "tk.elems": "Elements", "tk.elemsV": "{l} lines · {a} arcs · {c} clothoids",
@@ -674,7 +730,7 @@ const I18N = {
     "pt.line": "straight", "pt.arc": "curve R {r} m", "pt.clo": "clothoid (R {r} m here)", "pt.left": "to the left", "pt.right": "to the right",
     "pt.inner": "inner rail", "pt.cap": "Section at {p}, looking ahead · true scale", "pt.capHov": "Cursor at {p}, looking ahead · true scale", "pt.offV": "Offset", "pt.offVv": "{h} m lat. · {v} m vert.",
     "vw.title": "View", "vw.step": "Step", "vw.stepHelp": "The step the track is drawn with (always also at element ends). Fast mode works at 10 m: lighter and quicker.",
-    "vw.lod": "Mast shaft", "vw.lodBox": "solid", "vw.lodUpn": "2 UPN", "vw.lodLat": "2 UPN + lattice",
+    "vw.lod": "Mast shaft", "vw.lodBox": "solid", "vw.lodUpn": "2 UPN without lattice", "vw.lodLat": "2 UPN + lattice",
     "vw.lodHelp": "The LSU shaft is two facing UPN channels joined by an X lattice (266 mm module). The geometry is built once per mast type and shared by every mast of that type: the scene stays light even with the lattice.",
     "vw.fast": "Fast (10 m)", "vw.fastOn": "Fast mode on: 10 m step. Switch it off (Q) for the full step.", "vw.plan": "Orthographic plan", "vw.planHelp": "In plan (T) the view is orthographic: true distances anywhere on screen, East, North and the track chainage under the cursor. Drag to move, wheel to zoom towards the cursor.",
     "pv.title": "Profile", "pv.inner": "design level (inner rail)", "pv.axis": "track axis", "pv.ground": "ground", "pv.cant": "cant",
@@ -717,7 +773,34 @@ const I18N = {
     "su.added": "Mast {n} at {p}, on the {s}.", "su.deleted": "Mast {n} removed.", "su.undone": "Undone.", "su.redone": "Redone.", "su.noUndo": "Nothing to undo.",
     "su.dragSt": "Mast {n} → {p}", "st.sup": "{n} masts", "st.sup1": "1 mast",
     "t.placeOn": "Placing: a click near a track puts a mast.", "t.placeOff": "Placing off.",
-    "t.ifcOld": "{f}: schema {s}, which has no IfcAlignment (it exists from IFC 4x3 on): use the LandXML or the DWGs of the alignment.",
+    "pv.cutX": "Cross section", "pv.cutXT": "Cut ⟂ to the active track at a chainage (X): click on the profile, ←/→ by 1 m (Shift 10 m), Esc removes it. View only.",
+    "pv.cutL": "Along the axis", "pv.cutLT": "Vertical cut along the active track (L): half of the model stays; ←/→ moves the cut by 10 cm (Shift 1 m), Esc removes it. Supports stay whole or disappear by their foot. View only.",
+    "pv.cutAt": "ch.", "pv.cutAtT": "Chainage of the cut (e.g. 0+250.5 or 250.5)", "pv.cutOff": "offset", "pv.cutOffT": "Offset of the cut from the track axis in metres, + to the right looking towards increasing chainage",
+    "pv.keepA": "Keep: ahead", "pv.keepB": "Keep: behind", "pv.keepR": "Keep: right", "pv.keepL": "Keep: left", "pv.flipT": "Show the other part",
+    "pv.cutNone": "The cut needs an active track.", "pv.cutBad": "Type a chainage (0+250.5) or a number of metres.", "pv.cutLoad": "Preparing the cut…",
+    "sc.title": "Formation layer", "sc.ctx": "Context IFC", "sc.ctxAdd": "Add a context IFC", "sc.ctxRm": "Remove this IFC from the view",
+    "sc.ctxNone": "No context IFC yet. Open one with the track bed (IFC 2x3 too): it shows around the tracks and you pick the formation layer (supercompattato) in it. View only: the project keeps just the chosen surface.",
+    "sc.ctxRow": "{n} el. · {g}", "sc.how.map": "IfcMapConversion", "sc.how.site": "IfcSite placement", "sc.how.context": "Revit origin", "sc.how.none": "file coordinates",
+    "sc.sub": "Chosen surface", "sc.sel": "{n} el. · {t} triangles", "sc.rm": "Remove the elements of this IFC", "sc.clear": "Remove all",
+    "sc.none": "No formation layer chosen: foundations sit at the default level (plinth top {v} m below the rail level).",
+    "sc.pick": "Pick with a click", "sc.pickOn": "Click picking: on",
+    "sc.pickHelp": "Click an element of the context: it becomes the formation layer. Ctrl+click adds or removes one; «All the same» takes the other pieces. Esc to leave. The surface is saved in the project: the levels stay even without reopening the IFC.",
+    "sc.cand": "Element #{id}", "sc.by": "Same by", "sc.same": "All the same ({n})", "sc.kName": "Name", "sc.kType": "Type", "sc.kOt": "ObjectType", "sc.kLayer": "Layer",
+    "sc.noCrit": "The element has no name, type, layer or Pset to compare: add the other pieces with Ctrl+click.",
+    "sc.found": "Foundations", "sc.rule": "Plinth top = formation layer under the mast axis + {v} m (track value; change it in the stretches and on the mast). Off the surface the edge within {d} m counts; farther, the default level. Maximum drop from rail level to plinth top {m} m (E 64865).",
+    "sc.stOn": "Feet on the formation layer", "sc.stEdge": "of which from the edge", "sc.stMiss": "Feet without formation layer", "sc.stDrop": "Plinth top beyond the maximum drop", "sc.stShort": "Masts not reaching the tie",
+    "sc.warns": "To check ({n})", "sc.wOut": "{n} · {p}: formation layer edge at {d} m", "sc.wMiss": "{n} · {p}: no formation layer within {d} m", "sc.wDrop": "{n} · {p}: plinth top {v} m below rail level", "sc.wShort": "{n} · {p}: the mast does not reach the tie",
+    "sc.picked": "Formation layer: {n} el. from {f}.", "sc.nothing": "No context element under the cursor.", "sc.pickOnT": "Formation layer picking: click an element (Ctrl+click adds or removes, Esc leaves).", "sc.pickOffT": "Formation layer picking over.",
+    "sc.needCtx": "Open a context IFC first.", "sc.noFaces": "{f}: the chosen elements have no non-vertical faces.",
+    "cx.opening": "Opening {f}…", "cx.reading": "{f}: meshing {d} of {t} elements…", "cx.simplify": "{f}: web-ifc is stuck on booleans, reading it again simplified…", "cx.timeout": "timed out",
+    "cx.loaded": "Context: {f}, {n} elements around the tracks.", "cx.asCtx": "{f}: no alignment, opened as a context IFC ({n} elements).",
+    "cx.none": "{f}: no element with geometry around the tracks (± 200 m): check the coordinates.", "cx.fail": "{f}: cannot read it as context ({m}).",
+    "tr.ctx": "Context (IFC)", "tr.sc": "Formation layer", "tr.els": "{n} el.",
+    "su.pilOut": "Plinth above layer", "su.sc": "Formation layer", "su.scV": "{z} m under the mast", "su.scEdge": "{z} m from the edge at {d} m", "su.scMiss": "not found within {d} m: default level", "su.scNone": "— (default level)",
+    "su.pil": "Plinth top", "su.pilV": "{z} m · RL − {d} m", "su.dropOver": "Plinth top {d} m below the rail level: more than {m} m (E 64865).",
+    "su.short": "The mast does not reach the tie attachment: top at {h} m above rail level, tie at {t} m. Choose a taller mast.", "su.lSc": "FL {v}", "su.fWarn": "Foundation to check",
+    "po.pil": "Plinth top {s}", "po.pilV": "{z} m · RL − {d} m · {c}", "po.cSc": "on the formation layer", "po.cEdge": "from the edge at {d} m", "po.cDef": "default level",
+    "pf.zPil": "Plinth top level", "pf.zSc": "Formation layer level",
     "dw.title": "Alignment from drawings: plan and profile", "dw.plan": "Plan", "dw.layer": "Polyline", "dw.sta0": "Start chainage", "dw.rev": "Reverse the direction",
     "dw.prof": "Profile", "dw.design": "Design level", "dw.ground": "Ground", "dw.none": "none",
     "dw.cal": "Profile calibration", "dw.k": "Vertical scale", "dw.sx": "Distance scale", "dw.sxAuto": "from the plan length",
@@ -791,13 +874,13 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./ocs-core.js?v=0.6.0";
-import * as IO from "./ocs-io.js?v=0.6.0";
-import * as K from "./ocs-catalog.js?v=0.6.0";
-import * as AU from "./ocs-stake.js?v=0.6.0";
-import * as PSET from "../common/pset-core.js?v=1.0.0";
+import * as C from "./ocs-core.js?v=0.8.0";
+import * as IO from "./ocs-io.js?v=0.8.0";
+import * as K from "./ocs-catalog.js?v=0.8.0";
+import * as AU from "./ocs-stake.js?v=0.8.0";
+import * as PSET from "../common/pset-core.js?v=1.1.0";
 
-const TOOL_VERSION = "0.6.0";
+const TOOL_VERSION = "0.8.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -838,7 +921,10 @@ const S = {
   placeKind: "mast",                                    // cosa si piazza: palo o portale (F3)
   prop: null,                                           // proposta del picchettamento (F4), da confermare: non si salva
   pset: null,                                           // modello dei Pset (F3, tools/common/pset-core.js); null = di partenza
-  view: { step: 1, lod: "upn" }, fast: false, plan: false,
+  ctx: [],                                              // IFC di contesto (0.7.0), solo vista, non si salvano: [{ name, how, ox, oy, parts, info, infoList, elements }]
+  sc: [],                                               // supercompattato scelto (0.7.0): una superficie per IFC [{ src, file, ids, crit, ox, oy, P, I }] — si salva
+  scPick: false, scCand: null, scCritK: null,           // scelta col clic, ultimo elemento cliccato { file, id }, criterio «uguali» scelto
+  view: { step: 1, lod: "lattice", lodV: 2 }, fast: false, plan: false,
   podOff: false, pvOff: false, treeOff: false, closed: {}, treeOpen: {}, treeW: null, podW: null,
   lastSave: null, saveOk: true,
 };
@@ -866,6 +952,7 @@ function saveUi() { try { localStorage.setItem(UI_KEY, JSON.stringify({ view: S.
     const u = JSON.parse(localStorage.getItem(UI_KEY) || "null");
     if (!u) return;
     if (u.view) Object.assign(S.view, u.view);
+    if (S.view.lodV !== 2) { if (S.view.lod === "upn") S.view.lod = "lattice"; S.view.lodV = 2; }   // 0.8.0: «2 UPN» senza traliccio sembrava due pezzi staccati (prova dell'utente) → di partenza col traliccio
     if (u.closed) S.closed = u.closed;
     if (u.treeOpen) S.treeOpen = u.treeOpen;
     for (const k of ["fast", "podOff", "pvOff", "treeOff"]) if (u[k] !== undefined) S[k] = !!u[k];
@@ -891,7 +978,7 @@ async function openFiles(list) {
   const prj = files.find((f) => kindOf(f) === "ocs");
   if (prj) { await openProject(prj, files.filter((f) => f !== prj)); return; }
   let added = 0, last = null, first = null, marked = false;
-  const drawings = [], tables = [];
+  const drawings = [], tables = [], ctxFiles = [];
   for (const f of files) {
     const kind = kindOf(f);
     if (!kind) { toast(tr("t.skip", { f: f.name }), true); continue; }
@@ -902,7 +989,7 @@ async function openFiles(list) {
     try { const text = await f.text(); R = kind === "ifc" ? IO.readIfcAlignments(text) : IO.readLandXML(text); }
     catch (e) { busy(""); console.error(e); toast(tr("t.fail", { f: f.name, m: (e && e.message) || String(e) }), true); continue; }
     busy("");
-    if (!R.aligns.length) { toast(kind === "ifc" && R.schema && !/^IFC4X[3-9]/.test(R.schema) ? tr("t.ifcOld", { f: f.name, s: R.schema }) : tr("t.noAlign", { f: f.name }), true); continue; }
+    if (!R.aligns.length) { if (kind === "ifc") ctxFiles.push(f); else toast(tr("t.noAlign", { f: f.name }), true); continue; }   // IFC senza asse: è contesto (0.7.0)
     if (kind === "ifc") R.app = R.app || R.schema;
     if (!marked) { pushUndo(); marked = true; }
     for (const a of R.aligns) {
@@ -920,6 +1007,7 @@ async function openFiles(list) {
   }
   if (drawings.length) await openDrawings(drawings);
   if (tables.length) { if (added) { setActive(S.tracks.indexOf(first)); refreshAll(); } await openTable(tables[0]); }
+  if (ctxFiles.length) await openCtxList(ctxFiles, true);
   if (!added) return;
   closeSheet();
   setActive(S.tracks.indexOf(first));                      // il primo asse aperto (il binario principale prima dei tronchini)
@@ -979,6 +1067,226 @@ scene.add(sun);
 
 const G = { group: new THREE.Group(), O: { x: 0, y: 0 }, zRef: 0, marker: null };
 scene.add(G.group);
+/* ==================== taglio della vista 3D (0.8.0, copiato da Sviluppo profili 0.10) ====================
+   Richiesta dell'utente (2026-10-12): «servirebbe la possibilità di sezionare lungo l'asse». Due tagli
+   alternativi, comandi nell'intestazione della lastra del profilo (X, L, Esc), solo vista.
+   - Sezione ⟂ («x»): piano verticale ⟂ al binario attivo alla progressiva CUT.p (clic sul profilo, ←/→):
+     resta la parte dopo il piano (o prima: «Inverti»). Taglia tutto, sostegni compresi.
+   - Lungo l'asse («l»): superficie verticale che segue il binario attivo in pianta (prolungato oltre i capi),
+     scostata di CUT.off (+ a destra guardando avanti, come in Sviluppo profili): resta la metà destra o
+     sinistra. Per il piano del ferro, il contesto e il supercompattato l'attributo aCutU = scostamento per
+     vertice (axisField di profile-core); i sostegni hanno geometrie condivise e restano interi o spariscono
+     secondo il loro piede.
+   Lo scarto sta nello shader dei materiali (onBeforeCompile). Tappi: le fette degli elementi del contesto
+   attraversati (ctxSlice di profile-core) col colore dell'elemento, il supercompattato tagliato come linea
+   arancione. I raggi (orbita, scelta) saltano la parte nascosta. */
+const CUT = { mode: null, p: NaN, side: 1, off: 0, plane: null, field: null, fieldT: null, fieldO: null, raf: 0 };
+const CUTU = { uCut: { value: new THREE.Vector4() }, uCutPlane: { value: new THREE.Vector4() } };
+const CUT_FIELD = new Set(["deck", "ctx", "ctxGlass", "sc"]);                 // con aCutU: tagliati anche lungo l'asse
+const CUT_PLANE = new Set(["mast", "mens", "conc", "equip", "supSel"]);      // geometrie condivise: solo la sezione ⟂
+function cutPatch(m, field) {
+  if (!m || m.userData.cut) return;
+  m.userData.cut = true;
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uCut = CUTU.uCut; sh.uniforms.uCutPlane = CUTU.uCutPlane;
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\n" + (field ? "attribute float aCutU;\nvarying float vCutU;\n" : "") + "varying vec3 vCutW;")
+      .replace("#include <project_vertex>", "#include <project_vertex>\n\tvCutW = (modelMatrix * vec4(transformed, 1.0)).xyz;" + (field ? "\n\tvCutU = aCutU;" : ""));
+    const test = field ? "if (uCut.x > 0.5) { float k = uCut.x < 1.5 ? dot(vCutW, uCutPlane.xyz) + uCutPlane.w : uCut.y * (vCutU - uCut.z); if (k < 0.0) discard; }"
+      : "if (uCut.x > 0.5 && uCut.x < 1.5 && dot(vCutW, uCutPlane.xyz) + uCutPlane.w < 0.0) discard;";
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec4 uCut;\nuniform vec4 uCutPlane;\n" + (field ? "varying float vCutU;\n" : "") + "varying vec3 vCutW;")
+      .replace("void main() {", "void main() {\n\t" + test);
+  };
+  m.customProgramCacheKey = () => (field ? "ocs-cut-f" : "ocs-cut-p");
+  m.needsUpdate = true;
+}
+function cutPatchAll() { for (const k of Object.keys(mats)) if (CUT_FIELD.has(k) || CUT_PLANE.has(k)) cutPatch(mats[k], CUT_FIELD.has(k)); }
+/* il punto (coordinate della scena) sta dalla parte nascosta? */
+function cutHidden(q) {
+  if (CUT.mode === "x" && CUT.plane) { const n = CUT.plane; return n.x * q.x + n.y * q.y + n.w < -1e-6; }
+  if (CUT.mode === "l" && CUT.field) return CUT.side * (CUT.field.at(q.x, q.y) - CUT.off) < -1e-6;
+  return false;
+}
+const cutPick = (hits) => (CUT.mode ? hits.find((h) => !cutHidden(h.point)) : hits[0]);
+/* campo laterale del binario attivo in coordinate della scena (rifatto se cambia il binario o l'origine) */
+function cutField() {
+  const T = TA();
+  if (!T || !PS) return null;
+  if (CUT.fieldT !== T || !CUT.fieldO || CUT.fieldO.x !== G.O.x || CUT.fieldO.y !== G.O.y) {
+    const pts = C.trackStations(T, 1).map((u) => { const f = C.trackFrame(T, u); return { s: u, x: f.x - G.O.x, y: f.y - G.O.y }; });
+    CUT.field = PS.C.axisField(pts);
+    CUT.fieldT = T; CUT.fieldO = { x: G.O.x, y: G.O.y };
+  }
+  return CUT.field;
+}
+/* scostamento per vertice di una mesh (posizioni locali + posizione della mesh), in cache sulla geometria */
+function cutUOf(o) {
+  const f = cutField(), g = o.geometry, c = g.userData.cutU;
+  const key = f && o.position.x + "," + o.position.y;
+  if (c && c.f === f && c.key === key) return c;
+  const P = g.attributes.position.array, n = P.length / 3, U = new Float32Array(n), Sv = new Float64Array(n);
+  for (let k = 0; k < n; k++) { U[k] = f.at(P[3 * k] + o.position.x, P[3 * k + 1] + o.position.y); Sv[k] = f.s; }
+  return (g.userData.cutU = { f, key, U, Sv });
+}
+function cutAttrs() {
+  for (const o of [...G.group.children, ...CTXG.children]) {
+    if (!o.isMesh || !o.material || !o.material.userData.cut || !CUT_FIELD.has(matKey(o.material))) continue;
+    const r = cutUOf(o);
+    if (o.geometry.attributes.aCutU && o.geometry.attributes.aCutU.array === r.U) continue;
+    o.geometry.setAttribute("aCutU", new THREE.BufferAttribute(r.U, 1));
+  }
+}
+const matKey = (m) => Object.keys(mats).find((k) => mats[k] === m) || "";
+/* lungo l'asse i sostegni restano interi o spariscono secondo il loro piede */
+function cutSupports() {
+  for (const g of SUPG.values()) g.visible = !(CUT.mode === "l" && g.userData.foot && cutHidden(g.userData.foot));
+}
+function cutUniforms() {
+  const u = CUTU.uCut.value, pl = CUTU.uCutPlane.value, T = TA();
+  CUT.plane = null;
+  if (CUT.mode === "x" && T && Number.isFinite(CUT.p)) {
+    const w = C.trackFrame(T, CUT.p), nx = CUT.side * w.tx, ny = CUT.side * w.ty, px = w.x - G.O.x, py = w.y - G.O.y;
+    CUT.plane = { x: nx, y: ny, w: -(nx * px + ny * py), px, py, tx: w.tx, ty: w.ty };
+    u.set(1, 0, 0, 0); pl.set(nx, ny, 0, CUT.plane.w);
+  } else if (CUT.mode === "l" && cutField()) u.set(2, CUT.side, CUT.off, 0);
+  else u.set(0, 0, 0, 0);
+}
+/* tappi degli elementi del contesto attraversati: anelli della fetta (ctxSlice) → triangoli (earcut di three.js),
+   col colore dell'elemento più scuro; il supercompattato (superficie aperta) come linea arancione */
+const CUTM = { cap: null, edge: null, sc: null };
+function capGeom(loops, ox, oy, lines, pv, ix) {
+  const L2 = [], L3 = [];
+  for (const lp of loops) {
+    const a = [], b = [];
+    for (let i = 0; i < lp.g.length; i++) {
+      const q = [lp.g[i], lp.xyz[3 * i + 2]], l = a[a.length - 1];
+      if (l && Math.abs(l[0] - q[0]) < 1e-9 && Math.abs(l[1] - q[1]) < 1e-9) continue;
+      a.push(q); b.push([lp.xyz[3 * i] + ox, lp.xyz[3 * i + 1] + oy, Zs(lp.xyz[3 * i + 2])]);
+    }
+    while (a.length > 1 && Math.abs(a[0][0] - a[a.length - 1][0]) < 1e-9 && Math.abs(a[0][1] - a[a.length - 1][1]) < 1e-9) { a.pop(); b.pop(); }
+    L2.push(a); L3.push(b);
+  }
+  for (const r of PS.C.nestLoops(L2)) {
+    const ids = [r.outer, ...r.holes];
+    if (ids.some((k) => L2[k].length < 3)) continue;
+    let faces;
+    try { faces = THREE.ShapeUtils.triangulateShape(L2[r.outer].map(([x, y]) => new THREE.Vector2(x, y)), r.holes.map((k) => L2[k].map(([x, y]) => new THREE.Vector2(x, y)))); }
+    catch (_) { continue; }
+    const base = pv.length / 3;
+    for (const k of ids) for (const q of L3[k]) pv.push(q[0], q[1], q[2]);
+    for (const f of faces) ix.push(base + f[0], base + f[1], base + f[2]);
+  }
+  for (const b of L3) for (let i = 0; i < b.length; i++) { const q = b[i], r = b[(i + 1) % b.length]; lines.push(q[0], q[1], q[2], r[0], r[1], r[2]); }
+}
+function cutCaps() {
+  for (const o of [...G.group.children]) if (o.userData.cap) { G.group.remove(o); o.geometry.dispose(); }
+  if (!CUT.mode || !PS || (CUT.mode === "x" && !CUT.plane) || (CUT.mode === "l" && !cutField())) return;
+  const light = document.documentElement.getAttribute("data-theme") === "light";
+  CUTM.cap = CUTM.cap || new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 });
+  CUTM.edge = CUTM.edge || new THREE.LineBasicMaterial({ transparent: true, opacity: 0.85 }); CUTM.edge.color.set(light ? 0x2b302a : 0x101410);
+  CUTM.sc = CUTM.sc || new THREE.LineBasicMaterial({ color: 0xff6a2b });
+  const pl = CUT.plane, lines = [], scSeg = [], pv = [], ix = [], col = [];
+  const field = (o, n, P, F, Gp) => {                    // F = distanza con segno dal taglio, Gp = ascissa lungo il taglio
+    let pos = 0, neg = 0;
+    if (CUT.mode === "x") for (let k = 0; k < n; k++) { const x = P[3 * k] + o.position.x - pl.px, y = P[3 * k + 1] + o.position.y - pl.py; F[k] = pl.x * x + pl.y * y; Gp[k] = x * pl.ty - y * pl.tx; if (F[k] >= 0) pos++; else neg++; }
+    else { const r = cutUOf(o); for (let k = 0; k < n; k++) { F[k] = CUT.side * (r.U[k] - CUT.off); Gp[k] = r.Sv[k]; if (F[k] >= 0) pos++; else neg++; } }
+    return pos > 0 && neg > 0;
+  };
+  for (const o of CTXG.children) {
+    if (!o.visible) continue;
+    const P = o.geometry.attributes.position.array, n = P.length / 3, F = new Float64Array(n), Gp = new Float64Array(n);
+    if (!field(o, n, P, F, Gp)) continue;
+    if (o.userData.sc != null) {                          // supercompattato: una linea
+      const sg = PS.C.sliceSegments({ positions: P, index: o.geometry.index.array }, F);
+      for (let k = 0; k < sg.length; k += 3) scSeg.push(sg[k] + o.position.x, sg[k + 1] + o.position.y, sg[k + 2] + o.position.z);
+      continue;
+    }
+    const m = S.ctx.find((x) => x.name === o.userData.ctx), p = m && m.parts[o.userData.part];
+    if (!p) continue;
+    const { loops, segs } = PS.C.ctxSlice(p, F, Gp);
+    for (let k = 0; k < segs.length; k += 6) lines.push(segs[k] + o.position.x, segs[k + 1] + o.position.y, Zs(segs[k + 2]), segs[k + 3] + o.position.x, segs[k + 4] + o.position.y, Zs(segs[k + 5]));
+    const byEl = new Map();
+    for (const l of loops) { const a = byEl.get(l.el); if (a) a.push(l); else byEl.set(l.el, [l]); }
+    for (const [el, ls] of byEl) {
+      const n0 = pv.length / 3, v0 = p.E[5 * el];
+      capGeom(ls, o.position.x, o.position.y, lines, pv, ix);
+      const cc = [0, 1, 2].map((j) => (SRGB_LIN[p.C[3 * v0 + j]] / 255) * 0.8);
+      for (let k = n0; k < pv.length / 3; k++) col.push(cc[0], cc[1], cc[2]);
+    }
+  }
+  if (ix.length) {
+    const g = new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(pv, 3)).setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    g.setIndex(ix);
+    const cap = new THREE.Mesh(g, CUTM.cap);
+    cap.userData.cap = true; cap.userData.noFrame = true;
+    G.group.add(cap);
+  }
+  for (const [arr, mat, ro] of [[lines, CUTM.edge, 3], [scSeg, CUTM.sc, 4]]) {
+    if (!arr.length) continue;
+    const l = new THREE.LineSegments(new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(arr, 3)), mat);
+    l.userData.cap = true; l.userData.noFrame = true; l.renderOrder = ro;
+    G.group.add(l);
+  }
+}
+/* tutto il taglio: uniformi, attributi, sostegni, tappi, profilo */
+function cutApply() {
+  cancelAnimationFrame(CUT.raf); CUT.raf = 0;
+  const T = TA();
+  if (CUT.mode && !T) CUT.mode = null;
+  if (CUT.mode === "x") CUT.p = Math.max(0, Math.min(T.H.length, CUT.p));
+  cutUniforms();
+  if (CUT.mode === "l") cutAttrs();
+  cutSupports();
+  cutCaps();
+  cutUi();
+  drawPV();
+}
+function cutLater() { if (!CUT.raf) CUT.raf = requestAnimationFrame(cutApply); }
+/* accende, spegne (stesso modo = spegne) o cambia modo; lungo l'asse serve profile-core (caricato al bisogno) */
+async function cutSet(mode) {
+  if (mode && mode === CUT.mode) mode = null;
+  const T = TA();
+  if (mode && !T) { toast(tr("pv.cutNone"), true); mode = null; }
+  if (mode && !PS) { busy(tr("pv.cutLoad")); try { await psModules(); } catch (e) { busy(""); toast(tr("pv.cutNone"), true); return; } busy(""); }
+  if (mode === "x" && !Number.isFinite(CUT.p)) {
+    const a = Math.max(0, PV.x0), b = Math.min(T.H.length, PV.x1);
+    CUT.p = S.pt != null ? S.pt : Math.round(b > a ? (a + b) / 2 : T.H.length / 2);   // il punto scelto, o il centro della finestra del profilo
+  }
+  CUT.mode = mode;
+  cutApply();
+}
+function cutUi() {
+  const m = CUT.mode, T = TA();
+  $("cutX").classList.toggle("on", m === "x"); $("cutL").classList.toggle("on", m === "l");
+  $("cutBar").hidden = !m;
+  if (!m) return;
+  $("cutLbl").textContent = m === "x" ? tr("pv.cutAt") : tr("pv.cutOff");
+  const inp = $("cutIn");
+  inp.title = m === "x" ? tr("pv.cutAtT") : tr("pv.cutOffT");
+  if (document.activeElement !== inp) inp.value = m === "x" ? prog((T ? T.s0 : 0) + CUT.p) : (CUT.off > 0 ? "+" : CUT.off < 0 ? "−" : "") + nf(Math.abs(CUT.off), 2);
+  $("cutFlip").textContent = m === "x" ? (CUT.side > 0 ? tr("pv.keepA") : tr("pv.keepB")) : (CUT.side > 0 ? tr("pv.keepR") : tr("pv.keepL"));
+}
+$("cutX").addEventListener("click", () => cutSet("x"));
+$("cutL").addEventListener("click", () => cutSet("l"));
+$("cutFlip").addEventListener("click", () => { CUT.side = -CUT.side; cutApply(); });
+$("cutIn").addEventListener("change", () => {
+  const T = TA(), raw = $("cutIn").value.trim().replace(/[−–]/g, "-");
+  const v = CUT.mode === "x" ? parseSta(raw) : parseNum(raw.replace(/^\+/, ""));
+  if (!Number.isFinite(v)) { toast(tr("pv.cutBad"), true); cutUi(); return; }
+  if (CUT.mode === "x") CUT.p = v - (T ? T.s0 : 0); else CUT.off = Math.round(v * 1000) / 1000;
+  cutApply();
+});
+$("cutIn").addEventListener("keydown", (e) => {
+  e.stopPropagation();
+  if (e.key === "Enter") { e.preventDefault(); e.target.blur(); }
+  else if (e.key === "Escape") { e.preventDefault(); e.target.value = ""; e.target.blur(); cutUi(); }
+});
+/* frecce: la sezione ⟂ di 1 m (Maiusc 10), il taglio lungo l'asse di 10 cm (Maiusc 1 m) */
+function cutStep(dir, big) {
+  if (CUT.mode === "x") CUT.p = Math.round((CUT.p + dir * (big ? 10 : 1)) * 1000) / 1000;
+  else if (CUT.mode === "l") CUT.off = Math.round((CUT.off + dir * (big ? 1 : 0.1)) * 1000) / 1000;
+  cutLater();
+}
+
 const mats = {};
 function themeColors() {
   const light = document.documentElement.getAttribute("data-theme") === "light";
@@ -1003,6 +1311,12 @@ function themeColors() {
   mats.supSel = mats.supSel || new THREE.MeshLambertMaterial({ emissive: 0x2a3300 }); mats.supSel.color.set(light ? 0x8aa310 : 0xbfd730);
   mats.supLine = mats.supLine || new THREE.LineBasicMaterial(); mats.supLine.color.set(light ? 0x4a5158 : 0xc4ccd2);
   mats.supSelLine = mats.supSelLine || new THREE.LineBasicMaterial(); mats.supSelLine.color.set(light ? 0x6f8a00 : 0xbfd730);
+  // IFC di contesto (0.7.0): colori dell'IFC, velati perché non coprano i sostegni; il supercompattato scelto in lime sopra
+  mats.ctx = mats.ctx || new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false });
+  mats.ctxGlass = mats.ctxGlass || new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false });
+  mats.sc = mats.sc || new THREE.MeshLambertMaterial({ color: 0xff6a2b, emissive: 0x8c2f0a, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });   // l'arancione della selezione del viewer (0.8.0)
+  cutPatchAll();                                        // taglio della vista (0.8.0)
+  if (CUT.mode) cutLater();
   drawPV();
 }
 const Zs = (z) => z - G.zRef;
@@ -1022,7 +1336,7 @@ function sceneOrigin() {
 function buildScene() {
   clearGroup();
   G.marker = null;
-  if (!S.tracks.length) return;
+  if (!S.tracks.length) { placeCtx(); return; }
   const o = sceneOrigin();
   G.O = { x: o.x, y: o.y }; G.zRef = Math.floor(o.z0) - 2;
   const step = stepNow();
@@ -1060,6 +1374,8 @@ function buildScene() {
   }
   buildSupports();
   buildProposal();
+  placeCtx();
+  if (CUT.mode) cutLater();
   G.marker = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), mats.mark);
   G.marker.visible = false;
   G.group.add(G.marker);
@@ -1215,7 +1531,7 @@ function zoomAt(u) {
 }
 function frameKey(key) {
   const b = new THREE.Box3();
-  for (const o of G.group.children) { const k = o.userData.key; if (k && (k === key || k.startsWith(key + ":"))) b.expandByObject(o); }
+  for (const o of [...G.group.children, ...CTXG.children]) { if (o.visible === false) continue; for (const k of [o.userData.key, o.userData.ckey]) if (k && (k === key || k.startsWith(key + ":"))) { b.expandByObject(o); break; } }
   if (!b.isEmpty()) frameAll(b);
 }
 /* =========================================================================
@@ -1256,7 +1572,25 @@ function portalGeo(s) {
   return out;
 }
 const portalServed = (s, geo = portalGeo(s)) => geo.filter((g) => g.id === s.track || !(s.skip || []).includes(g.id));
-const supResolved = (s) => (isPortal(s) ? K.resolvePortal(s, supDefAt(trackById(s.track), s.u), portalServed(s)) : K.resolveSupport(s, supDefAt(trackById(s.track), s.u), suspGeo(s)));
+/* il sostegno risolto col catalogo; col supercompattato scelto (0.7.0) una seconda volta con la sua quota sotto
+   i piedi (la posizione dei piedi non dipende dalle quote) */
+function supResolved(s) {
+  const R0 = isPortal(s) ? K.resolvePortal(s, supDefAt(trackById(s.track), s.u), portalServed(s)) : K.resolveSupport(s, supDefAt(trackById(s.track), s.u), suspGeo(s));
+  const lev = scLev(s, R0);
+  return !lev ? R0 : isPortal(s) ? K.resolvePortal(s, supDefAt(trackById(s.track), s.u), portalServed(s), lev) : K.resolveSupport(s, supDefAt(trackById(s.track), s.u), suspGeo(s), lev);
+}
+/* le superfici del supercompattato in griglia, rifatte quando cambia S.sc (mai modificato sul posto) */
+let SCX = [], SCX_OF = null;
+function scIndex() { if (SCX_OF !== S.sc) { SCX = S.sc.map((e) => C.surfaceIndex(e)).filter(Boolean); SCX_OF = S.sc; } return SCX; }
+const SC_MAX = 2;                                       // fuori dalla superficie: il bordo fino a 2 m, oltre la quota di partenza
+function scLev(s, R0) {
+  const X = scIndex(), t = trackById(s.track);
+  if (!X.length || !t) return null;
+  const F = C.supportFeet(derivedOf(t).T, s, R0);
+  if (!F) return null;
+  const lv = F.feet.map((p) => { const h = C.surfaceAtMany(X, p.x, p.y, SC_MAX); return h ? { sc: h.z - F.z0, d: h.d } : null; });
+  return isPortal(s) ? { L: lv[0], R: lv[1] } : lv[0];
+}
 const supParts = (T, s, R) => (isPortal(s) ? C.portalParts(T, s, R) : C.supportParts(T, s, R));
 /* il binario accanto, dalla parte della mensola (oltre il binario del palo): per la seconda sospensione */
 function neighborTrack(t, u, side, skip = []) {
@@ -1272,10 +1606,10 @@ const disposeTree = (o) => o.traverse((c) => { if (c.geometry && !c.geometry.use
 /* fusto del palo: una geometria per tipo di palo e livello di dettaglio (S.view.lod), condivisa da tutti i pali
    di quel tipo (i solidi vengono da C.mastSolids: pieno, 2 UPN, 2 UPN + traliccio a X) */
 const MASTGEO = new Map();
-const mastGeometry = (M) => solidGeometry("mast|" + M.id, () => C.mastSolids(M, S.view.lod || "upn"));
-const beamGeometry = (B) => solidGeometry("beam|" + B.id, () => C.beamSolids(B, S.view.lod || "upn"));
+const mastGeometry = (M) => solidGeometry("mast|" + M.id, () => C.mastSolids(M, S.view.lod || "lattice"));
+const beamGeometry = (B) => solidGeometry("beam|" + B.id, () => C.beamSolids(B, S.view.lod || "lattice"));
 function solidGeometry(id, solids) {
-  const key = id + "|" + (S.view.lod || "upn");
+  const key = id + "|" + (S.view.lod || "lattice");
   let geo = MASTGEO.get(key);
   if (geo) return geo;
   const pos = [], nor = [];
@@ -1307,9 +1641,12 @@ function buildSupport(s) {
   if (!t) return null;
   const R = supResolved(s), T = derivedOf(t).T, P = supParts(T, s, R), sel = s.id === S.sel;
   const g = new THREE.Group();
+  const ft = C.supportFeet(T, s, R);
+  if (ft) { const f = ft.feet; g.userData.foot = { x: f.reduce((a, q) => a + q.x, 0) / f.length - G.O.x, y: f.reduce((a, q) => a + q.y, 0) / f.length - G.O.y }; }
+  if (CUT.mode === "l" && g.userData.foot && cutHidden(g.userData.foot)) g.visible = false;
   g.userData.sup = s.id; g.userData.key = "t" + t.id + ":sup";
   const at = (p) => [p.x - G.O.x, p.y - G.O.y, Zs(p.z)];
-  const lod = (S.view.lod || "upn") !== "box";
+  const lod = (S.view.lod || "lattice") !== "box";
   for (const p of P) {
     if (p.sz) {
       const steel = p.k === "mast" || p.k === "pole" || p.k === "plate" || p.k === "beam" || p.k.startsWith("mens");
@@ -1351,8 +1688,8 @@ function pickSupport(e) {
   if (!SUPG.size) return null;
   pickRay.setFromCamera(ndcOf(e), cam());
   const objs = [];
-  for (const g of SUPG.values()) for (const c of g.children) if (c.isMesh && !c.userData.noPick) objs.push(c);
-  const hit = pickRay.intersectObjects(objs, false)[0];
+  for (const g of SUPG.values()) if (g.visible) for (const c of g.children) if (c.isMesh && !c.userData.noPick) objs.push(c);
+  const hit = cutPick(pickRay.intersectObjects(objs, false));
   return hit ? hit.object.userData.sup : null;
 }
 /* Est e Nord sotto il cursore: in pianta esatti; in 3D dove il raggio tocca il piano del ferro, o il piano
@@ -1445,12 +1782,12 @@ function frameSupport(s) {
   if (S.plan) { framePlan(b); return; }
   frameAll(b, { dir: camera.position.clone().sub(controls.target).normalize(), fly: true });
 }
-function afterSupports() { buildScene(); renderSup(); renderPoint(); renderTree(); drawPV(); refreshStats(); scheduleSave(); }
+function afterSupports() { buildScene(); renderSup(); renderSc(); renderPoint(); renderTree(); drawPV(); refreshStats(); scheduleSave(); }
 /* annulla / ripristina su tutto il documento: binari (aperti, tolti, ritarati, rinominati, profilo, offset),
    sostegni e valori dei binari. La geometria letta (elementi, profili, polilinee) non si modifica mai sul
    posto: lo stato tiene i binari per riferimento e copia solo i campi che cambiano */
 const UNDO = [], REDO = [];
-const docState = () => ({ sup: JSON.stringify(S.supports), seq: S.supSeq, active: A ? A.id : null, pset: JSON.stringify(S.pset),
+const docState = () => ({ sup: JSON.stringify(S.supports), seq: S.supSeq, active: A ? A.id : null, pset: JSON.stringify(S.pset), sc: S.sc,
   tracks: S.tracks.map((t) => ({ t, name: t.name, nameUser: t.nameUser, prof: t.prof, off: JSON.stringify(t.off), ocs: JSON.stringify(t.ocs) })) });
 function pushUndo(st = docState()) { UNDO.push(st); if (UNDO.length > 100) UNDO.shift(); REDO.length = 0; }
 function applyDocState(o) {
@@ -1458,6 +1795,7 @@ function applyDocState(o) {
   S.tracks = o.tracks.map((e) => Object.assign(e.t, { name: e.name, nameUser: e.nameUser, prof: e.prof, off: JSON.parse(e.off), ocs: JSON.parse(e.ocs) }));
   S.supports = JSON.parse(o.sup); S.supSeq = Math.max(S.supSeq, o.seq || 1);
   if (o.pset !== undefined) S.pset = JSON.parse(o.pset);
+  if (o.sc !== undefined) S.sc = o.sc;                  // le superfici non si toccano mai sul posto: basta il riferimento
   S.prop = null;                                        // la proposta del picchettamento non sopravvive all'annulla
   DT.clear();
   const i = S.tracks.findIndex((t) => t.id === o.active);
@@ -1472,6 +1810,7 @@ function undo() { if (!UNDO.length) { toast(tr("su.noUndo")); return; } REDO.pus
 function redo() { if (!REDO.length) return; UNDO.push(docState()); applyDocState(REDO.pop()); toast(tr("su.redone")); }
 function setPlace(on) {
   S.place = !!on;
+  if (S.place && S.scPick) setScPick(false);
   $("bPlace").classList.toggle("on", S.place);
   document.body.classList.toggle("placing", S.place);
   renderSup();
@@ -1482,8 +1821,9 @@ let supDrag = null, downAt = null;
 addEventListener("pointerdown", (e) => {
   if (e.target !== canvas) return;
   downAt = null;
-  if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
-  downAt = { x: e.clientX, y: e.clientY };
+  if (e.button !== 0 || ((e.ctrlKey || e.metaKey) && !S.scPick) || e.shiftKey || e.altKey) return;
+  downAt = { x: e.clientX, y: e.clientY, add: e.ctrlKey || e.metaKey };
+  if (S.scPick) return;                                 // scelta del supercompattato: niente pali sotto il clic
   const id = pickSupport(e);
   if (id == null) return;
   e.stopPropagation();
@@ -1523,10 +1863,11 @@ addEventListener("pointerup", (e) => {
     return;
   }
   if (e.target !== canvas || !downAt || e.button !== 0) return;
-  const click = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4;
+  const click = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4, add = downAt.add;
   downAt = null;
   if (!click) return;
-  if (S.place) { const p = groundAt(e); if (p) placeAt(p.E, p.N); }
+  if (S.scPick) scClick(e, add);
+  else if (S.place) { const p = groundAt(e); if (p) placeAt(p.E, p.N); }
   else if (S.sel != null) selectSupport(null);
 }, { capture: true });
 addEventListener("pointercancel", () => { if (supDrag) { cancelAnimationFrame(supDrag.raf); supDrag = null; canvas.classList.remove("dragging"); } downAt = null; }, { capture: true });
@@ -1545,6 +1886,7 @@ let orbDot = null, orbDotUntil = 0;
 function orbTargets() {
   const out = [];
   for (const o of G.group.children) if (o.isMesh && o.visible && o !== G.marker) out.push(o);
+  for (const o of CTXG.children) if (o.visible) out.push(o);           // anche il contesto: pivot sotto il cursore
   return out;
 }
 function orbCancel() {
@@ -1557,7 +1899,7 @@ function cursorPoint(e) {
   const r = canvas.getBoundingClientRect();
   orbNdc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
   orbRay.setFromCamera(orbNdc, camera);
-  const hit = orbRay.intersectObjects(orbTargets(), false)[0];
+  const hit = cutPick(orbRay.intersectObjects(orbTargets(), false));
   if (hit) return panP.copy(hit.point);
   const box = sceneBox();
   if (!box) return null;
@@ -1663,7 +2005,7 @@ canvas.addEventListener("pointerdown", (e) => {
   const r = canvas.getBoundingClientRect();
   orbNdc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
   orbRay.setFromCamera(orbNdc, camera);
-  const hit = orbRay.intersectObjects(orbTargets(), false)[0];
+  const hit = cutPick(orbRay.intersectObjects(orbTargets(), false));
   if (!hit) return;
   e.stopPropagation();
   orbPivot.copy(hit.point);
@@ -1892,6 +2234,7 @@ function drawPV() {
     g.stroke(); g.setLineDash([]);
   };
   if (S.pt != null) vline(S.pt, blue, false);
+  if (CUT.mode === "x" && Number.isFinite(CUT.p)) { g.fillStyle = css("--text"); label(tr("pv.cutX"), Math.round(xOf(CUT.p)) + 4, bot - 4); vline(CUT.p, css("--text"), false); }
   if (PV.hover != null) vline(PV.hover, muted, true);
 }
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -1932,6 +2275,7 @@ pvc.addEventListener("pointerup", (e) => {
     const near = supsOf(A).map((s) => ({ s, d: Math.abs(xOf(s.u) - x) })).filter((o) => o.d <= 5).sort((a, c) => a.d - c.d)[0];
     if (near) { selectSupport(near.s.id); return; }
     S.pt = PV.hover; renderPoint(); drawPV(); scheduleSave();
+    if (CUT.mode === "x") { CUT.p = S.pt; cutApply(); }   // col taglio ⟂ acceso il clic lo sposta lì
   }
 });
 pvc.addEventListener("pointerleave", () => { PV.hover = null; setMarker(S.pt); status(null); drawPV(); pointLater(); });
@@ -1957,7 +2301,7 @@ const DWG_BASE = new URL("../profile-sweep/vendor/libredwg-web/", location.href)
 let PS = null;
 async function psModules() {
   if (!PS) {
-    const [io, core] = await Promise.all([import("../profile-sweep/profile-io.js?v=0.18.1"), import("../profile-sweep/profile-core.js?v=0.18.1")]);
+    const [io, core] = await Promise.all([import("../profile-sweep/profile-io.js?v=0.19.0"), import("../profile-sweep/profile-core.js?v=0.19.0")]);
     PS = { IO: io, C: core };
   }
   return PS;
@@ -2119,7 +2463,7 @@ async function dwgEdit(t) {
 /* =========================================================================
    Pannello
    ========================================================================= */
-function renderPod() { renderWork(); renderTrack(); renderSup(); renderAuto(); renderPset(); renderOffset(); renderPoint(); renderViewSec(); applyClosed(); }
+function renderPod() { renderWork(); renderTrack(); renderSup(); renderSc(); renderAuto(); renderPset(); renderOffset(); renderPoint(); renderViewSec(); applyClosed(); }
 function renderWork() {
   const el = $("podWork");
   el.hidden = !A;
@@ -2276,10 +2620,10 @@ function renderSup() {
   if (list.length) {
     h += `<div class="stab"><div class="sr sh"><span>${esc(tr("su.hN"))}</span><span>${esc(tr("su.hSta"))}</span><span>${esc(tr("su.hSide"))}</span><span>${esc(tr("su.hDr"))}</span><span>${esc(tr("su.hMast"))}</span><span>${esc(tr("su.hMens"))}</span><span>${esc(tr("su.hFound"))}</span></div>`;
     for (const x of list) {
-      const R = supResolved(x);
+      const R = supResolved(x), fw = !R.fits || footWarn(R);
       h += isPortal(x)
-        ? `<div class="sr${x.id === S.sel ? " on" : ""}" data-sid="${x.id}"><span>${esc(x.num)}</span><span>${esc(prog(A.s0 + x.u))}</span><span title="${esc(tr("po.kind"))}">P</span><span>${nf(Math.min(R.drL, R.drR), 2)}</span><span>${esc(R.mast ? R.mast.id : "PO")}</span><span${R.short ? ' class="warn"' : ""}>${esc(R.beam.id.replace(/^(PO|MEC) /, ""))}</span><span${R.fits ? "" : ' class="warn"'}>${esc(R.found.id)}</span></div>`
-        : `<div class="sr${x.id === S.sel ? " on" : ""}" data-sid="${x.id}"><span>${esc(x.num)}</span><span>${esc(prog(A.s0 + x.u))}</span><span>${x.side > 0 ? "S" : "D"}</span><span>${nf(R.dr, 2)}</span><span>${esc(R.mast.id)}</span><span>${nf(R.mens.L, 2)}</span><span${R.fits ? "" : ' class="warn"'}>${esc(R.found.id)}</span></div>`;
+        ? `<div class="sr${x.id === S.sel ? " on" : ""}" data-sid="${x.id}"><span>${esc(x.num)}</span><span>${esc(prog(A.s0 + x.u))}</span><span title="${esc(tr("po.kind"))}">P</span><span>${nf(Math.min(R.drL, R.drR), 2)}</span><span>${esc(R.mast ? R.mast.id : "PO")}</span><span${R.short ? ' class="warn"' : ""}>${esc(R.beam.id.replace(/^(PO|MEC) /, ""))}</span><span${fw ? ` class="warn" title="${esc(tr("su.fWarn"))}"` : ""}>${esc(R.found.id)}</span></div>`
+        : `<div class="sr${x.id === S.sel ? " on" : ""}" data-sid="${x.id}"><span>${esc(x.num)}</span><span>${esc(prog(A.s0 + x.u))}</span><span>${x.side > 0 ? "S" : "D"}</span><span>${nf(R.dr, 2)}</span><span>${esc(R.mast.id)}</span><span>${nf(R.mens.L, 2)}</span><span${fw ? ` class="warn" title="${esc(tr("su.fWarn"))}"` : ""}>${esc(R.found.id)}</span></div>`;
     }
     h += `</div><div class="btns"><button class="btn-sm" id="suRenum" title="${esc(tr("su.renumT"))}">${esc(tr("su.renum"))}</button></div>`;
   } else h += `<p class="empty">${esc(tr("su.none"))}</p>`;
@@ -2292,6 +2636,7 @@ function renderSup() {
   h += `<div class="row"><label for="sdHm">${esc(tr("su.hm"))}</label>${numIn("sdHm", nf(def.hm, 2), "m", 'data-d="hm"')}</div>`;
   h += `<div class="row"><label for="sdStag">${esc(tr("su.stag"))}</label>${numIn("sdStag", nf(def.stag, 2), "m ±", 'data-d="stag"')}</div>`;
   h += `<div class="row"><label for="sdSpan">${esc(tr("su.span"))}</label>${numIn("sdSpan", nf(def.span, 1), "m", 'data-d="span"')}</div>`;
+  h += `<div class="row"><label for="sdPil">${esc(tr("su.pilOut"))}</label>${numIn("sdPil", nf(def.pilOut, 2), "m", 'data-d="pilOut"')}</div>`;
   const nm = def.numMode === "seq" ? "seq" : def.oddLeft ? "oddL" : "oddR";
   h += `<div class="row"><label for="sdNum">${esc(tr("su.numMode"))}</label><select id="sdNum" class="sel" data-d="num">${opt("oddL", tr("su.nmOddL"), nm)}${opt("oddR", tr("su.nmOddR"), nm)}${opt("seq", tr("su.nmSeq"), nm)}</select></div>`;
   h += `<div class="row"><label for="sdPre">${esc(tr("su.prefix"))}</label><input id="sdPre" class="txt" data-d="prefix" value="${esc(def.prefix || "")}" spellcheck="false"></div>`;
@@ -2318,12 +2663,18 @@ function supEditor(s, def) {
   h += `<div class="row"><label for="seStag">${esc(tr("su.stag"))}</label>${numIn("seStag", nf(R.stag, 2), tr("su.stagU"), 'data-f="stag"')}</div>`;
   h += `<div class="row"><label for="seFound">${esc(tr("su.found"))}${src("found")}</label><select id="seFound" class="sel" data-f="found">${opt("", ofLbl("found"), s.found || "")}${K.FOUNDATIONS.map((f) => opt(f.id, f.id, s.found || "")).join("")}</select></div>`;
   h += `<div class="row"><label for="seC1">${esc(tr("su.c1"))}${src("c1")}</label>${numIn("seC1", s.c1 != null ? nf(s.c1, 2) : "", "m (" + nf(0.25, 2) + "–" + nf(0.5, 2) + ")", `data-f="c1" placeholder="${esc(nf(def.c1, 2))}"`)}</div>`;
+  h += `<div class="row"><label for="sePil">${esc(tr("su.pilOut"))}${src("pilOut")}</label>${numIn("sePil", s.pilOut != null ? nf(s.pilOut, 2) : "", "m", `data-f="pilOut" placeholder="${esc(nf(def.pilOut, 2))}"`)}</div>`;
   if (!R.fits) h += `<p class="note warn">${esc(tr("su.noFit", { m: R.mast.id, d: ni(R.mast.bolts.D * 1000), e: ni(R.mast.bolts.E * 1000) }))}</p>`;
   h += `<div class="row"><span class="lbl">${esc(tr("su.eq"))}</span><div class="chks"><label><input type="checkbox" data-f="trafo"${R.eq.trafo ? " checked" : ""}> ${esc(tr("su.trafo"))}</label><label><input type="checkbox" data-f="sez"${R.eq.sez ? " checked" : ""}> ${esc(tr("su.sez"))}</label></div></div>`;
   if (R.eq.trafo || R.eq.sez) h += `<p class="help">${esc(tr("su.eqHelp"))}</p>`;
   h += suspEditor(s, R);
   h += kv(tr("su.pos"), esc(tr("su.posV", { e: nf(lv.E, 3), n: nf(lv.N, 3) })));
   h += kv(tr("su.top"), esc(nf(lv.top, 3) + " m"));
+  // fondazione sul supercompattato (0.7.0)
+  h += kv(tr("su.sc"), esc(R.fromSc ? (R.scOut > 0 ? tr("su.scEdge", { z: nf(lv.pf + R.sc, 3), d: nf(R.scOut, 2) }) : tr("su.scV", { z: nf(lv.pf + R.sc, 3) })) : S.sc.length ? tr("su.scMiss", { d: nf(SC_MAX, 0) }) : tr("su.scNone")), S.sc.length > 0 && (!R.fromSc || R.scOut > 0));
+  h += kv(tr("su.pil"), esc(tr("su.pilV", { z: nf(lv.plate, 3), d: nf(R.drop, 3) })), R.dropOver);
+  if (R.dropOver) h += `<p class="note warn">${esc(tr("su.dropOver", { d: nf(R.drop, 2), m: nf(K.DROP_MAX, 2) }))}</p>`;
+  if (lv.top < lv.tie - 1e-9) h += `<p class="note warn">${esc(tr("su.short", { h: nf(lv.top - lv.pf, 2), t: nf(lv.tie - lv.pf, 2) }))}</p>`;
   h += kv(tr("su.vol"), esc(tr("su.volV", { v: nf(R.vol, 2), f: R.found.id, c: nf(R.c1, 2) })));
   if (s.attrs && Object.keys(s.attrs).length) { h += `<div class="sub">${esc(tr("su.attrs"))}</div>`; for (const [k, v] of Object.entries(s.attrs)) h += kv(k, esc(v)); }
   h += `<div class="secview"><div class="cap">${esc(tr("su.secCap", { n: s.num }))}</div>${supSection(s, R)}</div>`;
@@ -2352,6 +2703,7 @@ function portalEditor(s, def) {
   h += `<div class="row"><label for="seHw">${esc(tr("su.hw"))}${src("hw")}</label>${numIn("seHw", s.hw != null ? nf(s.hw, 2) : "", "m", `data-f="hw" placeholder="${esc(nf(def.hw, 2))}"`)}</div>`;
   h += `<div class="row"><label for="seFound">${esc(tr("su.found"))}${src("found")}</label><select id="seFound" class="sel" data-f="found">${opt("", ofLbl("found"), s.found || "")}${K.FOUNDATIONS.map((f) => opt(f.id, f.id, s.found || "")).join("")}</select></div>`;
   h += `<div class="row"><label for="seC1">${esc(tr("su.c1"))}${src("c1")}</label>${numIn("seC1", s.c1 != null ? nf(s.c1, 2) : "", "m (" + nf(0.25, 2) + "–" + nf(0.5, 2) + ")", `data-f="c1" placeholder="${esc(nf(def.c1, 2))}"`)}</div>`;
+  h += `<div class="row"><label for="sePil">${esc(tr("su.pilOut"))}${src("pilOut")}</label>${numIn("sePil", s.pilOut != null ? nf(s.pilOut, 2) : "", "m", `data-f="pilOut" placeholder="${esc(nf(def.pilOut, 2))}"`)}</div>`;
   if (!R.fits) h += `<p class="note warn">${esc(tr("su.noFit", { m: R.mast.id, d: ni(R.mast.bolts.D * 1000), e: ni(R.mast.bolts.E * 1000) }))}</p>`;
   // binari davanti al portale: servito sì/no, pendolo con poligonazione e tipo
   h += `<div class="sub">${esc(tr("po.tracks", { n: R.susp.length }))}</div>`;
@@ -2365,6 +2717,11 @@ function portalEditor(s, def) {
   }
   h += `<p class="help">${esc(tr("po.help"))}</p>`;
   h += kv(tr("su.vol"), esc(tr("po.volV", { v: nf(R.vol, 2), f: R.found.id, c: nf(R.c1, 2) })));
+  const Fz = C.supportFrame(TA(), s.u, 1), z0p = Fz ? Fz.f.z : 0;
+  for (const [lab, x, zB, dr] of [[tr("su.sL"), R.scL, R.zBaseL, R.dropL], [tr("su.sR"), R.scR, R.zBaseR, R.dropR]]) {
+    const how = x.fromSc ? (x.scOut > 0 ? tr("po.cEdge", { d: nf(x.scOut, 2) }) : tr("po.cSc")) : tr("po.cDef");
+    h += kv(tr("po.pil", { s: lab }), esc(tr("po.pilV", { z: nf(z0p + zB, 3), d: nf(dr, 3), c: how })), dr > K.DROP_MAX + 1e-9 || (S.sc.length > 0 && (!x.fromSc || x.scOut > 0)));
+  }
   if (s.attrs && Object.keys(s.attrs).length) { h += `<div class="sub">${esc(tr("su.attrs"))}</div>`; for (const [k, v] of Object.entries(s.attrs)) h += kv(k, esc(v)); }
   h += `<div class="secview"><div class="cap">${esc(tr("po.secCap", { n: s.num }))}</div>${portalSection(s, R)}</div>`;
   h += psetPreview(s, R);
@@ -2391,6 +2748,7 @@ function portalSection(s, R) {
     for (const q of [qa + C.RAIL_HALF, qa - C.RAIL_HALF]) g += `<rect x="${r(X(q) - 0.036 * sc)}" y="${r(Y(za))}" width="${r(Math.max(1.5, 0.072 * sc))}" height="${r(Math.max(1.5, 0.172 * sc))}" fill="var(--steel)"/>`;
     g += `<line x1="${r(X(qa))}" y1="${r(Y(z1))}" x2="${r(X(qa))}" y2="${r(Y(z0))}" stroke="var(--faint)" stroke-dasharray="4 3"/>`;
   }
+  g += scPath(F, q0, q1, X, Y, Zr, r);
   const fill = { block: "var(--panel-2)", pil: "var(--panel-2)", plate: "var(--steel)", mast: "var(--steel)", pole: "var(--steel)", beam: "var(--text)" };
   for (const p of P) {
     if (p.sz) { const q = Q(p.c), z = Zr(p.c.z), w = p.sz[1], hh = p.sz[2]; g += `<rect x="${r(X(q + w / 2))}" y="${r(Y(z + hh / 2))}" width="${r(Math.max(1, w * sc))}" height="${r(Math.max(1, hh * sc))}" fill="${fill[p.k] || "none"}" stroke="var(--muted)" stroke-width=".6"${p.k === "beam" ? ' fill-opacity=".25"' : p.k === "mast" || p.k === "pole" ? ' fill-opacity=".55"' : ""}/>`; }
@@ -2468,9 +2826,10 @@ function supSection(s, R) {
     for (const q of [qa + C.RAIL_HALF, qa - C.RAIL_HALF]) g += `<rect x="${r(X(q) - 0.036 * sc)}" y="${r(Y(za))}" width="${r(Math.max(1.5, 0.072 * sc))}" height="${r(Math.max(1.5, 0.172 * sc))}" fill="var(--steel)"/>`;
     g += `<line x1="${r(X(qa))}" y1="${r(Y(z1))}" x2="${r(X(qa))}" y2="${r(Y(z0))}" stroke="var(--faint)" stroke-dasharray="4 3"/>`;
   }
+  g += scPath(F, q0, q1, X, Y, Zr, r);
   // parti (il fusto a 2 UPN: i due correnti pieni, il traliccio fra loro in trasparenza)
   const fill = { block: "var(--panel-2)", pil: "var(--panel-2)", plate: "var(--steel)", mast: "var(--steel)", mens: "var(--text)", trafo: "var(--amber)", sez: "var(--amber)" };
-  const upn = (S.view.lod || "upn") !== "box";
+  const upn = (S.view.lod || "lattice") !== "box";
   for (const p of P) {
     if (p.sz) {
       const q = Q(p.c), z = Zr(p.c.z), w = p.sz[1], hh = p.sz[2];
@@ -2500,6 +2859,7 @@ function supSection(s, R) {
   g += T10(qx, Y(R.hm) + 4, tr("su.lMens", { v: nf(R.hm, 2) }), side);
   g += T10(X(sd * R.stag) + (sd > 0 ? 6 : -6), Y(R.hw) + 12, tr("su.lWire", { v: nf(R.hw, 2) }), sd > 0 ? "start" : "end", "var(--blue)");
   g += T10(qx, Y(lv.bottom - f.z) - 3, R.found.id, side);
+  if (R.fromSc) g += T10(qx, Y(R.sc) + 11, tr("su.lSc", { v: nf(R.sc, 2) }), side, "var(--hl)");
   g += `<defs><marker id="ar" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L6 3L0 6z" fill="var(--blue)"/></marker></defs></svg>`;
   return g;
 }
@@ -2525,7 +2885,7 @@ function bindSup(s) {
   b.querySelectorAll("[data-d]").forEach((el) => el.addEventListener("change", () => {
     const k = el.dataset.d, d = supDef(A);
     let v = el.value;
-    if (["dr", "hw", "hm", "stag", "span"].includes(k)) { v = parseNum(v); if (!Number.isFinite(v)) { renderSup(); return; } }
+    if (["dr", "hw", "hm", "stag", "span", "pilOut"].includes(k)) { v = parseNum(v); if (!Number.isFinite(v)) { renderSup(); return; } }
     pushUndo();
     if (k === "num") A.ocs = { ...d, numMode: v === "seq" ? "seq" : "parity", oddLeft: v !== "oddR" };
     else A.ocs = { ...d, [k]: v };
@@ -2556,6 +2916,7 @@ function rowsHtml() {
     h += `<div class="row"><label>${esc(tr("su.hw"))}</label>${num("hw", 2)}</div>`;
     h += `<div class="row"><label>${esc(tr("su.span"))}</label>${num("span", 1)}</div>`;
     h += `<div class="row"><label>${esc(tr("su.c1"))}</label>${num("c1", 2)}</div>`;
+    h += `<div class="row"><label>${esc(tr("su.pilOut"))}</label>${num("pilOut", 2)}</div>`;
     h += `<div class="btns"><button class="btn-sm" data-rclear="${i}" title="${esc(tr("tt.clearT"))}">${esc(tr("tt.clear"))}</button><button class="btn-sm" data-rdel="${i}">${esc(tr("tt.del"))}</button></div></div>`;
   });
   h += `<div class="btns"><button class="btn-sm" id="ttAdd" title="${esc(tr("tt.addT"))}">${esc(tr("tt.add"))}</button></div>`;
@@ -2580,7 +2941,7 @@ function bindRows() {
   }));
   $("ttAdd").addEventListener("click", () => {
     const sp = supById(S.sel), c = sp && sp.track === A.id ? sp.u : S.pt != null ? S.pt : A.length / 2;
-    rows().push({ id: Date.now(), u0: Math.max(0, c - 250), u1: Math.min(A.length, c + 250), mast: null, found: null, dr: null, hm: null, hw: null, span: null, c1: null });
+    rows().push({ id: Date.now(), u0: Math.max(0, c - 250), u1: Math.min(A.length, c + 250), mast: null, found: null, dr: null, hm: null, hw: null, span: null, c1: null, pilOut: null });
     done();
   });
 }
@@ -2687,7 +3048,7 @@ function editSupport(s, k, v) {
   if (k === "num") { const x = String(v).trim(); if (x) { s.num = x; s.numUser = true; } }
   else if (k === "sta") { const x = parseSta(v); if (Number.isFinite(x)) s.u = Math.max(0, Math.min(t.length, x - t.s0)); }
   else if (k === "side") s.side = +v >= 0 ? 1 : -1;
-  else if (k === "dr" || k === "hm" || k === "hw" || k === "c1" || k === "stag") { const x = parseNum(v); s[k] = String(v).trim() === "" ? (k === "stag" ? supDef(t).stag : null) : Number.isFinite(x) ? x : s[k]; }
+  else if (k === "dr" || k === "hm" || k === "hw" || k === "c1" || k === "stag" || k === "pilOut") { const x = parseNum(v); s[k] = String(v).trim() === "" ? (k === "stag" ? supDef(t).stag : null) : Number.isFinite(x) ? x : s[k]; }
   else if (k === "L") s.L = v === "" ? null : +v;
   else if (k === "mast" || k === "found") s[k] = v || null;
   else if (k === "trafo" || k === "sez") s.eq = { ...(s.eq || {}), [k]: !!v };
@@ -2716,13 +3077,392 @@ function editSupport(s, k, v) {
 }
 function afterEditSupport(s) {
   S.pt = s.u;
-  updateSupport(s.id); setMarker(S.pt); renderSup(); renderPoint(); renderTree(); drawPV(); scheduleSave();
+  updateSupport(s.id); setMarker(S.pt); renderSup(); renderSc(); renderPoint(); renderTree(); drawPV(); scheduleSave();
 }
 function delSusp(s, i) {
   pushUndo();
   s.susp = (s.susp || []).filter((_, j) => j !== i);
   afterEditSupport(s);
 }
+/* =========================================================================
+   IFC di contesto e supercompattato (0.7.0)
+   Richiesta dell'utente (2026-10-12): la quota della fondazione dal supercompattato del corpo ferroviario,
+   scelto in un IFC di contesto (in futuro anche dal corpo ferroviario disegnato qui). Gli IFC di contesto
+   si vedono attorno ai binari (solo vista: non si salvano); col clic se ne sceglie il supercompattato e la
+   superficie degli elementi scelti (facce non verticali, C.surfaceFrom) si salva nel progetto, una per IFC.
+   Da lì la testa del pilastrino di ogni sostegno (supResolved → K.resolveSupport/resolvePortal + pilOut).
+   Il lettore è quello di Sviluppo profili (web-ifc del viewer in un Worker, georeferenziazione del Terrain
+   Sculptor, ctxAssemble di profile-core), con in più per ogni elemento nome, tipo, layer e Pset: servono a
+   «tutti quelli uguali» (negli IFC Civil 3D del federato BG-PSP il nome è vuoto: decidono i Pset).
+   ========================================================================= */
+const TS_IO = new URL("../terrain-sculptor/terrain-io.js?v=1.8.0", location.href).href;
+const CTX_OPEN = 300000, CTX_STALL = 40000, CTX_STALL_SIMPLE = 120000, CTX_REACH = 200;
+function ctxWorkerMain() {   // gira DENTRO il worker (serializzata con toString)
+  self.onmessage = async (ev) => {
+    try {
+      const { buf, wasm, header, simplify } = ev.data;
+      const api = new WebIFC.IfcAPI();
+      api.SetWasmPath(wasm, true);
+      await api.Init();
+      const mid = api.OpenModel(new Uint8Array(buf), {});
+      const f = IO.ifcFrames(IO.ifcReadGeoref(api, mid, WebIFC), header);
+      const terr = IO.ifcTerrainCandidates(api, mid, WebIFC).filter((c) => c.pick).map((c) => c.id);
+      postMessage({ type: "read", fr: { frame: f.frame, how: f.how, crs: f.crs } });
+      if (simplify) IO.ifcNeutralizeBooleans(api, mid, WebIFC);
+      const ids = (t) => { const out = []; if (t == null) return out; try { const v = api.GetLineIDsWithType(mid, t, true); for (let i = 0; i < v.size(); i++) out.push(v.get(i)); } catch (e) {} return out; };
+      const skip = new Set([...ids(WebIFC.IFCOPENINGELEMENT), ...ids(WebIFC.IFCSPACE), ...ids(WebIFC.IFCSITE), ...terr]);
+      const prods = ids(WebIFC.IFCPRODUCT).filter((id) => !skip.has(id));
+      const L = f.toLocal, names = new Map(), acc = new Map();
+      const clsOf = (id) => {                            // il nome della classe come nello schema (IfcWall), una volta per tipo
+        const t = api.GetLineType(mid, id);
+        let n = names.get(t);
+        if (n == null) {
+          try { const l = api.GetLine(mid, id); n = l && l.constructor && /^Ifc/.test(l.constructor.name) ? l.constructor.name : ""; } catch (e) { n = ""; }
+          if (!n) { const u = String(api.GetNameFromTypeCode(t) || "IFCPRODUCT"); n = "Ifc" + u.charAt(3) + u.slice(4).toLowerCase(); }
+          names.set(t, n);
+        }
+        return n;
+      };
+      const cb = (mesh) => {
+        const n = mesh.geometries.size();
+        if (!n) return;
+        const id = mesh.expressID, cls = clsOf(id), mine = new Map();
+        for (let g = 0; g < n; g++) {
+          const pg = mesh.geometries.get(g), geo = api.GetGeometry(mid, pg.geometryExpressID);
+          const v = api.GetVertexArray(geo.GetVertexData(), geo.GetVertexDataSize());
+          const ix = api.GetIndexArray(geo.GetIndexData(), geo.GetIndexDataSize());
+          if (geo.delete) geo.delete();
+          if (v.length < 9 || ix.length < 3) continue;
+          /* sito ← Z in alto ← mondo di web-ifc (Y in alto) ← locale della mesh, in doppia precisione */
+          const m = pg.flatTransformation, A = IO.mMul(L, [m[0], m[4], m[8], m[12], -m[2], -m[6], -m[10], -m[14], m[1], m[5], m[9], m[13]]);
+          const c = pg.color || { x: 0.8, y: 0.8, z: 0.8, w: 1 }, glass = (c.w == null ? 1 : c.w) < 0.99, key = cls + (glass ? "|g" : "");
+          let a = acc.get(key);
+          if (!a) acc.set(key, (a = { cls, glass, P: [], C: [], I: [], E: [] }));
+          if (!mine.has(key)) mine.set(key, { v0: a.P.length / 3, i0: a.I.length });
+          const base = a.P.length / 3, r = Math.round(c.x * 255), gg = Math.round(c.y * 255), b = Math.round(c.z * 255);
+          for (let k = 0; k < v.length; k += 6) {
+            const x = v[k], y = v[k + 1], z = v[k + 2];
+            a.P.push(A[0] * x + A[1] * y + A[2] * z + A[3], A[4] * x + A[5] * y + A[6] * z + A[7], A[8] * x + A[9] * y + A[10] * z + A[11]);
+            a.C.push(r, gg, b);
+          }
+          for (let k = 0; k < ix.length; k++) a.I.push(base + ix[k]);
+        }
+        for (const [key, e] of mine) { const a = acc.get(key); a.E.push(e.v0, a.P.length / 3, e.i0, a.I.length, id); }
+      };
+      let last = 0;
+      for (let p = 0; p < prods.length; p += 50) {
+        api.StreamMeshes(mid, prods.slice(p, p + 50), cb);
+        const t = Date.now();
+        if (t - last > 250 || p + 50 >= prods.length) { last = t; postMessage({ type: "progress", done: Math.min(prods.length, p + 50), total: prods.length }); }
+      }
+      // per ogni elemento con geometria: nome, ObjectType, layer, nome del tipo, Pset (valori brevi)
+      const sv = (x) => (x && x.value != null ? String(x.value).trim() : "");
+      const line = (id) => { try { return api.GetLine(mid, id); } catch (e) { return null; } };
+      const info = new Map();
+      for (const a of acc.values()) for (let e = 0; e + 4 < a.E.length; e += 5) {
+        const id = a.E[e + 4];
+        if (info.has(id)) continue;
+        const l = line(id) || {};
+        info.set(id, { id, cls: a.cls, name: sv(l.Name), ot: sv(l.ObjectType), layer: "", type: "", props: {}, rep: l.Representation ? l.Representation.value : null });
+      }
+      const layerOf = new Map();
+      for (const lid of [...ids(WebIFC.IFCPRESENTATIONLAYERASSIGNMENT), ...ids(WebIFC.IFCPRESENTATIONLAYERWITHSTYLE)]) {
+        const La = line(lid);
+        if (!La) continue;
+        for (const it of La.AssignedItems || []) if (it && it.value != null) layerOf.set(it.value, sv(La.Name));
+      }
+      if (layerOf.size) for (const x of info.values()) {
+        const ps = x.rep != null ? line(x.rep) : null;
+        for (const r of (ps && ps.Representations) || []) {
+          if (layerOf.has(r.value)) { x.layer = layerOf.get(r.value); break; }
+          const R = line(r.value), it = ((R && R.Items) || []).find((i) => layerOf.has(i.value));
+          if (it) { x.layer = layerOf.get(it.value); break; }
+        }
+      }
+      for (const rid of ids(WebIFC.IFCRELDEFINESBYTYPE)) {
+        const R = line(rid), T = R && R.RelatingType ? line(R.RelatingType.value) : null, n = sv(T && T.Name);
+        if (n) for (const o of R.RelatedObjects || []) { const x = info.get(o.value); if (x) x.type = n; }
+      }
+      for (const rid of ids(WebIFC.IFCRELDEFINESBYPROPERTIES)) {
+        const R = line(rid);
+        if (!R || !R.RelatingPropertyDefinition) continue;
+        const objs = (R.RelatedObjects || []).map((o) => info.get(o.value)).filter(Boolean);
+        if (!objs.length) continue;
+        const Pd = line(R.RelatingPropertyDefinition.value);
+        if (!Pd || !Pd.HasProperties) continue;
+        const pn = sv(Pd.Name) || "Pset";
+        for (const hp of Pd.HasProperties) {
+          const q = line(hp.value), v = q && q.NominalValue ? q.NominalValue.value : null;
+          if (v == null || typeof v === "object") continue;
+          const s = String(v).trim();
+          if (!s || s.length > 80) continue;
+          for (const x of objs) if (Object.keys(x.props).length < 80) x.props[pn + "." + sv(q.Name)] = s;
+        }
+      }
+      const raw = [...acc.values()].map((a) => ({ cls: a.cls, glass: a.glass, P: Float64Array.from(a.P), C: Uint8Array.from(a.C), I: Uint32Array.from(a.I), E: Uint32Array.from(a.E) }));
+      const list = [...info.values()].map(({ rep, ...x }) => x);
+      postMessage({ type: "done", raw, info: list }, raw.flatMap((r) => [r.P.buffer, r.C.buffer, r.I.buffer, r.E.buffer]));
+      try { api.CloseModel(mid); } catch (e) {}
+    } catch (e) { postMessage({ type: "error", msg: String((e && e.message) || e) }); }
+  };
+}
+/* il corridoio dei binari (± CTX_REACH): gli elementi del contesto fuori non si tengono */
+function ctxCorridor() {
+  const b = C.tracksBox(S.tracks.map((t) => derivedOf(t).T), 50);
+  return b ? { x0: b.x0 - CTX_REACH, y0: b.y0 - CTX_REACH, x1: b.x1 + CTX_REACH, y1: b.y1 + CTX_REACH } : null;
+}
+async function readCtx(file) {
+  const { C: PC } = await psModules(), TIO = await import(TS_IO);
+  const header = TIO.ifcHeader(await file.slice(0, 65536).text()), buf = await file.arrayBuffer();
+  const v = new URL("../../viewer/vendor/", location.href).href;
+  const url = URL.createObjectURL(new Blob([`import * as WebIFC from "${v}web-ifc-api.js";\nimport * as IO from "${TS_IO}";\n;(${ctxWorkerMain.toString()})();\n`], { type: "text/javascript" }));
+  const run = (simplify) => new Promise((res, rej) => {
+    const w = new Worker(url, { type: "module" });
+    let dog = 0, opened = false, fr = null;
+    // largo finché web-ifc apre il file, stretto durante la triangolazione (cane da guardia di Sviluppo profili)
+    const kick = () => { clearTimeout(dog); dog = setTimeout(() => { w.terminate(); rej(Object.assign(new Error(tr("cx.timeout")), { stuck: opened })); }, !opened ? CTX_OPEN : simplify ? CTX_STALL_SIMPLE : CTX_STALL); };
+    w.onmessage = (ev) => {
+      const m = ev.data;
+      if (m.type === "read") { opened = true; fr = m.fr; kick(); return; }
+      if (m.type === "progress") { kick(); busy(tr("cx.reading", { f: file.name, d: ni(m.done), t: ni(m.total) })); return; }
+      clearTimeout(dog); w.terminate();
+      if (m.type === "done") res({ raw: m.raw, info: m.info, fr }); else rej(new Error(m.msg));
+    };
+    w.onerror = (ev) => { clearTimeout(dog); w.terminate(); rej(new Error((ev && ev.message) || "worker")); };
+    kick();
+    const copy = buf.slice(0);                            // l'originale resta per il secondo giro
+    w.postMessage({ buf: copy, wasm: v, header, simplify }, [copy]);
+  });
+  try {
+    let got, simplified = false;
+    try { got = await run(false); }
+    catch (e) { if (!e.stuck) throw e; busy(tr("cx.simplify", { f: file.name })); got = await run(true); simplified = true; }
+    const a = PC.ctxAssemble(got.raw, got.fr.frame, ctxCorridor());
+    const kept = new Set();
+    for (const p of a.parts) for (let e = 0; e + 4 < p.E.length; e += 5) kept.add(p.E[e + 4]);
+    const infoList = (got.info || []).filter((x) => kept.has(x.id));
+    return { name: file.name, how: got.fr.how, simplified, ...a, info: new Map(infoList.map((x) => [x.id, x])), infoList };
+  } finally { URL.revokeObjectURL(url); }
+}
+/* un IFC di contesto: si aggiunge agli altri (lo stesso nome sostituisce); torna il contesto letto o null */
+async function openCtx(file) {
+  busy(tr("cx.opening", { f: file.name })); await frame();
+  try {
+    const m = await readCtx(file);
+    if (!m.parts.length) { toast(tr("cx.none", { f: file.name }), true); return null; }
+    const i = S.ctx.findIndex((x) => x.name === file.name);
+    if (i >= 0) S.ctx[i] = m; else S.ctx.push(m);
+    return m;
+  } catch (e) {
+    console.error(e);
+    toast(tr("cx.fail", { f: file.name, m: (e && e.message) || String(e) }), true);
+    return null;
+  } finally { busy(""); }
+}
+async function openCtxList(files, asCtx = false) {
+  let last = null;
+  for (const f of files) last = (await openCtx(f)) || last;
+  if (!last) return;
+  buildCtxMeshes(); placeCtx();
+  S.closed.sc = false; applyClosed(); renderSc(); renderTree();
+  const v = { f: last.name, n: ni(last.elements) };
+  toast(asCtx ? tr("cx.asCtx", v) : tr("cx.loaded", v));
+}
+$("ctxIn").addEventListener("change", (e) => { const l = [...(e.target.files || [])]; e.target.value = ""; if (l.length) openCtxList(l); });
+/* scena: gli IFC di contesto e le superfici scelte stanno in un gruppo loro (buildScene non li rifà: li sposta
+   all'origine della scena con placeCtx) */
+const SRGB_LIN = Uint8Array.from({ length: 256 }, (_, i) => { const c = i / 255; return Math.round((c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)) * 255); });
+const CTXG = new THREE.Group();
+scene.add(CTXG);
+let scBuiltFor = null;
+function dropMeshes(pred) { for (const o of [...CTXG.children]) if (pred(o)) { CTXG.remove(o); o.geometry.dispose(); } }
+function buildCtxMeshes() {
+  dropMeshes((o) => o.userData.ctx != null);
+  for (const m of S.ctx) m.parts.forEach((p, pi) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(p.P, 3));
+    const col = new Uint8Array(p.C.length);
+    for (let k = 0; k < col.length; k++) col[k] = SRGB_LIN[p.C[k]];   // colori dell'IFC (sRGB) → lineari, come in Sviluppo profili
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3, true));
+    g.setIndex(new THREE.BufferAttribute(p.I, 1));
+    g.computeVertexNormals();
+    const o = new THREE.Mesh(g, p.glass ? mats.ctxGlass : mats.ctx);
+    o.userData = { ctx: m.name, part: pi, key: "ctx:" + m.name, ckey: "ctx:" + m.name + ":" + p.cls };
+    o.renderOrder = 1;
+    CTXG.add(o);
+  });
+}
+function buildScMeshes() {
+  dropMeshes((o) => o.userData.sc != null);
+  S.sc.forEach((e, i) => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(e.P, 3));
+    g.setIndex(e.I);
+    g.computeVertexNormals();
+    const o = new THREE.Mesh(g, mats.sc);
+    o.userData = { sc: i, key: "sc", ckey: "sc:" + i };
+    o.renderOrder = 2;                                  // dopo il contesto (trasparenti senza profondità: vince chi viene dopo)
+    CTXG.add(o);
+  });
+  scBuiltFor = S.sc;
+}
+function placeCtx() {
+  if (scBuiltFor !== S.sc) buildScMeshes();
+  for (const o of CTXG.children) {
+    const u = o.userData, m = u.sc != null ? S.sc[u.sc] : S.ctx.find((x) => x.name === u.ctx);
+    if (!m) { o.visible = false; continue; }
+    o.position.set(m.ox - G.O.x, m.oy - G.O.y, -G.zRef + (u.sc != null ? 0.02 : 0));
+    o.visible = u.sc != null ? shown("sc") : shown("ctx") && shown(u.key) && shown(u.ckey);
+  }
+}
+/* l'elemento del contesto sotto il cursore: { m, id } (dal triangolo colpito all'elemento con E) */
+function pickCtxEl(e) {
+  const objs = CTXG.children.filter((o) => o.visible && o.userData.ctx != null);
+  if (!objs.length) return null;
+  pickRay.setFromCamera(ndcOf(e), cam());
+  const hit = cutPick(pickRay.intersectObjects(objs, false));
+  if (!hit || hit.faceIndex == null) return null;
+  const m = S.ctx.find((x) => x.name === hit.object.userData.ctx), p = m && m.parts[hit.object.userData.part];
+  if (!p) return null;
+  const k = 3 * hit.faceIndex, E = p.E;
+  let lo = 0, hi = E.length / 5 - 1;
+  while (lo < hi) { const md = (lo + hi + 1) >> 1; if (E[5 * md + 2] <= k) lo = md; else hi = md - 1; }
+  return E[5 * lo + 2] <= k && k < E[5 * lo + 3] ? { m, id: E[5 * lo + 4] } : null;
+}
+function setScPick(on) {
+  if (on && !S.ctx.length) { toast(tr("sc.needCtx"), true); $("ctxIn").click(); return; }
+  S.scPick = !!on;
+  if (S.scPick && S.place) setPlace(false);
+  document.body.classList.toggle("scpick", S.scPick);
+  renderSc();
+  toast(S.scPick ? tr("sc.pickOnT") : tr("sc.pickOffT"));
+}
+/* clic semplice: quell'elemento (solo lui) è il supercompattato; Ctrl+clic: aggiunto o tolto */
+function scClick(e, add) {
+  const h = pickCtxEl(e);
+  if (!h) { toast(tr("sc.nothing"), true); return; }
+  if (!S.scCand || S.scCand.file !== h.m.name || S.scCand.id !== h.id) S.scCritK = null;
+  S.scCand = { file: h.m.name, id: h.id };
+  const cur = S.sc.find((x) => x.file === h.m.name);
+  let ids;
+  if (add) { ids = new Set(cur ? cur.ids : []); if (ids.has(h.id)) ids.delete(h.id); else ids.add(h.id); }
+  else ids = new Set([h.id]);
+  scSet(h.m, ids, add && cur ? cur.crit : null, !add);
+}
+/* la superficie degli elementi ids dell'IFC m (sostituisce quella di m; only = anche quelle degli altri IFC) */
+function scSet(m, ids, crit, only = false) {
+  const pieces = [];
+  for (const p of m.parts) for (let e = 0; e + 4 < p.E.length; e += 5) if (ids.has(p.E[e + 4])) pieces.push({ P: p.P, I: p.I, i0: p.E[e + 2], i1: p.E[e + 3], ox: m.ox, oy: m.oy });
+  const sf = ids.size ? C.surfaceFrom(pieces) : null;
+  if (ids.size && !sf) { toast(tr("sc.noFaces", { f: m.name }), true); return; }
+  pushUndo();
+  const rest = only ? [] : S.sc.filter((x) => x.file !== m.name);
+  S.sc = sf ? [...rest, { src: "ifc", file: m.name, ids: [...ids], crit, top: true, ...sf }] : rest;
+  afterSc();
+  if (sf) toast(tr("sc.picked", { n: ids.size, f: m.name }));
+}
+function afterSc() { placeCtx(); afterSupports(); }
+/* «tutti quelli uguali» all'ultimo elemento cliccato, col criterio scelto (o quello proposto) */
+function scSame() {
+  const c = S.scCand, m = c && S.ctx.find((x) => x.name === c.file), info = m && m.info.get(c.id);
+  if (!info) return;
+  const crit = IO.elemCriteria(info).find((x) => x.k === S.scCritK) || IO.proposeCriterion(info, m.infoList);
+  if (!crit) return;
+  const cur = S.sc.find((x) => x.file === m.name);
+  scSet(m, new Set([...(cur ? cur.ids : []), ...IO.sameIds(m.infoList, info, crit)]), crit);
+}
+const critLabel = (c) => {
+  const k = c.k === "name" ? tr("sc.kName") : c.k === "type" ? tr("sc.kType") : c.k === "ot" ? tr("sc.kOt") : c.k === "layer" ? tr("sc.kLayer") : c.k.slice(2);
+  const t = k + ": " + c.v;
+  return t.length > 64 ? t.slice(0, 63) + "…" : t;
+};
+const howLabel = (h) => (h === "map" ? tr("sc.how.map") : h === "site" ? tr("sc.how.site") : h === "context" ? tr("sc.how.context") : tr("sc.how.none"));
+/* un sostegno risolto ha piedi da controllare? (fuori dalla superficie, non trovati, troppo sotto il PF) */
+function footWarn(R) {
+  const feet = R.kind === "portal" ? [R.scL, R.scR] : [R];
+  return R.dropOver || (S.sc.length > 0 && feet.some((x) => !x.fromSc || x.scOut > 0));
+}
+/* i conti delle fondazioni su tutti i sostegni, con l'elenco da controllare */
+function scStats() {
+  const o = { on: 0, edge: 0, miss: 0, drop: 0, short: 0, warns: [] };
+  for (const s of [...S.supports].sort((a, b) => a.track - b.track || a.u - b.u)) {          // in ordine di binario e progressiva
+    const t = trackById(s.track);
+    if (!t) continue;
+    const R = supResolved(s), p = prog(t.s0 + s.u, 0), n = s.num, port = isPortal(s);
+    for (const x of port ? [R.scL, R.scR] : [R]) {
+      if (x.fromSc) { o.on++; if (x.scOut > 0) { o.edge++; o.warns.push({ id: s.id, txt: tr("sc.wOut", { n, p, d: nf(x.scOut, 2) }) }); } }
+      else if (S.sc.length) { o.miss++; o.warns.push({ id: s.id, txt: tr("sc.wMiss", { n, p, d: nf(SC_MAX, 0) }) }); }
+    }
+    if (R.dropOver) { o.drop++; o.warns.push({ id: s.id, txt: tr("sc.wDrop", { n, p, v: nf(port ? Math.max(R.dropL, R.dropR) : R.drop, 2) }) }); }
+    if (!port) { const lv = C.supportLevels(derivedOf(t).T, s, R); if (lv && lv.top < lv.tie - 1e-9) { o.short++; o.warns.push({ id: s.id, txt: tr("sc.wShort", { n, p }) }); } }
+  }
+  return o;
+}
+function renderSc() {
+  const b = $("scBody");
+  if (!b) return;
+  const nEl = S.sc.reduce((a, e) => a + e.ids.length, 0);
+  $("scCnt").textContent = nEl ? String(nEl) : "";
+  let h = `<div class="sub">${esc(tr("sc.ctx"))}</div>`;
+  if (S.ctx.length) S.ctx.forEach((m, i) => { h += `<div class="kv fr"><span title="${esc(m.name)}">${esc(m.name)}</span><b>${esc(tr("sc.ctxRow", { n: ni(m.elements), g: howLabel(m.how) }))}<button class="btn-sm" data-cxrm="${i}" title="${esc(tr("sc.ctxRm"))}">×</button></b></div>`; });
+  else h += `<p class="help">${esc(tr("sc.ctxNone"))}</p>`;
+  h += `<div class="btns"><button class="btn-sm" id="scCtxAdd">${esc(tr("sc.ctxAdd"))}</button></div>`;
+  h += `<div class="sub">${esc(tr("sc.sub"))}</div>`;
+  if (S.sc.length) S.sc.forEach((e, i) => { h += `<div class="kv fr"><span title="${esc(e.file)}">${esc(e.file)}</span><b>${esc(tr("sc.sel", { n: e.ids.length, t: ni(e.I.length / 3) }))}<button class="btn-sm" data-scrm="${i}" title="${esc(tr("sc.rm"))}">×</button></b></div>`; });
+  else h += `<p class="help">${esc(tr("sc.none", { v: nf(-K.TRACK_DEFAULTS.baseDz, 3) }))}</p>`;
+  h += `<div class="btns"><button class="btn-sm${S.scPick ? " on" : ""}" id="scPick">${esc(S.scPick ? tr("sc.pickOn") : tr("sc.pick"))}</button>${S.sc.length ? `<button class="btn-sm" id="scClear">${esc(tr("sc.clear"))}</button>` : ""}</div>`;
+  h += `<p class="help">${esc(tr("sc.pickHelp"))}</p>`;
+  // l'ultimo elemento cliccato: con quale criterio prendere quelli uguali
+  const c = S.scCand, m = c && S.ctx.find((x) => x.name === c.file), info = m && m.info.get(c.id);
+  if (info) {
+    const cs = IO.elemCriteria(info), cnt = (x) => IO.sameIds(m.infoList, info, x).length;
+    const cur = cs.find((x) => x.k === S.scCritK) || IO.proposeCriterion(info, m.infoList);
+    h += `<div class="selcard"><div class="selh"><b>${esc(tr("sc.cand", { id: info.id }))}</b><span>${esc(info.cls)}</span></div>`;
+    if (cs.length) {
+      h += `<div class="row"><label for="scBy">${esc(tr("sc.by"))}</label><select id="scBy" class="sel">${cs.map((x) => opt(x.k, critLabel(x) + " (" + cnt(x) + ")", cur ? cur.k : "")).join("")}</select></div>`;
+      h += `<div class="btns"><button class="btn-sm" id="scSame">${esc(tr("sc.same", { n: cur ? cnt(cur) : 0 }))}</button></div>`;
+    } else h += `<p class="help">${esc(tr("sc.noCrit"))}</p>`;
+    h += `</div>`;
+  }
+  // fondazioni: la regola e i conti
+  const def = A ? supDef(A) : K.TRACK_DEFAULTS;
+  h += `<div class="sub">${esc(tr("sc.found"))}</div><p class="help">${esc(tr("sc.rule", { v: nf(def.pilOut, 2), d: nf(SC_MAX, 0), m: nf(K.DROP_MAX, 2) }))}</p>`;
+  if (S.supports.length) {
+    const st = scStats();
+    if (S.sc.length) { h += kv(tr("sc.stOn"), ni(st.on)); h += kv(tr("sc.stEdge"), ni(st.edge), st.edge > 0); h += kv(tr("sc.stMiss"), ni(st.miss), st.miss > 0); }
+    h += kv(tr("sc.stDrop"), ni(st.drop), st.drop > 0);
+    h += kv(tr("sc.stShort"), ni(st.short), st.short > 0);
+    if (st.warns.length) h += `<div class="sub">${esc(tr("sc.warns", { n: st.warns.length }))}</div><div class="wl">${st.warns.slice(0, 200).map((w) => `<button data-wsid="${w.id}">${esc(w.txt)}</button>`).join("")}</div>`;
+  }
+  b.innerHTML = h;
+  $("scCtxAdd").addEventListener("click", () => $("ctxIn").click());
+  $("scPick").addEventListener("click", () => setScPick(!S.scPick));
+  if ($("scClear")) $("scClear").addEventListener("click", () => { pushUndo(); S.sc = []; afterSc(); });
+  if ($("scBy")) $("scBy").addEventListener("change", (e) => { S.scCritK = e.target.value; renderSc(); });
+  if ($("scSame")) $("scSame").addEventListener("click", scSame);
+  b.querySelectorAll("[data-cxrm]").forEach((el) => el.addEventListener("click", () => {
+    const mx = S.ctx[+el.dataset.cxrm];
+    if (!mx) return;
+    S.ctx.splice(+el.dataset.cxrm, 1);
+    if (S.scCand && S.scCand.file === mx.name) S.scCand = null;
+    if (!S.ctx.length && S.scPick) setScPick(false);
+    buildCtxMeshes(); placeCtx(); renderSc(); renderTree();
+  }));
+  b.querySelectorAll("[data-scrm]").forEach((el) => el.addEventListener("click", () => { pushUndo(); S.sc = S.sc.filter((_, j) => j !== +el.dataset.scrm); afterSc(); }));
+  b.querySelectorAll("[data-wsid]").forEach((el) => el.addEventListener("click", () => selectSupport(+el.dataset.wsid, true)));
+}
+/* la traccia del supercompattato sulla sezione (solo dove c'è sotto la linea di sezione) */
+function scPath(F, q0, q1, X, Y, Zr, r) {
+  const Xs = scIndex();
+  if (!Xs.length) return "";
+  let d = "", on = false;
+  for (let i = 0; i <= 120; i++) {
+    const q = q0 + (q1 - q0) * i / 120, p = F.at(0, q, 0), hh = C.surfaceAtMany(Xs, p.x, p.y, 0);
+    if (hh) { d += (on ? "L" : "M") + r(X(q)) + " " + r(Y(Zr(hh.z))); on = true; } else on = false;
+  }
+  return d ? `<path d="${d}" fill="none" stroke="var(--hl)" stroke-width="1.6" stroke-dasharray="5 3"/>` : "";
+}
+
 /* =========================================================================
    Picchettamento automatico (F4): proposta di pali col motore ocs-stake.js. Regole e vincoli per binario in
    t.ocs.auto (progressive del file); pali fissi = quelli non «proposti» (s.auto falso: messi, spostati o corretti
@@ -2871,10 +3611,10 @@ function editAuto(k, v) {
    S.pset = modello del progetto (null = quello di partenza, nella lingua della pagina); si scrive nell'IFC
    della F6. Qui: editor, anteprima sul sostegno scelto, .json per riusarlo.
    ========================================================================= */
-const IFCT = { label: "IfcLabel", text: "IfcText", identifier: "IfcIdentifier", length: "IfcLengthMeasure", area: "IfcAreaMeasure", volume: "IfcVolumeMeasure", angle: "IfcPlaneAngleMeasure", real: "IfcReal", int: "IfcInteger", bool: "IfcBoolean" };
+const IFCT = { label: "IfcLabel", text: "IfcText", identifier: "IfcIdentifier", length: "IfcLengthMeasure", area: "IfcAreaMeasure", volume: "IfcVolumeMeasure", angle: "IfcPlaneAngleMeasure", ratio: "IfcPositiveRatioMeasure", real: "IfcReal", int: "IfcInteger", bool: "IfcBoolean" };
 const fieldLabel = (k) => ({ num: tr("pf.num"), track: tr("pf.track"), sta: tr("pf.sta"), side: tr("pf.side"), dr: tr("pf.dr"), drL: tr("pf.drL"), drR: tr("pf.drR"), mast: tr("pf.mast"), mens: tr("pf.mens"), mensCode: tr("pf.mensCode"),
   beam: tr("pf.beam"), beamL: tr("pf.beamL"), hm: tr("pf.hm"), hb: tr("pf.hb"), hw: tr("pf.hw"), stag: tr("pf.stag"), sosp: tr("pf.sosp"), served: tr("pf.served"), nSusp: tr("pf.nSusp"), found: tr("pf.found"), c1: tr("pf.c1"),
-  vol: tr("pf.vol"), E: tr("pf.E"), N: tr("pf.N"), top: tr("pf.top") })[k] || k;
+  vol: tr("pf.vol"), E: tr("pf.E"), N: tr("pf.N"), top: tr("pf.top"), zPil: tr("pf.zPil"), zSc: tr("pf.zSc") })[k] || k;
 const warnText = (c) => ({ noName: tr("pw.noName"), stdPrefix: tr("pw.stdPrefix"), noKinds: tr("pw.noKinds"), dupSet: tr("pw.dupSet"), dupProp: tr("pw.dupProp"), noKey: tr("pw.noKey"), badConst: tr("pw.badConst") })[c] || c;
 const kindLabel = (k) => ({ mast: tr("pk.mast"), portal: tr("pk.portal"), foundation: tr("pk.foundation") })[k] || k;
 /* il modello di partenza: un Pset per palo e portale coi campi principali, uno per le fondazioni */
@@ -2882,24 +3622,27 @@ function defaultPset() {
   const P = (key) => ({ name: fieldLabel(key), src: "field", key, type: K.PSET_FIELDS.find((f) => f.key === key).type });
   return PSET.normalize({ sets: [
     { name: "ViewIFC_TrazioneElettrica", kinds: ["mast", "portal"], props: ["num", "track", "sta", "side", "dr", "drL", "drR", "mast", "mens", "beam", "hw", "stag", "sosp", "served", "found"].map(P) },
-    { name: "ViewIFC_Fondazione", kinds: ["foundation"], props: ["num", "found", "c1", "vol"].map(P) },
+    { name: "ViewIFC_Fondazione", kinds: ["foundation"], props: ["num", "found", "c1", "vol", "zPil", "zSc"].map(P) },
   ] });
 }
 const psetTpl = () => S.pset || defaultPset();
 /* i valori del sostegno per i campi: binario, progressiva del file, coordinate e testa, binari serviti */
 function psetCtx(s, R, kind) {
   const t = trackById(s.track), T = derivedOf(t).T;
-  let E, N, top, served;
+  let E, N, top, served, zPil, zSc;
   if (isPortal(s)) {
     const F = C.supportFrame(T, s.u, 1), q = (R.qL + R.qR) / 2;
     E = F.f.x + q * F.f.nx; N = F.f.y + q * F.f.ny; top = F.f.z + R.hb + R.beam.h;
     served = R.susp.map((x) => (trackById(x.track) || {}).name || "");
+    zPil = F.f.z + Math.min(R.zBaseL, R.zBaseR);                       // il montante più basso
+    const scs = [R.scL, R.scR].filter((x) => x.fromSc).map((x) => F.f.z + x.sc);
+    zSc = scs.length ? Math.min(...scs) : null;
   } else {
     const lv = C.supportLevels(T, s, R);
-    E = lv.E; N = lv.N; top = lv.top;
+    E = lv.E; N = lv.N; top = lv.top; zPil = lv.plate; zSc = R.fromSc ? lv.pf + R.sc : null;
     served = [t.name, ...R.susp.map((x) => (x.track != null && trackById(x.track) ? trackById(x.track).name : tr("su.sManual")))];
   }
-  const v = K.psetValues(s, R, { track: t.name, s0: t.s0, E, N, top, served }, kind);
+  const v = K.psetValues(s, R, { track: t.name, s0: t.s0, E, N, top, served, zPil, zSc }, kind);
   return { field: (k) => v[k], attr: (k) => (s.attrs ? s.attrs[k] : null) };
 }
 /* anteprima nell'editor del sostegno: i Pset che avrà (il sostegno e la sua fondazione) */
@@ -2984,7 +3727,7 @@ function renderViewSec() {
   h += `<p class="help">${esc(tr("vw.stepHelp"))}</p>`;
   if (S.fast) h += `<p class="note warn">${esc(tr("vw.fastOn"))}</p>`;
   h += `<div class="sub">${esc(tr("vw.plan"))}</div><p class="help">${esc(tr("vw.planHelp"))}</p>`;
-  const lod = S.view.lod || "upn";
+  const lod = S.view.lod || "lattice";
   h += `<div class="row"><span class="lbl">${esc(tr("vw.lod"))}</span><div class="chips">${[["box", tr("vw.lodBox")], ["upn", tr("vw.lodUpn")], ["lattice", tr("vw.lodLat")]].map(([k, l]) => `<button class="chip${lod === k ? " on" : ""}" data-lod="${k}">${esc(l)}</button>`).join("")}</div></div>`;
   h += `<p class="help">${esc(tr("vw.lodHelp"))}</p>`;
   $("vwBody").innerHTML = h;
@@ -3012,59 +3755,135 @@ function applyFast() {
 /* =========================================================================
    Albero degli elementi
    ========================================================================= */
-const EYE = '<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
-const EYE_OFF = '<svg viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17.8 17.8 0 0 1-3.2 4.1M6.6 6.6A17.6 17.6 0 0 0 2 12s3.6 7 10 7a9.9 9.9 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
-const CHEV = '<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>';
-const ICON_T = '<svg class="ti" viewBox="0 0 16 16"><path d="M3 2v12M13 2v12M3 5h10M3 9h10M3 13h10" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
-let armedRm = null;
+/* albero come quello di Sviluppo profili (richiesta dell'utente, 0.8.0): una riga per elemento con freccia,
+   icona del tipo, nome, dato a destra, «+» sui gruppi, «×» che chiede conferma, occhio. Gruppi: IFC di
+   contesto (file → classi), supercompattato (una superficie per IFC), binari (rotaie e asse, piano del
+   ferro, asse ricevuto, sostegni → pali e portali). Clic = binario attivo e inquadra; doppio clic sul nome
+   del binario = rinomina. Un solo ascoltatore sul contenitore (le righe si rifanno a ogni cambio) */
+const SVG = (inner) => `<svg class="ti" viewBox="0 0 14 14" aria-hidden="true">${inner}</svg>`;
+const ICON = {
+  track: SVG('<path d="M4 1v12M10 1v12" fill="none" stroke="var(--lime-deep)" stroke-width="1.6"/><path d="M2.5 3.5h9M2.5 7h9M2.5 10.5h9" fill="none" stroke="var(--muted)" stroke-width="1.1"/>'),
+  rails: SVG('<path d="M4 1v12M10 1v12" fill="none" stroke="var(--steel)" stroke-width="1.5"/><path d="M7 1v12" fill="none" stroke="var(--lime-deep)" stroke-width="1" stroke-dasharray="2 1.5"/>'),
+  deck: SVG('<path d="M1 10l3-5h9l-3 5z" fill="var(--muted)" fill-opacity=".35" stroke="var(--muted)" stroke-width="1" stroke-linejoin="round"/>'),
+  align: SVG('<path d="M1 10l3-3 3 1 3-4 3 2" fill="none" stroke="var(--earth)" stroke-width="1.3" stroke-dasharray="2.2 1.6"/>'),
+  sups: SVG('<path d="M3 13V1M3 2.5h9M3 6l8-3.5" fill="none" stroke="var(--steel)" stroke-width="1.4" stroke-linecap="round"/><path d="M1 13h5" stroke="var(--muted)" stroke-width="2"/>'),
+  mast: SVG('<path d="M5 13V1M5 2.5h7" fill="none" stroke="var(--steel)" stroke-width="1.6" stroke-linecap="round"/><path d="M3 13h4" stroke="var(--muted)" stroke-width="2"/>'),
+  portal: SVG('<path d="M2.5 13V2M11.5 13V2M1 2.5h12" fill="none" stroke="var(--steel)" stroke-width="1.6" stroke-linecap="round"/>'),
+  ctx: SVG('<path d="M1 12V6l3-2 3 2v6zM8 12V3h5v9z" fill="var(--muted)" fill-opacity=".3" stroke="var(--muted)" stroke-width="1.1" stroke-linejoin="round"/>'),
+  ctxf: SVG('<path d="M2 12V5l3-2 3 2v7zM9 12V6h3v6z" fill="none" stroke="var(--muted)" stroke-width="1.2" stroke-linejoin="round"/>'),
+  ctxc: SVG('<rect x="3" y="3" width="8" height="8" rx="1.5" fill="var(--muted)" fill-opacity=".45"/>'),
+  sc: SVG('<path d="M1 8l6-2.5L13 8v2.5H1z" fill="var(--hl)" fill-opacity=".9"/><path d="M1 12.5h12" stroke="var(--muted)" stroke-width="1"/>'),
+  scf: SVG('<path d="M1 9.5l6-2.5 6 2.5" fill="none" stroke="var(--hl)" stroke-width="1.7" stroke-linejoin="round"/>'),
+};
+const BTN = (inner) => `<svg viewBox="0 0 24 24" aria-hidden="true">${inner}</svg>`;
+const EYE = BTN('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>');
+const EYE_OFF = BTN('<path d="M3 3l18 18"/><path d="M10.6 5.1C11 5 11.5 5 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7c1.9 0 3.6-.6 5-1.4"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>');
+const PLUS = BTN('<path d="M12 5v14M5 12h14"/>');
+const CHEV = BTN('<path d="M6 9l6 6 6-6"/>');
+let armedRm = null, armTimer = 0;                       // «Togli?»: il secondo clic conferma
+const isOpen = (key, dflt) => (S.treeOpen[key] === undefined ? dflt : S.treeOpen[key]);
 function renderTree() {
-  const el = $("treeScroll");
+  const el = $("treeScroll"), rows = [];
   $("trCnt").textContent = S.tracks.length ? String(S.tracks.length) : "";
-  if (!S.tracks.length) { el.innerHTML = `<p class="tree-empty">${esc(tr("tr.empty"))}</p>`; return; }
-  let h = "";
-  for (const t of S.tracks) {
-    const K = "t" + t.id, open = S.treeOpen[K] !== false, off = !shown(K);
-    h += `<div class="tn work${t === A ? " act" : ""}${off ? " off" : ""}" data-k="${K}" data-t="${t.id}" role="treeitem" title="${esc(tr("tr.rename"))}">` +
-      `<button class="tc${open ? "" : " shut"}" data-tog="${K}">${CHEV}</button>${ICON_T}<span class="tl">${esc(t.name)}</span><span class="tm">${t.length >= 1000 ? nf(t.length / 1000, 2) + " km" : ni(t.length) + " m"}</span>` +
-      `<button class="tb" data-eye="${K}" title="${esc(tr("tr.eye"))}">${off ? EYE_OFF : EYE}</button><button class="tb rm${armedRm === t.id ? " armed" : ""}" data-rm="${t.id}" title="${esc(armedRm === t.id ? tr("tr.rmArm") : tr("tr.rm"))}">×</button></div>`;
-    if (!open) continue;
-    const kids = [["rails", tr("tr.rails")], ["deck", tr("tr.deck")]];
-    if (t.off.h || t.off.v || t.off.rows.length) kids.push(["align", tr("tr.align")]);
-    for (const [k, l] of kids) {
-      const KK = K + ":" + k, o2 = !shown(KK);
-      h += `<div class="tn${o2 || off ? " off" : ""}" style="--d:1" data-k="${KK}" data-t="${t.id}"><span class="tc none"></span><span class="tl">${esc(l)}</span><span class="tm"></span><button class="tb" data-eye="${KK}" title="${esc(tr("tr.eye"))}">${o2 ? EYE_OFF : EYE}</button></div>`;
-    }
-    // sostegni del binario (chiusi all'inizio: possono essere centinaia)
-    const sups = supsOf(t).sort((a, c) => a.u - c.u), KS = K + ":sup", oS = !shown(KS), openS = !!S.treeOpen[KS];
-    h += `<div class="tn${oS || off ? " off" : ""}" style="--d:1" data-k="${KS}" data-t="${t.id}"><button class="tc${openS ? "" : " shut"}" data-stog="${KS}">${CHEV}</button><span class="tl">${esc(tr("tr.sup"))}</span><span class="tm">${sups.length || ""}</span><button class="tb" data-eye="${KS}" title="${esc(tr("tr.eye"))}">${oS ? EYE_OFF : EYE}</button></div>`;
-    if (openS) for (const x of sups) h += `<div class="tn${x.id === S.sel ? " act" : ""}${oS || off ? " off" : ""}" style="--d:2" data-sup="${x.id}"><span class="tc none"></span><span class="tl">${esc(x.num)}</span><span class="tm">${esc(prog(t.s0 + x.u, 0))} · ${x.side > 0 ? esc(tr("su.sL")) : esc(tr("su.sR"))}</span></div>`;
+  const row = (o) => {
+    const chev = o.group ? `<button class="tc${o.open ? "" : " shut"}" data-tog="${esc(o.key)}" data-open="${o.open ? 1 : 0}" aria-label="${esc(o.label)}">${CHEV}</button>` : `<span class="tc none"></span>`;
+    const eye = o.eye === undefined ? "" : `<button class="tb" data-eye="${esc(o.key)}" title="${esc(tr("tr.eye"))}" aria-label="${esc(tr("tr.eye"))}" aria-pressed="${!!o.eye}">${o.eye ? EYE : EYE_OFF}</button>`;
+    const rm = o.rm ? `<button class="tb rm${armedRm === o.key ? " armed" : ""}" data-rm="${esc(o.key)}" title="${esc(armedRm === o.key ? tr("tr.rmArm") : tr("tr.rm"))}">${armedRm === o.key ? esc(tr("tr.rmSure")) : "×"}</button>` : "";
+    const add = o.add ? `<button class="tb" data-add="${esc(o.key)}" title="${esc(o.add)}" aria-label="${esc(o.add)}">${PLUS}</button>` : "";
+    const cls = "tn" + (o.work ? " work" : "") + (o.act ? " act" : "") + (o.off ? " off" : o.dim ? " dim" : "");
+    rows.push(`<div class="${cls}" style="--d:${o.d}" data-key="${esc(o.key)}" role="treeitem"${o.group ? ` aria-expanded="${!!o.open}"` : ""}${o.title ? ` title="${esc(o.title)}"` : ""}>`
+      + `${chev}${ICON[o.kind] || ""}<span class="tl"${o.ren ? ` data-ren="${esc(o.key)}"` : ""}>${esc(o.label)}</span>`
+      + `${o.meta ? `<span class="tm">${esc(o.meta)}</span>` : ""}${add}${rm}${eye}</div>`);
+  };
+  // IFC di contesto (0.7.0): file → classi
+  const cOn = shown("ctx"), cOpen = isOpen("ctx", true);
+  row({ key: "ctx", d: 0, kind: "ctx", label: tr("tr.ctx"), meta: S.ctx.length ? tr("tr.els", { n: ni(S.ctx.reduce((a, m) => a + m.elements, 0)) }) : "—", eye: S.ctx.length ? cOn : undefined, off: S.ctx.length > 0 && !cOn, group: S.ctx.length > 0, open: cOpen, add: tr("sc.ctxAdd") });
+  if (cOpen) for (const m of S.ctx) {
+    const k = "ctx:" + m.name, fOn = shown(k), fOpen = isOpen(k, false);
+    row({ key: k, d: 1, kind: "ctxf", label: m.name, title: m.name, meta: tr("tr.els", { n: ni(m.elements) }), eye: fOn, off: !fOn, dim: !cOn, rm: true, group: true, open: fOpen });
+    if (!fOpen) continue;
+    const per = new Map();
+    for (const p of m.parts) { const e = per.get(p.cls) || new Set(); for (let j = 4; j < p.E.length; j += 5) e.add(p.E[j]); per.set(p.cls, e); }
+    for (const [cls, e] of [...per].sort((a, b) => a[0].localeCompare(b[0]))) { const kc = k + ":" + cls; row({ key: kc, d: 2, kind: "ctxc", label: cls, meta: ni(e.size), eye: shown(kc), off: !shown(kc), dim: !cOn || !fOn }); }
   }
-  el.innerHTML = h;
-  el.querySelectorAll("[data-tog]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); const k = b.dataset.tog; S.treeOpen[k] = S.treeOpen[k] === false; renderTree(); saveUi(); }));
-  el.querySelectorAll("[data-stog]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); const k = b.dataset.stog; S.treeOpen[k] = !S.treeOpen[k]; renderTree(); saveUi(); }));
-  el.querySelectorAll("[data-sup]").forEach((n) => n.addEventListener("click", () => selectSupport(+n.dataset.sup, true)));
-  el.querySelectorAll("[data-eye]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); const k = b.dataset.eye; if (S.hidden[k]) delete S.hidden[k]; else S.hidden[k] = true; buildScene(); renderTree(); scheduleSave(); }));
-  el.querySelectorAll("[data-rm]").forEach((b) => b.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const id = +b.dataset.rm;
-    if (armedRm !== id) { armedRm = id; renderTree(); setTimeout(() => { if (armedRm === id) { armedRm = null; renderTree(); } }, 3000); return; }
-    armedRm = null;
+  // supercompattato (0.7.0): una superficie per IFC
+  const sOn = shown("sc"), sOpen = isOpen("sc", true), nSc = S.sc.reduce((a, e) => a + e.ids.length, 0);
+  row({ key: "sc", d: 0, kind: "sc", label: tr("tr.sc"), meta: nSc ? tr("tr.els", { n: ni(nSc) }) : "—", eye: S.sc.length ? sOn : undefined, off: S.sc.length > 0 && !sOn, group: S.sc.length > 0, open: sOpen, add: tr("sc.pick") });
+  if (sOpen) S.sc.forEach((e, i) => row({ key: "sc:" + i, d: 1, kind: "scf", label: e.file, title: e.file, meta: tr("tr.els", { n: ni(e.ids.length) }), dim: !sOn, rm: true }));
+  // binari
+  if (!S.tracks.length) rows.push(`<p class="tree-empty">${esc(tr("tr.empty"))}</p>`);
+  for (const t of S.tracks) {
+    const K = "t" + t.id, open = isOpen(K, true), on = shown(K);
+    row({ key: K, d: 0, kind: "track", work: true, label: t.name, ren: true, meta: t.length >= 1000 ? nf(t.length / 1000, 2) + " km" : ni(t.length) + " m", eye: on, off: !on, group: true, open, act: t === A, rm: true, title: tr("tr.rename") });
+    if (!open) continue;
+    const sub = (k, o) => { const key = K + ":" + k; row({ d: 1, eye: shown(key), off: !shown(key), dim: !on, ...o, key }); };
+    sub("rails", { kind: "rails", label: tr("tr.rails") });
+    sub("deck", { kind: "deck", label: tr("tr.deck") });
+    if (t.off.h || t.off.v || t.off.rows.length) sub("align", { kind: "align", label: tr("tr.align") });
+    const sups = supsOf(t).sort((a, c) => a.u - c.u), KS = K + ":sup", oS = isOpen(KS, false);   // chiusi all'inizio: possono essere centinaia
+    sub("sup", { kind: "sups", label: tr("tr.sup"), meta: sups.length ? String(sups.length) : "—", group: sups.length > 0, open: oS });
+    if (oS) for (const x of sups) row({ key: "sup:" + x.id, d: 2, kind: isPortal(x) ? "portal" : "mast", label: String(x.num), act: x.id === S.sel, dim: !on || !shown(KS),
+      meta: prog(t.s0 + x.u, 0) + " · " + (isPortal(x) ? tr("tr.portal") : x.side > 0 ? tr("su.sL") : tr("su.sR")) });
+  }
+  el.innerHTML = rows.join("");
+}
+function treeToggleEye(k) { if (S.hidden[k]) delete S.hidden[k]; else S.hidden[k] = true; buildScene(); renderTree(); scheduleSave(); }
+function treeRemove(k) {
+  if (armedRm !== k) { armedRm = k; clearTimeout(armTimer); armTimer = setTimeout(() => { armedRm = null; renderTree(); }, 3000); renderTree(); return; }
+  armedRm = null; clearTimeout(armTimer);
+  if (/^t\d+$/.test(k)) {
+    const id = +k.slice(1);
     pushUndo();
     const i = S.tracks.findIndex((t) => t.id === id);
-    if (i >= 0) { S.tracks.splice(i, 1); DT.delete(id); for (const k of Object.keys(S.hidden)) if (k === "t" + id || k.startsWith("t" + id + ":")) delete S.hidden[k]; }
+    if (i >= 0) { S.tracks.splice(i, 1); DT.delete(id); for (const h of Object.keys(S.hidden)) if (h === k || h.startsWith(k + ":")) delete S.hidden[h]; }
     S.supports = S.supports.filter((x) => x.track !== id);
     if (!supById(S.sel)) S.sel = null;
     setActive(Math.min(S.active, S.tracks.length - 1));
     S.pt = null; refreshAll(); pvFit(); scheduleSave();
-  }));
-  el.querySelectorAll(".tn[data-t]").forEach((n) => {
-    n.addEventListener("click", () => {
-      const i = S.tracks.findIndex((t) => t.id === +n.dataset.t);
-      if (i !== S.active) { setActive(i); S.pt = null; refreshAll(); pvFit(); }
-      frameKey(n.dataset.k);
-    });
-  });
+  } else if (k.startsWith("ctx:")) {
+    const i = S.ctx.findIndex((m) => "ctx:" + m.name === k);
+    if (i < 0) return;
+    const name = S.ctx[i].name;
+    S.ctx.splice(i, 1);
+    if (S.scCand && S.scCand.file === name) S.scCand = null;
+    if (!S.ctx.length && S.scPick) setScPick(false);
+    buildCtxMeshes(); placeCtx(); renderSc(); renderTree();
+  } else if (k.startsWith("sc:")) { pushUndo(); S.sc = S.sc.filter((_, j) => j !== +k.slice(3)); afterSc(); }
 }
+/* doppio clic sul nome del binario: lo rinomina sul posto (Invio conferma, Esc lascia) */
+function treeRename(span) {
+  const t = S.tracks.find((x) => "t" + x.id === span.dataset.ren);
+  if (!t) return;
+  const inp = document.createElement("input");
+  inp.className = "tren"; inp.value = t.name; inp.spellcheck = false;
+  span.replaceWith(inp); inp.focus(); inp.select();
+  let done = false;
+  const end = (ok) => {
+    if (done) return; done = true;
+    const v = inp.value.trim();
+    if (ok && v && v !== t.name) { pushUndo(); t.name = v; t.nameUser = true; refreshAll(); scheduleSave(); } else renderTree();
+  };
+  inp.addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") end(true); else if (e.key === "Escape") end(false); });
+  inp.addEventListener("blur", () => end(true));
+}
+$("treeScroll").addEventListener("click", (e) => {
+  const b = e.target.closest("button"), n = e.target.closest(".tn");
+  if (!n) return;
+  if (b && b.dataset.tog != null) { S.treeOpen[b.dataset.tog] = b.dataset.open !== "1"; renderTree(); saveUi(); return; }
+  if (b && b.dataset.eye != null) { treeToggleEye(b.dataset.eye); return; }
+  if (b && b.dataset.rm != null) { treeRemove(b.dataset.rm); return; }
+  if (b && b.dataset.add != null) { if (b.dataset.add === "ctx") $("ctxIn").click(); else setScPick(true); return; }
+  if (e.target.tagName === "INPUT") return;
+  const k = n.dataset.key;
+  if (k.startsWith("sup:")) { selectSupport(+k.slice(4), true); return; }
+  const m = /^t(\d+)/.exec(k);
+  if (m) {
+    const i = S.tracks.findIndex((t) => t.id === +m[1]);
+    if (i >= 0 && i !== S.active) { setActive(i); S.pt = null; refreshAll(); pvFit(); }
+  }
+  frameKey(k);
+});
+$("treeScroll").addEventListener("dblclick", (e) => { const s = e.target.closest("[data-ren]"); if (s) treeRename(s); });
 $("trClose").addEventListener("click", () => { S.treeOff = true; applyPanels(); saveUi(); });
 let armedNew = false;
 $("trNew").addEventListener("click", () => {
@@ -3074,6 +3893,7 @@ $("trNew").addEventListener("click", () => {
   pushUndo();                                           // anche «Nuovo progetto» si annulla (Ctrl+Z)
   S.tracks = []; DT.clear(); S.hidden = {}; S.pt = null; S.name = ""; setActive(-1);
   S.supports = []; S.sel = null; S.pset = null;
+  S.sc = []; S.ctx = []; S.scCand = null; if (S.scPick) setScPick(false); buildCtxMeshes();
   refreshAll(); scheduleSave(); openSheet();
 });
 function refreshStats() {
@@ -3096,7 +3916,7 @@ function idbOpen() {
 }
 let saveTimer = 0, dirty = false;
 function scheduleSave() { dirty = true; $("saveDot").classList.add("wait"); clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1200); refreshStats(); }
-const snapshot = () => ({ v: 1, name: S.name, active: S.active, seq: S.seq, hidden: S.hidden, pt: S.pt, tracks: S.tracks, supports: S.supports, supSeq: S.supSeq, pset: S.pset });
+const snapshot = () => ({ v: 1, name: S.name, active: S.active, seq: S.seq, hidden: S.hidden, pt: S.pt, tracks: S.tracks, supports: S.supports, supSeq: S.supSeq, pset: S.pset, sc: S.sc });
 function restore(doc) {
   S.tracks = (doc.tracks || []).map((t) => ({ ...t, off: { h: 0, v: 0, rows: [], ...(t.off || {}) } }));
   S.hidden = doc.hidden || {}; S.name = doc.name || ""; S.pt = doc.pt != null ? doc.pt : null;
@@ -3105,6 +3925,9 @@ function restore(doc) {
   S.supports = (doc.supports || []).filter((x) => S.tracks.some((t) => t.id === x.track)).map(K.migrateSupport);   // «seconda mensola» 0.4.0 → sospensione
   S.supSeq = Math.max(doc.supSeq || 1, ...S.supports.map((x) => x.id + 1));
   S.pset = doc.pset ? PSET.normalize(doc.pset) : null;
+  S.sc = Array.isArray(doc.sc) ? doc.sc.filter((e) => e && Array.isArray(e.P) && Array.isArray(e.I) && Array.isArray(e.ids))
+    .map((e) => (e.top ? e : { ...e, ...(C.surfaceFrom([{ P: e.P, I: e.I, ox: e.ox, oy: e.oy }]) || {}), top: true })) : [];   // 0.7.0 aveva anche il sotto dello strato: resta la faccia di riferimento
+  S.scCand = null;
   S.prop = null;
   S.sel = null; UNDO.length = 0; REDO.length = 0;
   DT.clear();
@@ -3312,6 +4135,9 @@ addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("sheet").hidden && S.tracks.length) { closeSheet(); return; }
   if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "z" || e.key === "Z")) { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
   if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.key === "y" || e.key === "Y")) { e.preventDefault(); redo(); return; }
+  if (e.key === "Escape" && S.scPick) { setScPick(false); return; }
+  if (e.key === "Escape" && CUT.mode) { cutSet(null); return; }
+  if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && CUT.mode && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); cutStep(e.key === "ArrowRight" ? 1 : -1, e.shiftKey); return; }
   if (e.key === "Escape" && (S.place || S.sel != null)) { if (S.place) setPlace(false); else selectSupport(null); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "f" || e.key === "F") frameAll();
@@ -3320,6 +4146,8 @@ addEventListener("keydown", (e) => {
   else if ((e.key === "d" || e.key === "D") && S.sel != null) dupSupport(S.sel);
   else if (e.key === "t" || e.key === "T") { setPlan(!S.plan); toast(S.plan ? tr("t.planOn") : tr("t.planOff")); }
   else if (e.key === "q" || e.key === "Q") setFast(!S.fast);
+  else if (e.key === "x" || e.key === "X") cutSet("x");
+  else if (e.key === "l" || e.key === "L") cutSet("l");
   else if (e.key === "p" || e.key === "P") { S.pvOff = !S.pvOff; applyPanels(); saveUi(); }
   else if (e.key === "e" || e.key === "E") { S.treeOff = !S.treeOff; applyPanels(); saveUi(); }
 });
@@ -3378,7 +4206,8 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
 window.__ocs = { C, IO, get S() { return S; }, get A() { return A; }, TA, derivedOf, camera, camP, controls, ctlP, frameAll, setPlan, setFast, zoomAt, openFiles, saveNow, snapshot, buildScene, drawPV,
   openDrawings, dwgEdit, openTable, undo, redo, docState, K, addSupport, placeAt, selectSupport, deleteSupport, dupSupport, setPlace, supResolved, get supGroups() { return SUPG; },
   renderNow: () => { if (fly) fly(performance.now() + 1e6); if (S.plan) ctlP.update(); else controls.update(); renderView(); },
-  toScene: (x, y, z) => [x - G.O.x, y - G.O.y, Zs(z)], get group() { return G.group; } };
+  toScene: (x, y, z) => [x - G.O.x, y - G.O.y, Zs(z)], get group() { return G.group; }, frameKey, get ctxGroup() { return CTXG; }, setScPick, renderSc, scSet, scSame,
+  cut: { get state() { return { mode: CUT.mode, p: CUT.p, side: CUT.side, off: CUT.off }; }, set: cutSet, apply: cutApply, step: cutStep } };
 </script>
 </body>
 </html>

@@ -9,7 +9,7 @@
    Le coppie di coordinate sono «Nord Est» come vuole la specifica; si
    prova anche l'ordine scambiato e si tiene quello che chiude le giunzioni.
    ========================================================================= */
-import { hAlign, hJunctions, profileV } from "./ocs-core.js?v=0.6.0";
+import { hAlign, hJunctions, profileV } from "./ocs-core.js?v=0.8.0";
 
 /* ---- XML minimo: elementi, attributi, testo (niente DTD, niente namespace) ---- */
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
@@ -586,4 +586,35 @@ export function tableRecords(rows, head, map, opt = {}) {
     out.push(rec);
   }
   return out;
+}
+
+/* ---- IFC di contesto: gli elementi «uguali» per scegliere il supercompattato (0.7.0) -------------------------
+   info di un elemento (letta dal Worker della pagina) = { id, cls, name, ot (ObjectType), layer, type (nome del
+   tipo), props: { "Pset.Proprietà": valore } }. Un criterio = { k: "name" | "ot" | "layer" | "type" | "p:Pset.Prop",
+   v }; «uguali» = stessa classe IFC e stesso valore. Negli IFC di Civil 3D del federato BG-PSP il nome è vuoto e
+   il supercompattato si riconosce dai Pset («Materiale», «Nome») o dal layer: si propone il criterio il cui
+   valore parla di supercompattato, e fra quelli il più largo */
+export const stripRevitId = (s) => String(s == null ? "" : s).replace(/:\d+$/, "").trim();   // «Famiglia:Tipo:123456»
+const critVal = (info, k) => (k === "name" ? stripRevitId(info.name) : k === "ot" ? stripRevitId(info.ot) : k === "layer" ? String(info.layer || "").trim()
+  : k === "type" ? stripRevitId(info.type) : k.startsWith("p:") ? String((info.props || {})[k.slice(2)] ?? "").trim() : "");
+/* i criteri possibili per un elemento: i campi non vuoti, nell'ordine nome, tipo, ObjectType, layer, poi i Pset */
+export function elemCriteria(info) {
+  if (!info) return [];
+  const out = [];
+  for (const k of ["name", "type", "ot", "layer", ...Object.keys(info.props || {}).map((p) => "p:" + p)]) { const v = critVal(info, k); if (v) out.push({ k, v }); }
+  return out;
+}
+export const sameAs = (info, crit, cls) => !!info && !!crit && info.cls === cls && critVal(info, crit.k) === crit.v;
+/* gli id degli elementi uguali a quello dato (lui compreso) in un elenco di info */
+export const sameIds = (all, info, crit) => all.filter((x) => sameAs(x, crit, info.cls)).map((x) => x.id);
+/* il criterio proposto: fra quelli che parlano di supercompattato il più largo (più elementi), altrimenti il
+   primo che prende più di un elemento ma non tutti quelli della classe, altrimenti il primo */
+export const SC_WORD = /supercompatt|super[\s_-]?compatt/i;
+export function proposeCriterion(info, all) {
+  const cs = elemCriteria(info);
+  if (!cs.length) return null;
+  const n = (c) => all.reduce((a, x) => a + (sameAs(x, c, info.cls) ? 1 : 0), 0), nCls = all.filter((x) => x.cls === info.cls).length;
+  const sc = cs.filter((c) => SC_WORD.test(c.v));
+  if (sc.length) return sc.map((c) => ({ c, n: n(c) })).sort((a, b) => b.n - a.n)[0].c;
+  return cs.find((c) => { const m = n(c); return m > 1 && m < nCls; }) || cs[0];
 }

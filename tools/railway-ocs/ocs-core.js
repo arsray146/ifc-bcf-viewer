@@ -423,7 +423,125 @@ export function supportLevels(T, sup, R) {
   const F = supportFrame(T, sup.u, sup.side);
   if (!F) return null;
   const z0 = F.f.z, zPlate = z0 + R.baseDz;
-  return { pf: z0, plate: zPlate, top: zPlate + 0.045 + R.mast.H, mens: z0 + R.hm, wire: z0 + R.hw, pil: zPlate - R.c1, bottom: zPlate - R.c1 - R.found.C, E: F.f.x + F.s * (R.dr + GAUGE_HALF + R.mast.w / 2) * F.f.nx, N: F.f.y + F.s * (R.dr + GAUGE_HALF + R.mast.w / 2) * F.f.ny };
+  const tie = Math.max(0, ...(R.ties || [R.tir]).map((t) => (t && Number.isFinite(t.dh) ? t.dh : 0)));
+  return { pf: z0, plate: zPlate, top: zPlate + 0.045 + R.mast.H, mens: z0 + R.hm, tie: z0 + R.hm + tie, wire: z0 + R.hw, pil: zPlate - R.c1, bottom: zPlate - R.c1 - R.found.C, E: F.f.x + F.s * (R.dr + GAUGE_HALF + R.mast.w / 2) * F.f.nx, N: F.f.y + F.s * (R.dr + GAUGE_HALF + R.mast.w / 2) * F.f.ny };
+}
+/* i piedi del sostegno (asse del palo o dei due montanti del portale) in pianta, e il piano del ferro dell'asse
+   del binario lì (z0, riferimento delle quote del catalogo): [{ x, y }] — un piede per il palo, due (sinistro,
+   destro) per il portale. R = sostegno risolto SENZA le quote (la posizione non dipende da quelle) */
+export function supportFeet(T, sup, R) {
+  if (R && R.kind === "portal") {
+    const F = supportFrame(T, sup.u, 1);
+    if (!F) return null;
+    return { z0: F.f.z, feet: [R.qL, R.qR].map((q) => F.at(0, q, 0)) };
+  }
+  const F = supportFrame(T, sup.u, sup.side);
+  if (!F) return null;
+  return { z0: F.f.z, feet: [F.at(0, F.s * (R.dr + GAUGE_HALF + R.mast.w / 2), 0)] };
+}
+
+/* ---- superficie di riferimento delle fondazioni (0.7.0): il supercompattato ----------------------------
+   La testa del pilastrino si mette sopra la quota del supercompattato sotto l'asse del palo (scelta dell'utente
+   2026-10-12). La superficie viene dagli elementi scelti in un IFC di contesto (in futuro anche dal corpo
+   ferroviario disegnato qui): triangoli NON verticali (sopra e sotto dello strato: la quota buona è la più alta
+   sulla verticale, così non conta il verso delle facce), in pianta attorno a un'origine.
+   sf = { ox, oy, P: [x − ox, y − oy, z, …], I: [a, b, c, …] } (array semplici: si salvano nel progetto) */
+const SC_STEEP = 0.05;                                   // |nz| sotto questo (faccia quasi verticale): fuori
+/* dai triangoli di più pezzi { P, I, i0, i1, ox, oy } (P: x, y relativi all'origine del pezzo) → sf con i
+   vertici in comune, quote al millimetro */
+export function surfaceFrom(pieces) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const p of pieces) for (let k = p.i0 || 0; k < (p.i1 != null ? p.i1 : p.I.length); k++) {
+    const v = p.I[k], x = p.P[3 * v] + p.ox, y = p.P[3 * v + 1] + p.oy;
+    if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+  }
+  if (!(x1 >= x0)) return null;
+  const ox = Math.round((x0 + x1) / 2), oy = Math.round((y0 + y1) / 2), P = [], I = [], at = new Map();
+  const r3 = (v) => Math.round(v * 1000) / 1000;
+  const vert = (x, y, z) => { const key = r3(x) + "," + r3(y) + "," + r3(z); let i = at.get(key); if (i == null) { i = P.length / 3; at.set(key, i); P.push(r3(x), r3(y), r3(z)); } return i; };
+  for (const p of pieces) {
+    const i1 = p.i1 != null ? p.i1 : p.I.length;
+    for (let k = p.i0 || 0; k + 2 < i1; k += 3) {
+      const q = [0, 1, 2].map((j) => { const v = p.I[k + j]; return [p.P[3 * v] + p.ox - ox, p.P[3 * v + 1] + p.oy - oy, p.P[3 * v + 2]]; });
+      const ux = q[1][0] - q[0][0], uy = q[1][1] - q[0][1], uz = q[1][2] - q[0][2], vx = q[2][0] - q[0][0], vy = q[2][1] - q[0][1], vz = q[2][2] - q[0][2];
+      const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, n = Math.hypot(nx, ny, nz);
+      if (!(n > 1e-9) || Math.abs(nz) / n < SC_STEEP) continue;
+      const a = vert(...q[0]), b = vert(...q[1]), c = vert(...q[2]);
+      if (a !== b && b !== c && a !== c) I.push(a, b, c);
+    }
+  }
+  if (!I.length) return null;
+  // solo la faccia di riferimento (0.8.0, richiesta dell'utente: «non si capisce quale è la faccia»): i
+  // triangoli che sono i più alti sulla verticale del loro baricentro; il sotto dello strato se ne va
+  const all = surfaceIndex({ ox, oy, P, I }), keep = [];
+  for (let t = 0; t < I.length; t += 3) {
+    const v = [I[t], I[t + 1], I[t + 2]], cx = v.reduce((s, k) => s + P[3 * k], 0) / 3, cy = v.reduce((s, k) => s + P[3 * k + 1], 0) / 3, cz = v.reduce((s, k) => s + P[3 * k + 2], 0) / 3;
+    const h = surfaceAt(all, cx + ox, cy + oy, 0);
+    if (!h || cz >= h.z - 0.002) keep.push(...v);
+  }
+  // vertici rinumerati: solo quelli usati
+  const map = new Map(), P2 = [], I2 = [];
+  for (const k of keep) { let j = map.get(k); if (j == null) { j = P2.length / 3; map.set(k, j); P2.push(P[3 * k], P[3 * k + 1], P[3 * k + 2]); } I2.push(j); }
+  return I2.length ? { ox, oy, P: P2, I: I2 } : null;
+}
+/* griglia in pianta per surfaceAt (celle di SC_CELL metri) */
+export const SC_CELL = 4;
+export function surfaceIndex(sf) {
+  if (!sf || !sf.I || !sf.I.length) return null;
+  const P = Float64Array.from(sf.P), I = Uint32Array.from(sf.I), cells = new Map();
+  for (let t = 0; t < I.length / 3; t++) {
+    let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+    for (let j = 0; j < 3; j++) { const v = I[3 * t + j], x = P[3 * v], y = P[3 * v + 1]; if (x < a) a = x; if (x > c) c = x; if (y < b) b = y; if (y > d) d = y; }
+    for (let i = Math.floor(a / SC_CELL); i <= Math.floor(c / SC_CELL); i++) for (let j = Math.floor(b / SC_CELL); j <= Math.floor(d / SC_CELL); j++) {
+      const k = i + "," + j;
+      let l = cells.get(k);
+      if (!l) cells.set(k, (l = []));
+      l.push(t);
+    }
+  }
+  return { ox: sf.ox, oy: sf.oy, P, I, cells, n: I.length / 3 };
+}
+/* la quota della superficie sulla verticale di (E, N): { z, d: 0 } dalla faccia più alta che lo contiene; fuori
+   dalla superficie il punto più vicino in pianta entro maxOut, con la sua distanza d (la quota del bordo);
+   più lontano null */
+export function surfaceAt(ix, E, N, maxOut = 2) {
+  if (!ix) return null;
+  const x = E - ix.ox, y = N - ix.oy, { P, I, cells } = ix, ci = Math.floor(x / SC_CELL), cj = Math.floor(y / SC_CELL);
+  const tri = (t) => { const a = I[3 * t], b = I[3 * t + 1], c = I[3 * t + 2]; return [P[3 * a], P[3 * a + 1], P[3 * a + 2], P[3 * b], P[3 * b + 1], P[3 * b + 2], P[3 * c], P[3 * c + 1], P[3 * c + 2]]; };
+  let best = null;
+  for (const t of cells.get(ci + "," + cj) || []) {
+    const [ax, ay, az, bx, by, bz, cx, cy, cz] = tri(t);
+    const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+    if (Math.abs(den) < 1e-12) continue;
+    const l1 = ((by - cy) * (x - cx) + (cx - bx) * (y - cy)) / den, l2 = ((cy - ay) * (x - cx) + (ax - cx) * (y - cy)) / den, l3 = 1 - l1 - l2;
+    if (l1 < -1e-9 || l2 < -1e-9 || l3 < -1e-9) continue;
+    const z = l1 * az + l2 * bz + l3 * cz;
+    if (!best || z > best.z) best = { z, d: 0 };
+  }
+  if (best || !(maxOut > 0)) return best;
+  // fuori: il punto più vicino sui lati dei triangoli delle celle attorno (a parità di distanza, il più alto)
+  const R = Math.ceil(maxOut / SC_CELL), seen = new Set();
+  const seg = (ax, ay, az, bx, by, bz) => {
+    const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy, s = L2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)) : 0;
+    const d = Math.hypot(ax + s * dx - x, ay + s * dy - y), z = az + s * (bz - az);
+    if (d <= maxOut && (!best || d < best.d - 1e-6 || (d < best.d + 1e-6 && z > best.z))) best = { z, d };
+  };
+  for (let i = ci - R; i <= ci + R; i++) for (let j = cj - R; j <= cj + R; j++) for (const t of cells.get(i + "," + j) || []) {
+    if (seen.has(t)) continue;
+    seen.add(t);
+    const [ax, ay, az, bx, by, bz, cx, cy, cz] = tri(t);
+    seg(ax, ay, az, bx, by, bz); seg(bx, by, bz, cx, cy, cz); seg(cx, cy, cz, ax, ay, az);
+  }
+  return best;
+}
+/* più superfici (una per IFC di contesto): la più vicina; sopra a più d'una, la più alta */
+export function surfaceAtMany(list, E, N, maxOut = 2) {
+  let best = null;
+  for (const ix of list || []) {
+    const r = surfaceAt(ix, E, N, maxOut);
+    if (r && (!best || r.d < best.d - 1e-6 || (Math.abs(r.d - best.d) <= 1e-6 && r.z > best.z))) best = r;
+  }
+  return best;
 }
 
 /* ---- profilo già in segmenti (IFC 4x3: IfcAlignmentVerticalSegment) -------------------------------- */
