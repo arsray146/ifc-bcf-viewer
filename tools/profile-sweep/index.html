@@ -255,6 +255,28 @@ body.pod-off #pod{display:none}
 /* linea di progetto modificata (0.11): comandi e tabella dei vertici */
 .edbar{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
 .btn-sm.on{background:var(--lime-soft);border-color:var(--lime-line)}
+/* Pset (0.19.0): una scheda richiudibile per Pset, oggetti a gruppi, proprietà su due righe (tre col pannello stretto) */
+.pscard{margin:10px 0 4px;padding:8px 10px 10px;border:1px solid var(--lime-line);border-radius:12px;background:var(--lime-soft)}
+.pscard .row{grid-template-columns:72px 1fr}
+.pscard>summary{list-style:none;cursor:pointer;display:flex;flex-direction:column;gap:3px}
+.pscard>summary::-webkit-details-marker{display:none}
+.pscard>summary b{font:600 13px/1.25 var(--disp);letter-spacing:.02em;color:var(--text);word-break:break-word}
+.pscard>summary b::before{content:"▸";margin-right:6px;color:var(--faint)}
+.pscard[open]>summary b::before{content:"▾"}
+.pscard>summary span{font:400 11.5px/1.35 var(--sans);color:var(--muted)}
+.pscard>summary .w{color:var(--amber)}
+.pscard[open]>summary{margin-bottom:6px}
+.pskinds{display:grid;grid-template-columns:1fr 1fr;column-gap:10px;margin:2px 0 6px}
+.pskinds .check{margin:2px 0;font-size:12px;align-items:flex-start}
+.pskinds .psg{grid-column:1/-1;font:600 10.5px/1 var(--disp);letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin:8px 0 3px}
+.pstab{display:flex;flex-direction:column;gap:5px;margin:6px 0;container-type:inline-size}
+.psrow{display:grid;grid-template-columns:minmax(84px,.8fr) minmax(0,1.7fr) minmax(0,.9fr) 28px;grid-template-areas:"pn pn pn pd" "ps pk pt pt";gap:4px;align-items:center;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.psrow .pn{grid-area:pn}.psrow .ps{grid-area:ps}.psrow .pk{grid-area:pk}.psrow .pt{grid-area:pt}.psrow .pd{grid-area:pd}
+.psrow .txt{min-width:0;width:100%;font-size:11.5px;padding-left:6px;padding-right:6px}
+.psrow .btn-sm{padding:0;height:28px}
+@container (max-width:340px){.psrow{grid-template-columns:84px minmax(0,1fr) minmax(0,1fr) 28px;grid-template-areas:"pn pn pn pd" "ps pk pk pk" ". pt pt pt"}}
+.psprev .kv.psh{margin-top:9px;color:var(--text)}
+.psprev .kv.psh b{font-family:var(--sans);font-weight:500}
 .vtab{position:relative;max-height:260px;overflow-y:auto;scrollbar-width:thin;border:1px solid var(--line);border-radius:var(--r-xs);margin:6px 0}
 .vtab .vr{display:grid;grid-template-columns:22px minmax(0,1.25fr) minmax(0,1fr) minmax(0,1.1fr);gap:3px;align-items:center;padding:1px 5px}
 .vtab .vh{position:sticky;top:0;z-index:1;background:var(--panel-solid);border-bottom:1px solid var(--line);padding:6px 5px;font:500 10.5px/1.2 var(--mono);color:var(--faint)}
@@ -530,6 +552,10 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
       <div class="sec-h"><h2 data-i18n="cm.title">Computo</h2><span class="cnt" id="cmCnt"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
       <div class="sec-b" id="cmBody"></div>
     </section>
+    <section class="sec" data-sec="pset">
+      <div class="sec-h"><h2 data-i18n="ps.title">Pset</h2><span class="cnt" id="psCnt"></span><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div class="sec-b" id="psBody"></div>
+    </section>
     <section class="sec" data-sec="export">
       <div class="sec-h"><h2 data-i18n="exp.title">Esporta</h2><svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
       <div class="sec-b" id="expBody"></div>
@@ -573,6 +599,7 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
 <div id="dragVeil" data-i18n="drop.veil">Rilascia i disegni</div>
 <input type="file" id="fileIn" accept=".dwg,.dxf,.ifc,.xml,.landxml,.csv,.txt,.xyz,.pts,.profiles" multiple hidden>
 <input type="file" id="dtmIn" accept=".ifc,.xml,.landxml,.csv,.txt,.xyz,.pts" hidden>
+<input type="file" id="psIn" accept=".json" hidden>
 <input type="file" id="ctxIn" accept=".ifc" multiple hidden>
 
 <!-- ================= DIALOGO (salva progetto, apri progetto) ================= -->
@@ -679,6 +706,7 @@ const I18N = {
     "ax.ex": "Vista 3D", "ax.exHelp": "Esagerazione delle quote solo nella vista: i file escono sempre a scala vera.",
     "exp.title": "Esporta", "exp.name": "Nome", "exp.dxf": "Polilinea 3D (.dxf)", "exp.xml": "LandXML (.xml)",
     "exp.note": "La polilinea 3D passa per tutti i vertici della pianta e del profilo (archi spezzati entro 1 cm). Il LandXML porta l'asse con rette e archi veri e il profilo a PVI.",
+    "ps.title": "Pset", "ps.help": "Le proprietà che l'IFC scrive su ogni oggetto, oltre ai Qto standard (quelli non cambiano). Ogni Pset ha un nome, gli oggetti a cui va e le proprietà: un campo del progetto o un valore fisso. Le proprietà senza valore non si scrivono, i Pset vuoti neppure. Il modello si salva col progetto e si esporta in .json (lo stesso formato della Trazione elettrica). Non fa parte dell'annulla.", "ps.isDefault": "Modello di partenza: è il Pset di sempre (ViewIFC_SviluppoProfili, stesse proprietà). Alla prima modifica diventa il modello del progetto.", "ps.name": "Nome", "ps.kinds": "Oggetti", "ps.prop": "Nome della proprietà", "ps.src": "Da dove", "ps.key": "Campo o valore", "ps.type": "Tipo IFC", "ps.sField": "Campo", "ps.sConst": "Valore fisso", "ps.constPh": "valore", "ps.addP": "+ Proprietà", "ps.delP": "Togli la proprietà", "ps.delS": "Togli il Pset", "ps.addS": "+ Pset", "ps.newP": "Proprietà", "ps.newS": "Nuovo", "ps.export": "Esporta .json", "ps.import": "Importa .json", "ps.reset": "Modello di partenza", "ps.resetT": "Torna al Pset di sempre (il modello del progetto si perde: esportalo prima se serve)", "ps.noEmpty": "Il nome non può essere vuoto.", "ps.imported": "Modello Pset importato: {n} Pset da {f}.", "ps.importedX": "Modello Pset importato: {n} Pset da {f}; tolti gli oggetti che qui non ci sono ({k}).", "ps.badFile": "{f}: non è un modello Pset (.json di viewifc).", "ps.preview": "Anteprima sull'opera attiva", "ps.prevPart": "Tratto", "ps.none": "Nessun Pset su questo tratto.", "ps.noPrev": "L'anteprima compare quando l'opera attiva ha i tratti calcolati (pianta, profilo e DTM).", "ps.yes": "sì", "ps.no": "no", "ps.nProps": "proprietà: {n}", "ps.nWarn": "avvisi: {n}", "pg.work": "Opera", "pg.earth": "Terre e strati", "pg.bridge": "Ponte", "pk.lining": "Rivestimento del fosso", "pk.channel": "Canale a U", "pk.box": "Scatolare", "pk.pipe": "Tubo", "pk.cut": "Scavo", "pk.fill": "Riporto del fosso", "pk.emb": "Rilevato sopra il tubo", "pk.backfill": "Rinterro del canale", "pk.mix": "Misto cementato", "pk.lean": "Magrone", "pk.bed": "Letto di posa", "pk.surround": "Rinfianco", "pk.cover": "Ricoprimento", "pk.pfill": "Reinterro del tubo", "pk.restore": "Ripristino", "pk.bridge": "Ponte", "pk.void": "Spazio riservato al ponte", "pf.part": "Tratto", "pf.vol": "Volume dell'oggetto", "pf.ts": "Spessore del fondo (soletta o platea)", "pf.dn": "DN", "pf.s": "Spessore del tubo", "pf.width": "Larghezza al fondo della trincea", "pw.noName": "Pset senza nome: non si scrive.", "pw.stdPrefix": "I nomi Pset_ e Qto_ sono di buildingSMART: per un Pset proprio usa un altro prefisso.", "pw.noKinds": "Nessun oggetto scelto: il Pset non si scrive da nessuna parte.", "pw.dupSet": "Stesso nome di un altro Pset sugli stessi oggetti.", "pw.dupProp": "Proprietà ripetuta nello stesso Pset.", "pw.noKey": "Scegli il campo (o scrivi il valore).", "pw.badConst": "Il valore fisso non è del tipo scelto.",
     "exp.ifc": "IFC 4x3 (.ifc)", "exp.csv": "Computo (.csv)",
     "exp.3dm": "Rhino (.3dm)", "exp.3dmLoad": "Preparo il .3dm…", "exp.3dmOpen": "{n} solidi non chiusi per Rhino: {list}", "exp.3dmErr": "Non riesco a scrivere il .3dm: {e}",
     "exp.3dmNote": "Rhino 7 e 8, metri, attorno all'origine locale E {x} · N {y} (la stessa delle mesh dell'IFC; nel file come stringa del documento e TextDot sul layer «Origine»). Per opera un layer con l'asse 3D e un sottolayer per classe, un oggetto per tratto; il DTM del corridoio (i file accesi nell'albero). Spigoli vivi oltre 30°.",
@@ -947,6 +975,7 @@ const I18N = {
     "ax.ex": "3D view", "ax.exHelp": "Elevations exaggerated in the view only: files always come out true to scale.",
     "exp.title": "Export", "exp.name": "Name", "exp.dxf": "3D polyline (.dxf)", "exp.xml": "LandXML (.xml)",
     "exp.note": "The 3D polyline goes through every vertex of plan and profile (arcs split within 1 cm). The LandXML carries the axis with true lines and arcs and the profile as PVIs.",
+    "ps.title": "Psets", "ps.help": "The properties the IFC writes on each object, besides the standard Qto (those do not change). Each Pset has a name, the objects it goes to and its properties: a project field or a fixed value. Properties without a value are not written, nor are empty Psets. The template is saved with the project and exported as .json (the same format as Railway OCS). Not part of undo.", "ps.isDefault": "Starting template: the usual Pset (ViewIFC_SviluppoProfili, same properties). At the first change it becomes the project template.", "ps.name": "Name", "ps.kinds": "Objects", "ps.prop": "Property name", "ps.src": "Source", "ps.key": "Field or value", "ps.type": "IFC type", "ps.sField": "Field", "ps.sConst": "Fixed value", "ps.constPh": "value", "ps.addP": "+ Property", "ps.delP": "Remove the property", "ps.delS": "Remove the Pset", "ps.addS": "+ Pset", "ps.newP": "Property", "ps.newS": "New", "ps.export": "Export .json", "ps.import": "Import .json", "ps.reset": "Starting template", "ps.resetT": "Back to the usual Pset (the project template is lost: export it first if needed)", "ps.noEmpty": "The name cannot be empty.", "ps.imported": "Pset template imported: {n} Psets from {f}.", "ps.importedX": "Pset template imported: {n} Psets from {f}; objects that do not exist here were removed ({k}).", "ps.badFile": "{f}: not a Pset template (viewifc .json).", "ps.preview": "Preview on the active work", "ps.prevPart": "Stretch", "ps.none": "No Pset on this stretch.", "ps.noPrev": "The preview appears when the active work has its stretches computed (plan, profile and DTM).", "ps.yes": "yes", "ps.no": "no", "ps.nProps": "properties: {n}", "ps.nWarn": "warnings: {n}", "pg.work": "Work", "pg.earth": "Earthworks and layers", "pg.bridge": "Bridge", "pk.lining": "Ditch lining", "pk.channel": "U channel", "pk.box": "Box culvert", "pk.pipe": "Pipe", "pk.cut": "Excavation", "pk.fill": "Ditch fill", "pk.emb": "Embankment over the pipe", "pk.backfill": "Channel backfill", "pk.mix": "Cement-bound fill", "pk.lean": "Blinding", "pk.bed": "Pipe bedding", "pk.surround": "Side fill", "pk.cover": "Pipe cover", "pk.pfill": "Pipe backfill", "pk.restore": "Reinstatement", "pk.bridge": "Bridge", "pk.void": "Space reserved for the bridge", "pf.part": "Stretch", "pf.vol": "Volume of the object", "pf.ts": "Base thickness (slab or invert)", "pf.dn": "DN", "pf.s": "Pipe wall thickness", "pf.width": "Trench bottom width", "pw.noName": "Pset without a name: not written.", "pw.stdPrefix": "Pset_ and Qto_ names belong to buildingSMART: use another prefix for your own Pset.", "pw.noKinds": "No object chosen: the Pset is not written anywhere.", "pw.dupSet": "Same name as another Pset on the same objects.", "pw.dupProp": "Property repeated in the same Pset.", "pw.noKey": "Choose the field (or write the value).", "pw.badConst": "The fixed value is not of the chosen type.",
     "exp.ifc": "IFC 4x3 (.ifc)", "exp.csv": "Quantities (.csv)",
     "exp.3dm": "Rhino (.3dm)", "exp.3dmLoad": "Preparing the .3dm…", "exp.3dmOpen": "{n} solids not closed for Rhino: {list}", "exp.3dmErr": "Could not write the .3dm: {e}",
     "exp.3dmNote": "Rhino 7 and 8, meters, around the local origin E {x} · N {y} (the same as the IFC meshes; in the file as a document string and a TextDot on the «Origin» layer). For each work a layer with the 3D axis and a sublayer per class, one object per stretch; the corridor DTM (the files switched on in the tree). Sharp edges beyond 30°.",
@@ -1151,10 +1180,11 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.18.1";
-import * as IO from "./profile-io.js?v=0.18.1";
+import * as C from "./profile-core.js?v=0.19.0";
+import * as IO from "./profile-io.js?v=0.19.0";
+import * as PSET from "../common/pset-core.js?v=1.1.0";
 
-const TOOL_VERSION = "0.18.1";
+const TOOL_VERSION = "0.19.0";
 /* il triangolatore dei tappi dei tagli (0.18): earcut di three.js, passato al motore (che resta senza import) */
 const TRI = (c, h) => THREE.ShapeUtils.triangulateShape(c.map(([x, y]) => new THREE.Vector2(x, y)), h.map((r) => r.map(([x, y]) => new THREE.Vector2(x, y))));
 const $ = (id) => document.getElementById(id);
@@ -1260,6 +1290,9 @@ const S = {
   ctxInFile: true,       // «Salva progetto» mette il contesto dentro il file (l'ultima scelta)
   name: "",              // nome del progetto (file in uscita)
   tav: newTav(),         // tavole (0.16): righe della chitarra, scarto del terreno, distanza fra le colonne
+  pset: null,            // modello dei Pset dell'IFC (0.19, tools/common/pset-core.js); null = quello di partenza
+  psPart: 0,             // tratto dell'anteprima dei Pset (non si salva)
+  psOpen: new Set(),     // schede dei Pset aperte nel pannello (indici; non si salva)
   hidden: {},            // elementi spenti: "w<id>", "w<id>:plan|prof|axis", "w<id>:t<k>", "w<id>:t<k>:lining|cut|fill", "dtm:<file>", "ctx:<file>", "ctx:<file>:<classe>"
   view: { ex: 2, layers: { dtm: true, lining: true, lean: true, mix: true, cut: true, fill: true, pipe: true, bed: true, surround: true, cover: true, restore: true, emb: true } }, podOff: false, pvOff: false, treeOff: false, closed: {}, treeOpen: {}, snap: true,
   treeW: null, podW: null,     // larghezze trascinate di albero e pannello (px); null = quella iniziale del CSS
@@ -5183,10 +5216,11 @@ function renderWork() {
   if (on) el.innerHTML = `<span class="k">${esc(tr("pod.work"))}</span><b title="${esc(W.name)}">${esc(W.name)}</b>${S.works.length > 1 ? `<span class="n">${S.active + 1}/${S.works.length}</span>` : ""}`;
   $("pvWork").textContent = on && S.works.length > 1 ? W.name : "";
 }
-function renderPod() { renderWork(); renderPlan(); renderProf(); renderAnchors(); renderDtm(); renderCtx(); renderSection(); renderBridge(); renderTrim(); renderAxis(); renderQty(); renderExport(); applyClosed(); }
-function applyClosed() { document.querySelectorAll("#pod .sec[data-sec]").forEach((s) => s.classList.toggle("closed", !!S.closed[s.dataset.sec])); }
+function renderPod() { renderWork(); renderPlan(); renderProf(); renderAnchors(); renderDtm(); renderCtx(); renderSection(); renderBridge(); renderTrim(); renderAxis(); renderQty(); renderPset(); renderExport(); applyClosed(); }
+const isClosed = (k) => (k in S.closed ? !!S.closed[k] : k === "pset");    // i Pset partono chiusi (sezione lunga)
+function applyClosed() { document.querySelectorAll("#pod .sec[data-sec]").forEach((s) => s.classList.toggle("closed", isClosed(s.dataset.sec))); }
 document.querySelectorAll("#pod .sec[data-sec] .sec-h").forEach((h) => h.addEventListener("click", () => {
-  const k = h.parentElement.dataset.sec; S.closed[k] = !S.closed[k]; applyClosed(); saveUi();
+  const k = h.parentElement.dataset.sec; S.closed[k] = !isClosed(k); applyClosed(); saveUi();
   if (k === "section" && !S.closed[k]) drawSection(PV.hover);
 }));
 function refreshStats() {
@@ -5430,7 +5464,7 @@ $("trNew").addEventListener("click", () => {
     return;
   }
   b.classList.remove("armed"); b.textContent = tr("tr.new");
-  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = ""; S.dtmRefs = []; S.dtmPaths = {}; S.ctx = []; S.ctxRefs = []; S.tav = newTav();
+  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = ""; S.dtmRefs = []; S.dtmPaths = {}; S.ctx = []; S.ctxRefs = []; S.tav = newTav(); S.pset = null;
   DW.clear(); TIN = null; setActive(-1);
   undo.length = 0; redo.length = 0; updateUndo();
   refreshViews(); scheduleSave(); openSheet();
@@ -5472,6 +5506,12 @@ function bridgeOut(d, id) {
   const i = (d.bridges || []).findIndex((b) => b.id === id), b = d.bridges[i];
   return b ? { id, name: tr("br.name", { n: i + 1 }), p0: b.p0, p1: b.p1, length: b.length, hMax: b.hMax } : { id, name: tr("br.name", { n: 1 }) };
 }
+/* la sezione di ogni tratto (0.9: un'opera può averne più d'una), il raccordo, l'etichetta del CSV: il tratto
+   come lo ricevono gli scrittori, senza mesh (0.19: serve anche all'anteprima dei Pset) */
+const secOut = (t, P) => (t === "channel" || t === "box" ? { type: t, ...P } : t === "pipe" ? { type: "pipe", ...P, matName: pipeMatName(P.mat), norm: C.PIPE_CATALOG[P.mat] ? C.PIPE_CATALOG[P.mat].norm : "" } : { ...P });
+const blendOut = (p) => (p.blends || []).map((b) => tr("bl.note", { a: prog(b.p0), b: prog(b.p1), t: typeShort(b.to) })).join("; ");
+const partOut = (w, d, p) => ({ ...p, work: w.name, name: tr("cm.partName", { n: p.k }) + (p.bridge != null ? " - " + tr("br.tag") : ""), bridge: bridgeOut(d, p.bridge),
+  section: secOut(p.stype || w.stype, p.P || w[w.stype]), sec: p.P ? secLabel(p.stype, p.P) : "", blendNote: blendOut(p) });
 function exportWorks(needParts) {
   const O = projectOrigin();
   return exported().map((w) => ({ w, d: derivedOf(w) }))
@@ -5479,14 +5519,10 @@ function exportWorks(needParts) {
     .map(({ w, d }) => {
       const dx = d.O ? d.O.x - O.x : 0, dy = d.O ? d.O.y - O.y : 0;
       const mesh = (m) => Object.fromEntries(Object.entries(m).map(([k, v]) => [k, shiftOne(v, dx, dy)]));
-      // la sezione di ogni tratto (0.9: un'opera può averne più d'una), il raccordo, l'etichetta del CSV
-      const secObj = (t, P) => (t === "channel" || t === "box" ? { type: t, ...P } : t === "pipe" ? { type: "pipe", ...P, matName: pipeMatName(P.mat), norm: C.PIPE_CATALOG[P.mat] ? C.PIPE_CATALOG[P.mat].norm : "" } : { ...P });
-      const blendNote = (p) => (p.blends || []).map((b) => tr("bl.note", { a: prog(b.p0), b: prog(b.p1), t: typeShort(b.to) })).join("; ");
       return {
-        w, name: w.name, axis: d.axis, ax3: d.ax3, pvi: pviOf(d), section: secObj(w.stype, w[w.stype]),
+        w, name: w.name, axis: d.axis, ax3: d.ax3, pvi: pviOf(d), section: secOut(w.stype, w[w.stype]),
         channel: isCh(w), stype: w.stype, types: typesOf(w), solids: solidsOf(w), mixed: !!(w.secs && w.secs.length),
-        parts: d.parts.filter((p) => !p.gone).map((p) => ({ ...p, work: w.name, name: tr("cm.partName", { n: p.k }) + (p.bridge != null ? " - " + tr("br.tag") : ""), mesh: mesh(p.mesh), bridge: bridgeOut(d, p.bridge),
-          section: secObj(p.stype || w.stype, p.P || w[w.stype]), sec: p.P ? secLabel(p.stype, p.P) : "", blendNote: blendNote(p) })),
+        parts: d.parts.filter((p) => !p.gone).map((p) => ({ ...partOut(w, d, p), mesh: mesh(p.mesh) })),
       };
     });
 }
@@ -5549,7 +5585,14 @@ function exportXML() {
 function exportIFC() {
   const ws = exportWorks(true);
   if (!ws.length) return;
-  const labels = {
+  const text = IO.ifcDitch({ name: S.name || ws[0].name || tr("sx.ditch"), fileName: fileBase(), origin: projectOrigin(),
+    works: ws.map((x) => ({ name: x.name, axis: x.axis, pvi: x.pvi, section: x.section, parts: x.parts })),
+    labels: ifcLabels(), pset: psetJob(), app: { name: "viewifc.com - " + tr("nav.here"), version: TOOL_VERSION }, date: new Date() });
+  download(fileBase() + ".ifc", text, "application/x-step");
+}
+/* i nomi nell'IFC (entità, materiali, proprietà del modello Pset di partenza) nella lingua della pagina */
+function ifcLabels() {
+  return {
     site: tr("if.site"), terrain: tr("if.terrain"), lining: tr("if.lining"), cut: tr("if.cut"), fill: tr("if.fill"), concrete: tr("if.concrete"), work: tr("if.work"),
     p0: tr("if.p0"), p1: tr("if.p1"), length: tr("if.length"), section: tr("if.section"), sectionName: tr("sx.ditch"),
     b: tr("if.b"), h: tr("if.h"), m: tr("if.m"), t: tr("if.t"), berm: tr("if.berm"), cutSlope: tr("if.cutSlope"), fillSlope: tr("if.fillSlope"),
@@ -5565,11 +5608,143 @@ function exportIFC() {
     emb: tr("if.emb"), embMat: tr("if.embMat"), embLen: tr("if.embLen"),
     bridge: tr("if.bridge"), bridgeSpace: tr("if.bridgeSpace"), bridgeSpaceType: tr("if.bridgeSpaceType"), bridgeNote: tr("if.bridgeNote"), bridgeH: tr("if.bridgeH"),
   };
-  const text = IO.ifcDitch({ name: S.name || ws[0].name || tr("sx.ditch"), fileName: fileBase(), origin: projectOrigin(),
-    works: ws.map((x) => ({ name: x.name, axis: x.axis, pvi: x.pvi, section: x.section, parts: x.parts })),
-    labels, app: { name: "viewifc.com - " + tr("nav.here"), version: TOOL_VERSION }, date: new Date() });
-  download(fileBase() + ".ifc", text, "application/x-step");
 }
+
+/* =========================================================================
+   Pset (0.19.0): modello configurabile col modulo comune tools/common/pset-core.js (lo stesso della Trazione
+   elettrica; formato .json viewifc-pset). S.pset = modello del progetto; null = quello di partenza
+   (IO.psetDefault = il Pset fisso di prima, nella lingua della pagina). Nel salvataggio e nel .profiles, fuori
+   dall'annulla come le sezioni. Tipi di oggetto e campi in profile-io (PSET_GROUPS, PSET_FIELDS, psetFields);
+   valori da un campo o fissi (qui non ci sono tabelle importate: niente «colonna»).
+   ========================================================================= */
+const IFCT = { label: "IfcLabel", text: "IfcText", identifier: "IfcIdentifier", length: "IfcLengthMeasure", area: "IfcAreaMeasure", volume: "IfcVolumeMeasure", angle: "IfcPlaneAngleMeasure", ratio: "IfcPositiveRatioMeasure", real: "IfcReal", int: "IfcInteger", bool: "IfcBoolean" };
+/* i nomi dei campi = quelli delle proprietà del Pset di partenza, dove ci sono */
+const fieldLabel = (k) => ({ work: tr("if.work"), part: tr("pf.part"), p0: tr("if.p0"), p1: tr("if.p1"), length: tr("if.length"), vol: tr("pf.vol"), blend: tr("if.blend"),
+  bridge: tr("if.bridge"), hMax: tr("if.bridgeH"), section: tr("if.section"), ref: tr("if.ref"), b: tr("if.b"), h: tr("if.h"), m: tr("if.m"), t: tr("if.t"),
+  berm: tr("if.berm"), cutSlope: tr("if.cutSlope"), fillSlope: tr("if.fillSlope"), B: tr("if.B"), H: tr("if.H"), tw: tr("if.tw"), ts: tr("pf.ts"), tt: tr("if.tt"),
+  coverB: tr("if.coverB"), mW: tr("if.mW"), ch: tr("if.ch"), tm: tr("if.tm"), backSlope: tr("if.backSlope"), hw: tr("if.hw"), key: tr("if.key"), drop: tr("if.drop"),
+  pipeMat: tr("if.pipeMat"), norm: tr("if.norm"), dn: tr("pf.dn"), De: tr("if.De"), s: tr("pf.s"), Di: tr("if.Di"), width: tr("pf.width"), bedT: tr("if.bed"),
+  coverT: tr("if.cover"), restoreT: tr("if.restore"), wallsV: tr("if.wallsV"), wallsS: tr("if.wallsS"), shore: tr("sx.pShore"), embLen: tr("if.embLen") })[k] || k;
+const kindLabel = (k) => ({ lining: tr("pk.lining"), channel: tr("pk.channel"), box: tr("pk.box"), pipe: tr("pk.pipe"), cut: tr("pk.cut"), fill: tr("pk.fill"), emb: tr("pk.emb"),
+  backfill: tr("pk.backfill"), mix: tr("pk.mix"), lean: tr("pk.lean"), bed: tr("pk.bed"), surround: tr("pk.surround"), cover: tr("pk.cover"), pfill: tr("pk.pfill"),
+  restore: tr("pk.restore"), bridge: tr("pk.bridge"), void: tr("pk.void") })[k] || k;
+const groupLabel = (g) => ({ work: tr("pg.work"), earth: tr("pg.earth"), bridge: tr("pg.bridge") })[g] || g;
+const warnText = (c) => ({ noName: tr("pw.noName"), stdPrefix: tr("pw.stdPrefix"), noKinds: tr("pw.noKinds"), dupSet: tr("pw.dupSet"), dupProp: tr("pw.dupProp"), noKey: tr("pw.noKey"), badConst: tr("pw.badConst") })[c] || c;
+const psetTpl = () => S.pset || IO.psetDefault(ifcLabels());
+/* per ifcDitch: il modello risolto col modulo sui campi di ogni oggetto, scritto con writeStep */
+function psetJob() {
+  const tpl = psetTpl();
+  return { resolve: (k, f) => PSET.resolve(tpl, k, { field: (x) => f[x] }), write: PSET.writeStep };
+}
+/* i tipi di oggetto che un tratto scrive (le stesse soglie di ifcDitch) */
+function partKinds(p) {
+  const t = p.section.type, v = p.vol || {}, has = (k) => v[k] > 0.01, out = [];
+  if (p.bridge) { out.push("bridge"); if (has("void")) out.push("void"); }
+  if (t === "pipe") out.push("pipe", ...["bed", "surround", "cover"].filter(has), ...(has("fill") ? ["pfill"] : []), ...["restore", "emb", "cut"].filter(has));
+  else if (t === "channel" || t === "box") out.push(t, ...(p.mesh && p.mesh.lean && p.mesh.lean.index.length ? ["lean"] : []), ...["mix", "cut"].filter(has), ...(has("fill") ? ["backfill"] : []));
+  else out.push("lining", ...["cut", "fill"].filter(has));
+  return out;
+}
+/* anteprima sull'opera attiva: i Pset di ogni oggetto del tratto scelto */
+function psetPreview(tpl) {
+  const parts = S.active >= 0 && D.parts ? D.parts.filter((p) => !p.gone) : [];
+  if (!parts.length) return `<p class="empty">${esc(tr("ps.noPrev"))}</p>`;
+  const i = Math.min(S.psPart || 0, parts.length - 1), lb = ifcLabels(), w = { name: W.name, section: secOut(W.stype, W[W.stype]) };
+  const p = partOut(W, D, parts[i]);
+  let h = `<div class="row"><label for="psPart">${esc(tr("ps.prevPart"))}</label><select id="psPart" class="txt">${parts.map((x, j) => `<option value="${j}"${j === i ? " selected" : ""}>${esc(partOut(W, D, x).name)} · ${prog(x.p0)} – ${prog(x.p1)}</option>`).join("")}</select></div>`;
+  let any = false;
+  for (const k of partKinds(p)) {
+    const f = IO.psetFields(k, w, k === "bridge" ? p.bridge : p, lb), sets = PSET.resolve(tpl, k, { field: (x) => f[x] });
+    for (const set of sets) {
+      any = true;
+      h += kv(kindLabel(k), esc(set.name), "psh");
+      for (const q of set.props) h += kv("· " + q.name, esc(typeof q.value === "number" ? nf(q.value, q.type === "int" ? 0 : 3) : q.type === "bool" ? (q.value ? tr("ps.yes") : tr("ps.no")) : q.value));
+    }
+  }
+  return h + (any ? "" : `<p class="empty">${esc(tr("ps.none"))}</p>`);
+}
+const psOpt = (v, label, cur) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(label)}</option>`;
+function renderPset() {
+  const b = $("psBody");
+  if (!b) return;
+  const tpl = psetTpl(), W8 = PSET.warnings(tpl, { fields: IO.PSET_FIELDS.map((f) => f.key) });
+  $("psCnt").textContent = tpl.sets.length ? String(tpl.sets.length) : "";
+  let h = `<p class="help">${esc(tr("ps.help"))}</p>`;
+  if (!S.pset) h += `<p class="note">${esc(tr("ps.isDefault"))}</p>`;
+  tpl.sets.forEach((set, i) => {
+    const fields = IO.PSET_FIELDS.filter((f) => !set.kinds.length || f.kinds.some((k) => set.kinds.includes(k)));
+    const nw = W8.filter((x) => x.set === i).length, kl = set.kinds.map(kindLabel).join(", ");
+    h += `<details class="pscard" data-psc="${i}"${S.psOpen.has(i) ? " open" : ""}><summary><b>${esc(set.name || "—")}</b><span>${esc(kl || tr("pw.noKinds"))}</span>`
+      + `<span>${esc(tr("ps.nProps", { n: set.props.length }))}${nw ? ` · <span class="w">${esc(tr("ps.nWarn", { n: nw }))}</span>` : ""}</span></summary>`;
+    h += `<div class="row"><label for="psN${i}">${esc(tr("ps.name"))}</label><input id="psN${i}" class="txt" data-ps="name:${i}" value="${esc(set.name)}" spellcheck="false"></div>`;
+    h += `<div class="sub">${esc(tr("ps.kinds"))}</div><div class="pskinds">`;
+    for (const [g, ks] of Object.entries(IO.PSET_GROUPS)) {
+      h += `<div class="psg">${esc(groupLabel(g))}</div>`;
+      for (const k of ks) h += `<label class="check"><input type="checkbox" data-ps="kind:${i}:${k}"${set.kinds.includes(k) ? " checked" : ""}> ${esc(kindLabel(k))}</label>`;
+    }
+    h += `</div>`;
+    for (const x of W8.filter((x) => x.set === i && x.prop < 0)) h += `<p class="note warn">${esc(warnText(x.code))}</p>`;
+    h += `<div class="pstab">`;
+    set.props.forEach((p, j) => {
+      const key = p.src === "const" ? `<input class="txt pk" data-ps="p:${i}:${j}:key" value="${esc(p.key)}" placeholder="${esc(tr("ps.constPh"))}" aria-label="${esc(tr("ps.key"))}" spellcheck="false">`
+        : `<select class="txt pk" data-ps="p:${i}:${j}:key" aria-label="${esc(tr("ps.key"))}">${psOpt("", "—", p.key)}${fields.map((f) => psOpt(f.key, fieldLabel(f.key), p.key)).join("")}</select>`;
+      h += `<div class="psrow"><input class="txt pn" data-ps="p:${i}:${j}:name" value="${esc(p.name)}" aria-label="${esc(tr("ps.prop"))}" spellcheck="false">`;
+      h += `<select class="txt ps" data-ps="p:${i}:${j}:src" aria-label="${esc(tr("ps.src"))}">${psOpt("field", tr("ps.sField"), p.src)}${psOpt("const", tr("ps.sConst"), p.src)}</select>${key}`;
+      h += `<select class="txt pt" data-ps="p:${i}:${j}:type" aria-label="${esc(tr("ps.type"))}">${Object.keys(PSET.TYPES).map((t) => psOpt(t, IFCT[t] || t, p.type)).join("")}</select>`;
+      h += `<button class="btn-sm pd" data-psa="delp:${i}:${j}" title="${esc(tr("ps.delP"))}" aria-label="${esc(tr("ps.delP"))}">×</button></div>`;
+      for (const x of W8.filter((x) => x.set === i && x.prop === j)) h += `<p class="note warn">${esc(warnText(x.code))}</p>`;
+    });
+    h += `</div><div class="btns"><button class="btn-sm" data-psa="addp:${i}">${esc(tr("ps.addP"))}</button><button class="btn-sm" data-psa="dels:${i}">${esc(tr("ps.delS"))}</button></div></details>`;
+  });
+  h += `<div class="btns"><button class="btn-sm" data-psa="adds">${esc(tr("ps.addS"))}</button><button class="btn-sm" data-psa="export">${esc(tr("ps.export"))}</button><button class="btn-sm" data-psa="import">${esc(tr("ps.import"))}</button>${S.pset ? `<button class="btn-sm" data-psa="reset" title="${esc(tr("ps.resetT"))}">${esc(tr("ps.reset"))}</button>` : ""}</div>`;
+  h += `<div class="sub">${esc(tr("ps.preview"))}</div><div class="psprev">${psetPreview(tpl)}</div>`;
+  b.innerHTML = h;
+  b.querySelectorAll("[data-ps]").forEach((el) => el.addEventListener("change", () => editPset(el.dataset.ps, el.type === "checkbox" ? el.checked : el.value)));
+  b.querySelectorAll("[data-psa]").forEach((el) => el.addEventListener("click", () => editPset(el.dataset.psa, true)));
+  b.querySelectorAll("details[data-psc]").forEach((el) => el.addEventListener("toggle", () => { const i = +el.dataset.psc; if (el.open) S.psOpen.add(i); else S.psOpen.delete(i); }));
+  if ($("psPart")) $("psPart").addEventListener("change", (e) => { S.psPart = Number(e.target.value); renderPset(); });
+}
+/* ogni modifica lavora su una copia; il modello di partenza diventa quello del progetto */
+function editPset(cmd, v) {
+  if (cmd === "export") { download(fileBase() + ".pset.json", PSET.toJSON(psetTpl(), { tool: "profile-sweep", toolVersion: TOOL_VERSION }), "application/json"); return; }
+  if (cmd === "import") { $("psIn").click(); return; }
+  if (cmd === "reset") { S.pset = null; S.psOpen.clear(); afterPset(); return; }
+  const tpl = JSON.parse(JSON.stringify(psetTpl())), a = cmd.split(":"), i = +a[1], set = tpl.sets[i];
+  if (a[0] === "name" && set) {
+    if (!String(v).trim()) { toast(tr("ps.noEmpty"), true); renderPset(); return; }
+    set.name = String(v);
+  } else if (a[0] === "kind" && set) set.kinds = v ? IO.PSET_KINDS.filter((k) => k === a[2] || set.kinds.includes(k)) : set.kinds.filter((k) => k !== a[2]);
+  else if (a[0] === "p" && set && set.props[+a[2]]) {
+    const p = set.props[+a[2]], f = a[3];
+    if (f === "name" && !String(v).trim()) { toast(tr("ps.noEmpty"), true); renderPset(); return; }
+    if (f === "src") { p.src = v; p.key = ""; }
+    else if (f === "key") {
+      p.key = String(v);
+      const F = p.src === "field" && IO.PSET_FIELDS.find((x) => x.key === v);
+      if (F) { p.type = F.type; if (p.name.startsWith(tr("ps.newP") + " ")) p.name = fieldLabel(v); }   // proprietà nuova: prende il nome del campo
+    } else p[f] = String(v);
+  }
+  else if (a[0] === "addp" && set) set.props.push({ name: tr("ps.newP") + " " + (set.props.length + 1), src: "field", key: "", type: "label" });
+  else if (a[0] === "delp" && set) set.props.splice(+a[2], 1);
+  else if (a[0] === "dels" && set) { tpl.sets.splice(i, 1); S.psOpen.clear(); }
+  else if (cmd === "adds") S.psOpen.add(tpl.sets.push({ name: "ViewIFC_" + tr("ps.newS"), kinds: ["lining", "channel", "box", "pipe"], props: [] }) - 1);
+  else return;
+  S.pset = PSET.normalize(tpl);
+  afterPset();
+}
+function afterPset() { renderPset(); scheduleSave(); }
+$("psIn").addEventListener("change", async (e) => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  let tpl;
+  try { tpl = PSET.fromJSON(await f.text()); } catch (err) { toast(tr("ps.badFile", { f: f.name }), true); return; }
+  // un modello dell'altro strumento (palo, portale…): i suoi tipi di oggetto qui non ci sono e si tolgono
+  const gone = [...new Set(tpl.sets.flatMap((s) => s.kinds.filter((k) => !IO.PSET_KINDS.includes(k))))];
+  for (const s of tpl.sets) s.kinds = s.kinds.filter((k) => IO.PSET_KINDS.includes(k));
+  S.pset = tpl; S.psOpen.clear(); afterPset();
+  toast(gone.length ? tr("ps.importedX", { n: tpl.sets.length, f: f.name, k: gone.join(", ") }) : tr("ps.imported", { n: tpl.sets.length, f: f.name }));
+});
 /* Rhino .3dm (0.8): rhino3dm del Terrain Sculptor caricato al primo uso (WASM 2,6 MB, già sul sito);
    le opere accese, col loro asse e un oggetto per tratto e classe, e i DTM accesi nell'albero */
 const RGB3DM = { lining: [178, 178, 170], lean: [217, 218, 207], mix: [168, 157, 134], cut: [194, 149, 96], fill: [111, 154, 58], bed: [217, 196, 138],
@@ -5651,7 +5826,7 @@ function snapshot() {
   return {
     v: 2, name: S.name, active: S.active, seq: S.seq, dtms: S.dtms, hidden: S.hidden,
     dtmRefs: S.dtmRefs, dtmPaths: Object.fromEntries(Object.entries(S.dtmPaths).filter(([k]) => names.has(k))), dtmInFile: S.dtmInFile,
-    ctx: S.ctx, ctxRefs: S.ctxRefs, ctxInFile: S.ctxInFile, tav: S.tav,
+    ctx: S.ctx, ctxRefs: S.ctxRefs, ctxInFile: S.ctxInFile, tav: S.tav, pset: S.pset,
     works: S.works.map((w) => ({ ...w, plan: strip(w.plan), prof: strip(w.prof) })),
     spare: S.spare.map(strip), drawings: [...drawings.values()],
   };
@@ -5687,6 +5862,7 @@ function restore(doc) {
   S.dtmRefs = doc.dtmRefs || []; S.dtmPaths = doc.dtmPaths || {}; S.dtmInFile = doc.dtmInFile !== false;
   S.ctx = doc.ctx || []; S.ctxRefs = doc.ctxRefs || []; S.ctxInFile = doc.ctxInFile !== false;
   S.tav = newTav(doc.tav || {});
+  S.pset = doc.pset ? PSET.normalize(doc.pset) : null;
   S.seq = Math.max(doc.seq || 1, ...S.works.map((w) => w.id + 1), ...S.works.flatMap((w) => w.secs.map((r) => r.id + 1)), ...[...dr.keys()].map((k) => k + 1));
   DW.clear();
   setActive(doc.active || 0);

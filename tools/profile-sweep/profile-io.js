@@ -676,6 +676,128 @@ export function stepReal(x, dec = 6) {
   return s === "-0." ? "0." : s;
 }
 
+/* -------------------------------------------------------------------------
+   Pset configurabili (0.19.0) — col modulo comune tools/common/pset-core.js
+   (lo stesso della Trazione elettrica). profile-io resta SENZA import (lo
+   carica anche la Trazione elettrica per i DWG): qui ci sono solo i tipi di
+   oggetto che ifcDitch scrive, i campi che ognuno ha e il modello di partenza
+   (= il Pset fisso di prima: stesso nome, stesse proprietà, stesso ordine,
+   stessi tipi IFC). La pagina passa job.pset = { resolve(kind, campi) →
+   [{ name, props: [{ name, type, value }] }], write(sets, w, oggetti) } = le
+   funzioni del modulo col modello del progetto; senza, ifcDitch scrive il
+   modello di partenza con psetLocal (stesse righe di writeStep).
+   ------------------------------------------------------------------------- */
+/** i tipi di oggetto, a gruppi per l'editor: opera, terre, ponte */
+export const PSET_GROUPS = {
+  work: ["lining", "channel", "box", "pipe"],
+  earth: ["cut", "fill", "emb", "backfill", "mix", "lean", "bed", "surround", "cover", "pfill", "restore"],
+  bridge: ["bridge", "void"],
+};
+export const PSET_KINDS = Object.values(PSET_GROUPS).flat();
+const PK_PART = PSET_KINDS.filter((k) => k !== "bridge");                // gli oggetti di un tratto (lo spazio del ponte compreso)
+const PK_WORK = PSET_GROUPS.work, PK_CH = ["channel", "box"];
+/** i campi che un modello può usare: tipi di oggetto che li hanno e tipo IFC proposto */
+export const PSET_FIELDS = [
+  { key: "work", kinds: PSET_KINDS, type: "label" }, { key: "part", kinds: PK_PART, type: "label" },
+  { key: "p0", kinds: PSET_KINDS, type: "length" }, { key: "p1", kinds: PSET_KINDS, type: "length" }, { key: "length", kinds: PSET_KINDS, type: "length" },
+  { key: "vol", kinds: PK_PART, type: "volume" }, { key: "blend", kinds: PK_PART.filter((k) => k !== "void"), type: "label" },
+  { key: "bridge", kinds: PK_PART, type: "label" }, { key: "hMax", kinds: ["bridge"], type: "length" },
+  { key: "section", kinds: PK_WORK, type: "label" }, { key: "ref", kinds: [...PK_CH, "pipe"], type: "label" },
+  { key: "b", kinds: ["lining"], type: "length" }, { key: "h", kinds: ["lining"], type: "length" }, { key: "m", kinds: ["lining"], type: "ratio" }, { key: "t", kinds: ["lining"], type: "length" },
+  { key: "berm", kinds: ["lining", ...PK_CH, "emb"], type: "length" }, { key: "cutSlope", kinds: ["lining", ...PK_CH], type: "ratio" }, { key: "fillSlope", kinds: ["lining", "emb"], type: "ratio" },
+  { key: "B", kinds: PK_CH, type: "length" }, { key: "H", kinds: PK_CH, type: "length" }, { key: "tw", kinds: PK_CH, type: "length" }, { key: "ts", kinds: PK_CH, type: "length" },
+  { key: "tt", kinds: ["box"], type: "length" }, { key: "coverB", kinds: ["box"], type: "length" }, { key: "mW", kinds: PK_CH, type: "ratio" }, { key: "ch", kinds: PK_CH, type: "length" },
+  { key: "tm", kinds: PK_CH, type: "length" }, { key: "backSlope", kinds: PK_CH, type: "ratio" }, { key: "hw", kinds: PK_CH, type: "length" }, { key: "key", kinds: PK_CH, type: "length" },
+  { key: "drop", kinds: PK_CH, type: "length" },
+  { key: "pipeMat", kinds: ["pipe"], type: "label" }, { key: "norm", kinds: ["pipe"], type: "label" }, { key: "dn", kinds: ["pipe"], type: "label" },
+  { key: "De", kinds: ["pipe"], type: "length" }, { key: "s", kinds: ["pipe"], type: "length" }, { key: "Di", kinds: ["pipe"], type: "length" },
+  { key: "width", kinds: ["cut"], type: "length" }, { key: "bedT", kinds: ["cut"], type: "length" }, { key: "coverT", kinds: ["cut"], type: "length" }, { key: "restoreT", kinds: ["cut"], type: "length" },
+  { key: "wallsV", kinds: ["cut"], type: "length" }, { key: "wallsS", kinds: ["cut"], type: "length" }, { key: "shore", kinds: ["cut"], type: "area" },
+  { key: "embLen", kinds: ["emb"], type: "length" },
+];
+/** il volume di ogni oggetto del tratto (chiave in part.vol) */
+const PSET_VOL = { lining: "lining", channel: "lining", box: "lining", pipe: "pipe", cut: "cut", fill: "fill", emb: "emb", backfill: "fill", mix: "mix", lean: "lean",
+  bed: "bed", surround: "surround", cover: "cover", pfill: "fill", restore: "restore", void: "void" };
+/**
+ * I valori dei campi di un oggetto: kind (PSET_KINDS), w = opera ({ name, section }), part = il tratto come lo
+ * riceve ifcDitch (nome senza l'opera davanti) o, per kind «bridge», il ponte ({ p0, p1, length, hMax }).
+ * I valori che il Pset fisso scriveva sempre ci sono sempre (0 se mancano), quelli facoltativi solo se servono.
+ */
+export function psetFields(kind, w, part, lb = {}) {
+  const fin = (x) => (Number.isFinite(x) ? x : 0);
+  if (kind === "bridge") return { work: w.name || "", p0: fin(part.p0), p1: fin(part.p1), length: fin(part.length), hMax: Number.isFinite(part.hMax) ? part.hMax : null };
+  const sec = part.section || w.section || {}, vol = part.vol || {};
+  const f = { work: w.name || "", part: part.name || "", p0: fin(part.p0), p1: fin(part.p1), length: fin(part.length), vol: fin(vol[PSET_VOL[kind]]),
+    blend: part.blendNote || null, bridge: part.bridge ? part.bridge.name || "" : null };
+  if (kind === "void") return f;
+  if (kind === "lining") {
+    Object.assign(f, { section: lb.sectionName || "Fosso trapezio", b: fin(sec.b), h: fin(sec.h), m: fin(sec.m), t: fin(sec.t), berm: fin(sec.berm), cutSlope: fin(sec.cut), fillSlope: fin(sec.fill) });
+  } else if (kind === "channel" || kind === "box") {
+    const box = kind === "box", m = sec.m || 0, ch = sec.ch || 0;
+    Object.assign(f, { section: box ? lb.boxName || "Scatolare" : lb.channelName || "Canale a U", B: fin(sec.B), H: fin(sec.H), tw: fin(sec.tw), ts: fin(sec.ts),
+      tt: box ? sec.tt || 0 : null, coverB: box ? sec.cover || 0 : null, mW: m > 0 ? m : null, ch: ch > 0 ? ch : null, tm: fin(sec.tm), berm: fin(sec.berm),
+      cutSlope: fin(sec.cut), backSlope: fin(sec.fill), hw: fin(sec.hw), key: fin(sec.key),
+      ref: sec.ref === "top" ? (box ? lb.refTopB || "Estradosso della soletta" : lb.refTop || "Cielo") : sec.ref === "base" ? lb.refBase || "Piano di posa" : lb.refInvert || "Fondo interno",
+      drop: part.drops && part.drops.length ? fin(part.drops[0].dz) : null });
+  } else if (kind === "pipe") {
+    Object.assign(f, { section: lb.pipeName || "Tubo circolare", pipeMat: sec.matName || sec.mat || "", norm: sec.norm || null, dn: String(sec.dn), De: fin(sec.De), s: fin(sec.s), Di: fin(sec.De - 2 * sec.s),
+      ref: sec.ref === "axis" ? lb.refAxis || "Asse del tubo" : sec.ref === "bottom" ? lb.refBottom || "Generatrice inferiore esterna" : sec.ref === "trench" ? lb.refTrench || "Fondo scavo" : lb.refInvert || "Fondo interno" });
+  } else if (kind === "cut" && sec.type === "pipe") {                     // scavo a trincea del tubo
+    Object.assign(f, { width: fin(part.width), bedT: sec.bed != null ? sec.bed : 0.1 + sec.dn / 10000, coverT: fin(sec.cover), restoreT: sec.restore > 0 ? sec.restore : null,
+      wallsV: part.walls ? fin(part.walls.vertical) : 0, wallsS: part.walls ? fin(part.walls.slope) : 0, shore: fin(part.shore) });
+  } else if (kind === "emb") {
+    Object.assign(f, { berm: sec.berm != null ? sec.berm : 0.5, fillSlope: sec.bank || 1.5, embLen: (part.bank || []).reduce((a, r) => a + r.p1 - r.p0, 0) });
+  }
+  return f;
+}
+/** il modello di partenza = il Pset fisso di prima (nomi delle proprietà nella lingua della pagina, da lb) */
+export function psetDefault(lb = {}) {
+  const P = (key, name) => ({ name, src: "field", key, type: PSET_FIELDS.find((x) => x.key === key).type });
+  const work = P("work", lb.work || "Opera"), p0 = P("p0", lb.p0 || "Progressiva iniziale"), p1 = P("p1", lb.p1 || "Progressiva finale"), len = P("length", lb.length || "Lunghezza");
+  const common = [work, p0, p1, len, P("blend", lb.blend || "Raccordo")];
+  const ch = (box) => [...common, P("section", lb.section || "Sezione"), P("B", lb.B || "Larghezza interna"), P("H", lb.H || "Altezza interna"), P("tw", lb.tw || "Spessore pareti"),
+    box ? P("ts", lb.tsB || "Spessore platea") : P("ts", lb.ts || "Spessore soletta"), ...(box ? [P("tt", lb.tt || "Spessore soletta superiore"), P("coverB", lb.coverB || "Ricoprimento minimo")] : []),
+    P("mW", lb.mW || "Scarpa delle pareti"), P("ch", lb.ch || "Smussi"), P("tm", lb.tm || "Spessore magrone"), P("berm", lb.berm || "Banchina"),
+    P("cutSlope", lb.cutSlope || "Scarpa in sterro"), P("backSlope", lb.backSlope || "Scarpa del rinterro"), P("hw", lb.hw || "Muro di testa"), P("key", lb.key || "Dente"),
+    P("ref", lb.ref || "Linea del profilo"), P("drop", lb.drop || "Salto"), P("vol", lb.volume || "Volume calcestruzzo")];
+  const name = lb.pset || "ViewIFC_SviluppoProfili";
+  return { v: 1, sets: [
+    { name, kinds: ["lining"], props: [...common, P("section", lb.section || "Sezione"), P("b", lb.b || "Fondo"), P("h", lb.h || "Altezza"), P("m", lb.m || "Scarpa sponde"),
+      P("t", lb.t || "Spessore rivestimento"), P("berm", lb.berm || "Banchina"), P("cutSlope", lb.cutSlope || "Scarpa in sterro"), P("fillSlope", lb.fillSlope || "Scarpa in riporto")] },
+    { name, kinds: ["channel"], props: ch(false) },
+    { name, kinds: ["box"], props: ch(true) },
+    { name, kinds: ["pipe"], props: [...common, P("section", lb.section || "Sezione"), P("pipeMat", lb.pipeMat || "Materiale"), P("norm", lb.norm || "Norma"), P("dn", lb.dn || "DN"),
+      P("De", lb.De || "Diametro esterno"), P("s", lb.s || "Spessore"), P("Di", lb.Di || "Diametro interno"), P("ref", lb.ref || "Linea del profilo")] },
+    { name, kinds: ["cut"], props: [...common, P("width", lb.width || "Larghezza al fondo"), P("bedT", lb.bed || "Letto di posa"), P("coverT", lb.cover || "Ricoprimento sopra l'estradosso"),
+      P("restoreT", lb.restore || "Ripristino"), P("wallsV", lb.wallsV || "Pareti verticali"), P("wallsS", lb.wallsS || "Pareti a scarpa"), P("shore", lb.shore || "Pareti da blindare")] },
+    { name, kinds: ["emb"], props: [...common, P("berm", lb.berm || "Banchina"), P("fillSlope", lb.fillSlope || "Scarpa in riporto"), P("embLen", lb.embLen || "Lunghezza in rilevato")] },
+    { name, kinds: ["fill", "backfill", "mix", "lean", "bed", "surround", "cover", "pfill", "restore"], props: common },
+    { name, kinds: ["bridge"], props: [work, p0, p1, len, P("hMax", lb.bridgeH || "Altezza massima sul terreno")] },
+    { name, kinds: ["void"], props: [work, P("bridge", lb.bridge || "Ponte"), p0, p1, len] },
+  ] };
+}
+/* senza il modulo (Node, chiamanti vecchi): il modello di partenza risolto e scritto come pset-core
+   (resolve + writeStep: proprietà vuote saltate, stesse righe) — solo campi, solo i tipi che usa */
+const PSET_IFC = { label: "IFCLABEL", length: "IFCLENGTHMEASURE", area: "IFCAREAMEASURE", volume: "IFCVOLUMEMEASURE", ratio: "IFCPOSITIVERATIOMEASURE" };
+const psetLocal = {
+  resolve(tpl, kind, f) {
+    const out = [];
+    for (const s of tpl.sets) {
+      if (!s.kinds.includes(kind)) continue;
+      const props = s.props.map((p) => ({ name: p.name, type: p.type, value: f[p.key] })).filter((p) => (typeof p.value === "number" ? Number.isFinite(p.value) : p.value != null && String(p.value).trim() !== ""));
+      if (props.length) out.push({ name: s.name, props });
+    }
+    return out;
+  },
+  write(sets, w, targets) {
+    for (const s of sets) {
+      const ps = s.props.map((p) => w.e(`IFCPROPERTYSINGLEVALUE(${w.S(p.name)},$,${PSET_IFC[p.type]}(${typeof p.value === "number" ? w.R(p.value, 6) : w.S(String(p.value).trim())}),$)`));
+      const ref = w.e(`IFCPROPERTYSET(${w.G()},${w.oh},${w.S(s.name)},$,(${ps.join(",")}))`);
+      w.e(`IFCRELDEFINESBYPROPERTIES(${w.G()},${w.oh},$,$,(${targets.join(",")}),${ref})`);
+    }
+  },
+};
+
 /**
  * job = {
  *   name (progetto), origin: { x, y } (E, N dell'IfcSite),
@@ -689,6 +811,8 @@ export function stepReal(x, dec = 6) {
  *                       riservato sotto l'opera → IfcBridge col tratto dentro e un IfcBuildingElementProxy .PROVISIONFORSPACE.) }] }]
  *     — oppure un'opera sola coi campi axis, pvi, section, parts direttamente nel job (nome = name);
  *   labels: { … nomi dei pset/proprietà nella lingua della pagina },
+ *   pset?: { resolve(kind, campi), write(sets, w, oggetti) } (0.19.0: il modello Pset del progetto col modulo
+ *     comune; senza = il modello di partenza psetDefault(labels), lo stesso Pset fisso di prima),
  *   app: { name, version }, date (Date), guid?: () => stringa (test)
  * } → testo STEP. Un IFC unico per tutte le opere (scelta dell'utente): un
  * IfcAlignment per opera, i tratti col nome dell'opera davanti e la proprietà
@@ -811,15 +935,15 @@ export function ifcDitch(job) {
     e(`IFCSTYLEDITEM(${item},(${st}),$)`);
     return e(`IFCPRODUCTDEFINITIONSHAPE($,$,(${e(`IFCSHAPEREPRESENTATION(${body},'Body','Tessellation',(${item}))`)}))`);
   };
-  const props = (target, name, list) => {
-    const ps = list.map(([n, v]) => e(`IFCPROPERTYSINGLEVALUE(${S(n)},$,${v},$)`));
-    e(`IFCRELDEFINESBYPROPERTIES(${G()},${oh},$,$,(${target}),${e(`IFCPROPERTYSET(${G()},${oh},${S(name)},$,(${ps.join(",")}))`)})`);
-  };
+  // Pset (0.19.0): il modello del progetto dalla pagina (job.pset, modulo comune) o quello di partenza;
+  // i numeri al decimo di millimetro come prima
+  const PT = job.pset || (() => { const tpl = psetDefault(lb); return { resolve: (k, f) => psetLocal.resolve(tpl, k, f), write: psetLocal.write }; })();
+  const psw = { e, G, S, R: (x) => R(x, 4), oh };
+  const pset = (target, kind, w, part) => PT.write(PT.resolve(kind, psetFields(kind, w, part, lb)), psw, [target]);
   const qto = (target, name, list) => {
     const qs = list.map(([t, n, v]) => e(`${t}(${S(n)},$,$,${R(v, 4)},$)`));
     e(`IFCRELDEFINESBYPROPERTIES(${G()},${oh},$,$,(${target}),${e(`IFCELEMENTQUANTITY(${G()},${oh},${S(name)},$,$,(${qs.join(",")}))`)})`);
   };
-  const len = (v) => `IFCLENGTHMEASURE(${R(v, 4)})`, rat = (v) => `IFCPOSITIVERATIOMEASURE(${R(v, 4)})`;
   const courses = [], pipes = [], slabs = [], mixes = [], backs = [];
   // tubo in trincea: colore e materiale del tubo per catalogo, uno stile per strato (creati solo se servono)
   const pipeMats = [], layerMats = {}, styles = {};
@@ -828,15 +952,13 @@ export function ifcDitch(job) {
   const LAYER_RGB = { bed: [0.86, 0.8, 0.6], surround: [0.9, 0.85, 0.68], cover: [0.82, 0.76, 0.58], fill: [0.78, 0.68, 0.48], restore: [0.3, 0.3, 0.3] };
   const pipeStyle = (mat) => once("pipe:" + mat, () => style(PIPE_RGB[mat] || [0.6, 0.6, 0.6], lb.pipe || "tubo"));
   const layerStyle = (k) => once("layer:" + k, () => style(LAYER_RGB[k], k, k === "restore" ? 0 : 0.4));
-  const psName = lb.pset || "ViewIFC_SviluppoProfili";
   const bridges = new Map();
   const bridgeOf = (w, part) => {
     const key = (w.name || "") + "\u0000" + part.bridge.id;
     if (!bridges.has(key)) {
       const br = part.bridge, name = (w.name ? w.name + " - " : "") + (br.name || lb.bridge || "Ponte");
       const ent = e(`IFCBRIDGE(${G()},${oh},${S(name)},${S(lb.bridgeNote || "Da progettare: segnaposto")},$,${here()},$,$,.ELEMENT.,.NOTDEFINED.)`);
-      props(ent, psName, [[lb.work || "Opera", `IFCLABEL(${S(w.name || "")})`], [lb.p0 || "Progressiva iniziale", len(br.p0)], [lb.p1 || "Progressiva finale", len(br.p1)],
-        [lb.length || "Lunghezza", len(br.length)], ...(Number.isFinite(br.hMax) ? [[lb.bridgeH || "Altezza massima sul terreno", len(br.hMax)]] : [])]);
+      pset(ent, "bridge", w, br);
       bridges.set(key, { ent, list: [] });
     }
     return bridges.get(key);
@@ -847,50 +969,41 @@ export function ifcDitch(job) {
     if (part.bridge && part.mesh.void && part.mesh.void.index.length) {      // lo spazio riservato al ponte (0.15)
       const v = e(`IFCBUILDINGELEMENTPROXY(${G()},${oh},${S(part.name + " - " + (lb.bridgeSpace || "spazio riservato al ponte"))},$,${S(lb.bridgeSpaceType || "Spazio riservato al ponte")},${here()},${shape(part.mesh.void, once("void", () => style([0.45, 0.66, 0.9], lb.bridgeSpace || "spazio riservato al ponte", 0.6)))},$,.PROVISIONFORSPACE.)`);
       put(v);
-      props(v, psName, [[lb.work || "Opera", `IFCLABEL(${S(w.name || "")})`], [lb.bridge || "Ponte", `IFCLABEL(${S(part.bridge.name || "")})`], [lb.p0 || "Progressiva iniziale", len(part.p0)], [lb.p1 || "Progressiva finale", len(part.p1)], [lb.length || "Lunghezza", len(part.length)]]);
+      pset(v, "void", w, part0);
       qto(v, "Qto_BuildingElementProxyQuantities", [["IFCQUANTITYVOLUME", "NetVolume", part.vol.void || 0]]);
     }
-    const common = [[lb.work || "Opera", `IFCLABEL(${S(w.name || "")})`], [lb.p0 || "Progressiva iniziale", len(part.p0)], [lb.p1 || "Progressiva finale", len(part.p1)], [lb.length || "Lunghezza", len(part.length)],
-      ...(part.blendNote ? [[lb.blend || "Raccordo", `IFCLABEL(${S(part.blendNote)})`]] : [])];
+    const ps = (target, kind) => pset(target, kind, w, part0);
     if (sec.type === "pipe") {
       // tubo in trincea: IfcPipeSegment rigido, strati IfcEarthworksFill, ripristino IfcCourse, scavo a trincea
-      const refName = sec.ref === "axis" ? lb.refAxis || "Asse del tubo" : sec.ref === "bottom" ? lb.refBottom || "Generatrice inferiore esterna" : sec.ref === "trench" ? lb.refTrench || "Fondo scavo" : lb.refInvert || "Fondo interno";
-      const Di = sec.De - 2 * sec.s, bed = sec.bed != null ? sec.bed : 0.1 + sec.dn / 10000;
-      const pipeProps = [[lb.section || "Sezione", `IFCLABEL(${S(lb.pipeName || "Tubo circolare")})`], [lb.pipeMat || "Materiale", `IFCLABEL(${S(sec.matName || sec.mat || "")})`],
-        ...(sec.norm ? [[lb.norm || "Norma", `IFCLABEL(${S(sec.norm)})`]] : []), [lb.dn || "DN", `IFCLABEL(${S(String(sec.dn))})`],
-        [lb.De || "Diametro esterno", len(sec.De)], [lb.s || "Spessore", len(sec.s)], [lb.Di || "Diametro interno", len(Di)], [lb.ref || "Linea del profilo", `IFCLABEL(${S(refName)})`]];
-      const trench = [[lb.width || "Larghezza al fondo", len(part.width)], [lb.bed || "Letto di posa", len(bed)], [lb.cover || "Ricoprimento sopra l'estradosso", len(sec.cover)],
-        ...(sec.restore > 0 ? [[lb.restore || "Ripristino", len(sec.restore)]] : [])];
+      const Di = sec.De - 2 * sec.s;
       const p = e(`IFCPIPESEGMENT(${G()},${oh},${S(part.name + " - " + (lb.pipe || "tubo"))},$,$,${here()},${shape(part.mesh.pipe, pipeStyle(sec.mat))},$,.RIGIDSEGMENT.)`);
       put(p); pipeMats.push([p, sec]);
-      props(p, psName, [...common, ...pipeProps]);
+      ps(p, "pipe");
       qto(p, "Qto_PipeSegmentBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYAREA", "GrossCrossSectionArea", Math.PI * sec.De ** 2 / 4], ["IFCQUANTITYAREA", "NetCrossSectionArea", Math.PI * (sec.De ** 2 - Di ** 2) / 4]]);
       for (const [key, name, mname] of [["bed", lb.bedL || "letto di posa", lb.bedMat || "Materiale del letto di posa"], ["surround", lb.surround || "rinfianco", lb.surroundMat || "Materiale di rinfianco"],
         ["cover", lb.coverL || "ricoprimento", lb.coverMat || "Materiale di ricoprimento"], ["fill", lb.backfill || "reinterro", lb.fillMat || "Materiale di reinterro"]]) {
         if (!(part.vol[key] > 0.01) || !part.mesh[key] || !part.mesh[key].index.length) continue;
         const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + name)},$,$,${here()},${shape(part.mesh[key], layerStyle(key))},$,.BACKFILL.)`);
         put(f); (layerMats[mname] ||= []).push(f);
-        props(f, psName, common);
+        ps(f, key === "fill" ? "pfill" : key);
         qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "CompactedVolume", part.vol[key]]]);
       }
       if (part.vol.restore > 0.01 && part.mesh.restore && part.mesh.restore.index.length) {
         const c = e(`IFCCOURSE(${G()},${oh},${S(part.name + " - " + (lb.restoreL || "ripristino"))},$,$,${here()},${shape(part.mesh.restore, layerStyle("restore"))},$,.PAVEMENT.)`);
         put(c);
-        props(c, psName, common);
+        ps(c, "restore");
         qto(c, "Qto_CourseBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYLENGTH", "Thickness", sec.restore], ["IFCQUANTITYVOLUME", "Volume", part.vol.restore]]);
       }
       if (part.vol.emb > 0.01 && part.mesh.emb && part.mesh.emb.index.length) {      // rilevato di protezione dove il tubo esce dal terreno (0.7.1)
         const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + (lb.emb || "rilevato"))},$,$,${here()},${shape(part.mesh.emb, stFill)},$,.EMBANKMENT.)`);
         put(f); (layerMats[lb.embMat || "Materiale per rilevato"] ||= []).push(f);
-        const bank = (part.bank || []).reduce((a, r) => a + r.p1 - r.p0, 0);
-        props(f, psName, [...common, [lb.berm || "Banchina", len(sec.berm != null ? sec.berm : 0.5)], [lb.fillSlope || "Scarpa in riporto", rat(sec.bank || 1.5)], [lb.embLen || "Lunghezza in rilevato", len(bank)]]);
+        ps(f, "emb");
         qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "CompactedVolume", part.vol.emb]]);
       }
       if (part.vol.cut > 0.01 && part.mesh.cut.index.length) {
         const k = e(`IFCEARTHWORKSCUT(${G()},${oh},${S(part.name + " - " + (lb.cut || "scavo"))},$,$,${here()},${shape(part.mesh.cut, stCut)},$,.TRENCH.)`);
         e(`IFCRELVOIDSELEMENT(${G()},${oh},$,$,${terrain},${k})`);
-        props(k, psName, [...common, ...trench, [lb.wallsV || "Pareti verticali", len(part.walls ? part.walls.vertical : 0)], [lb.wallsS || "Pareti a scarpa", len(part.walls ? part.walls.slope : 0)],
-          [lb.shore || "Pareti da blindare", `IFCAREAMEASURE(${R(part.shore || 0, 4)})`]]);
+        ps(k, "cut");
         qto(k, "Qto_EarthworksCutBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYLENGTH", "Width", part.width], ["IFCQUANTITYVOLUME", "UndisturbedVolume", part.vol.cut]]);
       }
       continue;
@@ -899,63 +1012,53 @@ export function ifcDitch(job) {
       // canale a U: tubo «gutter» (U + muro di testa), magrone, cuneo, scavo, rinterro; scatolare (0.9): tubo
       // «culvert» (U + soletta + muro di testa), il resto come il canale
       const box = sec.type === "box", m = sec.m || 0, ch = sec.ch || 0, tt = box ? sec.tt || 0 : 0;
-      const refName = sec.ref === "top" ? (box ? lb.refTopB || "Estradosso della soletta" : lb.refTop || "Cielo") : sec.ref === "base" ? lb.refBase || "Piano di posa" : lb.refInvert || "Fondo interno";
-      const secProps = [[lb.section || "Sezione", `IFCLABEL(${S(box ? lb.boxName || "Scatolare" : lb.channelName || "Canale a U")})`], [lb.B || "Larghezza interna", len(sec.B)], [lb.H || "Altezza interna", len(sec.H)],
-        [lb.tw || "Spessore pareti", len(sec.tw)], [box ? lb.tsB || "Spessore platea" : lb.ts || "Spessore soletta", len(sec.ts)],
-        ...(box ? [[lb.tt || "Spessore soletta superiore", len(tt)], [lb.coverB || "Ricoprimento minimo", len(sec.cover || 0)]] : []),
-        ...(m > 0 ? [[lb.mW || "Scarpa delle pareti", rat(m)]] : []), ...(ch > 0 ? [[lb.ch || "Smussi", len(ch)]] : []),
-        [lb.tm || "Spessore magrone", len(sec.tm)], [lb.berm || "Banchina", len(sec.berm)],
-        [lb.cutSlope || "Scarpa in sterro", rat(sec.cut)], [lb.backSlope || "Scarpa del rinterro", rat(sec.fill)], [lb.hw || "Muro di testa", len(sec.hw)], [lb.key || "Dente", len(sec.key)],
-        [lb.ref || "Linea del profilo", `IFCLABEL(${S(refName)})`]];
-      const drops = (part.drops || []).map((d) => [lb.drop || "Salto", len(d.dz)]).slice(0, 1);
       // sezione lorda: trapezio esterno (pareti a scarpa) + soletta; netta = lorda − luce (smussi tolti)
       const off = sec.tw * Math.hypot(1, m), uo = sec.B / 2 - m * sec.ts + off, uoT = sec.B / 2 + m * sec.H + off;
       const gross = (uo + uoT) * (sec.H + sec.ts) + 2 * uoT * tt, water = (sec.B + m * sec.H) * sec.H - ch * ch * (box ? 2 : 1);
       const p = e(`IFCPIPESEGMENT(${G()},${oh},${S(part.name + " - " + (box ? lb.box || "scatolare" : lb.channel || "canale"))},$,$,${here()},${shape(part.mesh.lining, stLin)},$,${box ? ".CULVERT." : ".GUTTER."})`);
       pipes.push(p); put(p);
-      props(p, psName, [...common, ...secProps, ...drops, [lb.volume || "Volume calcestruzzo", `IFCVOLUMEMEASURE(${R(part.vol.lining, 4)})`]]);
+      ps(p, box ? "box" : "channel");
       qto(p, "Qto_PipeSegmentBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYAREA", "GrossCrossSectionArea", gross], ["IFCQUANTITYAREA", "NetCrossSectionArea", gross - water]]);
       if (part.mesh.lean && part.mesh.lean.index.length) {
         const s = e(`IFCSLAB(${G()},${oh},${S(part.name + " - " + (lb.lean || "magrone"))},$,${S(lb.leanType || "Magrone")},${here()},${shape(part.mesh.lean, stLean)},$,.USERDEFINED.)`);
         slabs.push(s); put(s);
-        props(s, psName, common);
+        ps(s, "lean");
         qto(s, "Qto_SlabBaseQuantities", [["IFCQUANTITYLENGTH", "Width", sec.tm], ["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "NetVolume", part.vol.lean]]);
       }
       if (part.vol.mix > 0.01 && part.mesh.mix && part.mesh.mix.index.length) {
         const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + (lb.mix || "misto cementato"))},$,$,${here()},${shape(part.mesh.mix, stMix)},$,.BACKFILL.)`);
         mixes.push(f); put(f);
-        props(f, psName, common);
+        ps(f, "mix");
         qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYVOLUME", "CompactedVolume", part.vol.mix]]);
       }
       if (part.vol.cut > 0.01 && part.mesh.cut.index.length) {
         const k = e(`IFCEARTHWORKSCUT(${G()},${oh},${S(part.name + " - " + (lb.cut || "scavo"))},$,$,${here()},${shape(part.mesh.cut, stCut)},$,.CUT.)`);
         e(`IFCRELVOIDSELEMENT(${G()},${oh},$,$,${terrain},${k})`);
-        props(k, psName, common);
+        ps(k, "cut");
         qto(k, "Qto_EarthworksCutBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "UndisturbedVolume", part.vol.cut]]);
       }
       if (part.vol.fill > 0.01 && part.mesh.fill.index.length) {
         const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + (lb.backfill || "rinterro"))},$,$,${here()},${shape(part.mesh.fill, stBack)},$,.BACKFILL.)`);
         backs.push(f); put(f);
-        props(f, psName, common);
+        ps(f, "backfill");
         qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "CompactedVolume", part.vol.fill]]);
       }
       continue;
     }
-    const secProps = [[lb.section || "Sezione", `IFCLABEL(${S(lb.sectionName || "Fosso trapezio")})`], [lb.b || "Fondo", len(sec.b)], [lb.h || "Altezza", len(sec.h)], [lb.m || "Scarpa sponde", rat(sec.m)], [lb.t || "Spessore rivestimento", len(sec.t)], [lb.berm || "Banchina", len(sec.berm)], [lb.cutSlope || "Scarpa in sterro", rat(sec.cut)], [lb.fillSlope || "Scarpa in riporto", rat(sec.fill)]];
     const c = e(`IFCCOURSE(${G()},${oh},${S(part.name + " - " + (lb.lining || "rivestimento"))},$,$,${here()},${shape(part.mesh.lining, stLin)},$,.PROTECTION.)`);
     courses.push(c); put(c);
-    props(c, psName, [...common, ...secProps]);
+    ps(c, "lining");
     qto(c, "Qto_CourseBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYLENGTH", "Thickness", sec.t], ["IFCQUANTITYVOLUME", "Volume", part.vol.lining]]);
     if (part.vol.cut > 0.01 && part.mesh.cut.index.length) {
       const k = e(`IFCEARTHWORKSCUT(${G()},${oh},${S(part.name + " - " + (lb.cut || "scavo"))},$,$,${here()},${shape(part.mesh.cut, stCut)},$,.CUT.)`);
       e(`IFCRELVOIDSELEMENT(${G()},${oh},$,$,${terrain},${k})`);
-      props(k, psName, common);
+      ps(k, "cut");
       qto(k, "Qto_EarthworksCutBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "UndisturbedVolume", part.vol.cut]]);
     }
     if (part.vol.fill > 0.01 && part.mesh.fill.index.length) {                // sotto i 10 litri non è un riporto
       const f = e(`IFCEARTHWORKSFILL(${G()},${oh},${S(part.name + " - " + (lb.fill || "riporto"))},$,$,${here()},${shape(part.mesh.fill, stFill)},$,.EMBANKMENT.)`);
       put(f);
-      props(f, psName, common);
+      ps(f, "fill");
       qto(f, "Qto_EarthworksFillBaseQuantities", [["IFCQUANTITYLENGTH", "Length", part.length], ["IFCQUANTITYVOLUME", "CompactedVolume", part.vol.fill]]);
     }
   }
