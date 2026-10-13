@@ -9,7 +9,7 @@
    Le coppie di coordinate sono «Nord Est» come vuole la specifica; si
    prova anche l'ordine scambiato e si tiene quello che chiude le giunzioni.
    ========================================================================= */
-import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis } from "./ocs-core.js?v=0.9.0";
+import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis } from "./ocs-core.js?v=0.10.0";
 
 /* ---- XML minimo: elementi, attributi, testo (niente DTD, niente namespace) ---- */
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
@@ -530,14 +530,15 @@ const HDR = [
   ["dr", /^(dr|d r|distanza palo rotaia|distanza palo-rotaia|dr palo|distanza|dr \(mm\)|dr \(m\))$/],
   ["mast", /^(tipo palo|palo|tipo sostegno|tipo|mast|mast type|sostegno tipo)$/],
   ["L", /^(l mensola|lunghezza mensola|mensola|cantilever|l mensola \(mm\)|l mensola \(m\))$/],
-  ["found", /^(tipo blocco|blocco|fondazione|tipo fondazione|plinto|foundation|blocco di fondazione)$/],
+  ["found", /^(tipo blocco|blocco fondazione|blocco|fondazione|tipo fondazione|plinto|foundation|blocco di fondazione)$/],
   ["hw", /^(altezza filo|h filo|hfilo|altezza fdc|altezza filo di contatto|contact wire height|wire height)$/],
   ["stag", /^(poligonazione|stagger|poligonazione \(mm\))$/],
   ["track", /^(binario|track|asse|alignment)$/],
   // dopo «num»: una colonna «N» da sola è il numero; accanto a una colonna Est è il Nord (tableHeader)
-  ["E", /^((coord(inata)?\.? ?)?(e|est|x)( \(m\))?|easting|east)$/],
-  ["N", /^((coord(inata)?\.? ?)?(nord|y)( \(m\))?|coord(inata)?\.? ?n|n \(m\)|northing|north)$/],
+  ["E", /^((coord(inata)?\.? ?)?(e|est|x)( (palo|fusto|sostegno))?( \(m\))?|easting|east)$/],
+  ["N", /^((coord(inata)?\.? ?)?(nord|y)( (palo|fusto|sostegno))?( \(m\))?|coord(inata)?\.? ?n|n \(m\)|northing|north)$/],
 ];
+const PALO_XY = / (palo|fusto|sostegno)( |$)/;
 export function headerKey(h) { const t = hnorm(h); for (const [k, re] of HDR) if (re.test(t)) return k; return null; }
 /* la riga d'intestazione (fra le prime 25) e la proposta di colonne: { row, map: { campo: colonna } } */
 export function tableHeader(rows) {
@@ -553,6 +554,9 @@ export function tableHeader(rows) {
         if (map.num === c) { delete map.num; const o = rows[r].findIndex((h, j) => j !== c && headerKey(h) === "num"); if (o >= 0) map.num = o; }
       }
     }
+    // «Est» ed «Est_palo» insieme (estrazione dal DWG Satferr: inserimento del blocco sull'asse del binario e centro
+    // del palo): valgono le coordinate del palo, quelle che il tool vuole (0.10.0)
+    for (const k of ["E", "N"]) { const c = rows[r].findIndex((h) => headerKey(h) === k && PALO_XY.test(hnorm(h))); if (c >= 0) map[k] = c; }
     const n = Object.keys(map).length;
     if (n > best.n) best = { row: r, n, map };
   }

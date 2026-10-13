@@ -428,6 +428,7 @@ body.scpick #cv{cursor:crosshair}
   <div class="tree-f">
     <button class="btn-sm" id="trOpen" data-i18n="nav.open">Apri assi</button>
     <button class="btn-sm" id="trSave" data-i18n="tr.save" data-i18n-title="tr.saveT" title="Scarica il progetto in un file .ocs, da riaprire qui o su un altro PC (Ctrl+S)">Salva progetto</button>
+    <button class="btn-sm" id="trIfc" data-i18n="ix.btn" data-i18n-title="ix.btnT" title="Scarica un IFC 4x3 con binari (IfcAlignment), sostegni, fondazioni e Pset, nelle coordinate dei binari">Esporta IFC</button>
     <button class="btn-sm" id="trNew" data-i18n="tr.new">Nuovo progetto</button>
   </div>
   <div class="tree-resize" id="treeResize" data-i18n-title="pn.resize" title="Trascina per ridimensionare il pannello · doppio clic: larghezza iniziale"></div>
@@ -581,6 +582,16 @@ const I18N = {
     "t.restored": "Ripreso il lavoro salvato il {d}.", "t.webgl": "Serve WebGL: questo browser non lo offre, o è disattivato.",
     "t.skip": "{f}: tipo di file non riconosciuto (servono .xml/.landxml, .ifc, .dwg/.dxf, .csv/.xlsx o .ocs).", "t.fastOn": "Modalità fast: passo di 10 m.", "t.fastOff": "Passo pieno: 1 m.",
     "t.planOn": "Pianta ortografica: distanze vere, trascina per spostare.", "t.planOff": "Vista 3D.",
+    "ix.btn": "Esporta IFC", "ix.btnT": "Scarica un IFC 4x3 con binari (IfcAlignment), sostegni, fondazioni e Pset, nelle coordinate dei binari",
+    "ix.title": "Esporta IFC 4x3", "ix.lod": "Fusto dei pali", "ix.tracks": "Binari", "ix.nSup": "{n} sostegni", "ix.align": "Assi dei binari (IfcAlignment)",
+    "ix.rails": "Rotaie semplici (IfcRail): di solito no, l'armamento c'è già nel federato", "ix.go": "Esporta",
+    "ix.help": "Coordinate del file = quelle dei binari (niente IfcMapConversion): si federa così com'è. Pali e portali con un placement cartesiano già ruotato sulla tangente; progressiva, lato, DR ed Est/Nord dell'asse del fusto nei Pset del modello del progetto. Tipi uguali (fusto, mensola, piastra, fondazione, trave) disegnati una volta sola.",
+    "ix.none": "Nessun binario scelto.", "ix.busy": "Scrivo l'IFC…", "ix.done": "IFC esportato: {f} — {m} pali, {p} portali, {fo} fondazioni, {a} assi, {t} tipi condivisi, {mb} MB.", "ix.fail": "IFC non esportato: {m}",
+    "ix.fastTitle": "Modalità fast accesa", "ix.fastBody": "Le rotaie si disegnano con una sezione ogni 10 m: in curva sarebbero spezzate. Le esporto al passo pieno? Assi, sostegni e fondazioni non cambiano col passo.",
+    "ix.fastFull": "Passo pieno ed esporta", "ix.fastAsIs": "Esporta così (10 m)",
+    "ifc.site": "Sito", "ifc.railway": "Trazione elettrica", "ifc.mast": "Palo", "ifc.portal": "Portale", "ifc.stem": "Fusto", "ifc.plate": "Piastra", "ifc.mens": "Mensola", "ifc.tie": "Tirante",
+    "ifc.susp": "Sospensione", "ifc.pend": "Pendolo", "ifc.found": "Fondazione", "ifc.beam": "Trave", "ifc.pole": "Pilone", "ifc.trafo": "Trasformatore", "ifc.sez": "Sezionatore",
+    "ifc.railL": "Rotaia sinistra", "ifc.railR": "Rotaia destra", "ifc.steel": "Acciaio", "ifc.concrete": "Calcestruzzo", "ifc.offset": "Offset dall'asse ricevuto",
     "prj.saveTitle": "Salva progetto", "prj.file": "File", "prj.cancel": "Annulla", "prj.save": "Salva", "prj.open": "Apri", "prj.saveFirst": "Salva prima l'attuale",
     "prj.saveHelp": "Il file contiene binari (anche le polilinee e la taratura dei disegni), profili scelti, offset, sostegni e occhi accesi; si riapre trascinandolo qui o da «Apri un progetto salvato», anche su un altro PC.",
     "prj.empty": "Niente da salvare: apri prima gli assi.", "prj.saved": "Progetto salvato: {f}.", "prj.saveFail": "Progetto non salvato: {m}",
@@ -589,7 +600,7 @@ const I18N = {
     "prj.noGzip": "questo browser non sa decomprimere il file (gzip): aggiornalo", "prj.when": "Salvato il", "prj.tracks": "Binari",
     "rail.place": "Piazza i sostegni col clic vicino al binario (M)", "tr.sup": "Sostegni",
     "su.title": "Sostegni", "su.place": "Piazza col clic (M)", "su.placeOn": "Piazzamento acceso · M o Esc per finire",
-    "su.placeHelp": "Col piazzamento acceso un clic vicino a un binario mette un palo alla progressiva sotto il cursore, dalla parte del clic, alla DR del binario. Clic su un palo: lo scegli; trascinalo per farlo scorrere lungo il binario. Canc lo toglie, D lo copia una campata più avanti, Ctrl+Z annulla.",
+    "su.placeHelp": "Col piazzamento acceso un clic vicino a un binario mette un palo alla progressiva sotto il cursore, dalla parte del clic, alla DR del binario. Clic su un palo: lo scegli; scelto, trascinalo per farlo scorrere lungo il binario (un palo non scelto non si sposta: sopra si orbita come altrove). Canc lo toglie, D lo copia una campata più avanti, Ctrl+Z annulla.",
     "su.at": "Progressiva", "su.left": "sinistra", "su.right": "destra", "su.sL": "S", "su.sR": "D", "su.add": "Aggiungi",
     "su.list": "Sostegni del binario ({n})", "su.none": "Nessun sostegno su questo binario.",
     "su.renum": "Rinumera", "su.renumT": "Rinumera in ordine di progressiva (i numeri scritti a mano restano)",
@@ -753,6 +764,16 @@ const I18N = {
     "t.restored": "Resumed the work saved on {d}.", "t.webgl": "WebGL is needed: this browser does not offer it, or it is disabled.",
     "t.skip": "{f}: file type not recognised (needs .xml/.landxml, .ifc, .dwg/.dxf, .csv/.xlsx or .ocs).", "t.fastOn": "Fast mode: 10 m step.", "t.fastOff": "Full step: 1 m.",
     "t.planOn": "Orthographic plan: true distances, drag to move.", "t.planOff": "3D view.",
+    "ix.btn": "Export IFC", "ix.btnT": "Download an IFC 4x3 with tracks (IfcAlignment), supports, foundations and Psets, in the tracks' coordinates",
+    "ix.title": "Export IFC 4x3", "ix.lod": "Mast shaft", "ix.tracks": "Tracks", "ix.nSup": "{n} supports", "ix.align": "Track alignments (IfcAlignment)",
+    "ix.rails": "Simple rails (IfcRail): usually not, the track is already in the federated model", "ix.go": "Export",
+    "ix.help": "File coordinates = the tracks' coordinates (no IfcMapConversion): it federates as is. Masts and portals with a Cartesian placement already turned on the tangent; chainage, side, DR and the shaft axis Easting/Northing in the project's Pset template. Equal types (shaft, cantilever, plate, foundation, beam) drawn only once.",
+    "ix.none": "No track chosen.", "ix.busy": "Writing the IFC…", "ix.done": "IFC exported: {f} — {m} masts, {p} portals, {fo} foundations, {a} alignments, {t} shared types, {mb} MB.", "ix.fail": "IFC not exported: {m}",
+    "ix.fastTitle": "Fast mode is on", "ix.fastBody": "Rails are drawn with a section every 10 m: in curves they would be broken. Export them at the full step? Alignments, supports and foundations do not depend on the step.",
+    "ix.fastFull": "Full step and export", "ix.fastAsIs": "Export as is (10 m)",
+    "ifc.site": "Site", "ifc.railway": "Overhead contact line", "ifc.mast": "Mast", "ifc.portal": "Portal", "ifc.stem": "Shaft", "ifc.plate": "Base plate", "ifc.mens": "Cantilever", "ifc.tie": "Tie",
+    "ifc.susp": "Suspension", "ifc.pend": "Dropper", "ifc.found": "Foundation", "ifc.beam": "Beam", "ifc.pole": "Pole", "ifc.trafo": "Transformer", "ifc.sez": "Disconnector",
+    "ifc.railL": "Left rail", "ifc.railR": "Right rail", "ifc.steel": "Steel", "ifc.concrete": "Concrete", "ifc.offset": "Offset from the received alignment",
     "prj.saveTitle": "Save project", "prj.file": "File", "prj.cancel": "Cancel", "prj.save": "Save", "prj.open": "Open", "prj.saveFirst": "Save the current one first",
     "prj.saveHelp": "The file holds tracks (drawing polylines and calibration included), chosen profiles, offsets, supports and visibility; reopen it by dropping it here or from “Open a saved project”, also on another PC.",
     "prj.empty": "Nothing to save: open the alignments first.", "prj.saved": "Project saved: {f}.", "prj.saveFail": "Project not saved: {m}",
@@ -761,7 +782,7 @@ const I18N = {
     "prj.noGzip": "this browser cannot decompress the file (gzip): update it", "prj.when": "Saved on", "prj.tracks": "Tracks",
     "rail.place": "Place supports with a click near the track (M)", "tr.sup": "Supports",
     "su.title": "Supports", "su.place": "Place with a click (M)", "su.placeOn": "Placing on · M or Esc to stop",
-    "su.placeHelp": "With placing on, a click near a track puts a mast at the chainage under the cursor, on the clicked side, at the track's DR. Click a mast to pick it; drag it to slide it along the track. Del removes it, D copies it one span ahead, Ctrl+Z undoes.",
+    "su.placeHelp": "With placing on, a click near a track puts a mast at the chainage under the cursor, on the clicked side, at the track's DR. Click a mast to pick it; once picked, drag it to slide it along the track (a mast not picked does not move: dragging on it orbits as anywhere else). Del removes it, D copies it one span ahead, Ctrl+Z undoes.",
     "su.at": "Chainage", "su.left": "left", "su.right": "right", "su.sL": "L", "su.sR": "R", "su.add": "Add",
     "su.list": "Supports on the track ({n})", "su.none": "No supports on this track.",
     "su.renum": "Renumber", "su.renumT": "Renumber by chainage (numbers typed by hand stay)",
@@ -889,13 +910,13 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./ocs-core.js?v=0.9.0";
-import * as IO from "./ocs-io.js?v=0.9.0";
-import * as K from "./ocs-catalog.js?v=0.9.0";
-import * as AU from "./ocs-stake.js?v=0.9.0";
+import * as C from "./ocs-core.js?v=0.10.0";
+import * as IO from "./ocs-io.js?v=0.10.0";
+import * as K from "./ocs-catalog.js?v=0.10.0";
+import * as AU from "./ocs-stake.js?v=0.10.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 
-const TOOL_VERSION = "0.9.0";
+const TOOL_VERSION = "0.10.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -1841,8 +1862,10 @@ addEventListener("pointerdown", (e) => {
   if (S.scPick) return;                                 // scelta del supercompattato: niente pali sotto il clic
   const id = pickSupport(e);
   if (id == null) return;
+  // si trascina solo il palo già scelto: su un palo non scelto il gesto resta a orbita e pan, e il clic
+  // (senza spostamento, al rilascio) lo sceglie — così orbitando non se ne sposta uno per sbaglio (0.9.1)
+  if (S.sel !== id) { downAt.sid = id; return; }
   e.stopPropagation();
-  if (S.sel !== id) selectSupport(id);
   const s = supById(id), F = s && C.supportFrame(derivedOf(trackById(s.track)).T, s.u, s.side);
   supDrag = { pid: e.pointerId, sid: id, x: e.clientX, y: e.clientY, moved: false, z: F ? Zs(F.f.z) : null, ev: null, raf: 0 };
   try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
@@ -1878,10 +1901,11 @@ addEventListener("pointerup", (e) => {
     return;
   }
   if (e.target !== canvas || !downAt || e.button !== 0) return;
-  const click = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4, add = downAt.add;
+  const click = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4, add = downAt.add, sid = downAt.sid;
   downAt = null;
   if (!click) return;
-  if (S.scPick) scClick(e, add);
+  if (sid != null) selectSupport(sid);
+  else if (S.scPick) scClick(e, add);
   else if (S.place) { const p = groundAt(e); if (p) placeAt(p.E, p.N); }
   else if (S.sel != null) selectSupport(null);
 }, { capture: true });
@@ -4109,6 +4133,68 @@ async function openProject(file, rest = []) {
   ]);
 }
 $("trSave").addEventListener("click", () => saveProjectDialog());
+
+/* ---- export IFC 4x3 (0.10.0, F6) -------------------------------------------------------------------------
+   Il modulo dello scrittore si carica solo qui. Ogni sostegno passa risolto (supResolved: col supercompattato)
+   con i Pset del modello del progetto già risolti (psetCtx: gli stessi valori dell'anteprima). Il passo conta
+   solo per le rotaie: con la modalità fast e le rotaie accese, avviso + scelta come in Sviluppo profili */
+const IFC_LODS = ["box", "upn", "lattice"];
+function ifcDialog() {
+  if (!S.tracks.length) { toast(tr("prj.empty"), true); return; }
+  const lod = IFC_LODS.includes(S.view.lod) ? S.view.lod : "lattice";
+  const lodName = { box: tr("vw.lodBox"), upn: tr("vw.lodUpn"), lattice: tr("vw.lodLat") };
+  let h = `<div class="row"><label for="dlgName">${esc(tr("prj.file"))}</label><div class="numbox"><input id="dlgName" class="txt" value="${esc(fileBase())}" spellcheck="false"><span>.ifc</span></div></div>`;
+  h += `<div class="row"><label for="ixLod">${esc(tr("ix.lod"))}</label><select class="sel" id="ixLod">${IFC_LODS.map((k) => `<option value="${k}"${k === lod ? " selected" : ""}>${esc(lodName[k])}</option>`).join("")}</select></div>`;
+  h += `<div class="sub">${esc(tr("ix.tracks"))}</div>`;
+  for (const t of S.tracks) h += `<div class="row"><span class="lbl"></span><label class="chk"><input type="checkbox" data-ix="${t.id}" checked> ${esc(t.name)} · ${esc(tr("ix.nSup", { n: supsOf(t).length }))}</label></div>`;
+  h += `<div class="row"><span class="lbl"></span><label class="chk"><input type="checkbox" id="ixAlign" checked> ${esc(tr("ix.align"))}</label></div>`;
+  h += `<div class="row"><span class="lbl"></span><label class="chk"><input type="checkbox" id="ixRails"> ${esc(tr("ix.rails"))}</label></div>`;
+  h += `<p class="help">${esc(tr("ix.help"))}</p>`;
+  dlgOpen(tr("ix.title"), h, [
+    { label: tr("prj.cancel"), run: dlgClose },
+    { label: tr("ix.go"), primary: true, run: () => {
+      const o = {
+        name: $("dlgName").value.replace(/\.ifc$/i, "").replace(/[\\/:*?"<>|]+/g, "_").trim() || fileBase(),
+        lod: $("ixLod").value, align: $("ixAlign").checked, rails: $("ixRails").checked,
+        ids: [...$("dlgBody").querySelectorAll("[data-ix]")].filter((el) => el.checked).map((el) => +el.dataset.ix),
+      };
+      if (!o.ids.length) { toast(tr("ix.none"), true); return; }
+      dlgClose();
+      if (!(S.fast && o.rails)) { exportIfc(o, stepNow()); return; }
+      dlgOpen(tr("ix.fastTitle"), `<p class="note">${esc(tr("ix.fastBody"))}</p>`, [
+        { label: tr("prj.cancel"), run: dlgClose },
+        { label: tr("ix.fastAsIs"), run: () => { dlgClose(); exportIfc(o, FAST_STEP); } },
+        { label: tr("ix.fastFull"), primary: true, run: () => { dlgClose(); exportIfc(o, S.view.step || 1); } },
+      ]);
+    } },
+  ]);
+}
+async function exportIfc(o, railStep) {
+  busy(tr("ix.busy")); await frame();
+  try {
+    const X = await import("./ocs-ifc.js?v=0.10.0");
+    const tpl = psetTpl();
+    const labels = { site: tr("ifc.site"), railway: tr("ifc.railway"), mast: tr("ifc.mast"), portal: tr("ifc.portal"), stem: tr("ifc.stem"), plate: tr("ifc.plate"),
+      mens: tr("ifc.mens"), tie: tr("ifc.tie"), susp: tr("ifc.susp"), pend: tr("ifc.pend"), found: tr("ifc.found"), beam: tr("ifc.beam"), pole: tr("ifc.pole"), trafo: tr("ifc.trafo"),
+      sez: tr("ifc.sez"), railL: tr("ifc.railL"), railR: tr("ifc.railR"), steel: tr("ifc.steel"), concrete: tr("ifc.concrete"), offset: tr("ifc.offset") };
+    const tracks = S.tracks.filter((t) => o.ids.includes(t.id)).map((t) => ({
+      name: t.name, T: derivedOf(t).T, gauge: (t.cant && t.cant.gauge) || 1.5, align: o.align, rails: o.rails,
+      sups: supsOf(t).slice().sort((a, b) => a.u - b.u).map((s) => {
+        const R = supResolved(s), kind = isPortal(s) ? "portal" : "mast";
+        return { s, R, own: PSET.resolve(tpl, kind, psetCtx(s, R, kind)), found: PSET.resolve(tpl, "foundation", psetCtx(s, R, "foundation")) };
+      }),
+    }));
+    const out = X.ocsIfc({ name: o.name, fileName: o.name, app: { name: "viewifc.com — " + tr("nav.here"), version: TOOL_VERSION },
+      origin: { x: Math.round(G.O.x), y: Math.round(G.O.y) }, lod: o.lod, labels, tracks, railStep });
+    download(o.name + ".ifc", out.text, "application/x-step");
+    busy("");
+    toast(tr("ix.done", { f: o.name + ".ifc", m: out.n.masts, p: out.n.portals, fo: out.n.footings, a: out.n.aligns, t: out.n.types, mb: nf(out.text.length / 1048576, 1) }));
+  } catch (e) {
+    busy("");
+    toast(tr("ix.fail", { m: e.message || String(e) }), true);
+  }
+}
+$("trIfc").addEventListener("click", ifcDialog);
 
 /* =========================================================================
    Avvisi, foglio, pannelli, tasti
