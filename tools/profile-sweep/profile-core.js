@@ -2391,8 +2391,11 @@ export function sectionRuns(base, rows, lo, hi) {
  * un ponte resta solo la struttura (bridgePart) più lo spazio riservato sotto (bridgeVoid).
  * Ritorna { parts (ognuno con stype, P, run, blends: [{ p0, p1, to }], bridge?), drops, runs, joins, miss,
  * bridges: [{ id, p0, p1, length, parts: [k], void }], specAt(p) }.
+ * minStep (0.20, modalità fast della pagina): passo minimo delle sezioni, al posto di quello di ogni tratto
+ * se è più grande; 0 = il passo di ogni sezione.
  */
-export function workSweep(axis, prof, anchors, spec, zAt3, { O = { x: 0, y: 0 }, cuts: cuts0 = [], partWalls = {}, du = 0.1, reach = 50, bridges: br0 = [], trims = [], tri = null } = {}) {
+export function workSweep(axis, prof, anchors, spec, zAt3, { O = { x: 0, y: 0 }, cuts: cuts0 = [], partWalls = {}, du = 0.1, reach = 50, bridges: br0 = [], trims = [], tri = null, minStep = 0 } = {}) {
+  const stepOf = (P) => Math.max((P && P.step) || 1, minStep);
   const res = { parts: [], drops: [], runs: [], joins: [], miss: 0, bridges: [], specAt: () => null, trims: { at: [], zones: [] }, excluded: () => false };
   const ax3 = buildAxis3D(axis, prof, anchors);
   if (ax3.pts.length < 2) return res;
@@ -2422,7 +2425,7 @@ export function workSweep(axis, prof, anchors, spec, zAt3, { O = { x: 0, y: 0 },
     };
   });
   const sweep = (r, k0, extra = {}) => {
-    const o = { O, step: r.P.step || 1, cuts, du, reach, p0: r.p0, p1: r.p1, k0, shapeAt: r.blends.length ? r.shapeAt : null, extra: r.blends.flatMap((b) => [b.a, b.b]), ...extra };
+    const o = { O, step: stepOf(r.P), cuts, du, reach, p0: r.p0, p1: r.p1, k0, shapeAt: r.blends.length ? r.shapeAt : null, extra: r.blends.flatMap((b) => [b.a, b.b]), ...extra };
     if (r.stype === "pipe") return pipeSweep(axis, prof, anchors, r.sh, zAt3, { ...o, partWalls });
     if (r.stype === "channel" || r.stype === "box") return channelSweep(axis, prof, anchors, r.sh, zAt3, o);
     return ditchPartsSweep(axis, prof, anchors, r.sh, zAt3, o);
@@ -2469,7 +2472,7 @@ export function workSweep(axis, prof, anchors, spec, zAt3, { O = { x: 0, y: 0 },
       const mid = (t.p0 + t.p1) / 2;
       if (mid <= b.p0 || mid >= b.p1 || t.bridge != null) continue;
       bridgePart(t, b.id);
-      const v = bridgeVoid(axis, prof, anchors, res.specAt, zAt3, { p0: t.p0, p1: t.p1, step: (t.P && t.P.step) || 1, O });
+      const v = bridgeVoid(axis, prof, anchors, res.specAt, zAt3, { p0: t.p0, p1: t.p1, step: stepOf(t.P), O });
       if (v.mesh) { t.mesh = { ...(t.mesh || {}), void: v.mesh }; t.vol.void = v.volume; B.void += v.volume; }
       B.parts.push(t.k);
     }

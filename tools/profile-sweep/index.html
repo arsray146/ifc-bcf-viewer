@@ -132,6 +132,7 @@ header>*{pointer-events:auto}
 .stats .sv{display:flex;align-items:center;gap:6px}
 .stats .dot{width:6px;height:6px;border-radius:50%;background:var(--lime);flex:none}
 .stats .dot.wait{background:var(--amber)}
+.fastchip{font:500 10.5px/1 var(--mono);letter-spacing:.06em;color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:4px 8px}
 .langsw{display:inline-flex;align-items:center;gap:3px;padding:4px}
 .langsw button{border:none;border-radius:999px;background:none;color:var(--faint);font:500 10.5px var(--mono);letter-spacing:.06em;padding:5px 9px;min-width:32px}
 .langsw button:hover{color:var(--text);background:var(--panel-2)}
@@ -148,6 +149,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
 .rail-btn{position:relative;width:40px;height:40px;flex:none;border:none;border-radius:13px;background:none;display:flex;align-items:center;justify-content:center;color:var(--muted);padding:0}
 .rail-btn:hover{background:var(--panel-2);color:var(--text)}
 .rail-btn.on{background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line);color:var(--text)}
+.rail-btn.fast.on{background:rgba(224,166,58,.16);box-shadow:inset 0 0 0 1px var(--amber);color:var(--amber)}
 .rail-btn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .rail-btn .k{position:absolute;right:3px;bottom:2px;font:500 8.5px/1 var(--mono);color:var(--faint)}
 .rail-sep{width:26px;height:1px;background:var(--line);margin:4px 0;flex:none}
@@ -392,11 +394,14 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
 .opts{display:flex;flex-direction:column;gap:8px}
 .opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:13px 16px;border-radius:14px;background:var(--panel-2);border:1px solid var(--line);text-decoration:none;color:var(--text)}
 .opt:hover{border-color:var(--lime-line)}
+.opt.main{background:var(--lime-soft);border-color:var(--lime-line)}
+.opt.main svg{fill:var(--acc)}
 .opt svg{width:22px;height:22px;flex:none;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .opt b{display:block;font:600 15px/1.2 var(--disp);letter-spacing:.02em}
 .opt span{display:block;font:400 12px/1.4 var(--sans);color:var(--muted);margin-top:3px}
 .card-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}
 .card-foot .privacy{padding:0}
+.card-foot .foot-btns{display:flex;gap:8px;flex-wrap:wrap}
 /* dialogo: lo stesso velo e la stessa lastra del benvenuto, più stretta */
 #dlg{position:fixed;inset:0;z-index:35;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(10,14,9,.35)}
 html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
@@ -455,6 +460,7 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
   </nav>
   <span class="spacer"></span>
   <div class="stats glass pill" id="stats">
+    <span class="fastchip" id="fastChip" hidden></span>
     <span class="sv"><i class="dot" id="saveDot"></i><span id="statAxis">—</span></span>
   </div>
   <div class="langsw glass pill" role="group" aria-label="Language">
@@ -475,10 +481,12 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
   <span class="rail-sep"></span>
   <button class="rail-btn" id="bFrame" data-i18n-title="rail.frame" title="Inquadra tutto (F)">
     <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="k">F</span></button>
-  <button class="rail-btn" id="bTop" data-i18n-title="rail.top" title="Vista dall'alto (T)">
-    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 15c2-4 6-2 8-7"/></svg><span class="k">T</span></button>
+  <button class="rail-btn" id="bTop" data-i18n-title="rail.top" title="Pianta ortografica, senza prospettiva (T) · di nuovo: vista 3D">
+    <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 12h16M12 4v16"/></svg><span class="k">T</span></button>
   <button class="rail-btn" id="bPlanEdit" data-i18n-title="rail.planEdit" title="Modifica la pianta (A): vista dall'alto, vertici da trascinare" disabled>
     <svg viewBox="0 0 24 24"><path d="M4 18l6-9 5 5 5-8"/><rect x="2.5" y="16.5" width="3" height="3"/><rect x="8.5" y="7.5" width="3" height="3"/><rect x="13.5" y="12.5" width="3" height="3"/></svg><span class="k">A</span></button>
+  <button class="rail-btn fast" id="bFast" data-i18n-title="rail.fast" title="Modalità fast (Q): sezioni ogni 10 m invece del passo scelto, per lavorare leggeri">
+    <svg viewBox="0 0 24 24"><path d="M13 3L5 13h6l-1 8 8-10h-6z"/></svg><span class="k">Q</span></button>
   <span class="rail-sep"></span>
   <button class="rail-btn on" id="bPv" data-i18n-title="rail.pv" title="Mostra / nascondi il profilo (P)">
     <svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M3 15l5-4 4 2 4-6 5 3"/></svg><span class="k">P</span></button>
@@ -617,7 +625,12 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
     <div class="kicker" data-i18n="w.kicker">Strumento 17 · prima versione</div>
     <h1 id="sheetTitle" data-i18n="w.title">Dalla pianta e dal profilo al fosso o al canale in 3D</h1>
     <p class="lead" data-i18n="w.lead">Carica il profilo planimetrico e quello altimetrico (DWG o DXF) e, se c'è, il DTM (IFC o LandXML): le progressive si accoppiano da sole, il fosso, il canale a U o il tubo in trincea si sviluppa con scavi, rinterri, banchine e scarpate fino al terreno, salti compresi; gli IFC senza terreno (strade, reti, edifici) restano attorno come contesto. Escono volumi per tratto, IFC 4x3, .3dm per Rhino, polilinea 3D e LandXML.</p>
-    <div class="opts">
+    <div class="opts" id="wResume" hidden>
+      <button class="opt main" id="wContinue"><svg viewBox="0 0 24 24"><path d="M7 4l12 8-12 8z"/></svg><span><b data-i18n="w.continue">Continua il lavoro</b><span id="wContinueS"></span></span></button>
+      <button class="opt" id="wNew"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 12v6M9 15h6"/></svg><span><b data-i18n="w.new">Nuovo progetto</b><span data-i18n="w.newS">da zero: pianta e profilo, un'opera da disegnare o l'esempio. Il lavoro salvato in questo browser si sostituisce appena inizi</span></span></button>
+      <button class="opt" id="wResProject"><svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg><span><b data-i18n="w.project">Apri un progetto salvato</b><span data-i18n="w.projectS">il file .profiles scaricato con «Salva progetto», anche da un altro PC</span></span></button>
+    </div>
+    <div class="opts" id="wStart">
       <button class="opt" id="wOpen"><svg viewBox="0 0 24 24"><path d="M4 20h16M12 4v12M7 11l5 5 5-5"/></svg><span><b data-i18n="w.open">Apri pianta, profilo e DTM</b><span data-i18n="w.openS">pianta e profilo .dwg o .dxf, il DTM .ifc, .xml o punti .csv/.xyz se c'è — o trascinali qui</span></span></button>
       <button class="opt" id="wProject"><svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg><span><b data-i18n="w.project">Apri un progetto salvato</b><span data-i18n="w.projectS">il file .profiles scaricato con «Salva progetto», anche da un altro PC</span></span></button>
       <button class="opt" id="wDraw"><svg viewBox="0 0 24 24"><path d="M4 19l5-9 5 4 6-9"/><circle cx="4" cy="19" r="1.6"/><circle cx="9" cy="10" r="1.6"/><circle cx="14" cy="14" r="1.6"/><circle cx="20" cy="5" r="1.6"/></svg><span><b data-i18n="w.draw">Disegna un'opera</b><span data-i18n="w.drawS">senza DWG: clic in pianta per i vertici, poi la linea di progetto nella lastra del profilo</span></span></button>
@@ -625,7 +638,8 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
     </div>
     <div class="card-foot">
       <p class="privacy" data-i18n="w.privacy">I file non escono dal browser. Il lavoro si salva da solo in questo browser.</p>
-      <button id="wClose" data-i18n="w.close">Chiudi</button>
+      <span class="foot-btns"><button id="wBack" data-i18n="w.back" hidden>← Torna al lavoro salvato</button>
+      <button id="wClose" data-i18n="w.close">Chiudi</button></span>
     </div>
   </div>
 </div>
@@ -635,7 +649,7 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
 const I18N = {
   it: {
     "nav.home": "Vai a viewifc.com", "nav.tools": "Strumenti", "nav.here": "Sviluppo profili", "nav.open": "Apri disegni",
-    "rail.frame": "Inquadra tutto (F)", "rail.top": "Vista dall'alto (T)", "rail.pv": "Mostra / nascondi il profilo (P)", "rail.pod": "Mostra / nascondi il pannello",
+    "rail.frame": "Inquadra tutto (F)", "rail.top": "Pianta ortografica, senza prospettiva (T) · di nuovo: vista 3D", "rail.pv": "Mostra / nascondi il profilo (P)", "rail.pod": "Mostra / nascondi il pannello",
     "rail.undo": "Annulla (Ctrl+Z)", "rail.redo": "Ripristina (Ctrl+Y)",
     "pn.resize": "Trascina per ridimensionare il pannello · doppio clic: larghezza iniziale",
     "w.kicker": "Strumento 17 · prima versione", "w.title": "Dalla pianta e dal profilo al fosso o al canale in 3D",
@@ -827,12 +841,22 @@ const I18N = {
     "tr.edited": "modificato", "tr.editedF": "modificata",
     "rail.planEdit": "Modifica la pianta (A): vista dall'alto, vertici da trascinare",
     "tr.draw": "Disegna un'opera", "tr.drawT": "Un'opera nuova senza DWG: clic in pianta per i vertici, doppio clic o Invio per finire",
+    "w.continue": "Continua il lavoro", "w.continueS": "{w} · salvato il {d}", "w.continueN": "{n} opere",
+    "w.new": "Nuovo progetto", "w.newS": "da zero: pianta e profilo, un'opera da disegnare o l'esempio. Il lavoro salvato in questo browser si sostituisce appena inizi",
+    "w.back": "← Torna al lavoro salvato", "busy.resume": "Riprendo il lavoro salvato…",
+    "t.planOn": "Pianta ortografica: distanze vere, trascina per spostare.", "t.planOff": "Vista 3D.",
+    "st.plan": "E {e} · N {n} · {w} pianta {p} · a {d} m dall'asse", "st.planFar": "E {e} · N {n}",
+    "rail.fast": "Modalità fast (Q): sezioni ogni 10 m invece del passo scelto, per lavorare leggeri", "st.fast": "fast 10 m",
+    "t.fastOn": "Modalità fast: sezioni ogni 10 m.", "t.fastOff": "Passo pieno: le sezioni col passo di ogni opera.",
+    "cm.fastOn": "Modalità fast accesa: sezioni ogni 10 m, volumi approssimati. Spegnila (Q) per il passo pieno.",
+    "fx.title": "Modalità fast accesa", "fx.body": "Il modello è calcolato con una sezione ogni 10 m: geometria e volumi in uscita sarebbero approssimati. Ricalcolo al passo pieno di ogni opera per questa uscita? Finita l'uscita si torna in fast.",
+    "fx.full": "Passo pieno ed esporta", "fx.asIs": "Esporta così (10 m)",
     "w.draw": "Disegna un'opera", "w.drawS": "senza DWG: clic in pianta per i vertici, poi la linea di progetto nella lastra del profilo",
     "pe.edit": "Modifica pianta", "pe.reset": "Torna al disegno", "pe.resetDone": "Pianta di nuovo dal disegno: coppie col profilo, tratti e righe da/a riportati sulla sua linea.",
     "pe.line": "Vertici dell'asse", "pe.fromDwg": "Dal disegno · {n} vertici.", "pe.mine": "Modificata nel tool · {n} vertici. Il disegno non cambia: in vista la sua linea è tratteggiata.", "pe.drawn": "Disegnata nel tool · {n} vertici.",
     "pe.colP": "Progr.", "pe.colR": "R racc.", "pe.colRT": "Raccordo al vertice: arco tangente ai due lati (dritti o ad arco) di raggio R in metri; vuoto = spigolo vivo",
-    "pe.help": "Coordinate di mappa (E, N). R racc. = arco tangente ai due lati sul vertice: spostando il vertice si rifà; se i lati sono corti si riduce. Per curvare un lato trascina la maniglia tonda a metà del lato; R racc. sui suoi due vertici ne arrotonda gli spigoli (tangente anche a un arco). Le coppie col profilo, i tratti e le righe da/a seguono i vertici. Invio: la riga dopo.",
-    "pe.hint": "Trascina un vertice (Alt: libero) · tondino a metà lato: curva il lato · doppio clic su un lato: vertice nuovo · Canc: toglie · frecce: 1 cm · Esc: esci",
+    "pe.help": "Coordinate di mappa (E, N). R racc. = arco tangente ai due lati sul vertice: spostando il vertice si rifà; se i lati sono corti si riduce. Per curvare un lato trascina la maniglia tonda a metà del lato; R racc. sui suoi due vertici ne arrotonda gli spigoli (tangente anche a un arco). R racc. si dà anche dalla vista: trascina il rombo sul punto di tangenza, lungo il lato del vertice scelto (passi di 0,5 m, Alt: al cm, al massimo il raggio che ci sta; sul vertice sparisce, doppio clic lo toglie). Le coppie col profilo, i tratti e le righe da/a seguono i vertici. Invio: la riga dopo.",
+    "pe.hint": "Trascina un vertice (Alt: libero) · tondino a metà lato: curva il lato · rombo sul lato del vertice scelto: raccordo (doppio clic: toglie) · doppio clic su un lato: vertice nuovo · Canc: toglie · frecce: 1 cm · Esc: esci",
     "pe.sides": "lati {a} · {b} m", "pe.defl": "deviazione {d}°", "pe.fillet": "raccordo R {r} m · tangente {t} m",
     "pe.rCut": "raggio ridotto a {r} m: i lati sono corti", "pe.rOff": "raccordo ignorato: lati già tangenti, a tornante o troppo corti", "pe.arcR": "arco R {r} m · lungo {l} m", "pe.straight": "lato dritto · {l} m",
     "pe.snapW": "agganciato a un vertice di un'altra opera", "pe.snapD": "agganciato a un vertice del DWG", "pe.snapL": "agganciato alla linea del DWG",
@@ -904,7 +928,7 @@ const I18N = {
   },
   en: {
     "nav.home": "Go to viewifc.com", "nav.tools": "Tools", "nav.here": "Profile Sweep", "nav.open": "Open drawings",
-    "rail.frame": "Frame all (F)", "rail.top": "Top view (T)", "rail.pv": "Show / hide the profile (P)", "rail.pod": "Show / hide the panel",
+    "rail.frame": "Frame all (F)", "rail.top": "Orthographic plan, no perspective (T) · again: 3D view", "rail.pv": "Show / hide the profile (P)", "rail.pod": "Show / hide the panel",
     "rail.undo": "Undo (Ctrl+Z)", "rail.redo": "Redo (Ctrl+Y)",
     "pn.resize": "Drag to resize the panel · double click: initial width",
     "w.kicker": "Tool 17 · first version", "w.title": "From plan and profile to the ditch or channel in 3D",
@@ -1096,12 +1120,22 @@ const I18N = {
     "tr.edited": "edited", "tr.editedF": "edited",
     "rail.planEdit": "Edit the plan (A): top view, vertices to drag",
     "tr.draw": "Draw a work", "tr.drawT": "A new work without a DWG: click in plan for the vertices, double click or Enter to finish",
+    "w.continue": "Continue the work", "w.continueS": "{w} · saved on {d}", "w.continueN": "{n} works",
+    "w.new": "New project", "w.newS": "from scratch: plan and profile, a work to draw or the example. The work saved in this browser is replaced as soon as you start",
+    "w.back": "← Back to the saved work", "busy.resume": "Resuming the saved work…",
+    "t.planOn": "Orthographic plan: true distances, drag to move.", "t.planOff": "3D view.",
+    "st.plan": "E {e} · N {n} · {w} plan {p} · {d} m from the axis", "st.planFar": "E {e} · N {n}",
+    "rail.fast": "Fast mode (Q): a section every 10 m instead of the chosen step, to work light", "st.fast": "fast 10 m",
+    "t.fastOn": "Fast mode: a section every 10 m.", "t.fastOff": "Full step: sections at each work's own step.",
+    "cm.fastOn": "Fast mode on: a section every 10 m, approximate volumes. Switch it off (Q) for the full step.",
+    "fx.title": "Fast mode is on", "fx.body": "The model is computed with a section every 10 m: the geometry and volumes going out would be approximate. Recompute at each work's full step for this export? Once it is out, fast mode comes back.",
+    "fx.full": "Full step and export", "fx.asIs": "Export as is (10 m)",
     "w.draw": "Draw a work", "w.drawS": "without a DWG: click in plan for the vertices, then the design line in the profile strip",
     "pe.edit": "Edit plan", "pe.reset": "Back to the drawing", "pe.resetDone": "Plan from the drawing again: profile pairs, stretches and from/to rows brought onto its line.",
     "pe.line": "Axis vertices", "pe.fromDwg": "From the drawing · {n} vertices.", "pe.mine": "Edited in the tool · {n} vertices. The drawing does not change: its line is dashed in the view.", "pe.drawn": "Drawn in the tool · {n} vertices.",
     "pe.colP": "Ch.", "pe.colR": "Curve R", "pe.colRT": "Curve on the vertex: arc tangent to both sides (straight or arc) with radius R in metres; empty = sharp vertex",
-    "pe.help": "Map coordinates (E, N). Curve R = arc tangent to both sides on the vertex: moving the vertex rebuilds it; short sides reduce it. To bend a side drag the round handle in the middle of the side; Curve R on its two vertices rounds its corners (tangent to an arc too). Profile pairs, stretches and from/to rows follow the vertices. Enter: next row.",
-    "pe.hint": "Drag a vertex (Alt: free) · round handle mid-side: bend the side · double click on a side: new vertex · Del: remove · arrows: 1 cm · Esc: leave",
+    "pe.help": "Map coordinates (E, N). Curve R = arc tangent to both sides on the vertex: moving the vertex rebuilds it; short sides reduce it. To bend a side drag the round handle in the middle of the side; Curve R on its two vertices rounds its corners (tangent to an arc too). Curve R can also be set in the view: drag the diamond on the tangent point, along the side of the chosen vertex (0.5 m steps, Alt: to the cm, at most the radius that fits; back on the vertex it goes, double click removes it). Profile pairs, stretches and from/to rows follow the vertices. Enter: next row.",
+    "pe.hint": "Drag a vertex (Alt: free) · round handle mid-side: bend the side · diamond on the chosen vertex's side: curve (double click: remove) · double click on a side: new vertex · Del: remove · arrows: 1 cm · Esc: leave",
     "pe.sides": "sides {a} · {b} m", "pe.defl": "deflection {d}°", "pe.fillet": "curve R {r} m · tangent {t} m",
     "pe.rCut": "radius reduced to {r} m: the sides are short", "pe.rOff": "curve ignored: sides already tangent, hairpin or too short", "pe.arcR": "arc R {r} m · {l} m long", "pe.straight": "straight side · {l} m",
     "pe.snapW": "snapped to a vertex of another work", "pe.snapD": "snapped to a DWG vertex", "pe.snapL": "snapped to the DWG line",
@@ -1180,11 +1214,11 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.19.0";
-import * as IO from "./profile-io.js?v=0.19.0";
+import * as C from "./profile-core.js?v=0.20.0";
+import * as IO from "./profile-io.js?v=0.20.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 
-const TOOL_VERSION = "0.19.0";
+const TOOL_VERSION = "0.20.0";
 /* il triangolatore dei tappi dei tagli (0.18): earcut di three.js, passato al motore (che resta senza import) */
 const TRI = (c, h) => THREE.ShapeUtils.triangulateShape(c.map(([x, y]) => new THREE.Vector2(x, y)), h.map((r) => r.map(([x, y]) => new THREE.Vector2(x, y))));
 const $ = (id) => document.getElementById(id);
@@ -1296,8 +1330,11 @@ const S = {
   hidden: {},            // elementi spenti: "w<id>", "w<id>:plan|prof|axis", "w<id>:t<k>", "w<id>:t<k>:lining|cut|fill", "dtm:<file>", "ctx:<file>", "ctx:<file>:<classe>"
   view: { ex: 2, layers: { dtm: true, lining: true, lean: true, mix: true, cut: true, fill: true, pipe: true, bed: true, surround: true, cover: true, restore: true, emb: true } }, podOff: false, pvOff: false, treeOff: false, closed: {}, treeOpen: {}, snap: true,
   treeW: null, podW: null,     // larghezze trascinate di albero e pannello (px); null = quella iniziale del CSS
+  plan: false,           // pianta ortografica (0.20, camP): non si salva
+  fast: false,           // modalità fast (0.20): sezioni ogni FAST_STEP m al posto del passo di ogni opera (solo vista, non si salva nel progetto)
   lastSave: null, saveOk: true,
 };
+const FAST_STEP = 10;
 const BLANK = newWork(0, "");          // nessuna opera: chi lavora sull'opera attiva vede un'opera vuota
 let W = BLANK;                         // opera attiva
 /* derivati di ogni opera (si rifanno in computeWork) */
@@ -1327,11 +1364,11 @@ function setActive(i) {
 const shown = (k) => !S.hidden[k];
 
 const UI_KEY = "viewifc_profile_ui";
-function saveUi() { try { localStorage.setItem(UI_KEY, JSON.stringify({ view: S.view, podOff: S.podOff, pvOff: S.pvOff, treeOff: S.treeOff, closed: S.closed, treeOpen: S.treeOpen, snap: S.snap, treeW: S.treeW, podW: S.podW })); } catch (e) {} }
+function saveUi() { try { localStorage.setItem(UI_KEY, JSON.stringify({ view: S.view, podOff: S.podOff, pvOff: S.pvOff, treeOff: S.treeOff, closed: S.closed, treeOpen: S.treeOpen, snap: S.snap, treeW: S.treeW, podW: S.podW, fast: S.fast })); } catch (e) {} }
 (function loadUi() {
   try {
     const u = JSON.parse(localStorage.getItem(UI_KEY) || "null");
-    if (u) { if (u.view) { const ly = { ...S.view.layers, ...(u.view.layers || {}) }; Object.assign(S.view, u.view); S.view.layers = ly; } if (u.closed) S.closed = u.closed; if (u.treeOpen) S.treeOpen = u.treeOpen; for (const k of ["podOff", "pvOff", "treeOff", "snap"]) if (u[k] !== undefined) S[k] = u[k];
+    if (u) { if (u.view) { const ly = { ...S.view.layers, ...(u.view.layers || {}) }; Object.assign(S.view, u.view); S.view.layers = ly; } if (u.closed) S.closed = u.closed; if (u.treeOpen) S.treeOpen = u.treeOpen; for (const k of ["podOff", "pvOff", "treeOff", "snap", "fast"]) if (u[k] !== undefined) S[k] = u[k];
       for (const k of ["treeW", "podW"]) if (Number.isFinite(u[k]) && u[k] > 0) S[k] = u[k]; }
   } catch (e) {}
 })();
@@ -1467,10 +1504,10 @@ function rebuildDitch() {
   const spec = { stype: W.stype, P: W[W.stype], rows: (W.secs || []).map((r) => ({ id: r.id, p0: secP0(r), p1: secP1(r), stype: r.stype, P: r[r.stype], j0: r.j0, j1: r.j1 })) };
   const bridges = (W.bridges || []).map((b) => ({ id: b.id, p0: secP0(b), p1: secP1(b) }));
   const trims = (W.trims || []).map((t) => ({ id: t.id, a: t.a, b: t.b, ex: t.ex || "auto" }));       // tagli (0.18): mesh chiuse sul piano (tappi da earcut)
-  const sw = C.workSweep(D.axis, D.prof, W.anchors, spec, z3, { O, cuts: W.cuts, partWalls: W.pipe.partWalls, bridges, trims, tri: TRI });
+  const sw = C.workSweep(D.axis, D.prof, W.anchors, spec, z3, { O, cuts: W.cuts, partWalls: W.pipe.partWalls, bridges, trims, tri: TRI, minStep: S.fast ? FAST_STEP : 0 });
   D.parts = sw.parts; D.drops = sw.drops; D.runs = sw.runs; D.joins = sw.joins; D.specAt = sw.specAt; D.O = O; D.trims = sw.trims; D.excluded = sw.excluded;
   // tratti fuori terra (0.15): il fondo della struttura sopra il terreno sull'asse; i candidati che toccano un ponte no
-  D.clear = TIN ? C.clearance(D.axis, D.prof, W.anchors, D.specAt, z3, { step: 1 }) : [];
+  D.clear = TIN ? C.clearance(D.axis, D.prof, W.anchors, D.specAt, z3, { step: S.fast ? FAST_STEP : 1 }) : [];
   D.bridges = sw.bridges.map((b) => {
     const h = D.clear.filter((c) => c.p >= b.p0 && c.p <= b.p1 && Number.isFinite(c.h)).reduce((a, c) => Math.max(a, c.h), -Infinity);
     return { ...b, hMax: Number.isFinite(h) ? h : NaN };
@@ -2083,6 +2120,20 @@ controls.enableDamping = true; controls.dampingFactor = 0.12;
 controls.screenSpacePanning = false;
 controls.zoomToCursor = false;                             // la rotella la fa wheelZoom (verso il cursore, direzione fissa); il pizzico va verso il target
 controls.mouseButtons.MIDDLE = THREE.MOUSE.PAN;            // tasto della rotella = pan (come il destro); lo zoom resta alla rotella
+/* pianta ortografica (0.20, come nella Trazione elettrica): una camera senza prospettiva, nord in alto, distanze vere in
+   ogni punto dello schermo. Trascinare = spostare, rotella = zoom verso il cursore; orbita, pan a presa e rotella della
+   vista 3D si fermano (guardano controls.enabled). La accendono T, il pulsante della rail, «Modifica la pianta» e il
+   disegno di un'opera da zero */
+const camP = new THREE.OrthographicCamera(-100, 100, 100, -100, 10, 1e5);   // sta 1000 m sopra la scena: profondità al mm
+camP.up.set(0, 1, 0);
+camP.position.set(0, 0, 1000);
+const ctlP = new OrbitControls(camP, canvas);
+ctlP.enableRotate = false; ctlP.screenSpacePanning = true; ctlP.zoomToCursor = true; ctlP.enableDamping = false;
+ctlP.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN };
+ctlP.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN };
+ctlP.enabled = false;
+ctlP.minZoom = 0.02; ctlP.maxZoom = 5000;
+const cam = () => (S.plan ? camP : camera);
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 scene.add(new THREE.HemisphereLight(0xffffff, 0x777766, 0.9));
 const sun = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -2295,8 +2346,7 @@ function setMarker(p) {
   const w = C.planAt(D.axis, p), z = C.zAt(D.prof, D.map.toQ(p), 1);
   if (!Number.isFinite(z)) { G.marker.visible = false; return; }
   G.marker.position.set(w.x - G.O.x, w.y - G.O.y, Zs(z));
-  const d = camera.position.distanceTo(G.marker.position);
-  G.marker.scale.setScalar(Math.max(0.3, d * 0.006));
+  G.marker.scale.setScalar(markScale(G.marker.position));
   G.marker.visible = true;
 }
 
@@ -2315,6 +2365,8 @@ function resize() {
   camera.aspect = vw / vh;
   camera.clearViewOffset();
   camera.updateProjectionMatrix();
+  const h = (camP.top - camP.bottom) / 2;                  // la pianta tiene la scala verticale, si allarga in orizzontale
+  camP.left = -h * vw / vh; camP.right = h * vw / vh; camP.updateProjectionMatrix();
   sizePV();
   if (frameLater) frameAll();
 }
@@ -2334,9 +2386,10 @@ function frameAll(top = false, box = sceneBox(), opt = {}) {
   orbCancel();                                             // l'inquadratura interrompe drag e inerzia del pivot
   frameLater = !innerWidth || !innerHeight;
   if (frameLater) return;
+  if (S.plan) return framePlan(box);
   const pts = [];
   for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) pts.push(new THREE.Vector3(x, y, z));
-  const L = (S.treeOff || innerWidth < 760 ? RAIL_W : $("tree").getBoundingClientRect().right + 10) + 12, R = Math.max(L + 160, innerWidth - podW() - 12), Tp = 70, B = Math.max(Tp + 120, innerHeight - pvH() - 14);
+  const { L, R, T: Tp, B } = freeArea();
   const vfov = THREE.MathUtils.degToRad(camera.fov);
   let dir;
   if (opt.dir) dir = opt.dir.clone().normalize();
@@ -2372,6 +2425,73 @@ function frameAll(top = false, box = sceneBox(), opt = {}) {
   camera.position.copy(tgt).addScaledVector(dir, d);
   controls.update();
 }
+/* lo spazio libero fra rail (o albero), testata, pannello e lastra del profilo, in px client */
+function freeArea() {
+  const L = (S.treeOff || innerWidth < 760 ? RAIL_W : $("tree").getBoundingClientRect().right + 10) + 12;
+  return { L, R: Math.max(L + 160, innerWidth - podW() - 12), T: 70, B: Math.max(70 + 120, innerHeight - pvH() - 14) };
+}
+/* pianta: il riquadro nello spazio libero, nord in alto, metri per pixel uguali in x e y */
+function framePlan(box) {
+  const { L, R, T: Tp, B } = freeArea(), vw = innerWidth, vh = innerHeight;
+  const w = Math.max(1, box.max.x - box.min.x), h = Math.max(1, box.max.y - box.min.y);
+  const wpp = Math.max(w / (R - L), h / (B - Tp)) * 1.06;
+  camP.left = -vw / 2 * wpp; camP.right = vw / 2 * wpp; camP.top = vh / 2 * wpp; camP.bottom = -vh / 2 * wpp; camP.zoom = 1;
+  camP.updateProjectionMatrix();
+  const c = box.getCenter(new THREE.Vector3());
+  const cx = c.x - ((L + R) / 2 - vw / 2) * wpp, cy = c.y + ((Tp + B) / 2 - vh / 2) * wpp;
+  camP.position.set(cx, cy, box.max.z + 1000);
+  ctlP.target.set(cx, cy, box.min.z);
+  camP.lookAt(ctlP.target);
+  ctlP.update();
+}
+/* accende / spegne la pianta ortografica; box: cosa inquadrare (se no la pianta parte dove guardava la vista 3D) */
+function setPlan(on, box = null) {
+  if (on === S.plan) { if (on && box) framePlan(box); return; }
+  const all = sceneBox();
+  if (on) {
+    orbCancel(); fly = null;
+    if (box) framePlan(box);
+    else {                                                 // stesso centro della vista 3D, scala dalla distanza
+      const tg = controls.target.clone(), d = camera.position.distanceTo(tg), vh = innerHeight || 1;
+      const wpp = 2 * d * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / vh;
+      camP.top = vh / 2 * wpp; camP.bottom = -camP.top; camP.left = -innerWidth / 2 * wpp; camP.right = -camP.left; camP.zoom = 1;
+      camP.updateProjectionMatrix();
+      camP.position.set(tg.x, tg.y, (all ? all.max.z : tg.z) + 1000);
+      ctlP.target.set(tg.x, tg.y, all ? all.min.z : tg.z);
+      camP.lookAt(ctlP.target); ctlP.update();
+    }
+  } else {                                                 // la vista 3D riparte sopra il centro della pianta
+    const c = ctlP.target.clone(), half = (camP.top - camP.bottom) / camP.zoom / 2;
+    const d = half / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+    controls.target.set(c.x, c.y, all ? (all.min.z + all.max.z) / 2 : c.z);
+    camera.position.copy(controls.target).addScaledVector(new THREE.Vector3(-0.35, -0.75, 0.56).normalize(), d);
+    controls.update();
+  }
+  S.plan = on;
+  controls.enabled = !on; ctlP.enabled = on;
+  $("bTop").classList.toggle("on", on);
+  if (!on) status(null);
+}
+/* T e il pulsante della rail: la scelta è dell'utente, uscendo dalla modifica della pianta non si torna più indietro da soli */
+function togglePlan() { PE.planBack = false; setPlan(!S.plan); toast(S.plan ? tr("t.planOn") : tr("t.planOff")); }
+/* pianta: sotto il cursore Est, Nord (esatti: camera ortografica) e progressiva e distanza dall'asse dell'opera attiva */
+let planRaf = 0, planEv = null;
+canvas.addEventListener("pointermove", (e) => {
+  if (!S.plan) return;
+  planEv = e;
+  if (!planRaf) planRaf = requestAnimationFrame(() => { planRaf = 0; if (S.plan) planStatus(planEv); });
+});
+canvas.addEventListener("pointerleave", () => { if (S.plan) status(null); });
+function planStatus(e) {
+  const r = canvas.getBoundingClientRect();
+  const v = new THREE.Vector3((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1, 0).unproject(camP);
+  const E = v.x + G.O.x, N = v.y + G.O.y, q = D.axis ? C.nearestS(D.axis, E, N) : null;
+  $("statusText").textContent = (q && q.d < 200 && q.s > 0.001 && q.s < D.axis.length - 0.001
+    ? tr("st.plan", { e: nf(E, 3), n: nf(N, 3), w: W.name, p: prog(q.s, 3), d: nf(q.d, 3) })
+    : tr("st.planFar", { e: nf(E, 3), n: nf(N, 3) })) + (S.fast ? " · " + tr("st.fast") : "");
+}
+/* scala dei segni che restano grandi uguali sullo schermo (il segno della progressiva, il punto del taglio) */
+const markScale = (pos) => (S.plan ? (camP.top - camP.bottom) / camP.zoom / (innerHeight || 1) * 6 : Math.max(0.3, camera.position.distanceTo(pos) * 0.006));
 /* volo della camera (come flyTo del viewer): posizione e target in 0,6 s con ease-in-out, OrbitControls
    fermo nel frattempo (lo smorzamento rimasto combatterebbe l'arrivo); un clic o la rotella sulla vista
    lo interrompono dove si trova */
@@ -2476,7 +2596,7 @@ const panBox = new THREE.Box3(), panV = new THREE.Vector3(), panW = new THREE.Ve
 function cursorPoint(e) {
   const r = canvas.getBoundingClientRect();
   orbNdc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
-  orbRay.setFromCamera(orbNdc, camera);
+  orbRay.setFromCamera(orbNdc, cam());
   const hit = cutPick(orbRay.intersectObjects(orbTargets(), false));      // col taglio acceso: la prima superficie visibile
   if (hit) return panP.copy(hit.point);
   const box = sceneBox();
@@ -2484,7 +2604,7 @@ function cursorPoint(e) {
   panBox.copy(box);
   const dz = orbRay.ray.direction.z, zc = (panBox.min.z + panBox.max.z) / 2;
   if (Math.abs(dz) < 1e-6) return null;
-  const t = (zc - orbRay.ray.origin.z) / dz, far = camera.position.distanceTo(panBox.getCenter(panV)) + panBox.getSize(panV).length();
+  const t = (zc - orbRay.ray.origin.z) / dz, far = orbRay.ray.origin.distanceTo(panBox.getCenter(panV)) + panBox.getSize(panV).length();
   return t > 0 && t <= far ? orbRay.ray.at(t, panP) : null;
 }
 function cursorDepth(e) {
@@ -2601,7 +2721,7 @@ canvas.addEventListener("pointerdown", (e) => {
   if (!controls.enabled || !controls.enableRotate) return;
   const r = canvas.getBoundingClientRect();
   orbNdc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
-  orbRay.setFromCamera(orbNdc, camera);
+  orbRay.setFromCamera(orbNdc, cam());
   const hit = cutPick(orbRay.intersectObjects(orbTargets(), false));      // col taglio acceso: la prima superficie visibile
   if (!hit) return;                                        // vuoto → orbita classica
   e.stopPropagation();
@@ -2935,13 +3055,16 @@ function cutStep(dir, big) {
 }
 
 function tick() {
-  if (fly) fly(performance.now());
+  if (S.plan) ctlP.update();
+  else if (fly) fly(performance.now());
   else { orbApply(performance.now()); controls.update(); }
-  const dist = camera.position.distanceTo(controls.target);
-  camera.near = Math.max(0.1, dist / 5000); camera.far = dist * 50 + 10000;
-  camera.updateProjectionMatrix();
-  if (G.marker && G.marker.visible) G.marker.scale.setScalar(Math.max(0.3, camera.position.distanceTo(G.marker.position) * 0.006));
-  renderer.render(scene, camera);
+  if (!S.plan) {
+    const dist = camera.position.distanceTo(controls.target);
+    camera.near = Math.max(0.1, dist / 5000); camera.far = dist * 50 + 10000;
+    camera.updateProjectionMatrix();
+  }
+  if (G.marker && G.marker.visible) G.marker.scale.setScalar(markScale(G.marker.position));
+  renderer.render(scene, cam());
   plDraw();                                                // sovrimpressione della pianta (0.11): maniglie, riquadro, disegno
   requestAnimationFrame(tick);
 }
@@ -3626,7 +3749,7 @@ const plStore = (axPts) => (W.reversed ? C.reversePoly({ pts: axPts }).pts : axP
 const plV3 = new THREE.Vector3();
 /* dal mondo (E, N) allo schermo: [x, y] client, o null dietro la camera */
 function plScr(x, y, z = plZ()) {
-  plV3.set(x - G.O.x, y - G.O.y, z).project(camera);
+  plV3.set(x - G.O.x, y - G.O.y, z).project(cam());
   if (plV3.z > 1) return null;
   const r = canvas.getBoundingClientRect();
   return [r.left + (plV3.x + 1) / 2 * r.width, r.top + (1 - plV3.y) / 2 * r.height];
@@ -3635,7 +3758,7 @@ function plScr(x, y, z = plZ()) {
 function plWorld(cx, cy, z = plZ()) {
   const r = canvas.getBoundingClientRect();
   orbNdc.set((cx - r.left) / r.width * 2 - 1, -(cy - r.top) / r.height * 2 + 1);
-  orbRay.setFromCamera(orbNdc, camera);
+  orbRay.setFromCamera(orbNdc, cam());
   const dz = orbRay.ray.direction.z;
   if (Math.abs(dz) < 1e-9) return null;
   const t = (z - orbRay.ray.origin.z) / dz;
@@ -3667,6 +3790,76 @@ function plMidHit(cx, cy) {
     if (d < bd) { bd = d; best = k; }
   }
   return best;
+}
+/* raccordo trascinabile (0.20, richiesta dell'utente): sul vertice scelto un rombo sul PUNTO DI TANGENZA del raccordo, sul
+   lato dritto (quello che arriva se tutti e due lo sono o nessuno); almeno 14 px dal vertice. Trascinandolo lungo il lato
+   R = T / tan(|Δ|/2), con T la distanza dal vertice (la tangente: esatta fra due rette) e Δ la deviazione fra le tangenti
+   dei due lati al vertice. Sulla bisettrice (prima prova) R = e / (sec(Δ/2) − 1) era ingovernabile sulle deviazioni di pochi
+   gradi (un pixel = centinaia di metri). Passi di PL_RSTEP (Alt: al cm), mai più del raggio che ci sta fra i due lati
+   (C.planExpand con un R enorme), a meno di 6 px dal vertice il raccordo sparisce; doppio clic lo toglie */
+const PL_RSTEP = 0.5;
+function plFilletGeo(pts, j) {
+  if (!(j > 0 && j < pts.length - 1)) return null;
+  const tan = (a, c, end) => {
+    const arc = C.bulgeArc(a.x, a.y, c.x, c.y, a.b || 0);
+    if (!arc) { const L = Math.hypot(c.x - a.x, c.y - a.y); return L > 1e-9 ? [(c.x - a.x) / L, (c.y - a.y) / L] : null; }
+    const t = arc.a0 + (end ? arc.sweep : 0), s = Math.sign(arc.sweep);
+    return [-Math.sin(t) * s, Math.cos(t) * s];
+  };
+  const t1 = tan(pts[j - 1], pts[j], true), t2 = tan(pts[j], pts[j + 1], false);
+  if (!t1 || !t2) return null;
+  const d = Math.atan2(t1[0] * t2[1] - t1[1] * t2[0], t1[0] * t2[0] + t1[1] * t2[1]);
+  if (Math.abs(d) < 0.01 || Math.abs(d) > Math.PI - 0.05) return null;          // allineati o a tornante: niente raccordo
+  const outS = !!(pts[j - 1].b && !pts[j].b);                                    // il lato che parte, se è dritto solo lui
+  return { u: outS ? t2 : [-t1[0], -t1[1]], out: outS, k: Math.tan(Math.abs(d) / 2) };   // u: dal vertice lungo il lato
+}
+/* dove sta il rombo del vertice j: { s (schermo), z, ppm (pixel per metro lungo il lato), g } o null */
+function plFilletAt(j) {
+  if (!PE.on || !plCan()) return null;
+  const P = D.plPts, g = plFilletGeo(P, j);
+  if (!g) return null;
+  const V = P[j], z = plZat(D, D.plSt[j]), sv = plScr(V.x, V.y, z), s1 = plScr(V.x + g.u[0], V.y + g.u[1], z);
+  if (!sv || !s1) return null;
+  const ppm = Math.hypot(s1[0] - sv[0], s1[1] - sv[1]);
+  if (!(ppm > 0)) return null;
+  const [a, b] = D.plEx.idx[j];
+  if (b > a && D.plEx.R[j] > 0) {                        // il punto di tangenza vero del raccordo
+    const m = D.plEx.pts[g.out ? b : a], sm = plScr(m.x, m.y, z);
+    if (sm && Math.hypot(sm[0] - sv[0], sm[1] - sv[1]) >= 14) return { s: sm, z, ppm, g };
+  }
+  const e = 14 / ppm;
+  return { s: plScr(V.x + g.u[0] * e, V.y + g.u[1] * e, z), z, ppm, g };
+}
+/* il raggio col punto di tangenza a distanza T dal vertice j sul lato del rombo: fra due rette T / tan(|Δ|/2); accanto a
+   un arco la tangenza si sposta in altro modo e R si cerca per bisezione su C.planExpand (cresce con R) */
+function plFilletR(pts, j, g, T, max) {
+  if (!(T > 0) || !(max > 0)) return 0;
+  if (!pts[j - 1].b && !pts[j].b) return Math.min(T / g.k, max);
+  const q = pts.map((p) => ({ ...p })), V = pts[j];
+  const tAt = (R) => { q[j].R = R; const ex = C.planExpand(q), [a, b] = ex.idx[j], m = ex.pts[g.out ? b : a]; return b > a ? Math.hypot(m.x - V.x, m.y - V.y) : 0; };
+  if (tAt(max) <= T) return max;
+  let lo = 0, hi = max;
+  for (let k = 0; k < 40 && hi - lo > 1e-4; k++) { const m = (lo + hi) / 2; if (tAt(m) < T) lo = m; else hi = m; }
+  return lo;
+}
+/* la tangente vera del raccordo sul vertice j: dal vertice al punto di tangenza sul lato del rombo (accanto a un arco
+   R·tan(Δ/2) con la deviazione delle corde non vale) */
+function filletT(j) {
+  const ex = D.plEx, [a, b] = ex.idx[j], g = plFilletGeo(D.plPts, j), V = D.plPts[j];
+  if (!(b > a)) return 0;
+  const m = ex.pts[g && g.out ? b : a];
+  return Math.hypot(m.x - V.x, m.y - V.y);
+}
+/* il raggio più grande che ci sta sul vertice j fra i suoi lati (planExpand lo riduce da sé) */
+function plFilletMax(pts, j) {
+  const q = pts.map((p) => ({ ...p }));
+  q[j].R = 1e7;
+  try { const ex = C.planExpand(q); return ex.skipped.includes(j) ? 0 : ex.R[j]; } catch (e) { return 0; }
+}
+function plFilletHit(cx, cy) {
+  if (PE.sel < 0) return false;
+  const f = plFilletAt(PE.sel);
+  return !!(f && f.s && Math.hypot(f.s[0] - cx, f.s[1] - cy) < 8);
 }
 /* frazione del punto (x, y) sul lato di controllo k: retta = proiezione sulla corda, arco = angolo percorso */
 function plSideT(pts, k, x, y) {
@@ -3785,15 +3978,16 @@ function peSet(on) {
   if (on && !plCan()) { toast(tr("pe.none"), true); return; }
   if (on && ED.on) edSet(false);
   if (on && PE.draw) plDrawCancel();
-  PE.on = !!on; PE.sel = PE.hover = PE.hoverMid = -1; PE.drag = null; PE.snap = null;
+  PE.on = !!on; PE.sel = PE.hover = PE.hoverMid = -1; PE.hoverR = false; PE.drag = null; PE.snap = null;
   $("bPlanEdit").classList.toggle("on", PE.on);
   canvas.style.cursor = "";
-  if (PE.on) {                                           // dall'alto, sull'opera attiva (tutta la scena la farebbe piccola)
+  if (PE.on) {                                           // in pianta ortografica (0.20: precisione), sull'opera attiva (tutta la scena la farebbe piccola)
     const bx = new THREE.Box3(), K = "w" + W.id;
     for (const o of G.group.children) { const k = o.userData.key; if (k && (k === K || k.startsWith(K + ":"))) bx.expandByObject(o); }
-    frameAll(true, bx.isEmpty() ? sceneBox() : bx);
+    PE.planBack = PE.planBack || !S.plan;                // uscendo si torna alla vista 3D, se si era lì
+    setPlan(true, bx.isEmpty() ? sceneBox() : bx);
     if (S.closed.plan) { S.closed.plan = false; applyClosed(); saveUi(); }
-  }
+  } else if (PE.planBack) { PE.planBack = false; setPlan(false); }
   renderPlan();
   const t = $("plTab");
   if (PE.on && t && !S.podOff) t.scrollIntoView({ block: "nearest" });
@@ -3807,7 +4001,7 @@ function plSelect(i) {
 const plR = new THREE.Vector3(), plU = new THREE.Vector3();
 function plNudge(dx, dy, big) {
   if (PE.sel < 0 || !plCan()) return;
-  plR.setFromMatrixColumn(camera.matrixWorld, 0); plU.setFromMatrixColumn(camera.matrixWorld, 1);
+  plR.setFromMatrixColumn(cam().matrixWorld, 0); plU.setFromMatrixColumn(cam().matrixWorld, 1);
   plR.z = 0; plU.z = 0;
   if (plR.lengthSq() < 1e-9) plR.set(1, 0, 0); else plR.normalize();
   if (plU.lengthSq() < 1e-9) plU.set(-plR.y, plR.x, 0); else plU.normalize();
@@ -3865,6 +4059,14 @@ function plConfirmDrop(go) {
 addEventListener("pointerdown", (e) => {
   if (e.target !== canvas || e.button !== 0) return;
   if (PE.draw) { PE.draw.press = { id: e.pointerId, x: e.clientX, y: e.clientY }; return; }   // clic = vertice; trascinare = orbita come sempre
+  if (plFilletHit(e.clientX, e.clientY)) {               // il rombo del raccordo sul vertice scelto (0.20)
+    const i = PE.sel, f = plFilletAt(i);
+    e.stopPropagation(); e.preventDefault();
+    const b = plBase();
+    PE.drag = { kind: "r", id: e.pointerId, i, z: f.z, x: e.clientX, y: e.clientY, moved: false, applied: false, b, g: f.g, ppm: f.ppm, R: D.plPts[i].R || 0, max: plFilletMax(b.pts, i) };
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    return;
+  }
   const i = plHit(e.clientX, e.clientY);
   if (i < 0) {                                           // la maniglia a metà di un lato: si curva (arco per tre punti, 0.12)
     const k = plMidHit(e.clientX, e.clientY);
@@ -3892,9 +4094,10 @@ addEventListener("pointermove", (e) => {
   const d = PE.drag;
   if (!d) {
     if (e.target !== canvas) return;
-    PE.hover = plHit(e.clientX, e.clientY);
-    PE.hoverMid = PE.hover < 0 ? plMidHit(e.clientX, e.clientY) : -1;
-    canvas.style.cursor = PE.hover >= 0 || PE.hoverMid >= 0 ? "move" : "";
+    PE.hoverR = plFilletHit(e.clientX, e.clientY);
+    PE.hover = PE.hoverR ? -1 : plHit(e.clientX, e.clientY);
+    PE.hoverMid = PE.hover < 0 && !PE.hoverR ? plMidHit(e.clientX, e.clientY) : -1;
+    canvas.style.cursor = PE.hover >= 0 || PE.hoverMid >= 0 || PE.hoverR ? "move" : "";
     return;
   }
   if (e.pointerId !== d.id) return;
@@ -3903,6 +4106,18 @@ addEventListener("pointermove", (e) => {
   if (!d.moved) return;
   const P = plWorld(e.clientX, e.clientY, d.z);
   if (!P) return;
+  if (d.kind === "r") {                                  // raccordo: R dalla tangente (distanza dal vertice lungo il lato)
+    const V = d.b.pts[d.i], ed = (P.x - V.x) * d.g.u[0] + (P.y - V.y) * d.g.u[1];
+    let R = ed * d.ppm < 6 ? 0 : plFilletR(d.b.pts, d.i, d.g, ed, d.max);
+    if (R > 0) { const st = e.altKey ? 0.01 : PL_RSTEP; R = Math.max(st, Math.floor(R / st + 1e-9) * st); R = Number(R.toFixed(2)); }
+    if (R === d.R) return;
+    d.R = R;
+    const pts = C.planMove(d.b.pts, d.i, {});
+    if (R > 0) pts[d.i].R = R; else delete pts[d.i].R;
+    d.applied = true;
+    plApply(pts, d.b, (u) => u, { live: true, sel: d.i });
+    return;
+  }
   if (d.kind === "m") {                                  // il lato passa per il punto preso; vicino al mezzo della corda torna dritto
     const a = d.b.pts[d.k], c = d.b.pts[d.k + 1], ms = plScr((a.x + c.x) / 2, (a.y + c.y) / 2, d.z);
     const straight = !e.altKey && ms && Math.hypot(ms[0] - e.clientX, ms[1] - e.clientY) < 8;
@@ -3944,6 +4159,16 @@ addEventListener("dblclick", (e) => {
   if (PE.draw) { e.stopPropagation(); plDrawFinish(); return; }
   if (!PE.on || !plCan()) return;
   e.stopPropagation();
+  if (plFilletHit(e.clientX, e.clientY)) {               // sul rombo: il raccordo si toglie
+    const i = PE.sel;
+    if (D.plPts[i].R > 0) {
+      const b = plBase(), pts = C.planMove(b.pts, i, {});
+      delete pts[i].R;
+      pushUndo();
+      if (!plApply(pts, b, (u) => u, { sel: i })) { undo.pop(); updateUndo(); }
+    }
+    return;
+  }
   if (plHit(e.clientX, e.clientY) >= 0 || plMidHit(e.clientX, e.clientY) >= 0) return;
   const sd = plSideAt(e.clientX, e.clientY);
   if (!sd) return;
@@ -3960,11 +4185,12 @@ addEventListener("dblclick", (e) => {
    Nasce un'opera senza disegni: pianta e linea di progetto sono già «del tool» (profilo provvisorio: 1 m sotto il
    DTM a ogni vertice della pianta, se c'è), con le coppie ai capi. */
 function plDrawStart() {
+  PE.planBack = false;                                   // dalla modifica della pianta si resta in pianta
   if (PE.on) peSet(false);
   if (ED.on) edSet(false);
   closeSheet();
   PE.draw = { pts: [], cur: null, press: null };
-  if (sceneBox()) frameAll(true);
+  setPlan(true, sceneBox());                             // si disegna in pianta ortografica (0.20)
   canvas.style.cursor = "crosshair";
   toast(tr("dz.start"));
 }
@@ -4126,6 +4352,13 @@ function plDraw() {
     octx.fillStyle = on2 ? c.design : c.halo; octx.fill();
     octx.strokeStyle = hv && !on2 ? c.text : c.design; octx.stroke();
   });
+  // il rombo del raccordo sul vertice scelto (0.20)
+  const fr = PE.sel >= 0 ? plFilletAt(PE.sel) : null;
+  if (fr && fr.s && S2[PE.sel]) {
+    const hv = PE.hoverR || (PE.drag && PE.drag.kind === "r"), h = hv ? 6 : 4.5, [x, y] = fr.s;
+    octx.beginPath(); octx.moveTo(x, y - h); octx.lineTo(x + h, y); octx.lineTo(x, y + h); octx.lineTo(x - h, y); octx.closePath();
+    octx.fillStyle = hv || P[PE.sel].R > 0 ? c.design : c.halo; octx.fill(); octx.strokeStyle = c.design; octx.lineWidth = 1.5; octx.stroke();
+  }
   // aggancio trovato
   if (PE.snap) { const s = plScr(PE.snap.x, PE.snap.y, PE.drag ? PE.drag.z : plZ()); if (s) { octx.strokeStyle = c.blue; octx.lineWidth = 2; octx.beginPath(); octx.arc(s[0], s[1], 8, 0, 2 * Math.PI); octx.stroke(); } }
   plHint(tr("pe.hint"));
@@ -4146,7 +4379,7 @@ function plDraw() {
   const defl = j > 0 && j < n - 1 ? Math.atan2((v.x - P[j - 1].x) * (P[j + 1].y - v.y) - (v.y - P[j - 1].y) * (P[j + 1].x - v.x), (v.x - P[j - 1].x) * (P[j + 1].x - v.x) + (v.y - P[j - 1].y) * (P[j + 1].y - v.y)) : 0;
   const lines = ["E " + nf(v.x, 2) + " · N " + nf(v.y, 2),
     prog(D.plSt[j]) + " · " + tr("pe.sides", { a: j > 0 ? nf(sideLen(j - 1), 2) : "—", b: j < n - 1 ? nf(sideLen(j), 2) : "—" }),
-    tr("pe.defl", { d: sgn(defl * 180 / Math.PI, 2) }) + (ex.R[j] > 0 ? " · " + tr("pe.fillet", { r: nf(ex.R[j], 2), t: nf(ex.R[j] * Math.tan(Math.abs(defl) / 2), 2) }) : "")];
+    tr("pe.defl", { d: sgn(defl * 180 / Math.PI, 2) }) + (ex.R[j] > 0 ? " · " + tr("pe.fillet", { r: nf(ex.R[j], 2), t: nf(filletT(j), 2) }) : "")];
   if (v.R > 0 && ex.clamped.includes(j)) lines.push(tr("pe.rCut", { r: nf(ex.R[j], 2) }));
   if (v.R > 0 && ex.skipped.includes(j)) lines.push(tr("pe.rOff"));
   if (PE.snap) lines.push(PE.snap.kind === "w" ? tr("pe.snapW") : PE.snap.kind === "d" ? tr("pe.snapD") : tr("pe.snapL"));
@@ -4689,7 +4922,7 @@ function trimAdd(a, b) {
 const trimRay = (e) => {
   const r = canvas.getBoundingClientRect();
   orbNdc.set((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1);
-  orbRay.setFromCamera(orbNdc, camera);
+  orbRay.setFromCamera(orbNdc, cam());
   return r;
 };
 /* clic su una faccia del contesto: il piano verticale per la sua traccia orizzontale (normale vera: la vista esagera le quote) */
@@ -4721,7 +4954,7 @@ function trimPoint(e) {
   let best = null, bd = 14;
   const v = new THREE.Vector3();
   for (const c of cand) {
-    v.copy(c).project(camera);
+    v.copy(c).project(cam());
     if (v.z > 1) continue;
     const d = Math.hypot((v.x + 1) / 2 * r.width - (e.clientX - r.left), (1 - v.y) / 2 * r.height - (e.clientY - r.top));
     if (d < bd) { bd = d; best = c; }
@@ -4737,7 +4970,7 @@ window.addEventListener("pointerdown", (e) => {
   if (!q) return;
   if (!TRM.a) {
     TRM.a = q;
-    TRM.dot = new THREE.Mesh(new THREE.SphereGeometry(Math.max(0.3, camera.position.distanceTo(new THREE.Vector3(q.x, q.y, q.z)) * 0.006), 12, 8), mats.trimLine ? new THREE.MeshBasicMaterial({ color: mats.trimLine.color }) : mats.mark);
+    TRM.dot = new THREE.Mesh(new THREE.SphereGeometry(markScale(new THREE.Vector3(q.x, q.y, q.z)), 12, 8), mats.trimLine ? new THREE.MeshBasicMaterial({ color: mats.trimLine.color }) : mats.mark);
     TRM.dot.position.set(q.x, q.y, q.z); TRM.dot.userData.noFrame = true;
     G.group.add(TRM.dot);
     toast(tr("tg.pick2"));
@@ -5108,8 +5341,9 @@ function renderQty() {
     h += `<tr><td>${esc(tr("cm.partName", { n: pt.k }))}<span class="rng">${prog(pt.p0, 0)} – ${prog(pt.p1, 0)}${esc(drop)}${esc(sec)}${esc(brg)}</span></td><td>${nf(pt.length, 1)}</td>${cells(pt.vol)}</tr>`;
   }
   if (D.parts.length > 1) h += `<tr class="tot"><td>${esc(tr("cm.total"))}</td><td>${nf(tot.length, 1)}</td>${cells(tot)}</tr>`;
-  const step = W[W.stype].step;
+  const step = S.fast ? Math.max(FAST_STEP, W[W.stype].step) : W[W.stype].step;
   h += `</table><p class="help">m · m³ — ${esc(tr("cm.help", { s: nf(step, step % 1 ? 1 : 0) }))}</p>`;
+  if (S.fast) h += `<p class="note warn">${esc(tr("cm.fastOn"))}</p>`;
   const on = exported();
   if (S.works.length > 1 && on.length) {                 // le opere che escono nell'IFC e nel CSV (quelle accese nell'albero)
     const all = { lining: 0, lean: 0, mix: 0, cut: 0, fill: 0 };
@@ -5161,12 +5395,12 @@ function renderExport() {
     + renderTav(okAx);
   $("expName").addEventListener("change", (e) => { S.name = e.target.value.trim(); scheduleSave(); });
   bindTav();
-  $("expIfc").addEventListener("click", exportIFC);
-  $("expCsv").addEventListener("click", exportCSV);
+  $("expIfc").addEventListener("click", fastGuard(exportIFC));
+  $("expCsv").addEventListener("click", fastGuard(exportCSV));
   $("expDxf").addEventListener("click", exportDXF);
   $("expXml").addEventListener("click", exportXML);
   $("expPlan").addEventListener("click", exportPlanDXF);
-  $("exp3dm").addEventListener("click", export3dm);
+  $("exp3dm").addEventListener("click", fastGuard(export3dm));
 }
 /* tavole (0.16) nel pannello Esporta: le righe della chitarra da mettere (scelta dell'utente: si decide qui),
    scarto dei punti del terreno (cm) e distanza minima fra le colonne (m) */
@@ -5207,7 +5441,7 @@ function bindTav() {
     scheduleSave();
   });
   $("plScale").addEventListener("change", (e) => { S.tav = { ...S.tav, pScale: Number(e.target.value) }; scheduleSave(); });
-  $("expTav").addEventListener("click", exportSheets);
+  $("expTav").addEventListener("click", fastGuard(exportSheets));
 }
 /* l'opera attiva in cima al pannello e nella lastra del profilo */
 function renderWork() {
@@ -5233,7 +5467,7 @@ function status(p) {
   let s = tr("st.at", { p: prog(p), q: prog(q), z: Number.isFinite(z) ? nf(z) : "—" });
   if (D.ground && Number.isFinite(z)) { const g = C.zAt(D.ground, q, 1); if (Number.isFinite(g)) s += tr("st.cover", { g: nf(g), c: nf(g - z) }); }
   if (TIN && D.axis) { const w = C.planAt(D.axis, p), t = TIN.z(w.x, w.y); if (Number.isFinite(t)) s += tr("st.dtm", { d: nf(t) }); }
-  el.textContent = s;
+  el.textContent = s + (S.fast ? " · " + tr("st.fast") : "");
 }
 
 /* =========================================================================
@@ -5795,6 +6029,40 @@ function exportCSV() {
 }
 
 /* =========================================================================
+   Modalità fast (0.20, la stessa della Trazione elettrica; richiesta dell'utente 2026-10-09): un interruttore al
+   volo (Q o il fulmine della rail) fra il passo di ogni opera e una sezione ogni FAST_STEP m, per lavorare
+   leggeri sulle opere di molti km. Il passo salvato delle sezioni non cambia. Le uscite che dipendono dal passo
+   (IFC, CSV, .3dm, tavole) con fast acceso chiedono (scelta dell'utente): passo pieno per l'uscita e poi di
+   nuovo fast, oppure così
+   ========================================================================= */
+async function setFast(on) {
+  S.fast = !!on; applyFast(); saveUi();
+  if (S.works.length) { busy(tr("busy.sweep")); await frame(); try { recomputeAll(); } finally { busy(""); } }
+  toast(S.fast ? tr("t.fastOn") : tr("t.fastOff"));
+}
+function applyFast() {
+  $("bFast").classList.toggle("on", S.fast);
+  $("fastChip").hidden = !S.fast;
+  $("fastChip").textContent = tr("st.fast");
+}
+function fastGuard(fn) {
+  return () => {
+    if (!S.fast) return fn();
+    dlgOpen(tr("fx.title"), `<p class="note">${esc(tr("fx.body"))}</p>`, [
+      { label: tr("prj.cancel"), run: dlgClose },
+      { label: tr("fx.asIs"), run: () => { dlgClose(); fn(); } },
+      { label: tr("fx.full"), primary: true, run: async () => {
+        dlgClose();
+        busy(tr("busy.sweep")); await frame();
+        S.fast = false;
+        try { recomputeAll(); busy(""); await fn(); }
+        finally { S.fast = true; busy(tr("busy.sweep")); await frame(); try { recomputeAll(); } finally { busy(""); } }
+      } },
+    ]);
+  };
+}
+
+/* =========================================================================
    Salvataggio automatico (IndexedDB) — un progetto solo, sovrascritto.
    v: 2 = più opere; i disegni si salvano una volta sola (un DWG può servire
    più opere) e le opere li richiamano per did. La v: 1 della 0.2 (un lavoro
@@ -5870,6 +6138,10 @@ function restore(doc) {
 async function saveNow() {
   clearTimeout(saveTimer);
   if (!S.saveOk) { $("saveDot").classList.remove("wait"); return; }
+  if (PENDING) {                                          // il lavoro salvato non scelto all'avvio: resta finché il progetto è vuoto
+    if (projectEmpty()) { dirty = false; $("saveDot").classList.remove("wait"); return; }
+    PENDING = null;
+  }
   try {
     const db = await idbOpen();
     await new Promise((res, rej) => {
@@ -6082,9 +6354,46 @@ function toast(msg, warn) {
   toastTimer = setTimeout(() => t.classList.remove("on"), warn ? 6500 : 4000);
 }
 function busy(text) { $("busyText").textContent = text; $("busy").classList.toggle("on", !!text); }
-function openSheet() { $("sheet").hidden = false; }
+function openSheet() { sheetMode(); $("sheet").hidden = false; }
 function closeSheet() { $("sheet").hidden = true; }
 $("wClose").addEventListener("click", closeSheet);
+
+/* scelta all'avvio (0.20, richiesta dell'utente 2026-10-13): con un lavoro salvato non lo si riprende più da solo
+   (su un progetto di molti km la pagina restava ferma parecchi secondi a ricalcolarlo), ma il benvenuto chiede:
+   continuare, nuovo progetto o aprire un .profiles. Il salvataggio resta nell'IndexedDB finché il progetto è vuoto
+   (saveNow non lo sovrascrive): «Torna al lavoro salvato» lo riprende ancora; appena c'è qualcosa, si sostituisce */
+let PENDING = null, sheetNew = false;
+const pendingHas = (doc) => doc.v === 1 || ["works", "spare", "dtms", "dtmRefs", "ctx", "ctxRefs"].some((k) => (doc[k] || []).length);
+function sheetMode() {
+  const can = !!PENDING && projectEmpty(), res = can && !sheetNew;
+  $("wResume").hidden = !res; $("wStart").hidden = res;
+  $("wClose").hidden = res; $("wBack").hidden = !(can && sheetNew);
+  if (res) {
+    const doc = PENDING.doc, ws = (doc.works || []).map((w) => w.name).filter(Boolean);
+    const what = doc.name || (ws.length > 3 ? tr("w.continueN", { n: ws.length }) : ws.join(" · ")) || "—";
+    const d = new Date(PENDING.t).toLocaleString(LANG === "en" ? "en-GB" : "it-IT", { dateStyle: "medium", timeStyle: "short" });
+    $("wContinueS").textContent = tr("w.continueS", { w: what, d });
+  }
+}
+async function resumeSaved() {
+  const saved = PENDING;
+  if (!saved) return;
+  closeSheet();
+  busy(tr("busy.resume")); await frame();
+  try {
+    restore(saved.doc);
+    S.lastSave = saved.t;
+    buildTin();
+    for (const w of S.works) withWork(w, () => { rebuildPlan(); rebuildProfile(); });
+    recomputeAll();
+    pvFit(); frameAll();
+  } finally { PENDING = null; busy(""); }
+  toast(tr("t.restored", { d: new Date(saved.t).toLocaleString(LANG === "en" ? "en-GB" : "it-IT", { dateStyle: "medium", timeStyle: "short" }) }));
+}
+$("wContinue").addEventListener("click", resumeSaved);
+$("wNew").addEventListener("click", () => { sheetNew = true; sheetMode(); });
+$("wBack").addEventListener("click", () => { sheetNew = false; sheetMode(); });
+$("wResProject").addEventListener("click", () => pickFiles());
 $("sheet").addEventListener("click", (e) => { if (e.target === $("sheet") && S.works.length) closeSheet(); });
 function applyPanels() {
   document.body.classList.toggle("tree-off", S.treeOff);
@@ -6150,7 +6459,8 @@ $("bTree").addEventListener("click", () => { S.treeOff = !S.treeOff; applyPanels
 $("bPod").addEventListener("click", () => { S.podOff = !S.podOff; applyPanels(); saveUi(); });
 $("bPv").addEventListener("click", () => { S.pvOff = !S.pvOff; applyPanels(); saveUi(); });
 $("bFrame").addEventListener("click", () => frameAll());
-$("bTop").addEventListener("click", () => frameAll(true));
+$("bTop").addEventListener("click", togglePlan);
+$("bFast").addEventListener("click", () => setFast(!S.fast));
 $("bPlanEdit").addEventListener("click", () => peSet(!PE.on));
 $("trDraw").addEventListener("click", plDrawStart);
 $("wDraw").addEventListener("click", plDrawStart);
@@ -6193,13 +6503,14 @@ addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && (e.key === "y" || e.key === "Y")) { e.preventDefault(); doUndo(false); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "f" || e.key === "F") frameAll();
-  else if (e.key === "t" || e.key === "T") frameAll(true);
+  else if (e.key === "t" || e.key === "T") togglePlan();
   else if (e.key === "p" || e.key === "P") { S.pvOff = !S.pvOff; applyPanels(); saveUi(); }
   else if (e.key === "e" || e.key === "E") { S.treeOff = !S.treeOff; applyPanels(); saveUi(); }
   else if (e.key === "x" || e.key === "X") cutSet("x");
   else if (e.key === "l" || e.key === "L") cutSet("l");
   else if (e.key === "m" || e.key === "M") edSet(!ED.on);
   else if (e.key === "a" || e.key === "A") peSet(!PE.on);
+  else if (e.key === "q" || e.key === "Q") setFast(!S.fast);
 });
 
 /* =========================================================================
@@ -6213,6 +6524,8 @@ function applyLang(lang) {
   document.querySelectorAll(".langsw button").forEach((b) => b.classList.toggle("on", b.dataset.lang === LANG));
   try { localStorage.setItem("viewifc_tool_lang", LANG); } catch (e) {}
   $("pvTopTx").textContent = typesOf(W).every((t) => t === "pipe" || t === "ditch") ? tr("pv.crown") : tr("pv.top");     // legenda della lastra: cima dei muri o estradosso
+  $("fastChip").textContent = tr("st.fast");
+  sheetMode();
   renderPod(); renderTree(); refreshStats(); drawPV(); status(null); cutUi();
 }
 document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("click", () => applyLang(b.dataset.lang)));
@@ -6240,24 +6553,19 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
   LANG = I18N[lang] ? lang : "it";
   if (innerWidth < 900 && localStorage.getItem(UI_KEY) == null) { S.podOff = true; S.treeOff = true; }
   applyPanels();
+  applyFast();
   updateUndo();
   if (!renderer) { $("noGl").textContent = tr("t.webgl"); applyLang(LANG); return; }
   const saved = await loadSaved();
-  if (saved) {
-    restore(saved.doc);
-    S.lastSave = saved.t;
-    buildTin();
-    for (const w of S.works) withWork(w, () => { rebuildPlan(); rebuildProfile(); });
-    recomputeAll();
-  }
+  if (saved && pendingHas(saved.doc)) PENDING = saved;     // si sceglie dal benvenuto (resumeSaved)
+  else if (saved) { restore(saved.doc); S.lastSave = saved.t; }   // niente da calcolare: solo le scelte (tavole, Pset, nome)
   applyLang(LANG);
   resize(); pvFit(); frameAll();
   requestAnimationFrame(tick);
-  if (saved && (S.works.length || S.spare.length)) toast(tr("t.restored", { d: new Date(saved.t).toLocaleString(LANG === "en" ? "en-GB" : "it-IT", { dateStyle: "medium", timeStyle: "short" }) }));
-  else openSheet();
+  openSheet();
 })();
 /* aggancio per le prove dal browser: stato e funzioni, niente dati in rete */
-window.__ps = { C, IO, get S() { return S; }, get W() { return W; }, get D() { return D; }, derivedOf, setActive: (i) => { setActive(i); refreshViews(); pvFit(); }, get PV() { return PV; }, camera, controls, frameAll, zoomAt, get flying() { return !!fly; }, pvFit, pvShow, loadExample, openFiles, saveNow, drawPV, drawSection, snapshot, saveProjectDialog,
+window.__ps = { C, IO, get S() { return S; }, get W() { return W; }, get D() { return D; }, derivedOf, setActive: (i) => { setActive(i); refreshViews(); pvFit(); }, get PV() { return PV; }, camera, controls, camP, ctlP, setPlan, togglePlan, frameAll, zoomAt, get flying() { return !!fly; }, pvFit, pvShow, loadExample, openFiles, saveNow, drawPV, drawSection, snapshot, saveProjectDialog,
   /* pivot d'orbita: stato e un passo del loop senza aspettare il rAF (fermo a pannello nascosto) */
   orb: { get drag() { return orbDrag; }, get pivot() { return orbPivot.toArray(); }, get dot() { return orbDot && orbDot.visible; },
     step() { orbApply(performance.now()); controls.update(); camera.updateMatrixWorld(true); scene.updateMatrixWorld(true); } },
@@ -6268,7 +6576,7 @@ window.__ps = { C, IO, get S() { return S; }, get W() { return W; }, get D() { r
   /* IFC di contesto (0.14): apertura senza il selettore e i pezzi della scena */
   openCtx: async (file) => { const m = await openCtx(file); if (m) ctxDone(m); return m; }, removeCtx, ctxMeshes: () => G.group.children.filter((o) => o.userData.src && o.userData.src.ctx),
   /* un fotogramma subito (a pannello nascosto il rAF è fermo: volo e scena non si vedrebbero negli screenshot) */
-  renderNow: () => { if (fly) fly(performance.now() + 1e6); controls.update(); renderer.render(scene, camera); plDraw(); },
+  renderNow: () => { if (S.plan) ctlP.update(); else { if (fly) fly(performance.now() + 1e6); controls.update(); } renderer.render(scene, cam()); plDraw(); },
   /* ricalcolo dell'opera attiva dopo aver toccato da script la sua linea o i suoi ponti (prove) */
   rebuild: () => { rebuildProfile(); recompute(); },
   /* taglio della vista (0.10): stato, comandi e tappi della scena */
