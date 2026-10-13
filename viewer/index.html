@@ -1611,7 +1611,7 @@ body.diff-embed #railDiff{display:flex}
         </div>
       </div>
       <div id="srchList">
-        <div class="empty-note" data-i18n-html="srch.empty">Scrivi un testo o aggiungi un filtro.<br>Puoi filtrare per <b>classe IFC</b>, <b>modello</b>, <b>contenitore</b> (piano, zona) e per qualsiasi <b>parametro dei pset</b>.</div>
+        <div class="empty-note" data-i18n-html="srch.empty">Scrivi un testo o aggiungi un filtro.<br>Puoi filtrare per <b>classe IFC</b>, <b>modello</b>, <b>contenitore</b> (piano, zona, parte di un'infrastruttura) e per qualsiasi <b>parametro dei pset</b>.</div>
       </div>
     </div>
     <div id="qtoBlock" class="ltab-page" style="display:none">
@@ -1851,15 +1851,15 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
    bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
    ogni release il .js vecchio in cache non viene più usato. vendor/ resta
    senza versione: cambia solo quando si aggiornano three o web-ifc. */
-import { readLASHeader, parseLAS } from "./las.js?v=2.10.0";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
-import { parseE57, e57PointCount } from "./e57.js?v=2.10.0";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js?v=2.10.0";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.0";  // feature QTO (v2.5.0)
+import { readLASHeader, parseLAS } from "./las.js?v=2.10.1";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.10.1";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.10.1";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.1";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.0";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.1";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.0";  // studio verifica nuvola ↔ modello
-import * as SRCH from "./search.js?v=2.10.0";                          // feature Cerca (v2.10.0): confronti, regole, CSV
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.1";  // studio verifica nuvola ↔ modello
+import * as SRCH from "./search.js?v=2.10.1";                          // feature Cerca (v2.10.0): confronti, regole, CSV
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -1953,7 +1953,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.10.0";
+const APP_VERSION = "2.10.1";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2135,7 +2135,7 @@ const STRINGS = {
     "srch.or": "Almeno uno", "srch.orT": "Basta che l'elemento rispetti uno dei filtri",
     "srch.addRule": "＋ Aggiungi filtro",
     "srch.removeRule": "Rimuovi filtro",
-    "srch.empty": "Scrivi un testo o aggiungi un filtro.<br>Puoi filtrare per <b>classe IFC</b>, <b>modello</b>, <b>contenitore</b> (piano, zona) e per qualsiasi <b>parametro dei pset</b>.",
+    "srch.empty": "Scrivi un testo o aggiungi un filtro.<br>Puoi filtrare per <b>classe IFC</b>, <b>modello</b>, <b>contenitore</b> (piano, zona, parte di un'infrastruttura) e per qualsiasi <b>parametro dei pset</b>.",
     "srch.noModels": "Carica almeno un modello IFC.",
     "srch.indexing": "Preparo l'elenco degli elementi… ({i}/{n})",
     "srch.searching": "Cerco… {p}%",
@@ -2693,7 +2693,7 @@ const STRINGS = {
     "srch.or": "Any", "srch.orT": "The element only needs to match one filter",
     "srch.addRule": "＋ Add filter",
     "srch.removeRule": "Remove filter",
-    "srch.empty": "Type some text or add a filter.<br>You can filter by <b>IFC class</b>, <b>model</b>, <b>container</b> (storey, zone) and by any <b>pset parameter</b>.",
+    "srch.empty": "Type some text or add a filter.<br>You can filter by <b>IFC class</b>, <b>model</b>, <b>container</b> (storey, zone, infrastructure part) and by any <b>pset parameter</b>.",
     "srch.noModels": "Load at least one IFC model.",
     "srch.indexing": "Listing the elements… ({i}/{n})",
     "srch.searching": "Searching… {p}%",
@@ -3412,11 +3412,19 @@ function makeEdges(geometry) {
   return new THREE.LineSegments(g, edgeMaterial);
 }
 
-/* Classi spaziali per l'albero struttura (IFC2x3 + IFC4 + IFC4X3 infrastrutture) */
+/* Classi spaziali per l'albero struttura (IFC2x3 + IFC4 + IFC4X3 infrastrutture).
+   ensureTree confronta line.type ESATTO (niente sottotipi): ogni classe concreta
+   va elencata. Nell'IFC4X3_ADD2 IfcFacilityPart è astratta, le parti vere sono
+   IfcRailwayPart / IfcRoadPart / IfcBridgePart / IfcMarinePart / IfcFacilityPartCommon
+   (v2.10.1: senza di loro una parte finiva fra gli elementi e tutto ciò che contiene
+   in «Fuori struttura spaziale»). IfcExternalSpatialElement: spazio esterno IFC4,
+   può contenere elementi come un piano. test/test_viewer_tree.js */
 const SPATIAL_TYPES = new Set([
   WebIFC.IFCPROJECT, WebIFC.IFCSITE, WebIFC.IFCBUILDING, WebIFC.IFCBUILDINGSTOREY, WebIFC.IFCSPACE,
   WebIFC.IFCFACILITY, WebIFC.IFCFACILITYPART, WebIFC.IFCBRIDGE, WebIFC.IFCROAD,
-  WebIFC.IFCRAILWAY, WebIFC.IFCMARINEFACILITY, WebIFC.IFCSPATIALZONE
+  WebIFC.IFCRAILWAY, WebIFC.IFCMARINEFACILITY, WebIFC.IFCSPATIALZONE,
+  WebIFC.IFCRAILWAYPART, WebIFC.IFCROADPART, WebIFC.IFCBRIDGEPART, WebIFC.IFCMARINEPART,
+  WebIFC.IFCFACILITYPARTCOMMON, WebIFC.IFCEXTERNALSPATIALELEMENT
 ].filter(t => t !== undefined));
 let selTreeRows = new Set();   // righe .sel dell'albero (più d'una con la selezione additiva)
 let modelUidCounter = 0;
@@ -4849,6 +4857,7 @@ function spatialIcon(typeName) {
   if (t.includes("project")) return SPATIAL_ICONS.project;
   if (t.includes("site")) return SPATIAL_ICONS.site;
   if (t.includes("storey")) return SPATIAL_ICONS.storey;
+  if (t.endsWith("part") || t.endsWith("partcommon")) return SPATIAL_ICONS.storey; /* parti IFC4X3: il «piano» dell'infrastruttura */
   if (t.includes("building")) return SPATIAL_ICONS.building;
   if (t.includes("road") || t.includes("bridge") || t.includes("railway") || t.includes("facility") || t.includes("marine")) return SPATIAL_ICONS.infra;
   if (t.includes("space") || t.includes("zone")) return SPATIAL_ICONS.zone;
