@@ -1851,15 +1851,16 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
    bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
    ogni release il .js vecchio in cache non viene più usato. vendor/ resta
    senza versione: cambia solo quando si aggiornano three o web-ifc. */
-import { readLASHeader, parseLAS } from "./las.js?v=2.10.1";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
-import { parseE57, e57PointCount } from "./e57.js?v=2.10.1";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js?v=2.10.1";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.1";  // feature QTO (v2.5.0)
+import { readLASHeader, parseLAS } from "./las.js?v=2.10.2";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.10.2";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.10.2";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.2";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.1";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.2";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.1";  // studio verifica nuvola ↔ modello
-import * as SRCH from "./search.js?v=2.10.1";                          // feature Cerca (v2.10.0): confronti, regole, CSV
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.2";  // studio verifica nuvola ↔ modello
+import * as SRCH from "./search.js?v=2.10.2";                          // feature Cerca (v2.10.0): confronti, regole, CSV
+import * as CAPS from "./caps.js?v=2.10.2";                            // tappi pieni delle sezioni (v2.10.2)
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -1953,7 +1954,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.10.1";
+const APP_VERSION = "2.10.2";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2492,6 +2493,7 @@ const STRINGS = {
     "confirm.ok": "OK", "confirm.no": "Annulla",
     "tree.nodeTitle": "Clic: proprietà e selezione · Ctrl+clic: aggiungi/togli dalla selezione · Doppio clic: zoom · ▸: espandi",
     "tree.nodeTitleNoGeo": "▸ o clic: espandi · Ctrl+clic: aggiungi/togli dalla selezione",
+    "tree.noStructure": "Struttura non disponibile per questo file.",
     "tree.catTitle": "Clic: seleziona tutti gli elementi della categoria · Ctrl+clic: aggiungi/togli dalla selezione · Doppio clic: zoom · ▸: espandi",
     "tree.more": "… mostra altri {n} di {tot}",
     "navHelp.walk": "WALK · W/A/S/D o frecce: muovi · Q/E: giù/su · Maiusc: corri · trascina: guarda · rotella: velocità ({v} m/s) · Esc: esci",
@@ -3042,6 +3044,7 @@ const STRINGS = {
     "confirm.ok": "OK", "confirm.no": "Cancel",
     "tree.nodeTitle": "Click: properties and selection · Ctrl+click: add/remove from selection · Double-click: zoom · ▸: expand",
     "tree.nodeTitleNoGeo": "▸ or click: expand · Ctrl+click: add/remove from selection",
+    "tree.noStructure": "Structure not available for this file.",
     "tree.catTitle": "Click: select all elements in the category · Ctrl+click: add/remove from selection · Double-click: zoom · ▸: expand",
     "tree.more": "… show {n} more of {tot}",
     "navHelp.walk": "WALK · W/A/S/D or arrows: move · Q/E: down/up · Shift: run · drag: look · wheel: speed ({v} m/s) · Esc: exit",
@@ -4340,6 +4343,7 @@ function toggleModelVisibility(m) {
   for (const mesh of m.meshes) mesh.visible = m.visible;
   for (const ed of m.edges) ed.visible = m.visible && edgesOn;
   if (_diffOnVisibility) _diffOnVisibility();   // confronto: niente colore su un modello spento
+  capsSchedule();   // tappi delle sezioni: un modello spento non lascia le sue facce (v2.10.2)
   /* sincronizza gli occhi-modello di questo modello, in entrambe le viste
      (NON gli occhi per-elemento: hanno un loro stato, li gestisce _syncElemEyes) */
   document.querySelectorAll(`button.eye[data-muid="${m.uid}"]:not(.eye-el)`).forEach(btn => {
@@ -4373,6 +4377,7 @@ function setElementsHidden(model, eids, hidden) {
   /* se un elemento appena nascosto era selezionato, il fantasma rosso resterebbe in scena */
   if (hidden && hlItems && hlItems.some(it => it.model === model && touch.has(it.eid))) clearHighlight();
   if (_diffOnVisibility) _diffOnVisibility();   // confronto: la pittura segue la geometria visibile
+  capsSchedule();   // tappi delle sezioni: seguono gli elementi nascosti (v2.10.2)
 }
 
 function _rebuildMeshVisibility(model, mesh) {
@@ -4648,6 +4653,7 @@ function removeModel(model) {
   qtoInvalidate();       // idem per il computo quantità (feature/qto)
   searchInvalidate();    // idem per la ricerca (feature Cerca, v2.10.0)
   clashInvalidate();     // le mesh rimosse invalidano indice/cache clash (feature/clash)
+  capsSchedule();        // tappi delle sezioni: via quelli del modello tolto (v2.10.2)
   updateAlignUI();       // il bottone Asse dipende anche da models.length (LandXML, v2.1.0)
   if (!models.length && !PCLOUD.sources.length) {
     /* federazione vuota: il prossimo caricamento ridefinisce origine e riferimento BCF.
@@ -4794,7 +4800,7 @@ function renderTree(model, host) {
     const d = document.createElement("div");
     d.className = "empty-note";
     d.style.padding = "4px 6px";
-    d.textContent = "Struttura non disponibile per questo file.";
+    d.textContent = tr("tree.noStructure");
     host.appendChild(d);
   }
 }
@@ -4871,7 +4877,8 @@ function treeNodeEl(model, node, depth) {
   head.style.paddingLeft = (depth * 13) + "px";
   head.style.cursor = "pointer";
   head.innerHTML = `<span class="chev">▸</span><span class="t-ico">${spatialIcon(node.typeName)}</span><span class="t-label"></span><span class="t-count">${node.total}</span>`;
-  head.querySelector(".t-label").textContent = node.label;
+  /* il nodo degli elementi senza contenitore (eid −1) si traduce qui: l'albero è in cache per modello */
+  head.querySelector(".t-label").textContent = node.eid === -1 ? tr("srch.loose") : node.label;
   head.title = (node.typeName ? node.typeName + "\n" : "") +
     (node.eid > 0 ? tr("tree.nodeTitle") : tr("tree.nodeTitleNoGeo"));
   const box = document.createElement("div");
@@ -5394,6 +5401,7 @@ function applyIsolate() {
     mesh.material.needsUpdate = true;
   }
   edgeMaterial.opacity = dim ? 0.05 : 0.45 * (0.35 + 0.65 * gf);
+  _capsStyle();   /* i tappi delle sezioni si velano come il modello (v2.10.2) */
   if (_diffOnIsolate) _diffOnIsolate(dim);   // confronto: isolando, la colorazione per stato si spegne
 }
 $("tglIsolate").addEventListener("change", (e) => { isolateOn = e.target.checked; applyIsolate(); });
@@ -11120,8 +11128,162 @@ function _applyClipping() {
      nel disegno 2D (computeSection2D), non per la resa 3D. */
   for (const src of PCLOUD.sources) { src.points.material.clippingPlanes = planes; src.points.material.needsUpdate = true; }
   renderer.localClippingEnabled = planes.length > 0;
+  capsSchedule();   /* v2.10.2 — tappi pieni sui piani nuovi */
 }
 function _applySbClipping() { _updateSbPlanes(); _applyClipping(); }
+
+/* ============================ tappi delle sezioni (v2.10.2) ============================
+   Richiesta dell'utente (2026-10-13): gli elementi sezionati PIENI, come nel taglio della
+   vista di Sviluppo profili. Senza, il clipping di three.js lascia gusci vuoti.
+   Per ogni piano attivo (section box, piano su faccia, sezione ⟂ dell'asse) e ogni
+   elemento visibile che attraversa: fetta della sua mesh (caps.js, vertici uniti per
+   posizione, anelli chiusi, fori), triangoli sul piano col colore del bucket più
+   scuro (×CAPS_SHADE), contorno scuro. Il tappo sta 1 mm dalla
+   parte tenuta e porta gli stessi clippingPlanes: gli altri piani lo rifilano (spigoli
+   del box), il suo no. Solo vista: picking, BCF, sezione 2D e export non lo vedono.
+   Ricostruzione: dal vivo (un frame) se l'ultima è durata ≤ CAPS_LIVE_MS, altrimenti
+   tappi nascosti durante il trascinamento e rifatti 200 ms dopo l'ultimo movimento.
+   Stato in una funzione (non const): applyIsolate può girare prima di questa sezione. */
+const CAPS_LIVE_MS = 35;
+const CAPS_EPS = 1e-3;
+/* più scuro di Sviluppo profili (×0,78): i materiali IFC sono spesso grigi chiari e la faccia tagliata
+   (non illuminata) si confondeva con le facce in luce (scatolare M2_200_EX_BIM_252, 2026-10-13).
+   Il fattore vale nello spazio LINEARE di three.js: 0,45 ≈ ×0,7 a schermo (0,65 sembrava ×0,82) */
+const CAPS_SHADE = 0.45;
+function _caps() {
+  if (!_caps.s) {
+    const group = new THREE.Group();
+    group.name = "sectionCaps";
+    scene.add(group);
+    _caps.s = { group, raf: 0, timer: 0, cost: 0, open: 0 };
+  }
+  return _caps.s;
+}
+function _capsClear() {
+  const S = _caps();
+  for (const o of S.group.children) { o.geometry.dispose(); o.material.dispose(); }
+  S.group.clear();
+}
+/* colore e velatura dei tappi: seguono "Isola selezione" e la velatura del modello */
+function _capsStyle() {
+  if (!_caps.s) return;
+  const dim = isolateOn && hlGroup.children.length > 0, gf = modelGhost;
+  for (const o of _caps.s.group.children) {
+    const m = o.material, ud = o.userData;
+    if (o.isLineSegments) { m.opacity = dim ? 0.05 : 0.85 * gf; continue; }
+    const op = dim ? 0.07 : (ud.baseOpacity < 0.999 ? Math.min(0.85, ud.baseOpacity + 0.3) : 1) * gf;
+    m.color.copy(ud.color).multiplyScalar(CAPS_SHADE);
+    m.transparent = op < 0.999; m.opacity = op; m.depthWrite = op >= 0.999;
+    m.needsUpdate = true;
+  }
+}
+const _capsTri = (c, h) => THREE.ShapeUtils.triangulateShape(
+  c.map(([x, y]) => new THREE.Vector2(x, y)), h.map(r => r.map(([x, y]) => new THREE.Vector2(x, y))));
+function _capsBuild() {
+  const S = _caps();
+  cancelAnimationFrame(S.raf); S.raf = 0;
+  clearTimeout(S.timer); S.timer = 0;
+  _capsClear();
+  S.group.visible = true;
+  const planes = _activeClipPlanes();
+  if (!planes.length || !models.length) { S.cost = 0; return; }
+  const t0 = performance.now();
+  /* rootGroup è a identità: posizioni delle mesh = coordinate mondo, i piani valgono così */
+  const P = planes.map(pl => ({ nx: pl.normal.x, ny: pl.normal.y, nz: pl.normal.z, c: pl.constant, pl,
+                                basis: CAPS.planeBasis(pl.normal.x, pl.normal.y, pl.normal.z) }));
+  const lines = [];
+  let open = 0;
+  for (const m of models) {
+    if (!m.visible) continue;
+    for (const mesh of m.meshes) {
+      const g = mesh.geometry, bb = g.boundingBox;
+      if (!mesh.visible || !bb) continue;
+      const cut = P.filter(p => bb.intersectsPlane(p.pl));
+      if (!cut.length) continue;
+      const ud = mesh.userData, pos = g.attributes.position.array, idx = ud.fullIndex.array;
+      if (!ud.capBoxes) ud.capBoxes = CAPS.rangeBoxes(pos, idx, ud.fullRanges);   // ingombri per elemento, una volta
+      const pv = [], ix = [];
+      for (const p of cut) {
+        const ox = p.nx * CAPS_EPS, oy = p.ny * CAPS_EPS, oz = p.nz * CAPS_EPS;
+        for (let r = 0; r < ud.fullRanges.length; r++) {
+          const rg = ud.fullRanges[r];
+          if (m.hiddenEids.has(rg.expressID) || !CAPS.boxCrosses(ud.capBoxes, r, p)) continue;
+          if (P.some(q => q !== p && CAPS.boxOutside(ud.capBoxes, r, q))) continue;   /* tutto tolto da un altro piano */
+          const s = CAPS.sliceRange(pos, idx, rg.start, rg.count, p);
+          if (s.open.length) {           /* mesh non a tenuta lì: solo il contorno */
+            open++;
+            for (let k = 0; k < s.open.length; k += 3) lines.push(s.open[k] + ox, s.open[k + 1] + oy, s.open[k + 2] + oz);
+          }
+          if (s.loops.length) CAPS.capLoops(s.loops, p, _capsTri, pv, ix, lines, CAPS_EPS, p.basis);
+        }
+      }
+      if (!ix.length) continue;
+      const cg = new THREE.BufferGeometry();
+      cg.setAttribute("position", new THREE.Float32BufferAttribute(pv, 3));
+      cg.setIndex(ix);
+      const cap = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, clippingPlanes: planes }));
+      cap.userData = { color: mesh.material.color.clone(), baseOpacity: ud.baseOpacity };
+      cap.matrixAutoUpdate = false;
+      S.group.add(cap);
+    }
+  }
+  if (lines.length) {
+    const lg = new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(lines, 3));
+    const l = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0x262d28, transparent: true, clippingPlanes: planes }));
+    l.matrixAutoUpdate = false;
+    S.group.add(l);
+  }
+  _capsStyle();
+  S.cost = performance.now() - t0;
+  S.open = open;
+}
+/* da chiamare a ogni cambio di piani, di visibilità o di modelli */
+function capsSchedule() {
+  const S = _caps();
+  if (!_activeClipPlanes().length) {
+    cancelAnimationFrame(S.raf); S.raf = 0; clearTimeout(S.timer); S.timer = 0;
+    _capsClear(); S.cost = 0;
+    return;
+  }
+  if (S.cost <= CAPS_LIVE_MS) { if (!S.raf) S.raf = requestAnimationFrame(_capsBuild); }
+  else { S.group.visible = false; clearTimeout(S.timer); S.timer = setTimeout(_capsBuild, 200); }
+}
+/* Hook per la QA dei tappi (console/automazione, come __apeClashQA): NON è API
+   pubblica, può cambiare senza preavviso. box() posa il section box in coordinate
+   mondo (min/max [x,y,z], angolo in radianti) come farebbe il trascinamento. */
+window.__apeCapsQA = {
+  stats: () => {
+    const S = _caps(); let meshes = 0, tris = 0, segs = 0;
+    for (const o of S.group.children) {
+      if (o.isLineSegments) segs += o.geometry.attributes.position.count / 2;
+      else { meshes++; tris += o.geometry.index.count / 3; }
+    }
+    return { visible: S.group.visible, meshes, tris, segs, ms: Math.round(S.cost * 10) / 10, open: S.open, planes: _activeClipPlanes().length };
+  },
+  modelBox: () => { const b = computeGlobalBox(); return [b.min.toArray(), b.max.toArray()]; },
+  /* un vertice vero del modello (per centrare il box su della geometria) */
+  vertex: (f = 0.5) => {
+    const ms = allBaseMeshes().sort((a, b) => b.geometry.attributes.position.count - a.geometry.attributes.position.count)[0];
+    if (!ms) return null;
+    const p = ms.geometry.attributes.position, k = Math.floor(f * (p.count - 1));
+    return [p.getX(k), p.getY(k), p.getZ(k)];
+  },
+  box: (min, max, angle = 0) => {
+    if (!sectionBoxOn) setSectionBox(true);
+    sbMin.fromArray(min); sbMax.fromArray(max); sbAngle = angle;
+    sbRotCtr.addVectors(sbMin, sbMax).multiplyScalar(0.5);
+    _applySbClipping(); _rebuildSbVisual();
+    fitBox(sbWorldBox(), 0);
+  },
+  build: () => { _capsBuild(); return window.__apeCapsQA.stats(); },
+  show: (on) => { _caps().group.visible = !!on; },
+  /* camera verso il centro del box da una direzione mondo (y in alto), distanza k × diagonale */
+  view: (dx, dy, dz, k = 0.9) => {
+    const b = sbWorldBox(), c = b.getCenter(new THREE.Vector3()), r = b.getSize(new THREE.Vector3()).length();
+    camera.position.copy(c).add(new THREE.Vector3(dx, dy, dz).normalize().multiplyScalar(r * k));
+    controls.target.copy(c); controls.update();
+  }
+};
 
 /* ---- ricostruisce wireframe + handle dalla sbMin/sbMax corrente (in posa ruotata) ---- */
 function _rebuildSbVisual() {
