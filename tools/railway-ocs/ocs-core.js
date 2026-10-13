@@ -234,6 +234,45 @@ export function nearestU(T, x, y, step = 5) {
   const u = (lo + hi) / 2, p = hAt(T.H, u);
   return { u, q: -Math.sin(p.th) * (x - p.x) + Math.cos(p.th) * (y - p.y), d: Math.hypot(p.x - x, p.y - y) };
 }
+/* ---- tanti punti sui binari (import dei pali a coordinate, 0.9.0) -------------------------------------------
+   indice = la linea dell'asse del binario (offset compreso) al passo step, fatta una volta; projectOn prende il
+   segmento più vicino e poi corregge la progressiva sul binario vero finché il punto sta sulla normale
+   (in curva, a scostamento q, la progressiva corre 1 − k·q volte più piano) */
+export function trackIndex(T, step = 5) {
+  const us = trackStations(T, step), xs = new Float64Array(us.length), ys = new Float64Array(us.length);
+  us.forEach((u, i) => { const f = trackFrame(T, u); xs[i] = f.x; ys[i] = f.y; });
+  return { T, us, xs, ys };
+}
+/* → { u, lat (+ a sinistra dell'asse del binario), along (oltre i capi: ≠ 0), d } */
+export function projectOn(ix, x, y) {
+  const { T, us, xs, ys } = ix, L = T.H.length;
+  let best = Infinity, u = 0;
+  for (let i = 0; i + 1 < us.length; i++) {
+    const ax = xs[i], ay = ys[i], dx = xs[i + 1] - ax, dy = ys[i + 1] - ay, l2 = dx * dx + dy * dy;
+    const t = l2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2)) : 0;
+    const ex = ax + t * dx - x, ey = ay + t * dy - y, d2 = ex * ex + ey * ey;
+    if (d2 < best) { best = d2; u = us[i] + t * (us[i + 1] - us[i]); }
+  }
+  let f = trackFrame(T, u);
+  for (let it = 0; it < 12; it++) {
+    const along = (x - f.x) * f.tx + (y - f.y) * f.ty, lat = (x - f.x) * f.nx + (y - f.y) * f.ny;
+    const nu = Math.max(0, Math.min(L, u + along / Math.max(0.2, 1 - (f.k || 0) * lat)));
+    if (Math.abs(nu - u) < 1e-7) break;
+    u = nu; f = trackFrame(T, u);
+  }
+  const along = (x - f.x) * f.tx + (y - f.y) * f.ty, lat = (x - f.x) * f.nx + (y - f.y) * f.ny;
+  return { u, lat, along, d: Math.hypot(x - f.x, y - f.y) };
+}
+/* i binari attorno al punto, dal più vicino (scostamento laterale): [{ i, u, lat, along }], senza quelli dove
+   il punto cade oltre i capi di più di maxAlong */
+export function nearestTracks(ixs, x, y, maxAlong = 2) {
+  const out = [];
+  ixs.forEach((ix, i) => { const p = projectOn(ix, x, y); if (Math.abs(p.along) <= maxAlong) out.push({ i, ...p }); });
+  return out.sort((a, b) => Math.abs(a.lat) - Math.abs(b.lat));
+}
+/* DR dall'asse del fusto a scostamento lat dall'asse del binario: faccia del palo → bordo interno della rotaia
+   (w = larghezza del fusto trasversale al binario); l'inverso di supportLevels().E/N */
+export const drFromAxis = (lat, w) => Math.abs(lat) - GAUGE_HALF - w / 2;
 /* ingombro in pianta di più binari (per l'origine della scena e l'inquadratura) */
 export function tracksBox(list, step = 50) {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;

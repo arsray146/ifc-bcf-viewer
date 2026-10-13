@@ -9,7 +9,7 @@
    Le coppie di coordinate sono «Nord Est» come vuole la specifica; si
    prova anche l'ordine scambiato e si tiene quello che chiude le giunzioni.
    ========================================================================= */
-import { hAlign, hJunctions, profileV } from "./ocs-core.js?v=0.8.1";
+import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis } from "./ocs-core.js?v=0.9.0";
 
 /* ---- XML minimo: elementi, attributi, testo (niente DTD, niente namespace) ---- */
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
@@ -513,10 +513,13 @@ export async function readTable(bytes, name = "") {
   return [{ name: name || "CSV", rows: parseCSV(text) }];
 }
 /* intestazione → campo del tool */
-const hnorm = (h) => String(h == null ? "" : h).trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[_\s]+/g, " ").replace(/[.:]+$/, "").trim();
+/* «N. picchetto» = «n picchetto»: il punto delle abbreviazioni vale uno spazio (0.9.0) */
+const hnorm = (h) => String(h == null ? "" : h).trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\.(?=\s)/g, " ").replace(/[_\s]+/g, " ").replace(/[.:]+$/, "").trim();
 /* L2 / sosp2 (L_MENSOLA_2, TIPO_SOSP_2 del Cartiglio Satferr) = la SECONDA SOSPENSIONE sulla stessa mensola
    (palo su due binari, PIANO §14.1), non una seconda mensola: lunghezza della mensola che la porta e tipo */
-export const TABLE_FIELDS = ["num", "sta", "side", "dr", "mast", "L", "sosp", "L2", "sosp2", "found", "hw", "stag", "track"];
+/* E / N (0.9.0) = coordinate dell'ASSE DEL FUSTO, nelle coordinate dei binari: con quelle valgono la posizione,
+   il lato e la DR ricalcolati; progressiva e DR della tabella restano per il controllo */
+export const TABLE_FIELDS = ["num", "sta", "E", "N", "side", "dr", "mast", "L", "sosp", "L2", "sosp2", "found", "hw", "stag", "track"];
 const HDR = [
   ["L2", /^(l mensola 2|lunghezza mensola 2|mensola 2|2a mensola|seconda mensola|cantilever 2)$/],
   ["sosp2", /^(tipo sosp 2|tipo sospensione 2|sospensione 2|seconda sospensione|suspension 2|suspension type 2)$/],
@@ -531,6 +534,9 @@ const HDR = [
   ["hw", /^(altezza filo|h filo|hfilo|altezza fdc|altezza filo di contatto|contact wire height|wire height)$/],
   ["stag", /^(poligonazione|stagger|poligonazione \(mm\))$/],
   ["track", /^(binario|track|asse|alignment)$/],
+  // dopo «num»: una colonna «N» da sola è il numero; accanto a una colonna Est è il Nord (tableHeader)
+  ["E", /^((coord(inata)?\.? ?)?(e|est|x)( \(m\))?|easting|east)$/],
+  ["N", /^((coord(inata)?\.? ?)?(nord|y)( \(m\))?|coord(inata)?\.? ?n|n \(m\)|northing|north)$/],
 ];
 export function headerKey(h) { const t = hnorm(h); for (const [k, re] of HDR) if (re.test(t)) return k; return null; }
 /* la riga d'intestazione (fra le prime 25) e la proposta di colonne: { row, map: { campo: colonna } } */
@@ -539,6 +545,14 @@ export function tableHeader(rows) {
   for (let r = 0; r < Math.min(rows.length, 25); r++) {
     const map = {};
     rows[r].forEach((h, c) => { const k = headerKey(h); if (k && map[k] == null) map[k] = c; });
+    if (map.E != null && map.N == null) {                // «E» e «N»: la N più vicina alla E è il Nord, il numero sta in un'altra colonna
+      const cs = rows[r].map((h, j) => (hnorm(h) === "n" ? j : -1)).filter((j) => j >= 0).sort((a, b) => Math.abs(a - map.E) - Math.abs(b - map.E));
+      const c = cs.length ? cs[0] : -1;
+      if (c >= 0) {
+        map.N = c;
+        if (map.num === c) { delete map.num; const o = rows[r].findIndex((h, j) => j !== c && headerKey(h) === "num"); if (o >= 0) map.num = o; }
+      }
+    }
     const n = Object.keys(map).length;
     if (n > best.n) best = { row: r, n, map };
   }
@@ -561,8 +575,10 @@ export function sideOf(v) {
   return 0;
 }
 export function mastOf(v) { const m = String(v == null ? "" : v).match(/LSU\s*-?\s*(\d{2})\s*([abc])/i); return m ? "LSU" + m[1] + m[2].toLowerCase() : null; }
-/* righe → sostegni: { row, num, sta, side, dr, mast, L, L2, found, hw, stag, track, attrs, warn: [] }.
-   opt.masts / opt.founds = codici del catalogo (il modulo non lo importa) */
+/* un portale nella colonna del tipo (pilone PO, travi MEC, «portale»): non si importa dalla tabella */
+export const isPortalText = (v) => /portal|pilone|\bPO\b|\bMEC\b/i.test(String(v == null ? "" : v));
+/* righe → sostegni: { row, num, sta, E, N, xy, side, dr, mast, portal, L, L2, found, hw, stag, track, attrs, warn: [] }.
+   opt.masts / opt.founds = codici del catalogo (il modulo non lo importa); opt.swap = E e N scambiate */
 export function tableRecords(rows, head, map, opt = {}) {
   const masts = new Set(opt.masts || []), founds = new Map((opt.founds || []).map((f) => [f.toUpperCase(), f]));
   const used = new Set(Object.values(map).filter((c) => c != null && c >= 0));
@@ -570,11 +586,15 @@ export function tableRecords(rows, head, map, opt = {}) {
   for (let r = head + 1; r < rows.length; r++) {
     const row = rows[r], cell = (k) => (map[k] != null && map[k] >= 0 ? row[map[k]] : "");
     const warn = [], rec = { row: r + 1, num: String(cell("num") ?? "").trim(), sta: staOf(cell("sta")), side: sideOf(cell("side")), attrs: {}, warn };
-    if (!Number.isFinite(rec.sta)) continue;                // righe senza progressiva: titoli, totali, vuote
+    const e = numOf(cell("E")), n = numOf(cell("N"));
+    rec.E = opt.swap ? n : e; rec.N = opt.swap ? e : n;
+    rec.xy = Number.isFinite(rec.E) && Number.isFinite(rec.N);
+    if (!Number.isFinite(rec.sta) && !rec.xy) continue;     // righe senza progressiva né coordinate: titoli, totali, vuote
     rec.dr = meters(cell("dr"), 20);
     const ms = String(cell("mast") || "").trim();
     rec.mast = ms ? mastOf(ms) : null;
-    if (ms && !(rec.mast && masts.has(rec.mast))) { warn.push("mast"); rec.mast = null; rec.attrs[hdr[map.mast] || "mast"] = ms; }
+    rec.portal = !!ms && !rec.mast && isPortalText(ms);
+    if (ms && !rec.portal && !(rec.mast && masts.has(rec.mast))) { warn.push("mast"); rec.mast = null; rec.attrs[hdr[map.mast] || "mast"] = ms; }
     rec.L = meters(cell("L"), 100); rec.L2 = meters(cell("L2"), 100);
     rec.sosp = String(cell("sosp") ?? "").trim(); rec.sosp2 = String(cell("sosp2") ?? "").trim();
     const fs = String(cell("found") || "").trim();
@@ -586,6 +606,53 @@ export function tableRecords(rows, head, map, opt = {}) {
     out.push(rec);
   }
   return out;
+}
+/* ---- dove vanno le righe (0.9.0) ----------------------------------------------------------------------------
+   tracks = [{ name, s0, length, ix (ocs-core trackIndex) }]; opt = { track (indice del binario per le righe senza
+   binario né coordinate), mastW(i, u, rec) → larghezza del fusto trasversale, e le tolleranze di XY_DEFAULTS }.
+   Con le coordinate (asse del fusto): il binario della colonna o il più vicino, progressiva, lato e DR dalla
+   proiezione; progressiva, DR e lato della tabella si confrontano. Senza: la progressiva sul binario della colonna
+   o su quello scelto, come prima.
+   → { ok: [{ i, rec, u, side, dr, xy, lat, warn }], skip: [{ rec, why, t, d }] }
+   why: noTrack (binario della colonna sconosciuto), out (fuori dal binario), far (oltre maxD dal binario più
+   vicino), portal; warn: amb (un altro binario quasi alla stessa distanza), staDiff, drDiff, sideDiff, drRange */
+export const XY_DEFAULTS = { maxD: 15, drMin: 1.5, drMax: 4.5, staTol: 0.5, drTol: 0.05, ambTol: 0.5 };
+export function placeRecords(recs, tracks, opt = {}) {
+  const o = { ...XY_DEFAULTS, ...opt }, ok = [], skip = [], ixs = tracks.map((t) => t.ix);
+  for (const rec of recs) {
+    if (rec.portal) { skip.push({ rec, why: "portal" }); continue; }
+    const named = rec.track ? tracks.findIndex((t) => t.name.toLowerCase() === rec.track.toLowerCase()) : -1;
+    if (rec.track && named < 0) { skip.push({ rec, why: "noTrack", t: rec.track }); continue; }
+    if (!rec.xy) {
+      const i = named >= 0 ? named : o.track, t = tracks[i];
+      if (!t) { skip.push({ rec, why: "noTrack", t: rec.track || "" }); continue; }
+      const u = rec.sta - t.s0;
+      if (u < -0.01 || u > t.length + 0.01) { skip.push({ rec, why: "out", t: t.name }); continue; }
+      ok.push({ i, rec, u: Math.max(0, Math.min(t.length, u)), side: rec.side, dr: rec.dr, xy: false, lat: null, warn: [] });
+      continue;
+    }
+    let near = null, p;
+    if (named >= 0) { const q = projectOn(ixs[named], rec.E, rec.N); p = Math.abs(q.along) <= 2 ? { i: named, ...q } : null; }
+    else { near = nearestTracks(ixs, rec.E, rec.N); p = near[0] || null; }
+    if (!p) { skip.push(named >= 0 ? { rec, why: "out", t: tracks[named].name } : { rec, why: "far", t: "", d: null }); continue; }
+    const t = tracks[p.i], a = Math.abs(p.lat);
+    if (a > o.maxD) { skip.push({ rec, why: "far", t: t.name, d: a }); continue; }
+    const side = p.lat >= 0 ? 1 : -1, dr = drFromAxis(p.lat, o.mastW ? o.mastW(p.i, p.u, rec) : 0.4), warn = [];
+    if (near && near[1] && Math.abs(near[1].lat) - a < o.ambTol) warn.push("amb");
+    if (Number.isFinite(rec.sta) && Math.abs((t.s0 || 0) + p.u - rec.sta) > o.staTol) warn.push("staDiff");
+    if (Number.isFinite(rec.dr) && Math.abs(dr - rec.dr) > o.drTol) warn.push("drDiff");
+    if (rec.side && rec.side !== side) warn.push("sideDiff");
+    if (dr < o.drMin || dr > o.drMax) warn.push("drRange");
+    ok.push({ i: p.i, rec, u: p.u, side, dr, xy: true, lat: p.lat, warn });
+  }
+  return { ok, skip };
+}
+/* quante righe con le coordinate cadono entro maxD da un binario (al più le prime n): serve a capire se le
+   colonne E e N sono scambiate */
+export function countNear(recs, ixs, maxD = XY_DEFAULTS.maxD, n = 60) {
+  let k = 0;
+  for (const r of recs.filter((x) => x.xy).slice(0, n)) { const p = nearestTracks(ixs, r.E, r.N)[0]; if (p && Math.abs(p.lat) <= maxD) k++; }
+  return k;
 }
 
 /* ---- IFC di contesto: gli elementi «uguali» per scegliere il supercompattato (0.7.0) -------------------------

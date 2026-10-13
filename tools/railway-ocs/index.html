@@ -695,7 +695,14 @@ const I18N = {
     "im.trackCol": "Con la colonna del binario ogni riga va al binario con quel nome; il binario scelto qui vale per le righe che non lo dicono.",
     "im.mode": "Pali già piazzati", "im.add": "si tengono, i nuovi si aggiungono", "im.replace": "si tolgono dai binari della tabella",
     "im.count": "{n} sostegni da importare, {s} righe saltate.", "im.warn": "{n} righe con palo o blocco che il catalogo non conosce: prendono il valore del binario, il testo della tabella resta fra gli attributi.",
-    "im.noSta": "Manca la colonna della progressiva.", "im.skipRow": "Riga {r}: {m}.",
+    "im.noSta": "Manca la colonna della progressiva (o quelle di Est e Nord).", "im.skipRow": "Riga {r}: {m}.",
+    "im.E": "Est (asse del palo)", "im.N": "Nord (asse del palo)", "im.xy": "Coordinate", "im.swap": "Est e Nord scambiate (leggi la colonna Est come Nord)",
+    "im.swapAuto": "Lette come scritte, le coordinate non cadono sui binari; scambiate sì: le leggo scambiate (togli la spunta se è sbagliato).",
+    "im.maxD": "Lontano oltre", "im.drRange": "DR ammessa", "im.perTrack": "Per binario: {l}.", "im.xyCount": "{n} pali posizionati dalle coordinate, {w} con avvisi.",
+    "im.warnRow": "Riga {r} ({n}): {m}.", "im.portal": "portale (si mette a mano)", "im.far": "a {d} m dal binario {t}, troppo lontano", "im.farAll": "nessun binario davanti al palo",
+    "im.wAmb": "fra due binari quasi alla stessa distanza, preso {t}", "im.wSta": "progressiva della tabella {a}, dalle coordinate {b}", "im.wDr": "DR della tabella {a}, dalle coordinate {b}",
+    "im.wSide": "lato della tabella diverso da quello delle coordinate", "im.wRange": "DR {v} fuori da {a} – {b} m",
+    "im.xyHelp": "Con Est e Nord (l'asse del fusto, nelle coordinate dei binari) ogni palo va sul binario della colonna «binario» o sul più vicino; progressiva, lato e DR (faccia del palo → bordo interno della rotaia) si ricalcolano dalla proiezione, e quelle scritte nella tabella fanno da controllo (avviso oltre 0,50 m di progressiva o 0,05 m di DR). Le righe oltre {d} m dai binari si saltano; i portali si mettono a mano. I pali importati sono fissi: il picchettamento automatico riempie i buchi fra loro.",
     "im.help": "Le colonne si riconoscono dall'intestazione (anche quelle del cartiglio Satferr: NUMERO_SOSTEGNO, TIPO_PALO, L_MENSOLA, TIPO_BLOCCO…) e qui si correggono. Millimetri e metri si distinguono da soli; il lato si legge da S/D, sx/dx, sinistra/destra (senza lato: dispari e pari come la numerazione del binario). Le colonne che il tool non usa restano sul palo fra gli attributi.",
     "im.go": "Importa", "im.none": "Nessun sostegno da importare.", "im.done": "Importati {n} sostegni da {f} ({s} righe saltate).",
     "drop.veil": "Rilascia i file",
@@ -860,7 +867,14 @@ const I18N = {
     "im.trackCol": "With the track column each row goes to the track of that name; the track picked here applies to the rows that do not say.",
     "im.mode": "Masts already placed", "im.add": "are kept, the new ones are added", "im.replace": "are removed from the table's tracks",
     "im.count": "{n} supports to import, {s} rows skipped.", "im.warn": "{n} rows with a mast or block the catalogue does not know: they take the track's value, the table text stays among the attributes.",
-    "im.noSta": "The chainage column is missing.", "im.skipRow": "Row {r}: {m}.",
+    "im.noSta": "The chainage column (or the Easting and Northing ones) is missing.", "im.skipRow": "Row {r}: {m}.",
+    "im.E": "Easting (mast axis)", "im.N": "Northing (mast axis)", "im.xy": "Coordinates", "im.swap": "Easting and Northing swapped (read the Easting column as Northing)",
+    "im.swapAuto": "Read as written, the coordinates miss the tracks; swapped they hit them: they are read swapped (untick if wrong).",
+    "im.maxD": "Too far beyond", "im.drRange": "Allowed DR", "im.perTrack": "Per track: {l}.", "im.xyCount": "{n} masts placed from coordinates, {w} with warnings.",
+    "im.warnRow": "Row {r} ({n}): {m}.", "im.portal": "portal (place it by hand)", "im.far": "{d} m from track {t}, too far", "im.farAll": "no track in front of the mast",
+    "im.wAmb": "between two tracks at almost the same distance, {t} taken", "im.wSta": "table chainage {a}, from coordinates {b}", "im.wDr": "table DR {a}, from coordinates {b}",
+    "im.wSide": "table side differs from the coordinates", "im.wRange": "DR {v} outside {a} – {b} m",
+    "im.xyHelp": "With Easting and Northing (the mast axis, in the tracks' coordinates) each mast goes to the track of the “track” column or to the nearest one; chainage, side and DR (mast face → inner rail edge) are recomputed from the projection, and those written in the table are checked (warning beyond 0.50 m of chainage or 0.05 m of DR). Rows farther than {d} m from the tracks are skipped; portals are placed by hand. Imported masts are fixed: automatic staking fills the gaps between them.",
     "im.help": "Columns are recognised from the header (also those of the Satferr title block: NUMERO_SOSTEGNO, TIPO_PALO, L_MENSOLA, TIPO_BLOCCO…) and can be fixed here. Millimetres and metres are told apart; the side reads from S/D, L/R, left/right (no side: odd and even as the track numbering). Columns the tool does not use stay on the mast as attributes.",
     "im.go": "Import", "im.none": "No supports to import.", "im.done": "Imported {n} supports from {f} ({s} rows skipped).",
     "drop.veil": "Drop the files",
@@ -875,13 +889,13 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./ocs-core.js?v=0.8.1";
-import * as IO from "./ocs-io.js?v=0.8.1";
-import * as K from "./ocs-catalog.js?v=0.8.1";
-import * as AU from "./ocs-stake.js?v=0.8.1";
+import * as C from "./ocs-core.js?v=0.9.0";
+import * as IO from "./ocs-io.js?v=0.9.0";
+import * as K from "./ocs-catalog.js?v=0.9.0";
+import * as AU from "./ocs-stake.js?v=0.9.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 
-const TOOL_VERSION = "0.8.1";
+const TOOL_VERSION = "0.9.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -2317,7 +2331,7 @@ const DWG_BASE = new URL("../profile-sweep/vendor/libredwg-web/", location.href)
 let PS = null;
 async function psModules() {
   if (!PS) {
-    const [io, core] = await Promise.all([import("../profile-sweep/profile-io.js?v=0.19.0"), import("../profile-sweep/profile-core.js?v=0.19.0")]);
+    const [io, core] = await Promise.all([import("../profile-sweep/profile-io.js?v=0.20.0"), import("../profile-sweep/profile-core.js?v=0.20.0")]);
     PS = { IO: io, C: core };
   }
   return PS;
@@ -2972,7 +2986,10 @@ async function openTable(file) {
   sheets = sheets.filter((x) => x.rows.length > 1);
   if (!sheets.length) { toast(tr("im.empty", { f: file.name }), true); return; }
   if (!S.tracks.length) { toast(tr("prj.empty"), true); return; }
-  const st = { file: file.name, sheets, sheet: 0, track: A ? A.id : S.tracks[0].id, mode: "add" };
+  const st = { file: file.name, sheets, sheet: 0, track: A ? A.id : S.tracks[0].id, mode: "add", swap: false, swapAuto: false,
+    maxD: IO.XY_DEFAULTS.maxD, drMin: IO.XY_DEFAULTS.drMin, drMax: IO.XY_DEFAULTS.drMax,
+    // i binari in pianta per le righe a coordinate (0.9.0), fatti una volta per il dialogo
+    trk: S.tracks.map((t) => ({ name: t.name, s0: t.s0 || 0, length: t.length, ix: C.trackIndex(derivedOf(t).T) })) };
   imHeader(st);
   dlgOpen(tr("im.title"), "", [
     { label: tr("prj.cancel"), run: dlgClose },
@@ -2980,21 +2997,36 @@ async function openTable(file) {
   ]);
   imRender(st);
 }
-function imHeader(st) { const H = IO.tableHeader(st.sheets[st.sheet].rows); st.head = H.row; st.map = { ...H.map }; }
-const imOpt = { masts: K.MASTS.map((m) => m.id), founds: K.FOUNDATIONS.map((f) => f.id) };
-/* i sostegni che l'import farebbe: { ok: [{ t, rec, u }], skip: [{ rec, why }] } */
-function imPlan(st) {
-  const rows = st.sheets[st.sheet].rows, recs = IO.tableRecords(rows, st.head, st.map, imOpt), ok = [], skip = [];
-  for (const rec of recs) {
-    const t = rec.track ? S.tracks.find((x) => x.name.toLowerCase() === rec.track.toLowerCase()) || null : trackById(st.track);
-    if (!t) { skip.push({ rec, why: tr("im.noTrack", { t: rec.track }) }); continue; }
-    const u = rec.sta - t.s0;
-    if (u < -0.01 || u > t.length + 0.01) { skip.push({ rec, why: tr("im.out", { t: t.name }) }); continue; }
-    ok.push({ t, rec, u: Math.max(0, Math.min(t.length, u)) });
-  }
-  return { recs, ok, skip };
+function imHeader(st) { const H = IO.tableHeader(st.sheets[st.sheet].rows); st.head = H.row; st.map = { ...H.map }; imSwapGuess(st); }
+const imXY = (st) => st.map.E != null && st.map.E >= 0 && st.map.N != null && st.map.N >= 0;
+/* E e N scambiate? se lette al contrario cadono sui binari più righe, si propone lo scambio (0.9.0) */
+function imSwapGuess(st) {
+  st.swap = st.swapAuto = false;
+  if (!imXY(st)) return;
+  const rows = st.sheets[st.sheet].rows, ixs = st.trk.map((t) => t.ix);
+  const a = IO.countNear(IO.tableRecords(rows, st.head, st.map, imOpt), ixs, st.maxD), b = IO.countNear(IO.tableRecords(rows, st.head, st.map, { ...imOpt, swap: true }), ixs, st.maxD);
+  st.swap = st.swapAuto = b > a;
 }
-const imLabel = (k) => ({ num: tr("su.num"), sta: tr("su.at"), side: tr("su.side"), dr: tr("su.dr"), mast: tr("su.mast"), L: tr("su.mens"), sosp: tr("im.sosp"), L2: tr("im.L2"), sosp2: tr("im.sosp2"), found: tr("su.found"), hw: tr("su.hw"), stag: tr("su.stag"), track: tr("im.track") })[k];
+const imOpt = { masts: K.MASTS.map((m) => m.id), founds: K.FOUNDATIONS.map((f) => f.id) };
+/* larghezza del fusto del palo che la riga avrà (il suo tipo, o quello del binario e dei tratti lì): la DR dalle
+   coordinate dell'asse del fusto ne toglie metà */
+const imMastW = (i, u, rec) => (K.mastType(rec.mast || supDefAt(S.tracks[i], u).mast) || K.mastType(K.TRACK_DEFAULTS.mast)).w;
+/* i sostegni che l'import farebbe: { ok: [{ t, rec, u, side, dr, xy, warn }], skip: [{ rec, why }] } */
+function imPlan(st) {
+  const rows = st.sheets[st.sheet].rows, recs = IO.tableRecords(rows, st.head, st.map, { ...imOpt, swap: st.swap });
+  const P = IO.placeRecords(recs, st.trk, { track: S.tracks.findIndex((t) => t.id === st.track), mastW: imMastW, maxD: st.maxD, drMin: st.drMin, drMax: st.drMax });
+  const why = (s) => (s.why === "noTrack" ? tr("im.noTrack", { t: s.t }) : s.why === "out" ? tr("im.out", { t: s.t }) : s.why === "portal" ? tr("im.portal")
+    : s.d != null ? tr("im.far", { d: nf(s.d, 1), t: s.t }) : tr("im.farAll"));
+  return { recs, ok: P.ok.map((o) => ({ ...o, t: S.tracks[o.i] })), skip: P.skip.map((s) => ({ rec: s.rec, why: why(s) })) };
+}
+/* gli avvisi di una riga a coordinate, a parole */
+function imWarnText(o, st) {
+  const r = o.rec, t = o.t;
+  return o.warn.map((w) => w === "amb" ? tr("im.wAmb", { t: t.name }) : w === "staDiff" ? tr("im.wSta", { a: prog(r.sta), b: prog((t.s0 || 0) + o.u) })
+    : w === "drDiff" ? tr("im.wDr", { a: nf(r.dr, 3), b: nf(o.dr, 3) }) : w === "sideDiff" ? tr("im.wSide")
+    : tr("im.wRange", { v: nf(o.dr, 3), a: nf(st.drMin, 2), b: nf(st.drMax, 2) })).join("; ");
+}
+const imLabel = (k) => ({ num: tr("su.num"), sta: tr("su.at"), E: tr("im.E"), N: tr("im.N"), side: tr("su.side"), dr: tr("su.dr"), mast: tr("su.mast"), L: tr("su.mens"), sosp: tr("im.sosp"), L2: tr("im.L2"), sosp2: tr("im.sosp2"), found: tr("su.found"), hw: tr("su.hw"), stag: tr("su.stag"), track: tr("im.track") })[k];
 function imRender(st) {
   const sh = st.sheets[st.sheet], hdr = sh.rows[st.head] || [];
   const cols = hdr.map((h, c) => [c, String(h || "").trim() || tr("im.col", { n: c + 1 })]);
@@ -3005,26 +3037,44 @@ function imRender(st) {
   for (const k of IO.TABLE_FIELDS) h += `<div class="row"><label>${esc(imLabel(k))}</label><select class="sel" data-imk="${k}">${opt(-1, "—", st.map[k] != null ? st.map[k] : -1)}${cols.map(([c, l]) => opt(c, l, st.map[k] != null ? st.map[k] : -1)).join("")}</select></div>`;
   h += `<div class="row"><label for="imTrack">${esc(tr("im.target"))}</label><select id="imTrack" class="sel">${S.tracks.map((t) => opt(t.id, t.name, st.track)).join("")}</select></div>`;
   if (st.map.track != null && st.map.track >= 0) h += `<p class="help">${esc(tr("im.trackCol"))}</p>`;
+  const xy = imXY(st);
+  if (xy) {                                              // coordinate dell'asse del fusto (0.9.0)
+    h += `<div class="sub">${esc(tr("im.xy"))}</div>`;
+    h += `<div class="row"><span class="lbl"></span><label class="chk"><input type="checkbox" id="imSwap"${st.swap ? " checked" : ""}> ${esc(tr("im.swap"))}</label></div>`;
+    if (st.swapAuto) h += `<p class="note warn">${esc(tr("im.swapAuto"))}</p>`;
+    h += `<div class="row"><label for="imMaxD">${esc(tr("im.maxD"))}</label><div class="numbox"><input id="imMaxD" inputmode="decimal" value="${nf(st.maxD, 1)}"><span>m</span></div></div>`;
+    h += `<div class="row"><label for="imDr0">${esc(tr("im.drRange"))}</label><div class="numbox"><input id="imDr0" inputmode="decimal" value="${nf(st.drMin, 2)}"><span>–</span><input id="imDr1" inputmode="decimal" value="${nf(st.drMax, 2)}"><span>m</span></div></div>`;
+  }
   h += `<div class="row"><label for="imMode">${esc(tr("im.mode"))}</label><select id="imMode" class="sel">${opt("add", tr("im.add"), st.mode)}${opt("replace", tr("im.replace"), st.mode)}</select></div>`;
-  const P = imPlan(st), bad = P.ok.filter((o) => o.rec.warn.length).length;
+  const P = imPlan(st), bad = P.ok.filter((o) => o.rec.warn.length).length, nxy = P.ok.filter((o) => o.xy), wxy = nxy.filter((o) => o.warn.length);
+  const per = new Map();                                 // quanti per binario (il nome non sta nella colonna della progressiva)
+  for (const o of P.ok) per.set(o.t, (per.get(o.t) || 0) + 1);
   h += `<div class="sub">${esc(tr("dw.preview"))}</div>`;
   h += `<p class="note">${esc(tr("im.count", { n: P.ok.length, s: P.skip.length }))}</p>`;
+  if (per.size > 1) h += `<p class="note">${esc(tr("im.perTrack", { l: [...per].map(([t, n]) => t.name + " " + n).join(" · ") }))}</p>`;
+  if (nxy.length) h += `<p class="note${wxy.length ? " warn" : ""}">${esc(tr("im.xyCount", { n: nxy.length, w: wxy.length }))}</p>`;
   if (bad) h += `<p class="note warn">${esc(tr("im.warn", { n: bad }))}</p>`;
-  if (!(st.map.sta >= 0)) h += `<p class="note warn">${esc(tr("im.noSta"))}</p>`;
+  if (!(st.map.sta >= 0) && !xy) h += `<p class="note warn">${esc(tr("im.noSta"))}</p>`;
   if (P.ok.length) {
     h += `<div class="stab"><div class="sr sh"><span>${esc(tr("su.hN"))}</span><span>${esc(tr("su.hSta"))}</span><span>${esc(tr("su.hSide"))}</span><span>${esc(tr("su.hDr"))}</span><span>${esc(tr("su.hMast"))}</span><span>${esc(tr("su.hMens"))}</span><span>${esc(tr("su.hFound"))}</span></div>`;
     for (const o of P.ok.slice(0, 40)) {
-      const r = o.rec, sd = r.side > 0 ? tr("su.sL") : r.side < 0 ? tr("su.sR") : "·";
-      h += `<div class="sr"><span>${esc(r.num || "·")}</span><span>${esc(prog(r.sta))}</span><span>${esc(sd)}</span><span>${Number.isFinite(r.dr) ? nf(r.dr, 2) : "·"}</span><span${r.warn.includes("mast") ? ' class="warn"' : ""}>${esc(r.mast || (r.warn.includes("mast") ? "?" : "·"))}</span><span>${Number.isFinite(r.L) ? nf(r.L, 2) : "·"}</span><span${r.warn.includes("found") ? ' class="warn"' : ""}>${esc(r.found || (r.warn.includes("found") ? "?" : "·"))}</span></div>`;
+      const r = o.rec, side = o.side, sd = side > 0 ? tr("su.sL") : side < 0 ? tr("su.sR") : "·", st0 = (o.t.s0 || 0) + o.u;
+      const wt = o.warn.length ? imWarnText(o, st) : "", wc = (...k) => (o.warn.some((w) => k.includes(w)) ? ' class="warn"' : "");
+      h += `<div class="sr"${wt ? ` title="${esc(wt)}"` : ""}><span>${esc(r.num || "·")}</span><span title="${esc(o.t.name + " " + prog(st0))}"${wc("staDiff", "amb")}>${esc(prog(st0))}</span><span${wc("sideDiff")}>${esc(sd)}</span><span${wc("drDiff", "drRange")}>${Number.isFinite(o.dr) ? nf(o.dr, 2) : "·"}</span><span${r.warn.includes("mast") ? ' class="warn"' : ""}>${esc(r.mast || (r.warn.includes("mast") ? "?" : "·"))}</span><span>${Number.isFinite(r.L) ? nf(r.L, 2) : "·"}</span><span${r.warn.includes("found") ? ' class="warn"' : ""}>${esc(r.found || (r.warn.includes("found") ? "?" : "·"))}</span></div>`;
     }
     h += `</div>`;
   }
+  for (const o of wxy.slice(0, 8)) h += `<p class="note warn">${esc(tr("im.warnRow", { r: o.rec.row, n: o.rec.num || "·", m: imWarnText(o, st) }))}</p>`;
   for (const s of P.skip.slice(0, 6)) h += `<p class="note warn">${esc(tr("im.skipRow", { r: s.rec.row, m: s.why }))}</p>`;
+  if (xy) h += `<p class="help">${esc(tr("im.xyHelp", { d: nf(st.maxD, 0) }))}</p>`;
   h += `<p class="help">${esc(tr("im.help"))}</p>`;
   $("dlgBody").innerHTML = h;
+  if ($("imSwap")) $("imSwap").addEventListener("change", (e) => { st.swap = e.target.checked; st.swapAuto = false; imRender(st); });
+  const tol = (id, k, lo) => { if ($(id)) $(id).addEventListener("change", (e) => { const v = parseNum(e.target.value); if (v >= lo) st[k] = v; imRender(st); }); };
+  tol("imMaxD", "maxD", 0.5); tol("imDr0", "drMin", 0); tol("imDr1", "drMax", 0);
   if ($("imSheet")) $("imSheet").addEventListener("change", (e) => { st.sheet = +e.target.value; imHeader(st); imRender(st); });
-  $("imHead").addEventListener("change", (e) => { const v = parseInt(e.target.value, 10); if (v >= 1 && v <= sh.rows.length) { st.head = v - 1; const H = IO.tableHeader(sh.rows.slice(st.head, st.head + 1)); st.map = { ...H.map }; } imRender(st); });
-  $("dlgBody").querySelectorAll("[data-imk]").forEach((el) => el.addEventListener("change", () => { const c = +el.value; if (c < 0) delete st.map[el.dataset.imk]; else st.map[el.dataset.imk] = c; imRender(st); }));
+  $("imHead").addEventListener("change", (e) => { const v = parseInt(e.target.value, 10); if (v >= 1 && v <= sh.rows.length) { st.head = v - 1; const H = IO.tableHeader(sh.rows.slice(st.head, st.head + 1)); st.map = { ...H.map }; imSwapGuess(st); } imRender(st); });
+  $("dlgBody").querySelectorAll("[data-imk]").forEach((el) => el.addEventListener("change", () => { const c = +el.value; if (c < 0) delete st.map[el.dataset.imk]; else st.map[el.dataset.imk] = c; if (el.dataset.imk === "E" || el.dataset.imk === "N") imSwapGuess(st); imRender(st); }));
   $("imTrack").addEventListener("change", (e) => { st.track = +e.target.value; imRender(st); });
   $("imMode").addEventListener("change", (e) => { st.mode = e.target.value; });
 }
@@ -3037,7 +3087,7 @@ function imApply(st) {
   let last = null;
   for (const o of P.ok.sort((a, b) => a.u - b.u)) {
     const { t, rec, u } = o, def = supDef(t), list = supsOf(t);
-    let side = rec.side;
+    let side = o.side;                                   // dalle coordinate (0.9.0) o dalla colonna del lato
     if (!side) { const n = parseInt(String(rec.num).replace(/^\D+/, ""), 10); side = Number.isFinite(n) && def.numMode === "parity" ? ((n % 2 === 1) === !!def.oddLeft ? 1 : -1) : 1; }
     const prev = list.filter((x) => x.u <= u).sort((a, b) => b.u - a.u)[0];
     const stag = Number.isFinite(rec.stag) ? rec.stag : prev ? -prev.side * (prev.stag != null ? prev.stag : def.stag) * side : def.stag;
@@ -3047,7 +3097,7 @@ function imApply(st) {
     const two = Number.isFinite(rec.L2) || !!rec.sosp2, nb = two ? neighborTrack(t, u, side) : null;
     const L = Number.isFinite(rec.L) && Number.isFinite(rec.L2) ? Math.max(rec.L, rec.L2) : fin(rec.L) ?? fin(rec.L2);
     const s = { id: S.supSeq++, track: t.id, u, side, num: rec.num || K.nextNumber(list, side, def), numUser: !!rec.num, stag,
-      mast: rec.mast, dr: fin(rec.dr), L, hm: null, hw: fin(rec.hw), found: rec.found, c1: null, sosp: rec.sosp || null, eq: { trafo: false, sez: false },
+      mast: rec.mast, dr: o.xy ? Math.round(o.dr * 1000) / 1000 : fin(o.dr), L, hm: null, hw: fin(rec.hw), found: rec.found, c1: null, sosp: rec.sosp || null, eq: { trafo: false, sez: false },
       susp: two ? [{ track: nb ? nb.t.id : null, off: null, stag: null, type: rec.sosp2 || null }] : [], attrs: Object.keys(rec.attrs).length ? rec.attrs : undefined };
     S.supports.push(s); last = s;
   }
