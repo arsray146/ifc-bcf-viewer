@@ -35,7 +35,7 @@
      RICEVUTO (l'offset sta nella descrizione); i sostegni e le rotaie
      stanno sul binario vero.
    ========================================================================= */
-import * as C from "./ocs-core.js?v=0.10.0";
+import * as C from "./ocs-core.js?v=0.10.1";
 import { writeStep } from "../common/pset-core.js?v=1.1.0";
 import { ifcGuid, stepStr, stepReal, chainage } from "../profile-sweep/profile-io.js?v=0.20.0";
 

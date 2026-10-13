@@ -20,9 +20,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Trazione elettrica — binari, pali e portali lungo il tracciato · viewifc.com</title>
-<meta name="robots" content="noindex">
-<meta name="description" content="Dagli assi ferroviari in LandXML (clotoidi, raccordi verticali, sopraelevazione) il binario in 3D e in pianta, con l'offset dell'asse; poi pali, mensole e portali della trazione elettrica lungo il tracciato. Gratis, senza account, i file non escono dal browser.">
+<title>Trazione elettrica — pali, mensole e portali lungo il tracciato ferroviario, IFC 4x3 · viewifc.com</title>
+<meta name="description" content="Trazione elettrica ferroviaria nel browser: assi dei binari da LandXML, IFC 4x3 o DWG (clotoidi, raccordi, sopraelevazione), pali LSU con mensola, portali, fondazioni E 64865 sul supercompattato, picchettamento automatico e import della tabella dei pali a coordinate. Esce un IFC 4x3 con IfcAlignment, sostegni e Pset. Gratis, senza account, i file non escono dal browser.">
 <meta name="author" content="Alessandro Perugini">
 <meta name="theme-color" content="#f1f3ee">
 <link rel="canonical" href="https://viewifc.com/tools/railway-ocs/">
@@ -520,9 +519,9 @@ body.scpick #cv{cursor:crosshair}
 <!-- ================= FOGLIO CENTRALE ================= -->
 <div id="sheet" hidden>
   <div class="card glass" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
-    <div class="kicker" data-i18n="w.kicker">Strumento 18 · in sviluppo</div>
+    <div class="kicker" data-i18n="w.kicker">Strumento 18 · prima versione</div>
     <h1 id="sheetTitle" data-i18n="w.title">La trazione elettrica lungo il tracciato</h1>
-    <p class="lead" data-i18n="w.lead">Carica gli assi dei binari in LandXML o IFC 4x3 (rette, archi, clotoidi, livelletta, sopraelevazione) o da DWG/DXF di pianta e profilo: il binario si vede in 3D e in pianta senza prospettiva, con l'offset quando l'asse ricevuto non è quello del binario. Poi i sostegni a mano: pali LSU con mensola, fondazione, trasformatori e sezionatori su palo. Nelle prossime versioni: portali, picchettamento automatico, IFC e tavole.</p>
+    <p class="lead" data-i18n="w.lead">Carica gli assi dei binari in LandXML o IFC 4x3 (rette, archi, clotoidi, livelletta, sopraelevazione) o da DWG/DXF di pianta e profilo: il binario si vede in 3D e in pianta senza prospettiva, con l'offset quando l'asse ricevuto non è quello del binario. Poi i sostegni: pali LSU con mensola, portali, fondazioni sul supercompattato, trasformatori e sezionatori su palo, a mano, col picchettamento automatico o da una tabella di pali a coordinate. Esce un IFC 4x3 con gli assi e i sostegni, da federare col progetto. Nelle prossime versioni: tavole.</p>
     <div class="opts">
       <button class="opt" id="wOpen"><svg viewBox="0 0 24 24"><path d="M4 20h16M12 4v12M7 11l5 5 5-5"/></svg><span><b data-i18n="w.open">Apri gli assi</b><span data-i18n="w.openS">LandXML, IFC 4x3 con IfcAlignment, o DWG/DXF di pianta e profilo — o trascinali qui</span></span></button>
       <button class="opt" id="wProject"><svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg><span><b data-i18n="w.project">Apri un progetto salvato</b><span data-i18n="w.projectS">il file .ocs scaricato con «Salva progetto», anche da un altro PC</span></span></button>
@@ -542,8 +541,8 @@ const I18N = {
     "rail.tree": "Elementi del progetto (E)", "rail.frame": "Inquadra tutto (F)", "rail.plan": "Pianta ortografica, senza prospettiva (T) · di nuovo: vista 3D",
     "rail.fast": "Modalità fast (Q): passo di 10 m invece di 1 m, per lavorare leggeri", "rail.pv": "Mostra / nascondi il profilo (P)", "rail.pod": "Mostra / nascondi il pannello",
     "pn.resize": "Trascina per ridimensionare il pannello · doppio clic: larghezza iniziale",
-    "w.kicker": "Strumento 18 · in sviluppo", "w.title": "La trazione elettrica lungo il tracciato",
-    "w.lead": "Carica gli assi dei binari in LandXML o IFC 4x3 (rette, archi, clotoidi, livelletta, sopraelevazione) o da DWG/DXF di pianta e profilo: il binario si vede in 3D e in pianta senza prospettiva, con l'offset quando l'asse ricevuto non è quello del binario. Poi i sostegni a mano: pali LSU con mensola, fondazione, trasformatori e sezionatori su palo. Nelle prossime versioni: portali, picchettamento automatico, IFC e tavole.",
+    "w.kicker": "Strumento 18 · prima versione", "w.title": "La trazione elettrica lungo il tracciato",
+    "w.lead": "Carica gli assi dei binari in LandXML o IFC 4x3 (rette, archi, clotoidi, livelletta, sopraelevazione) o da DWG/DXF di pianta e profilo: il binario si vede in 3D e in pianta senza prospettiva, con l'offset quando l'asse ricevuto non è quello del binario. Poi i sostegni: pali LSU con mensola, portali, fondazioni sul supercompattato, trasformatori e sezionatori su palo, a mano, col picchettamento automatico o da una tabella di pali a coordinate. Esce un IFC 4x3 con gli assi e i sostegni, da federare col progetto. Nelle prossime versioni: tavole.",
     "w.open": "Apri gli assi", "w.openS": "LandXML, IFC 4x3 con IfcAlignment, o DWG/DXF di pianta e profilo — o trascinali qui",
     "w.project": "Apri un progetto salvato", "w.projectS": "il file .ocs scaricato con «Salva progetto», anche da un altro PC",
     "w.privacy": "I file non escono dal browser. Il lavoro si salva da solo in questo browser.", "w.close": "Chiudi",
@@ -724,8 +723,8 @@ const I18N = {
     "rail.tree": "Project items (E)", "rail.frame": "Frame all (F)", "rail.plan": "Orthographic plan, no perspective (T) · again: 3D view",
     "rail.fast": "Fast mode (Q): 10 m step instead of 1 m, to work light", "rail.pv": "Show / hide the profile (P)", "rail.pod": "Show / hide the panel",
     "pn.resize": "Drag to resize the panel · double-click: initial width",
-    "w.kicker": "Tool 18 · in development", "w.title": "Overhead line equipment along the alignment",
-    "w.lead": "Load the track alignments as LandXML or IFC 4x3 (lines, arcs, clothoids, vertical profile, cant) or from DWG/DXF plan and profile: the track shows in 3D and in plan without perspective, with an offset when the received alignment is not the track's. Then the supports by hand: LSU masts with cantilever, foundation, pole-mounted transformers and switches. Coming next: portals, automatic layout, IFC and drawings.",
+    "w.kicker": "Tool 18 · first version", "w.title": "Overhead line equipment along the alignment",
+    "w.lead": "Load the track alignments as LandXML or IFC 4x3 (lines, arcs, clothoids, vertical profile, cant) or from DWG/DXF plan and profile: the track shows in 3D and in plan without perspective, with an offset when the received alignment is not the track's. Then the supports: LSU masts with cantilever, portals, foundations on the formation layer, pole-mounted transformers and switches, by hand, with the automatic layout or from a table of masts by coordinates. Out comes an IFC 4x3 with alignments and supports, to federate with the project. Coming next: drawings.",
     "w.open": "Open the alignments", "w.openS": "LandXML, IFC 4x3 with IfcAlignment, or DWG/DXF plan and profile — or drop them here",
     "w.project": "Open a saved project", "w.projectS": "the .ocs file downloaded with “Save project”, also from another PC",
     "w.privacy": "Files never leave the browser. Your work saves itself in this browser.", "w.close": "Close",
@@ -910,13 +909,13 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./ocs-core.js?v=0.10.0";
-import * as IO from "./ocs-io.js?v=0.10.0";
-import * as K from "./ocs-catalog.js?v=0.10.0";
-import * as AU from "./ocs-stake.js?v=0.10.0";
+import * as C from "./ocs-core.js?v=0.10.1";
+import * as IO from "./ocs-io.js?v=0.10.1";
+import * as K from "./ocs-catalog.js?v=0.10.1";
+import * as AU from "./ocs-stake.js?v=0.10.1";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 
-const TOOL_VERSION = "0.10.0";
+const TOOL_VERSION = "0.10.1";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -1119,7 +1118,7 @@ scene.add(G.group);
 const CUT = { mode: null, p: NaN, side: 1, off: 0, plane: null, field: null, fieldT: null, fieldO: null, raf: 0 };
 const CUTU = { uCut: { value: new THREE.Vector4() }, uCutPlane: { value: new THREE.Vector4() } };
 const CUT_FIELD = new Set(["deck", "ctx", "ctxGlass", "sc"]);                 // con aCutU: tagliati anche lungo l'asse
-const CUT_PLANE = new Set(["mast", "mens", "conc", "equip", "supSel"]);      // geometrie condivise: solo la sezione ⟂
+const CUT_PLANE = new Set(["mast", "mens", "conc", "equip", "supSel", "supLine", "supSelLine", "wire"]);   // geometrie condivise: solo la sezione ⟂ (anche tiranti, sospensioni e punti del filo, 0.10.1)
 function cutPatch(m, field) {
   if (!m || m.userData.cut) return;
   m.userData.cut = true;
@@ -1347,6 +1346,7 @@ function themeColors() {
   mats.supSel = mats.supSel || new THREE.MeshLambertMaterial({ emissive: 0x2a3300 }); mats.supSel.color.set(light ? 0x8aa310 : 0xbfd730);
   mats.supLine = mats.supLine || new THREE.LineBasicMaterial(); mats.supLine.color.set(light ? 0x4a5158 : 0xc4ccd2);
   mats.supSelLine = mats.supSelLine || new THREE.LineBasicMaterial(); mats.supSelLine.color.set(light ? 0x6f8a00 : 0xbfd730);
+  mats.wire = mats.wire || new THREE.MeshBasicMaterial(); mats.wire.color.set(light ? 0x2f6fbf : 0x5b9be0);   // punti del filo: come il segnaposto, ma tagliati dalla sezione ⟂
   // IFC di contesto (0.7.0): colori dell'IFC, velati perché non coprano i sostegni; il supercompattato scelto in lime sopra
   mats.ctx = mats.ctx || new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false });
   mats.ctxGlass = mats.ctxGlass || new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.2, side: THREE.DoubleSide, depthWrite: false });
@@ -1693,7 +1693,7 @@ function buildSupport(s) {
       if (!geo) m.scale.set(p.sz[0], p.sz[1], p.sz[2]);
       m.userData.sup = s.id; g.add(m);
     } else if (p.k.startsWith("wire")) {
-      const m = new THREE.Mesh(WIRE_DOT, mats.mark);
+      const m = new THREE.Mesh(WIRE_DOT, mats.wire);
       m.position.set(...at(p.c)); m.userData.sup = s.id; m.userData.noPick = true; g.add(m);
     } else if (p.a) {
       const geo = new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute([...at(p.a), ...at(p.b)], 3));
@@ -4172,7 +4172,7 @@ function ifcDialog() {
 async function exportIfc(o, railStep) {
   busy(tr("ix.busy")); await frame();
   try {
-    const X = await import("./ocs-ifc.js?v=0.10.0");
+    const X = await import("./ocs-ifc.js?v=0.10.1");
     const tpl = psetTpl();
     const labels = { site: tr("ifc.site"), railway: tr("ifc.railway"), mast: tr("ifc.mast"), portal: tr("ifc.portal"), stem: tr("ifc.stem"), plate: tr("ifc.plate"),
       mens: tr("ifc.mens"), tie: tr("ifc.tie"), susp: tr("ifc.susp"), pend: tr("ifc.pend"), found: tr("ifc.found"), beam: tr("ifc.beam"), pole: tr("ifc.pole"), trafo: tr("ifc.trafo"),
