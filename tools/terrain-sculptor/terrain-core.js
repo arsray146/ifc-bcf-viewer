@@ -374,6 +374,8 @@ export function firstCrossing(p0, p1, poly) {
        startPad?, endPad?, slope, round, cutSlope?, lockGrade? }   — vedi pathLine
      { id, type: "bank", name?, on?, line: [[x,y]…] (ciglio), zTop, zBottom,
        face, side, slope, round, cutSlope? }        — vedi bankGeom
+     { id, type: "point", name?, on?, at: [x,y], elevation, blend,
+       slope, cutSlope?, round, radius }             — vedi spotCell
      { id, type: "water", name?, on?, polygon, level } e
      { id, type: "lock",  name?, on?, polygon } non toccano il terreno
        (opEvaluator → null): l'acqua si vede e basta, l'area bloccata
@@ -435,7 +437,62 @@ function boxOf(pts, grow = 0) {
 
 const okPts = (pts) => Array.isArray(pts) && pts.every(p => p && Number.isFinite(p[0]) && Number.isFinite(p[1]));
 
-export function opEvaluator(op, ops = [op]) {
+/* punto quotato (richiesta dell'utente del 16 ottobre: «punti a una quota
+   che si raccordano col terreno», con scarpata o con raccordo morbido): la
+   quota vale nei QUATTRO nodi della cella che contiene il punto, così la
+   superficie (bilineare nella scena, e nel CSV coi nodi tenuti da
+   robustTIN) passa esattamente per il punto; il raccordo si misura dalla
+   cella. Senza griglia, o col punto fuori, la cella è il punto stesso.
+   → [x0, y0, x1, y1] */
+export function spotCell(x, y, grid) {
+  if (grid && grid.nx > 1 && grid.ny > 1) {
+    const c = grid.cell, fi = (x - grid.x0) / c, fj = (y - grid.y0) / c;
+    if (fi >= 0 && fj >= 0 && fi <= grid.nx - 1 && fj <= grid.ny - 1) {
+      const i = Math.min(Math.floor(fi), grid.nx - 2), j = Math.min(Math.floor(fj), grid.ny - 2);
+      return [grid.x0 + i * c, grid.y0 + j * c, grid.x0 + (i + 1) * c, grid.y0 + (j + 1) * c];
+    }
+  }
+  return [x, y, x, y];
+}
+/* i nodi della cella di un punto (indici k = j·nx + i), per tenerli nel TIN */
+export function spotNodes(op, grid) {
+  if (!op || op.type !== "point" || !okPts([op.at])) return [];
+  const [x0, y0, x1, y1] = spotCell(op.at[0], op.at[1], grid), c = grid.cell, out = [];
+  if (x0 === x1) return out;
+  const i0 = Math.round((x0 - grid.x0) / c), j0 = Math.round((y0 - grid.y0) / c);
+  for (const [i, j] of [[i0, j0], [i0 + 1, j0], [i0, j0 + 1], [i0 + 1, j0 + 1]]) out.push(j * grid.nx + i);
+  return out;
+}
+/* raccordo morbido: dentro il raggio il terreno si piega verso la quota del punto, peso a coseno (tangente
+   al terreno sul bordo, piano sul punto) — la pendenza che aggiunge arriva a ~π/2·dislivello/raggio */
+function pointEvaluator(op, grid) {
+  const E = +op.elevation, P = op.at;
+  if (!Array.isArray(P) || !okPts([P]) || !Number.isFinite(E)) return null;
+  const box = spotCell(P[0], P[1], grid), [bx0, by0, bx1, by1] = box;
+  const dist = (x, y) => { const dx = x < bx0 ? bx0 - x : x > bx1 ? x - bx1 : 0, dy = y < by0 ? by0 - y : y > by1 ? y - by1 : 0; return dx || dy ? Math.sqrt(dx * dx + dy * dy) : 0; };
+  if (op.blend === "smooth") {
+    const R = +op.radius;
+    if (!(R > 0)) return null;
+    return {
+      box, zMin: E, zMax: E, slope: 1, cut: 1, round: 0, reach: R,
+      at(z, x, y) { const d = dist(x, y); return d >= R ? z : z + (E - z) * brushWeight(d, R); },
+    };
+  }
+  const s = +op.slope, sc = cutSlopeOf(op), rnd = Math.max(0, +op.round || 0);
+  if (!(s > 0) || !(sc > 0)) return null;
+  return {
+    box, zMin: E, zMax: E, slope: s, cut: sc, round: rnd,
+    at(z, x, y) {
+      const d = dist(x, y);
+      if (d > 0 && z - E < sc * d - rnd && E - z < s * d - rnd) return z;     // dentro la forbice: il terreno resta
+      return gradeValue(z, E, d, s, rnd, sc);
+    },
+  };
+}
+
+/* grid (facoltativa): la griglia su cui si valuta, per la cella dei punti quotati */
+export function opEvaluator(op, ops = [op], grid = null) {
+  if (op.type === "point") return pointEvaluator(op, grid);
   const s = +op.slope, sc = cutSlopeOf(op), rnd = Math.max(0, +op.round || 0);
   if (!(s > 0) || !(sc > 0) || !okPts(op.type === "pad" ? op.polygon : op.line)) return null;
   /* taglio a monte: a distanza dist (≥ 0) dal riquadro, un nodo a quota z sta nella forbice di
@@ -511,10 +568,11 @@ export function opEvaluator(op, ops = [op]) {
    quanto può correre la scarpata prima d'incontrare QUALSIASI quota in
    [zLo, zHi] — oltre, il nodo resta nella forbice e l'opera non lo tocca.
    In sterro corre fino al terreno più alto con la sua pendenza, in riporto
-   fino al più basso con l'altra. */
+   fino al più basso con l'altra. Il raccordo morbido di un punto quotato
+   arriva fin dove dice lui (ev.reach, il raggio). */
 export function opRange(ev, hf, zLo, zHi) {
   if (!ev) return null;
-  const reach = Math.max((zHi - ev.zMin + ev.round) / ev.cut, (ev.zMax - zLo + ev.round) / ev.slope, 0) + hf.cell;
+  const reach = (ev.reach !== undefined ? ev.reach : Math.max((zHi - ev.zMin + ev.round) / ev.cut, (ev.zMax - zLo + ev.round) / ev.slope, 0)) + hf.cell;
   const c = hf.cell, [x0, y0, x1, y1] = ev.box;
   const i0 = Math.max(0, Math.floor((x0 - reach - hf.x0) / c)), i1 = Math.min(hf.nx - 1, Math.ceil((x1 + reach - hf.x0) / c));
   const j0 = Math.max(0, Math.floor((y0 - reach - hf.y0) / c)), j1 = Math.min(hf.ny - 1, Math.ceil((y1 + reach - hf.y0) / c));
@@ -556,7 +614,7 @@ export class TerrainDoc {
   get nx() { return this.base.nx; }
   get ny() { return this.base.ny; }
   full() { return { i0: 0, i1: this.base.nx - 1, j0: 0, j1: this.base.ny - 1 }; }
-  newId(type) { return (["pad", "water", "bank", "lock"].includes(type) ? type : "path") + this._seq++; }
+  newId(type) { return (["pad", "water", "bank", "lock", "point"].includes(type) ? type : "path") + this._seq++; }
 
   /* ---- range delle quote: decide quanto lontano può arrivare una scarpata */
   _groundRange() {
@@ -566,7 +624,7 @@ export class TerrainDoc {
   _bounds(lists) {
     let lo = this.zr.lo, hi = this.zr.hi, rmax = 0;
     for (const list of lists) for (const o of list) {
-      const ev = opEvaluator(o, list);
+      const ev = opEvaluator(o, list, this.base);
       if (!ev) continue;
       lo = Math.min(lo, ev.zMin); hi = Math.max(hi, ev.zMax); rmax = Math.max(rmax, ev.round);
     }
@@ -578,7 +636,7 @@ export class TerrainDoc {
     this._evs = [];
     for (const o of this.ops) {
       if (o.on === false) continue;
-      const ev = opEvaluator(o, this.ops), r = opRange(ev, this.final, lo, hi);
+      const ev = opEvaluator(o, this.ops, this.base), r = opRange(ev, this.final, lo, hi);
       if (ev && r) this._evs.push({ id: o.id, ev, r });
     }
     this._lockMask();
@@ -773,7 +831,7 @@ export class TerrainDoc {
     const ka = keys(a), kb = keys(b), { lo, hi } = this._bounds([a, b]);
     let R = null;
     for (const [list, own, other] of [[a, ka, kb], [b, kb, ka]])
-      for (const o of list) if (own.get(o.id) !== other.get(o.id)) R = unionRegion(R, opRange(opEvaluator(o, list), this.final, lo, hi));
+      for (const o of list) if (own.get(o.id) !== other.get(o.id)) R = unionRegion(R, opRange(opEvaluator(o, list, this.base), this.final, lo, hi));
     return R;
   }
   /* consolida: le opere attive fino a `id` compresa diventano terreno
@@ -787,7 +845,7 @@ export class TerrainDoc {
     const evs = [];
     let region = null;
     for (const o of head) {
-      const ev = opEvaluator(o, this.ops), r = opRange(ev, this.ground, lo, hi);
+      const ev = opEvaluator(o, this.ops, this.base), r = opRange(ev, this.ground, lo, hi);
       if (ev && r) { evs.push({ ev, r }); region = unionRegion(region, r); }
     }
     const tiles = new Map();
@@ -849,6 +907,21 @@ export class TerrainDoc {
   get canRedo() { return this.redoStack.length > 0; }
 
   cutFill() { return cutFill(this.base, this.final); }
+
+  /* quota in (x, y) prima dell'opera `id`: il terreno scolpito piegato dalle opere accese che la
+     precedono, bilineare come la scena (id sconosciuto: tutte) — il dislivello di un punto quotato */
+  levelUnder(id, x, y) {
+    const g = this.ground, n = g.nx, m = g.ny, c = g.cell, k = this.ops.findIndex(o => o.id === id);
+    const before = new Set((k < 0 ? this.ops : this.ops.slice(0, k)).map(o => o.id)), evs = this._evs.filter(e => before.has(e.id));
+    const fi = Math.min(Math.max((x - g.x0) / c, 0), n - 1), fj = Math.min(Math.max((y - g.y0) / c, 0), m - 1);
+    const i0 = Math.min(Math.floor(fi), n - 2), j0 = Math.min(Math.floor(fj), m - 2), tx = fi - i0, ty = fj - j0;
+    const zAt = (i, j) => {
+      let z = g.z[j * n + i];
+      for (const e of evs) if (i >= e.r.i0 && i <= e.r.i1 && j >= e.r.j0 && j <= e.r.j1) z = e.ev.at(z, g.x0 + i * c, g.y0 + j * c);
+      return z;
+    };
+    return (zAt(i0, j0) * (1 - tx) + zAt(i0 + 1, j0) * tx) * (1 - ty) + (zAt(i0, j0 + 1) * (1 - tx) + zAt(i0 + 1, j0 + 1) * tx) * ty;
+  }
 
   /* bilancio per voce (fase 4): il terreno scolpito (pennelli, limite di
      pendenza, opere consolidate) = cutFill(base, ground); l'opera k = sterri
@@ -1541,12 +1614,14 @@ function triWorst(hf, C, a, b, c) {
     }
   return { e, k };
 }
-export function robustTIN(hf, Delatin, Delaunator, { maxPoints, maxError = 1e-3, share = 0.85, rounds = 14 } = {}) {
+/* keep: nodi (k = j·nx + i) che il TIN deve avere comunque — i quattro della cella di ogni punto quotato */
+export function robustTIN(hf, Delatin, Delaunator, { maxPoints, maxError = 1e-3, share = 0.85, rounds = 14, keep: forced = [] } = {}) {
   const first = simplifyToBudget(hf, Delatin, { maxPoints: Math.max(4, Math.floor(maxPoints * share)), maxError });
   let tol = Math.max(first.maxError, maxError);
   const n = hf.nx;
   const C = Array.from(first.coords), have = new Set();
   for (let p = 0; p < C.length; p += 2) have.add(C[p + 1] * n + C[p]);
+  for (const k of forced) if (k >= 0 && k < n * hf.ny && !have.has(k) && !(hf.mask && !hf.mask[k])) { have.add(k); C.push(k % n, (k - k % n) / n); }
   let d = null, worst = 0, ambiguous = 0, round = 0;
   const scan = () => {
     d = new Delaunator(Float64Array.from(C));

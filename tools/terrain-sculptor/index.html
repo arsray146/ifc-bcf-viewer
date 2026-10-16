@@ -455,6 +455,8 @@ header{padding-top:max(14px,env(safe-area-inset-top));padding-left:max(14px,env(
     <svg viewBox="0 0 24 24"><path d="M3 19h4l10-10h4"/><path d="M3 15h2l10-10"/></svg><span class="k">R</span></button>
   <button class="rail-btn" data-mode="bank" data-i18n-title="rail.bank" title="Scarpata (S)">
     <svg viewBox="0 0 24 24"><path d="M2 7h7l9 10h4"/><path d="M11 9.2l-2.2 2M13.7 12.2l-1.6 1.4M16.4 15.2l-2.8 2.5"/></svg><span class="k">S</span></button>
+  <button class="rail-btn" data-mode="point" data-i18n-title="rail.point" title="Punto quotato (Q)">
+    <svg viewBox="0 0 24 24"><path d="M2 20c3.5-.8 6-4.6 10-4.6s6.5 3.8 10 4.6"/><path d="M12 15.4V8.5"/><circle cx="12" cy="6" r="2.5"/></svg><span class="k">Q</span></button>
   <button class="rail-btn" data-mode="water" data-i18n-title="rail.water" title="Acqua (W)">
     <svg viewBox="0 0 24 24"><path d="M12 3c2.6 3.1 4 5.2 4 6.8a4 4 0 0 1-8 0C8 8.2 9.4 6.1 12 3z"/><path d="M3 16c1.8 0 1.8-1.3 3.6-1.3s1.8 1.3 3.6 1.3 1.8-1.3 3.6-1.3 1.8 1.3 3.6 1.3 1.8-1.3 3.6-1.3"/><path d="M3 20c1.8 0 1.8-1.3 3.6-1.3s1.8 1.3 3.6 1.3 1.8-1.3 3.6-1.3 1.8 1.3 3.6 1.3 1.8-1.3 3.6-1.3"/></svg><span class="k">W</span></button>
   <button class="rail-btn" data-mode="lock" data-i18n-title="rail.lock" title="Area bloccata (L)">
@@ -718,6 +720,16 @@ const I18N = {
     "i.ctxGone": "Il terreno dal tool Contesto 3D non è arrivato (scaduto o già aperto): rigeneralo e premi di nuovo «Scolpisci il terreno».",
     "i.done": "Terreno aperto: {n} nodi a {c} m.",
     "t.padAdded": "Piattaforma a {z} m: cambiala qui a destra o trascinane i vertici.",
+    "rail.point": "Punto quotato (Q)", "mode.point": "Punto quotato", "op.point": "Punto {n}",
+    "point.help": "Clicca sul terreno per mettere un punto e scrivi la quota (<kbd>Invio</kbd> conferma): il terreno si raccorda da solo. Il clic dopo mette un altro punto; un clic su un pallino sceglie quel punto, trascinandolo lo sposti.",
+    "point.defaults": "Raccordo dei prossimi punti",
+    "op.blend": "Tipo", "op.blendSlope": "Scarpata", "op.blendSmooth": "Raccordo morbido",
+    "op.blendSlopeTip": "Dal punto parte una scarpata (in riporto e in sterro, con le loro pendenze) finché trova il terreno",
+    "op.blendSmoothTip": "Entro il raggio il terreno si piega dolcemente fino alla quota del punto, senza spigoli",
+    "op.ptRadius": "Raggio", "op.ptUnder": "Terreno lì sotto",
+    "op.ptSmooth": "Pendenza massima del raccordo ≈ {g} % (sale col dislivello, scende allargando il raggio).",
+    "op.ptHint": "Trascina il pallino per spostare il punto; Canc lo toglie.",
+    "t.pointAdded": "Punto a {z} m (il terreno lì): scrivi la quota qui a destra.",
     "t.waterAdded": "Acqua a {z} m: cambiane la quota qui a destra o trascinane i vertici.",
     "t.rampAdded": "Rampa di {l} m al {g} %{hook}.", "t.hook": ", agganciata a {name}",
     "t.bankAdded": "Scarpata da {a} a {b} m, larga {w} m in pianta: cambiane le quote qui a destra.",
@@ -892,6 +904,16 @@ const I18N = {
     "i.ctxGone": "The terrain from the 3D Context tool did not arrive (expired or already opened): generate it again and press «Sculpt the terrain» once more.",
     "i.done": "Terrain opened: {n} nodes at {c} m.",
     "t.padAdded": "Pad at {z} m: change it here on the right or drag its vertices.",
+    "rail.point": "Spot height (Q)", "mode.point": "Spot height", "op.point": "Point {n}",
+    "point.help": "Click the terrain to place a point and type its level (<kbd>Enter</kbd> confirms): the ground blends in by itself. The next click places another point; clicking a dot picks that point, dragging it moves it.",
+    "point.defaults": "Blend of the next points",
+    "op.blend": "Type", "op.blendSlope": "Side slope", "op.blendSmooth": "Smooth blend",
+    "op.blendSlopeTip": "A side slope runs from the point (in fill and in cut, each with its gradient) until it meets the ground",
+    "op.blendSmoothTip": "Within the radius the ground bends gently up or down to the point's level, with no edges",
+    "op.ptRadius": "Radius", "op.ptUnder": "Ground below",
+    "op.ptSmooth": "Steepest part of the blend ≈ {g} % (grows with the height difference, drops with a wider radius).",
+    "op.ptHint": "Drag the dot to move the point; Delete removes it.",
+    "t.pointAdded": "Point at {z} m (the ground there): type the level here on the right.",
     "t.waterAdded": "Water at {z} m: change its level here on the right or drag its vertices.",
     "t.rampAdded": "Ramp of {l} m at {g}%{hook}.", "t.hook": ", hooked to {name}",
     "t.bankAdded": "Bank from {a} to {b} m, {w} m wide in plan: change its levels on the right.",
@@ -926,11 +948,11 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as T from "./terrain-core.js?v=1.8.0";
-import * as IO from "./terrain-io.js?v=1.8.0";
+import * as T from "./terrain-core.js?v=1.9.0";
+import * as IO from "./terrain-io.js?v=1.9.0";
 import Delatin from "./vendor/delatin.js";
 
-const TOOL_VERSION = "1.8.0";
+const TOOL_VERSION = "1.9.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -952,13 +974,14 @@ const SLOPES = [[1, "1:1"], [2 / 3, "2:3"], [1 / 2, "1:2"], [1 / 3, "1:3"], [1 /
 const CONTOURS = [0, 0.25, 0.5, 1, 2, 5, 10, 20];
 const BUDGETS = [[10000, "exp.b10"], [20000, "exp.b20"], [50000, "exp.b50"]];
 const BRUSH = ["raise", "lower", "smooth", "flatten", "limit"];
-const MODE_KEY = { nav: "N", select: "V", raise: "1", lower: "2", smooth: "3", flatten: "4", limit: "5", pad: "P", ramp: "R", bank: "S", water: "W", lock: "L" };
+const MODE_KEY = { nav: "N", select: "V", raise: "1", lower: "2", smooth: "3", flatten: "4", limit: "5", pad: "P", ramp: "R", bank: "S", point: "Q", water: "W", lock: "L" };
 const DRAW = ["pad", "ramp", "bank", "water", "lock"], CLOSED = ["pad", "water", "lock"];      // strumenti che disegnano; quelli a contorno chiuso
 const S = {
   doc: null, origin: { x: 0, y: 0 }, mode: "raise", sel: null,
   brush: { radius: 8, strength: 1, hardness: 0.2 },
   padDef: { slope: 2 / 3, cutSlope: null, round: 1.5 }, rampDef: { width: 4, slope: 0.5, cutSlope: null, round: 1, lock: false, lockGrade: 0.08 },
   bankDef: { face: 0.5, slope: 0.5, cutSlope: null, round: 0.5 },
+  pointDef: { blend: "slope", slope: 2 / 3, cutSlope: null, round: 0.5, radius: 10 },   // punti quotati: riprendono il raccordo dell'ultimo toccato
   contour: 0.5, showPts: false, budget: 10000, nurbsMul: 1,
   parts: { nurbs: true, contours: true, mesh: true, volume: true, points: true, water: true },
   podOff: false, podUser: false, closed: {}, lastSave: null, saveOk: true, range: { min: 0, max: 1 }, snap15: false,
@@ -969,12 +992,12 @@ const S = {
 };
 const UI_KEY = "viewifc_terrain_ui";
 function saveUi() {
-  try { localStorage.setItem(UI_KEY, JSON.stringify({ brush: S.brush, padDef: S.padDef, rampDef: S.rampDef, bankDef: S.bankDef, contour: S.contour, budget: S.budget, nurbsMul: S.nurbsMul, parts: S.parts, podOff: S.podOff, podUser: S.podUser, penSeen: S.penSeen, pencilOnly: S.pencilOnly, closed: S.closed, mode: S.mode, refGhost: !!S.refGhost, look: S.look, map: S.map })); } catch (e) {}
+  try { localStorage.setItem(UI_KEY, JSON.stringify({ brush: S.brush, padDef: S.padDef, rampDef: S.rampDef, bankDef: S.bankDef, pointDef: S.pointDef, contour: S.contour, budget: S.budget, nurbsMul: S.nurbsMul, parts: S.parts, podOff: S.podOff, podUser: S.podUser, penSeen: S.penSeen, pencilOnly: S.pencilOnly, closed: S.closed, mode: S.mode, refGhost: !!S.refGhost, look: S.look, map: S.map })); } catch (e) {}
 }
 (function loadUi() {
   try {
     const u = JSON.parse(localStorage.getItem(UI_KEY) || "null");
-    if (u) for (const k of ["brush", "padDef", "rampDef", "bankDef", "parts", "closed", "look", "map"]) if (u[k]) Object.assign(S[k], u[k]);
+    if (u) for (const k of ["brush", "padDef", "rampDef", "bankDef", "pointDef", "parts", "closed", "look", "map"]) if (u[k]) Object.assign(S[k], u[k]);
     if (u) for (const k of ["contour", "budget", "nurbsMul", "podOff", "podUser", "mode", "refGhost", "penSeen", "pencilOnly"]) if (u[k] !== undefined) S[k] = u[k];
   } catch (e) {}
 })();
@@ -1467,6 +1490,8 @@ const handles = new THREE.Points(new THREE.BufferGeometry(), handleMat);
 handles.renderOrder = 12; handles.frustumCulled = false; scene.add(handles);
 const draftDots = new THREE.Points(new THREE.BufferGeometry(), handleMat);
 draftDots.renderOrder = 12; draftDots.frustumCulled = false; scene.add(draftDots);
+const spotDots = new THREE.Points(new THREE.BufferGeometry(), handleMat);
+spotDots.renderOrder = 11; spotDots.frustumCulled = false; scene.add(spotDots);
 const revitPts = new THREE.Points(new THREE.BufferGeometry(), new THREE.PointsMaterial({ color: 0xc8361f, size: 2.5, sizeAttenuation: false }));
 revitPts.visible = false; revitPts.frustumCulled = false; scene.add(revitPts);
 
@@ -1576,7 +1601,7 @@ function refreshRange() {
   S.range = { min: r.min, max: r.max };
   terrainMat.uniforms.zMin.value = r.min; terrainMat.uniforms.zMax.value = r.max;
   look.apply();                     // il fondo automatico segue il punto più basso
-  if (S.doc.ops.some((o) => o.type === "water" || o.type === "lock")) rebuildOps();      // il trabocco segue il terreno, le aree bloccate ci stanno sopra: contorni e maniglie alla quota vera
+  if (S.doc.ops.some((o) => o.type === "water" || o.type === "lock" || (o.type === "point" && o.id === S.sel))) rebuildOps();      // il trabocco segue il terreno, le aree bloccate (e il raggio del punto scelto) ci stanno sopra: contorni e maniglie alla quota vera
   refreshLookStats();
 }
 let balTimer = 0;
@@ -1848,14 +1873,47 @@ function createBank(line) {
   renderTool();
   toast(tr("t.bankAdded", { a: nf(zTop), b: nf(zBottom), w: nf((zTop - zBottom) / d.face, 1) }));
 }
+/* punto quotato (richiesta dell'utente del 16 ottobre: «clic + quota»): il clic lo mette alla quota del
+   terreno lì, e a destra si apre il suo modulo con la quota già selezionata — si scrive il numero e il
+   terreno si raccorda (scarpata o raccordo morbido, quello dell'ultimo punto toccato). Lo strumento resta
+   acceso: il clic dopo mette il punto seguente */
+const isPoint = (o) => !!o && o.type === "point";
+function createPoint(p) {
+  const d = S.pointDef, z = Math.round(hAt(p.x, p.y) * 100) / 100;
+  S.sel = S.doc.addOp({ type: "point", at: [p.x, p.y], elevation: z, blend: d.blend, slope: d.slope, cutSlope: d.cutSlope || null, round: d.round, radius: d.radius });
+  activeVertex = null;
+  edited(S.doc.lastRegion, { ops: true });
+  renderTool();
+  const el = $("oZ");
+  if (el) { el.focus(); el.select(); }
+  toast(tr("t.pointAdded", { z: nf(z) }));
+}
+/* il punto quotato sotto il cursore, in pixel come le maniglie (il più vicino entro reach) */
+function pointOpAt(cx, cy, reach = 12) {
+  let best = null, bd = reach;
+  for (const o of S.doc.ops) if (o.type === "point") {
+    const [sx, sy] = toScreen(o.at[0], o.at[1], +o.elevation), d = Math.hypot(sx - cx, sy - cy);
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best;
+}
+/* i nodi che il TIN per Revit deve tenere: le celle dei punti accesi (la superficie passa per la quota) */
+const spotKeep = () => S.doc.ops.filter((o) => o.type === "point" && o.on !== false).flatMap((o) => T.spotNodes(o, S.doc.final));
+/* il raccordo del punto toccato diventa quello dei prossimi */
+function rememberPoint(id) {
+  const o = S.doc.getOp(id);
+  if (!isPoint(o)) return;
+  Object.assign(S.pointDef, { blend: o.blend === "smooth" ? "smooth" : "slope", slope: +o.slope || S.pointDef.slope, cutSlope: +o.cutSlope > 0 ? +o.cutSlope : null, round: Math.max(0, +o.round || 0), radius: +o.radius > 0 ? +o.radius : S.pointDef.radius });
+  saveUi();
+}
 /* =========================================================================
    Opere: nomi, contorni, maniglie, modifica
    ========================================================================= */
 const opNum = (o) => +(String(o.id).match(/\d+$/) || [0])[0];
 const opName = (o) => (!o ? "" : o.type === "lock" ? tr("op.lockArea", { n: opNum(o) })
-  : tr(o.type === "pad" ? "op.pad" : o.type === "water" ? "op.water" : o.type === "bank" ? "op.bank" : "op.ramp", { n: opNum(o) }));
+  : tr(o.type === "pad" ? "op.pad" : o.type === "water" ? "op.water" : o.type === "bank" ? "op.bank" : o.type === "point" ? "op.point" : "op.ramp", { n: opNum(o) }));
 const isArea = (o) => o.type === "pad" || o.type === "water" || o.type === "lock";           // opere a contorno chiuso
-const zRefOf = (o) => (o.type === "pad" ? o.elevation : o.type === "water" ? look.levelOf(o) : o.type === "bank" ? +o.zTop
+const zRefOf = (o) => (o.type === "pad" || o.type === "point" ? +o.elevation : o.type === "water" ? look.levelOf(o) : o.type === "bank" ? +o.zTop
   : o.type === "lock" ? o.polygon.reduce((s, p) => s + hAt(p[0], p[1]), 0) / o.polygon.length : pathProfile(o).zStart);
 /* quota di un'opera a contorno in un punto: la piattaforma inclinata segue il suo piano, l'area bloccata sta sul terreno */
 const zAreaAt = (o, x, y) => (o.type === "pad" ? T.padZ(o, x, y) : o.type === "lock" ? hAt(x, y) : zRefOf(o));
@@ -1964,7 +2022,19 @@ function rebuildOps() {
         for (const s of [1, -1]) { const p = side(s); seg([...p, pl.z(p[0], p[1])], t, col); }
       }
     } else if (o.type === "bank") drawBank(o, seg, col);
-    else {
+    else if (o.type === "point") {                       // croce alla quota; scelto e morbido: il raggio drappeggiato sul terreno
+      const [x, y] = o.at, z = +o.elevation, L = Math.max(0.6, 2 * S.doc.final.cell);
+      seg([x - L, y, z], [x + L, y, z], col); seg([x, y - L, z], [x, y + L, z], col);
+      if (o.id === S.sel && o.blend === "smooth" && +o.radius > 0) {
+        const R = +o.radius + S.doc.final.cell / 2, m = Math.min(180, Math.max(36, Math.ceil(2 * Math.PI * R / S.doc.final.cell)));
+        let q = null;
+        for (let s = 0; s <= m; s++) {
+          const t = s / m * 2 * Math.PI, px = x + R * Math.cos(t), py = y + R * Math.sin(t), r = [px, py, hAt(px, py) + 0.1];
+          if (q) seg(q, r, col.map((c) => c * 0.8));
+          q = r;
+        }
+      }
+    } else {
       const pr = pathProfile(o), hw = o.width / 2;
       for (let q = 1; q < pr.line.length; q++) {
         const a = pr.line[q - 1], b = pr.line[q], za = pr.zAt(pr.cum[q - 1]), zb = pr.zAt(pr.cum[q]);
@@ -1979,6 +2049,20 @@ function rebuildOps() {
   opsLines.geometry = new THREE.BufferGeometry();
   opsLines.geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(P), 3));
   opsLines.geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(C), 3));
+  /* i punti quotati: un pallino ciascuno, sempre in vista (la croce da lontano non si vede) */
+  const spots = S.doc.ops.filter((o) => o.type === "point" && Array.isArray(o.at)), pr = renderer ? renderer.getPixelRatio() : 1;
+  const SP = new Float32Array(spots.length * 3), SS = new Float32Array(spots.length), SC = new Float32Array(spots.length * 3);
+  spots.forEach((o, s) => {
+    const [lx, ly] = toLocal(o.at[0], o.at[1]);
+    SP.set([lx, ly, +o.elevation + 0.06], 3 * s);
+    SS[s] = 8 * pr * (COARSE ? 1.5 : 1);
+    SC.set(o.id === S.sel ? lime : o.on === false ? grey : white, 3 * s);
+  });
+  spotDots.geometry.dispose();
+  spotDots.geometry = new THREE.BufferGeometry();
+  spotDots.geometry.setAttribute("position", new THREE.BufferAttribute(SP, 3));
+  spotDots.geometry.setAttribute("size", new THREE.BufferAttribute(SS, 1));
+  spotDots.geometry.setAttribute("color", new THREE.BufferAttribute(SC, 3));
   rebuildHandles();
   renderDrawBar();
 }
@@ -1986,8 +2070,9 @@ function rebuildOps() {
 let handleList = [];
 function rebuildHandles() {
   handleList = [];
-  const o = S.mode === "select" && S.sel ? S.doc.getOp(S.sel) : null;
-  if (o) {
+  const o = S.sel && (S.mode === "select" || S.mode === "point") ? S.doc.getOp(S.sel) : null;
+  if (isPoint(o)) handleList.push({ kind: "v", k: 0, x: o.at[0], y: o.at[1], z: +o.elevation });     // il punto: una maniglia sola, anche nello strumento Punto
+  else if (o && S.mode === "select") {
     /* rampa: i vertici della linea effettiva; la fine (anche quando la rampa finisce prima) comanda l'ultimo
        vertice disegnato, che ne dà la direzione */
     const pts = isArea(o) ? o.polygon : o.type === "path" ? pathProfile(o).line : o.line, closed = isArea(o);
@@ -2040,7 +2125,8 @@ function opAt(p) {
     for (let k = S.doc.ops.length - 1; k >= 0; k--) {
       const o = S.doc.ops[k];
       if ((o.type === "water" || o.type === "lock") !== water) continue;
-      if (isArea(o) ? T.pointInPolygon(p.x, p.y, o.polygon) : o.type === "bank" ? bankHit(o, p) : distToLine(p.x, p.y, pathProfile(o).line) <= o.width / 2 + S.doc.final.cell) return o;
+      if (isArea(o) ? T.pointInPolygon(p.x, p.y, o.polygon) : o.type === "bank" ? bankHit(o, p)
+        : o.type === "point" ? Math.hypot(p.x - o.at[0], p.y - o.at[1]) <= Math.max(1, 3 * S.doc.final.cell) : distToLine(p.x, p.y, pathProfile(o).line) <= o.width / 2 + S.doc.final.cell) return o;
     }
   return null;
 }
@@ -2053,9 +2139,9 @@ function select(id) {
 }
 /* modifica geometrica dal vivo: una voce di storia per trascinamento */
 let drag = null;
-function geomOf(o) { return (isArea(o) ? o.polygon : o.line).map((p) => p.slice()); }
+function geomOf(o) { return (isPoint(o) ? [o.at] : isArea(o) ? o.polygon : o.line).map((p) => p.slice()); }
 function applyGeom(o, pts, off) {
-  const r = S.doc.updateOp(o.id, { ...(isArea(o) ? { polygon: pts } : { line: pts }), ...padGeomPatch(o, pts, off) }, { coalesce: "geom:" + o.id + ":" + drag.t0 });
+  const r = S.doc.updateOp(o.id, { ...(isPoint(o) ? { at: pts[0] } : isArea(o) ? { polygon: pts } : { line: pts }), ...padGeomPatch(o, pts, off) }, { coalesce: "geom:" + o.id + ":" + drag.t0 });
   view.update(r);
   rebuildOps();
 }
@@ -2101,7 +2187,8 @@ canvas.addEventListener("pointerdown", (e) => {
     canvas.setPointerCapture(e.pointerId);
     return;
   }
-  if (S.mode === "select" && S.sel) {
+  /* nello strumento Punto si trascina il punto scelto dalla sua maniglia; un clic altrove ne mette un altro */
+  if ((S.mode === "select" || (S.mode === "point" && isPoint(S.doc.getOp(S.sel)))) && S.sel) {
     const o = S.doc.getOp(S.sel), h = handleAt(e.clientX, e.clientY, reachPx(e));
     const zRef = zRefOf(o);
     activeVertex = null;
@@ -2109,10 +2196,10 @@ canvas.addEventListener("pointerdown", (e) => {
     else if (h) {
       let pts = geomOf(o), k = h.k;
       if (h.kind === "m") { k = h.k + 1; pts.splice(k, 0, [h.x, h.y]); }
-      activeVertex = k;                                  // il vertice toccato: la barra offre «Togli vertice»
+      if (!isPoint(o)) activeVertex = k;                 // il vertice toccato: la barra offre «Togli vertice» (il punto non ne ha)
       drag = { kind: "vertex", id: o.id, k, pts, z: h.z, t0: Date.now(), moved: h.kind === "m" };
       if (h.kind === "m") applyGeom(o, pts);
-    } else {
+    } else if (S.mode === "select") {
       const p = pick(e.clientX, e.clientY);
       if (p && opAt(p) === o) {
         const q = pickPlane(e.clientX, e.clientY, zRef);
@@ -2139,9 +2226,10 @@ canvas.addEventListener("pointermove", (e) => {
   if (drag) { if (e.pointerId === drag.pid) pendingMove = { x: e.clientX, y: e.clientY, shift: e.shiftKey }; return; }
   if (BRUSH.includes(S.mode) && p) showRing(p); else ring.visible = false;
   if (DRAW.includes(S.mode) && draft.length && p) drawDraft(snapPoint(p, e.shiftKey));
-  if (S.mode === "select") {
+  if (S.mode === "select" || S.mode === "point") {
     const h = S.sel ? handleAt(e.clientX, e.clientY) : null;
     if (h !== hoverHandle) { hoverHandle = h; rebuildHandles(); }
+    if (S.mode === "point") { canvas.className = h || pointOpAt(e.clientX, e.clientY) ? "c-point" : "c-cross"; return; }
     const o = h ? null : opAt(p);
     canvas.className = h ? "c-point" : o && o.id === S.sel ? "c-move" : o ? "c-point" : "";
   }
@@ -2227,8 +2315,12 @@ canvas.addEventListener("pointerup", (e) => {
     draft.push(q);
     drawDraft();
   } else if (S.mode === "select") {
-    const o = opAt(p);
+    const o = pointOpAt(e.clientX, e.clientY, reachPx(e)) || opAt(p);
     select(o ? o.id : null);
+  } else if (S.mode === "point") {                       // sul pallino di un punto: lo si sceglie; altrove: un punto nuovo
+    const o = pointOpAt(e.clientX, e.clientY, reachPx(e));
+    if (o) select(o.id);
+    else if (p) createPoint(p);
   }
 });
 /* doppio clic e doppio tocco: chiudono il disegno, tolgono il vertice. Safari col dito il dblclick non
@@ -2241,7 +2333,7 @@ function fingerTap(e) {
 }
 function onDouble(cx, cy, reach) {
   if (DRAW.includes(S.mode)) { finishDraft(); return; }
-  if (S.mode === "select" && S.sel) { const h = handleAt(cx, cy, reach); if (h && h.kind === "v") deleteVertex(h); }
+  if (S.mode === "select" && S.sel && !isPoint(S.doc.getOp(S.sel))) { const h = handleAt(cx, cy, reach); if (h && h.kind === "v") deleteVertex(h); }
 }
 canvas.addEventListener("dblclick", (e) => { if (performance.now() - lastFingerUp > 800) onDouble(e.clientX, e.clientY); });
 
@@ -2324,7 +2416,7 @@ function twoFingerMove() {
 let activeVertex = null, barKey = "";
 function renderDrawBar() {
   const o = S.mode === "select" && S.sel && S.doc ? S.doc.getOp(S.sel) : null;
-  const vOk = !!o && activeVertex !== null && activeVertex < (isArea(o) ? o.polygon : o.line).length;
+  const vOk = !!o && !isPoint(o) && activeVertex !== null && activeVertex < (isArea(o) ? o.polygon : o.line).length;
   const kind = DRAW.includes(S.mode) && draft.length ? "draw" : vOk ? "vertex" : S.doc && S.podOff && BRUSH.includes(S.mode) ? "brush" : "";
   const key = [kind, S.mode, draft.length, S.snap15, LANG].join("|");
   if (key === barKey) return;
@@ -2388,7 +2480,7 @@ addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && k === "y") { e.preventDefault(); doUndo(true); return; }
   if ((e.ctrlKey || e.metaKey) && k === "s") { e.preventDefault(); if (S.doc) runExport(exportProject); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  const map = { n: "nav", v: "select", 1: "raise", 2: "lower", 3: "smooth", 4: "flatten", 5: "limit", p: "pad", r: "ramp", s: "bank", w: "water", l: "lock" };
+  const map = { n: "nav", v: "select", 1: "raise", 2: "lower", 3: "smooth", 4: "flatten", 5: "limit", p: "pad", r: "ramp", s: "bank", q: "point", w: "water", l: "lock" };
   if (map[k]) { setMode(map[k]); return; }
   if (k === "f") { frameAll(); return; }
   if (k === "m") { cycleMap(); return; }
@@ -2405,7 +2497,7 @@ addEventListener("keydown", (e) => {
     else if (k === "backspace" && draft.length) { draft.pop(); drawDraft(); }
     return;
   }
-  if (S.mode === "select" && S.sel) {
+  if (S.sel && (S.mode === "select" || (S.mode === "point" && isPoint(S.doc.getOp(S.sel))))) {
     if (k === "escape") select(null);
     else if (k === "delete" || k === "backspace") { e.preventDefault(); removeOp(S.sel); }
   }
@@ -2439,6 +2531,15 @@ function bindSlopeRows(B, set) {
   }
 }
 const r3 = (v) => Math.round(v * 1000) / 1000;
+/* raccordo di un punto quotato (o dei prossimi): scarpata con le sue pendenze, o morbido con un raggio */
+const pointBlendRows = (d, live = false) => {
+  const soft = d.blend === "smooth";
+  return `<div class="row two"><span class="lbl">${esc(tr("op.blend"))}</span><div class="chips" data-act="blend">`
+    + `<button class="chip${soft ? "" : " on"}" data-v="slope" title="${esc(tr("op.blendSlopeTip"))}">${esc(tr("op.blendSlope"))}</button>`
+    + `<button class="chip${soft ? " on" : ""}" data-v="smooth" title="${esc(tr("op.blendSmoothTip"))}">${esc(tr("op.blendSmooth"))}</button></div></div>`
+    + (soft ? num("oPR", tr("op.ptRadius"), +d.radius, 0.5, "m", 'min="0.5"') + (live ? `<p class="note" id="oPs"></p>` : "")
+      : slopeRows(+d.slope, d.cutSlope) + num("oRnd", tr("op.round"), +d.round, 0.1, "m", 'min="0"'));
+};
 
 function renderTool() {
   const m = S.mode;
@@ -2476,6 +2577,16 @@ function renderTool() {
     if ($("dW")) $("dW").addEventListener("change", () => { d.width = Math.max(0.5, +$("dW").value || 4); saveUi(); });
     if ($("dLock")) $("dLock").addEventListener("change", () => { d.lock = $("dLock").checked; saveUi(); renderTool(); });
     if ($("dLg")) $("dLg").addEventListener("change", () => { const v = Math.abs(parseFloat(String($("dLg").value).replace(",", "."))); if (v > 0) d.lockGrade = v / 100; saveUi(); });
+  } else if (m === "point") {
+    /* col punto appena messo (o scelto) il suo modulo; senza, il raccordo dei prossimi */
+    const o = S.sel ? S.doc.getOp(S.sel) : null;
+    if (isPoint(o)) { B.innerHTML = `<p class="help">${tr("point.help")}</p>` + opForm(o); bindOpForm(o); return; }
+    const d = S.pointDef;
+    B.innerHTML = `<p class="help">${tr("point.help")}</p><div class="sub">${esc(tr("point.defaults"))}</div>` + pointBlendRows(d);
+    B.querySelector('[data-act="blend"]').addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c) return; d.blend = c.dataset.v; saveUi(); renderTool(); });
+    bindSlopeRows(B, (key, v, how) => { d[key] = v; saveUi(); if (how !== "type") renderTool(); });
+    if ($("oRnd")) $("oRnd").addEventListener("change", () => { d.round = Math.max(0, +$("oRnd").value || 0); saveUi(); });
+    if ($("oPR")) $("oPR").addEventListener("change", () => { const v = parseFloat(String($("oPR").value).replace(",", ".")); if (v > 0) d.radius = v; saveUi(); });
   } else if (m === "select") {
     const o = S.sel ? S.doc.getOp(S.sel) : null;
     B.innerHTML = o ? opForm(o) : `<p class="help">${esc(tr("op.none"))}</p>`;
@@ -2508,6 +2619,10 @@ function opForm(o) {
   } else if (o.type === "lock") {
     h += `<div class="kv"><span>${esc(tr("op.area"))}</span><b>${nf(T.polygonArea(o.polygon), 1)} m²</b></div>`
       + `<p class="note">${esc(tr("lockArea.note"))}</p>`;
+  } else if (o.type === "point") {
+    h += num("oZ", tr("op.elev"), r3(o.elevation), 0.05, "m")
+      + `<div class="kv" id="oPu"><span>${esc(tr("op.ptUnder"))}</span><b></b></div>`
+      + pointBlendRows(o, true);
   } else if (o.type === "bank") {
     h += num("oBt", tr("op.zTop"), r3(o.zTop), 0.05, "m")
       + num("oBb", tr("op.zBottom"), r3(o.zBottom), 0.05, "m")
@@ -2531,16 +2646,24 @@ function opForm(o) {
       + num("oRnd", tr("op.round"), o.round, 0.1, "m", 'min="0"');
   }
   if (o.type !== "water" && o.type !== "lock") h += `<div class="kv" id="oBal"><span>${esc(tr("op.bal"))}</span><b>…</b></div>`;     // bilancio dell'opera (a riposo)
-  h += `<p class="help" style="margin-top:8px">${esc(tr("op.hint"))}</p>`
+  h += `<p class="help" style="margin-top:8px">${esc(o.type === "point" ? tr("op.ptHint") : tr("op.hint"))}</p>`
     + `<div class="btns">${o.type === "water" || o.type === "lock" ? "" : `<button class="btn-sm" data-act="bake" title="${esc(tr("op.bakeTip"))}">${esc(above ? tr("op.bakeN", { n: above }) : tr("op.bake"))}</button>`}<button class="btn-sm" data-act="del">${esc(tr("op.delete"))}</button></div>`;
   return h;
 }
 function bindOpForm(o) {
   const B = $("toolBody"), id = o.id;
-  const upd = (patch, key) => { const r = S.doc.updateOp(id, patch, { coalesce: id + ":" + key }); edited(r, { ops: true }); refreshOpReadouts(); };
+  const upd = (patch, key) => { const r = S.doc.updateOp(id, patch, { coalesce: id + ":" + key }); edited(r, { ops: true }); rememberPoint(id); refreshOpReadouts(); };
   const val = (el) => parseFloat(String(el.value).replace(",", "."));
   const on = (elId, fn) => { const el = $(elId); if (el) el.addEventListener("input", () => { const v = val(el); if (Number.isFinite(v)) fn(v); }); };
   on("oZ", (v) => upd({ elevation: v }, "z"));
+  /* punto: Invio (o Esc) chiude la quota scritta, e il clic dopo mette il punto seguente */
+  if (o.type === "point" && $("oZ")) $("oZ").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); e.target.blur(); } });
+  on("oPR", (v) => { if (v > 0) upd({ radius: v }, "radius"); });
+  const blend = B.querySelector('[data-act="blend"]');
+  if (blend) blend.addEventListener("click", (e) => {
+    const c = e.target.closest(".chip"); if (!c) return;
+    edited(S.doc.updateOp(id, { blend: c.dataset.v }), { ops: true }); rememberPoint(id); renderTool();
+  });
   on("oBt", (v) => upd({ zTop: v }, "bt"));
   on("oBb", (v) => upd({ zBottom: v }, "bb"));
   const flip = B.querySelector('[data-act="flip"]');
@@ -2575,7 +2698,7 @@ function bindOpForm(o) {
     edited(S.doc.updateOp(id, patch), { ops: true }); renderTool();
   });
   bindSlopeRows(B, (key, v, how) => {
-    if (how === "click") { edited(S.doc.updateOp(id, { [key]: v }), { ops: true }); renderTool(); return; }
+    if (how === "click") { edited(S.doc.updateOp(id, { [key]: v }), { ops: true }); rememberPoint(id); renderTool(); return; }
     if (S.doc.getOp(id)[key] !== v) upd({ [key]: v }, key);          // stessa voce di storia mentre si scrive
     if (how === "done") renderTool();
   });
@@ -2609,6 +2732,17 @@ function refreshOpReadouts() {
     if (el && ev) { el.hidden = !(+o.grade); el.querySelector("b").textContent = `${nf(ev.zMin)} … ${nf(ev.zMax)} m`; }
     if (d && document.activeElement !== d) d.value = Math.round(+o.dir || 0);
     document.querySelectorAll('[data-act="dir"] .chip').forEach((c) => c.classList.toggle("on", !!+o.grade && +c.dataset.v === Math.round(+o.dir || 0)));
+    return;
+  }
+  if (o && o.type === "point") {                       // il terreno sotto il punto (senza il punto) e il dislivello; morbido: la pendenza che ne viene
+    const zu = S.doc.levelUnder(o.id, o.at[0], o.at[1]), dz = +o.elevation - zu, el = $("oPu"), ps = $("oPs"), z = $("oZ");
+    if (el) el.querySelector("b").textContent = `${nf(zu)} m · Δ ${dz < -0.005 ? "−" : "+"}${nf(Math.abs(dz))} m`;
+    if (ps) {
+      const g = Math.PI / 2 * Math.abs(dz) / Math.max(1e-9, +o.radius);
+      ps.textContent = tr("op.ptSmooth", { g: nf(g * 100, 0) });
+      ps.classList.toggle("warn", g > S.map.slopeMax);
+    }
+    if (z && document.activeElement !== z) z.value = r3(o.elevation);
     return;
   }
   if (o && o.type === "bank") {                        // larghezza in pianta: viene da quote e faccia
@@ -2645,6 +2779,7 @@ const ICON = {
   bank: '<svg class="op-ic" viewBox="0 0 24 24"><path d="M2 7h7l9 10h4"/><path d="M11 9.2l-2.2 2M13.7 12.2l-1.6 1.4M16.4 15.2l-2.8 2.5"/></svg>',
   water: '<svg class="op-ic" viewBox="0 0 24 24"><path d="M3 10c1.8 0 1.8-1.4 3.6-1.4s1.8 1.4 3.6 1.4 1.8-1.4 3.6-1.4 1.8 1.4 3.6 1.4 1.8-1.4 3.6-1.4M3 15c1.8 0 1.8-1.4 3.6-1.4s1.8 1.4 3.6 1.4 1.8-1.4 3.6-1.4 1.8 1.4 3.6 1.4 1.8-1.4 3.6-1.4"/></svg>',
   lock: '<svg class="op-ic" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7.5a4 4 0 0 1 8 0V11"/></svg>',
+  point: '<svg class="op-ic" viewBox="0 0 24 24"><path d="M2 20c3.5-.8 6-4.6 10-4.6s6.5 3.8 10 4.6"/><path d="M12 15.4V8.5"/><circle cx="12" cy="6" r="2.5"/></svg>',
   eye: '<svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>',
   eyeOff: '<svg viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 6.1A9.7 9.7 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3.2 3.9M6.6 6.6A17 17 0 0 0 2 12s3.5 6 10 6a9.6 9.6 0 0 0 4.4-1"/></svg>',
   up: '<svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>',
@@ -2659,7 +2794,7 @@ function renderOpsList() {
   $("opsBody").innerHTML = `<div class="oplist">` + ops.map((o, k) => {
     let v;
     if (o.type === "lock") v = ni(T.polygonArea(o.polygon)) + " m²";
-    else if (isArea(o)) v = nf(zRefOf(o)) + " m";
+    else if (isArea(o) || o.type === "point") v = nf(zRefOf(o)) + " m";
     else if (o.type === "bank") v = nf(+o.zTop, 1) + "→" + nf(+o.zBottom, 1);
     else { const pr = pathProfile(o); v = nf(pr.L > 0 ? (pr.zEnd - pr.zStart) / pr.L * 100 : 0, 1) + " %"; }
     return `<div class="oprow${o.id === S.sel ? " sel" : ""}${o.on === false ? " off" : ""}" data-id="${o.id}">`
@@ -2674,7 +2809,7 @@ $("opsBody").addEventListener("click", (e) => {
   const row = e.target.closest(".oprow");
   if (!row) return;
   const id = row.dataset.id, b = e.target.closest("button");
-  if (!b) { if (S.mode !== "select") setMode("select"); select(id); return; }
+  if (!b) { if (S.mode !== "select" && !(S.mode === "point" && isPoint(S.doc.getOp(id)))) setMode("select"); select(id); return; }
   if (b.dataset.act === "on") { const o = S.doc.getOp(id); edited(S.doc.updateOp(id, { on: o.on === false }), { ops: true }); renderTool(); }
   else if (b.dataset.act === "up" || b.dataset.act === "down") { edited(S.doc.moveOp(id, b.dataset.act === "up" ? -1 : 1), { ops: true }); renderTool(); }
   else if (b.dataset.act === "del") removeOp(id);
@@ -2769,7 +2904,7 @@ function scheduleRevitPts(delay = 700) {
   clearTimeout(ptsTimer);
   ptsTimer = setTimeout(async () => {
     if (!S.showPts || !S.doc) return;
-    const f = S.doc.final, tin = T.robustTIN(f, Delatin, await loadDelaunator(), { maxPoints: S.budget }), a = new Float32Array(tin.points * 3);
+    const f = S.doc.final, tin = T.robustTIN(f, Delatin, await loadDelaunator(), { maxPoints: S.budget, keep: spotKeep() }), a = new Float32Array(tin.points * 3);
     for (let v = 0; v < tin.points; v++) {
       const i = tin.coords[2 * v], j = tin.coords[2 * v + 1];
       a[3 * v] = f.x0 + i * f.cell - S.origin.x; a[3 * v + 1] = f.y0 + j * f.cell - S.origin.y; a[3 * v + 2] = f.z[j * f.nx + i] + 0.05;
@@ -2938,7 +3073,7 @@ async function exportCSV() {
   await step("exp.step.tin");
   const fr = T.exportFrame(S.doc.final, S.origin);
   /* TIN robusto: entro l'errore con qualsiasi Delaunay (Revit ritriangola i punti a modo suo) */
-  const tin = T.robustTIN(fr, Delatin, await loadDelaunator(), { maxPoints: S.budget });
+  const tin = T.robustTIN(fr, Delatin, await loadDelaunator(), { maxPoints: S.budget, keep: spotKeep() });
   const csv = T.toPointsCSV(fr, tin.coords);
   download(`${fileBase()}_revit_${S.budget / 1000}k.csv`, csv, "text/csv");
   setExportNote(tr("exp.csvDone", { n: ni(tin.points), e: nf(tin.maxError * 100, 1) }));
@@ -2986,7 +3121,7 @@ async function export3dm() {
     if (parts.water.length) d.push(tr("exp.d.water", { n: ni(parts.water.length) }));
   }
   if (P.points) {
-    const tin = T.robustTIN(fr, Delatin, await loadDelaunator(), { maxPoints: S.budget });
+    const tin = T.robustTIN(fr, Delatin, await loadDelaunator(), { maxPoints: S.budget, keep: spotKeep() });
     parts.points = { hf: fr, coords: tin.coords, label: `${tr("lay.points")} ${S.budget / 1000}k` };
     d.push(tr("exp.d.points", { p: ni(tin.points) }));
   }
