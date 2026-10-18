@@ -17,6 +17,7 @@ Key facts:
 - [Landing page](https://viewifc.com/): overview, features, privacy model and links.
 - [Viewer (the app)](https://viewifc.com/viewer/): the in-browser IFC/BCF viewer itself.
 - [Guide](https://viewifc.com/guide/): quick-start, how to load models, navigate, open BCF, work on issues and edit parameters.
+- [ViewIFC for Revit](https://viewifc.com/revit/): coming soon, not downloadable yet. A Windows add-in for Autodesk Revit 2023–2026 that opens the site's tools (Railway OCS, Terrain Sculptor, Profile Sweep) in a window inside Revit. Free tier: the window and a lightweight preview of the tool's geometry in Revit views (DirectContext3D, no elements created, context IFCs included). Pro tier (yearly per-user licence, 7-day trial): sends the result to the model as native objects — catalogue families placed with their parameters, a native toposolid with subregions, DirectShapes — plus two-way selection and the tool project saved in the .rvt. The add-in is proprietary; the site stays free and AGPL-3.0. Files never leave the user's computer.
 
 ## Tools
 

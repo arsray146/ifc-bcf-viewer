@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<!--
+  ViewIFC per Revit — pagina di presentazione e download dell'add-in
+  Autore: Alessandro Perugini — BIM Coordinator.
+  QUESTA PAGINA è parte del sito (AGPL-3.0). L'add-in che si scarica da qui è
+  software proprietario: vive in un repo privato e non contiene il sito, che
+  carica online da viewifc.com (PIANO_Revit_ViewIFC.md §2.1).
+
+  Il file si scarica da GitHub Releases di un repo pubblico a parte, che ha solo
+  le versioni compilate (niente sorgenti): l'indirizzo «latest/download» non
+  cambia mai, GitHub conta i download e l'add-in ci legge l'ultima versione per
+  l'avviso «aggiorna». L'acquisto della licenza Pro passa da un Payment Link di
+  Stripe: finché ADDIN.buyUrl è vuoto il pulsante dice «presto disponibile».
+-->
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ViewIFC per Revit — gli strumenti di viewifc.com dentro Revit</title>
+
+<meta name="description" content="Add-in per Revit 2023–2026: apre gli strumenti di viewifc.com in una finestra dentro Revit, mostra la geometria in anteprima nel modello senza appesantirlo e la porta in Revit come famiglie, toposolid e DirectShape native.">
+<meta name="author" content="Alessandro Perugini">
+<meta name="theme-color" content="#f1f3ee">
+<link rel="canonical" href="https://viewifc.com/revit/">
+<link rel="icon" type="image/png" href="../favicon-32.png">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://viewifc.com/revit/">
+<meta property="og:title" content="ViewIFC per Revit">
+<meta property="og:description" content="Gli strumenti di viewifc.com dentro Revit: anteprima leggera nel modello e oggetti nativi.">
+<meta property="og:image" content="https://viewifc.com/og-image.png">
+<script>/* Tema chiaro di default (chiave viewer_landing_theme, condivisa da tutto il sito): l'attributo
+   si applica subito e si toglie SOLO su scelta esplicita "dark". Stessa migrazione una tantum
+   delle altre pagine (viewifc_theme_migr_light). */
+document.documentElement.setAttribute("data-theme","light");
+try{
+  if(localStorage.getItem("viewifc_theme_migr_light")!=="1"){
+    localStorage.setItem("viewifc_theme_migr_light","1");
+    localStorage.setItem("viewer_landing_theme","light");
+  }
+  if(localStorage.getItem("viewer_landing_theme")==="dark") document.documentElement.removeAttribute("data-theme");
+}catch(e){}</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* =========================================================================
+   Sistema di vetro condiviso con landing, viewer e pagine strumento (v3).
+   Token, nav, bottoni e chiusura copiati da tools/index.html.
+   ========================================================================= */
+:root{
+  --lime:#bfd730; --lime-deep:#a8c320; --lime-ink:#23310a;
+  --lime-soft:rgba(191,215,48,.13); --lime-line:rgba(191,215,48,.34);
+  --acc:var(--lime-deep);
+  --hl:#ff6a2b;
+  --bg:#141a12; --bg2:#262b24;
+  --pnl:rgba(15,20,13,.82); --pnl2:rgba(237,242,226,.05);
+  --hair:rgba(237,242,226,.09); --hair2:rgba(237,242,226,.06);
+  --inset:rgba(13,18,11,.5);
+  --grid:rgba(237,242,226,.05); --hover:rgba(237,242,226,.022);
+  --text:#edf2e2; --muted:#a9b59b; --faint:#79856c;
+  --amber:#e0a52f; --amber-bg:rgba(224,165,47,.07);
+  --sh:0 2px 8px rgba(0,0,0,.28),0 18px 44px rgba(0,0,0,.42);
+  --sh-sm:0 1px 3px rgba(0,0,0,.30),0 6px 18px rgba(0,0,0,.26);
+  --glow:0 4px 24px rgba(191,215,48,.20);
+  --scene:#1b2218; --scene2:#232b20;
+  --r:24px; --r-md:14px; --r-sm:11px; --r-xs:8px;
+  --blur:blur(20px) saturate(1.25);
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'IBM Plex Sans',system-ui,sans-serif;
+  --disp:'Barlow Semi Condensed',var(--sans);
+  --maxw:1180px; --pad:clamp(16px,6vw,90px);
+}
+html[data-theme="light"]{
+  --lime-deep:#67790d;
+  --bg:#f1f3ee; --bg2:#e9ece3;
+  --pnl:rgba(255,255,255,.80); --pnl2:rgba(33,42,35,.035);
+  --hair:rgba(33,42,35,.13); --hair2:rgba(33,42,35,.08);
+  --inset:rgba(33,42,35,.04);
+  --grid:rgba(33,42,35,.05); --hover:rgba(33,42,35,.025);
+  --text:#212a23; --muted:#5f6c61; --faint:#8b978d;
+  --lime-soft:rgba(191,215,48,.22); --lime-line:rgba(154,179,19,.45);
+  --amber:#8f6008; --amber-bg:rgba(224,165,47,.14);
+  --sh:0 2px 8px rgba(30,40,28,.07),0 18px 44px rgba(30,40,28,.10);
+  --sh-sm:0 1px 3px rgba(30,40,28,.06),0 6px 18px rgba(30,40,28,.07);
+  --glow:0 4px 24px rgba(154,179,19,.28);
+  --scene:#f7f8f4; --scene2:#eceee7;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:var(--sans);font-size:16px;line-height:1.6;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+h1,h2,h3{margin:0}
+::selection{background:var(--lime);color:var(--lime-ink)}
+:focus-visible{outline:2px solid var(--lime);outline-offset:3px;border-radius:6px}
+[hidden]{display:none!important}
+
+.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:44px 44px,44px 44px}
+.glow{position:absolute;left:0;right:0;top:0;height:620px;z-index:0;pointer-events:none;
+  background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.085) 0%,transparent 64%)}
+html[data-theme="light"] .glow{background:radial-gradient(66% 58% at 50% 0%,rgba(191,215,48,.20) 0%,transparent 64%)}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--pad);position:relative;z-index:1}
+
+/* ---------- nav a pillola (come tools/) ---------- */
+.topbar{position:sticky;top:0;z-index:50;display:flex;justify-content:center;
+  padding:18px var(--pad) 0;pointer-events:none}
+.navpill{pointer-events:auto;max-width:100%;display:flex;align-items:center;gap:26px;
+  padding:8px 8px 8px 14px;border-radius:999px;background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--hair);box-shadow:var(--sh)}
+.brand{display:flex;align-items:center;gap:9px;flex:none}
+.hdr-logo{width:26px;height:26px;border-radius:8px;display:block;flex:none}
+.appname{font-family:var(--disp);font-weight:600;font-size:13.5px;letter-spacing:.03em;
+  line-height:1.2;color:var(--text);white-space:nowrap}
+.navlinks{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.navlinks a{padding:6px 10px;border-radius:999px;transition:color .15s}
+.navlinks a:hover{color:var(--text)}
+.navlinks a.on{background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line);
+  color:var(--text);font-weight:500}
+.nav-act{display:flex;align-items:center;gap:10px;flex:none;margin-left:auto}
+.langsw{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
+.langsw button{border:0;background:none;cursor:pointer;padding:5px 8px;border-radius:999px;
+  color:var(--faint);font:inherit;transition:color .12s,background .12s}
+.langsw button:hover{color:var(--text)}
+.langsw button.on{background:var(--lime-soft);color:var(--text)}
+.thm{width:28px;height:28px;flex:none;border-radius:999px;border:1px solid var(--hair);
+  background:var(--pnl2);display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--muted);transition:color .15s,border-color .15s}
+.thm:hover{color:var(--text);border-color:var(--lime-line)}
+.thm svg{width:14px;height:14px}
+html[data-theme="light"] .thm .moon{display:none}
+html:not([data-theme="light"]) .thm .sun{display:none}
+
+/* ---------- bottoni a pillola ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;white-space:nowrap;
+  border:1px solid transparent;border-radius:999px;cursor:pointer;
+  font-family:var(--disp);font-weight:600;letter-spacing:.02em;
+  transition:background .18s,border-color .18s,box-shadow .22s,transform .18s,color .18s}
+.btn svg{flex:none}
+.btn.primary{background:var(--lime);color:var(--lime-ink);box-shadow:var(--glow)}
+.btn.primary:hover{background:#cae23f;box-shadow:0 6px 30px rgba(191,215,48,.32);transform:translateY(-1px)}
+.btn.hollow{background:transparent;border-color:var(--hair);color:var(--text)}
+.btn.hollow:hover{border-color:var(--lime-line)}
+.btn[aria-disabled="true"]{cursor:default;color:var(--faint);border-color:var(--hair2)}
+.btn[aria-disabled="true"]:hover{border-color:var(--hair2)}
+.btn.sm{padding:9px 16px;font-size:12.5px}
+.btn.sm svg{width:13px;height:13px}
+.btn.lg{padding:14px 22px;font-size:14.5px}
+.btn.lg svg{width:16px;height:16px}
+
+.kicker{font:500 10.5px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+
+/* ---------- hero ---------- */
+.hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:48px;align-items:center;padding:64px 0 0}
+.hero-l{display:flex;flex-direction:column;gap:18px;min-width:0}
+.h1{font-family:var(--disp);font-weight:600;font-size:clamp(38px,4.8vw,58px);
+  line-height:1.0;letter-spacing:-.012em;color:var(--text);text-wrap:balance}
+.h1 em{font-style:normal;color:var(--acc)}
+.lead{max-width:560px;margin:0;font:400 15px/1.7 var(--sans);color:var(--muted);text-wrap:pretty}
+.hero-cta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px}
+.hero-meta{display:flex;flex-wrap:wrap;gap:6px 16px;font:400 11px/1.5 var(--mono);color:var(--faint)}
+/* add-in «in arrivo» (ADDIN.download vuoto, classe addin-soon su <html>): etichetta accanto al
+   kicker e campanella al posto della freccia di download */
+.hero-k{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
+.soon-tag{display:inline-flex;align-items:center;gap:7px;padding:4px 10px;border-radius:999px;
+  font:500 10px/1.4 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--text);
+  background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line)}
+.soon-tag::before{content:"";width:6px;height:6px;border-radius:99px;background:var(--lime)}
+html:not(.addin-soon) .soon-tag,
+html:not(.addin-soon) [data-addin="download"] .i-bell,
+.addin-soon [data-addin="download"] .i-dl{display:none}
+.hero-meta b{font-weight:500;color:var(--muted)}
+
+/* scena: finestra di Revit con la pagina del sito accanto, tre strumenti a rotazione
+   (initScene nello script). Le fasi si accumulano sul <g class="sc-s"> della scena:
+   p1 anteprima che compare · p2 scelta in arancio (clic sulla riga) · p3 clic su
+   «Porta in Revit» · p4 oggetti nativi. Qui il disegno e le transizioni, nel JS solo i tempi. */
+.scene{border-radius:var(--r);padding:10px;background:var(--pnl);border:1px solid var(--hair);
+  box-shadow:var(--sh);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  /* oggetti nativi: grigi pieni ricavati dai token, quindi giusti in tutti e due i temi;
+     --sub = sottoregioni, sempre più chiare del terreno; --hol = interno del canale, sempre più scuro */
+  --nat:var(--faint);--nat2:var(--muted);--nat3:var(--muted);--sub:var(--nat2);--hol:var(--nat)}
+@supports (color:color-mix(in srgb,red,blue)){
+  .scene{--nat:color-mix(in srgb,var(--muted) 24%,var(--scene));
+    --nat2:color-mix(in srgb,var(--muted) 44%,var(--scene));
+    --nat3:color-mix(in srgb,var(--muted) 64%,var(--scene));
+    --hol:color-mix(in srgb,var(--muted) 10%,var(--scene))}
+}
+html[data-theme="light"] .scene{--sub:var(--scene2);--hol:var(--nat2)}
+.scene svg{display:block;width:100%;height:auto;border-radius:16px}
+.sc-bg{fill:var(--scene)}
+.sc-bar{fill:var(--scene2)}
+.sc-hair{stroke:var(--hair);fill:none}
+.sc-grid{stroke:var(--grid);stroke-width:1}
+.sc-txt{font:500 10px var(--mono);fill:var(--muted)}
+.sc-txt.faint{fill:var(--faint)}
+.sc-txt.ink{fill:var(--lime-ink);font-family:var(--disp);font-weight:600;font-size:11.5px;letter-spacing:.02em}
+.sc-tab{fill:var(--lime-soft);stroke:var(--lime-line)}
+.sc-rail{stroke:var(--faint);stroke-width:1.4;fill:none}
+.sc-ctx{fill:none;stroke:var(--faint);stroke-width:.7;stroke-opacity:.6}
+.sc-pnl{fill:var(--pnl);stroke:var(--hair)}
+.sc-row{fill:var(--pnl2);transition:fill .3s,fill-opacity .3s}
+.sc-line{fill:var(--hair)}
+.sc-btn{fill:var(--lime)}
+.sc-dot{fill:var(--lime);transition:fill .3s}
+
+/* scene e comparse (p1) */
+.sc-s{opacity:0;transition:opacity .45s ease}
+.sc-s.on{opacity:1}
+.sc-in,.sc-drop{opacity:0}
+.sc-drop{transform:translateY(-14px)}
+.p1 .sc-in{opacity:1;transition:opacity .4s ease var(--d,0s)}
+.p1 .sc-drop{opacity:1;transform:none;
+  transition:opacity .3s ease var(--d,0s),transform .55s cubic-bezier(.2,.9,.3,1.2) var(--d,0s)}
+/* anteprima (DirectContext3D): lime trasparente; --nf = il pieno che prenderà da oggetto nativo */
+.pv{--nf:var(--nat);fill:var(--lime);fill-opacity:.4;stroke:var(--lime-deep);stroke-width:1.1;stroke-linejoin:round;
+  transition:fill .5s ease var(--n,0s),fill-opacity .5s ease var(--n,0s),stroke .5s ease var(--n,0s)}
+.pv.lo{fill-opacity:.15}
+.pv.hi{fill-opacity:.58}
+.pv.f{fill-opacity:.2;stroke:none}
+.pv.b{--nf:var(--nat2)}
+.pv.in{--nf:var(--hol)}
+.pv.w{--nf:var(--nat3);fill-opacity:.5}
+.pv.sub{--nf:var(--sub);fill-opacity:.5}
+.pl{fill:none;stroke:var(--lime-deep);stroke-width:1.1;stroke-linecap:round;stroke-linejoin:round;
+  transition:stroke .5s ease var(--n,0s),stroke-opacity .5s ease var(--n,0s)}
+.pl.ct{stroke-width:.75;stroke-opacity:.8}
+.pl.th{stroke-width:.8}
+.sc-drop .pl{stroke-width:1.6}
+.ul{fill:var(--scene)}                      /* sotto piattaforma e rampa: coprono le curve di livello */
+.sc-solid{fill:var(--nat2);stroke:var(--muted);stroke-width:1;stroke-linejoin:round}
+.sc-axis{stroke-width:1.3;stroke-dasharray:1 1;stroke-dashoffset:1}
+.p1 .sc-axis{stroke-dashoffset:0;transition:stroke-dashoffset .9s ease .15s,stroke .5s ease}
+.sc-mask{mask-type:alpha}
+.sc-grow{fill:none;stroke:var(--lime);stroke-width:110;stroke-dasharray:1 1;stroke-dashoffset:1}
+.pl.hc{stroke-width:.6}                     /* tratteggio delle scarpate di riporto */
+/* Terrain Sculptor, prima delle fasi comuni: data-k = colpo di pennello. 1-3 Alza (il colle
+   cresce), 4-6 Abbassa (la conca si scava), 7 le opere; le curve di livello sono fotogrammi */
+.tsk{opacity:0;transition:opacity .3s ease}
+[data-k="0"] .tsk.c0,[data-k="1"] .tsk.c0,[data-k="2"] .tsk.c1,[data-k="3"] .tsk.c2,[data-k="4"] .tsk.c2,
+[data-k="5"] .tsk.c3,[data-k="6"] .tsk.c4,[data-k="7"] .tsk.c5{opacity:1}
+.sc-late{opacity:0}
+[data-k="7"] .sc-late{opacity:1;transition:opacity .4s ease var(--d,0s)}
+.sc-brush{opacity:0;transform:var(--b0);transition:opacity .25s ease,transform .45s cubic-bezier(.45,.05,.25,1)}
+.scene:not(.live) .sc-brush{display:none}
+.live [data-k="1"] .sc-brush{opacity:1;transform:var(--b1)}
+.live [data-k="2"] .sc-brush{opacity:1;transform:var(--b2)}
+.live [data-k="3"] .sc-brush{opacity:1;transform:var(--b3)}
+.live [data-k="4"] .sc-brush{opacity:1;transform:var(--b4)}
+.live [data-k="5"] .sc-brush{opacity:1;transform:var(--b5)}
+.live [data-k="6"] .sc-brush{opacity:1;transform:var(--b6)}
+.live [data-k="7"] .sc-brush{transform:var(--b7)}
+.sc-ring0{fill:var(--lime);fill-opacity:.18;stroke:var(--text);stroke-opacity:.6;stroke-width:1.2;stroke-dasharray:3 2}
+.sc-bdir{fill:none;stroke:var(--text);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;transition:opacity .2s}
+.sc-bdir.dn,[data-k="4"] .sc-bdir.up,[data-k="5"] .sc-bdir.up,[data-k="6"] .sc-bdir.up,[data-k="7"] .sc-bdir.up{opacity:0}
+[data-k="4"] .sc-bdir.dn,[data-k="5"] .sc-bdir.dn,[data-k="6"] .sc-bdir.dn,[data-k="7"] .sc-bdir.dn{opacity:1}
+.sc-chip rect{fill:var(--pnl2);stroke:var(--hair);transition:fill .2s,stroke .2s}
+.sc-chip path{fill:var(--faint);transition:fill .2s}
+[data-k="1"] .sc-chip.up rect,[data-k="2"] .sc-chip.up rect,[data-k="3"] .sc-chip.up rect,
+[data-k="4"] .sc-chip.dn rect,[data-k="5"] .sc-chip.dn rect,[data-k="6"] .sc-chip.dn rect{fill:var(--lime-soft);stroke:var(--lime-line)}
+[data-k="1"] .sc-chip.up path,[data-k="2"] .sc-chip.up path,[data-k="3"] .sc-chip.up path,
+[data-k="4"] .sc-chip.dn path,[data-k="5"] .sc-chip.dn path,[data-k="6"] .sc-chip.dn path{fill:var(--lime-deep)}
+.p1 .sc-grow{stroke-dashoffset:0;transition:stroke-dashoffset 1.2s cubic-bezier(.45,0,.3,1) 1.05s}
+/* scelta (p2): arancio quando arriva il clic del cursore sulla riga */
+.p2 .sel .pv{fill:var(--hl);fill-opacity:.55;stroke:var(--hl);transition-delay:.75s}
+.p2 .sel .pl{stroke:var(--hl);transition-delay:.75s}
+.p2 .sc-row.sel{fill:var(--hl);fill-opacity:.14;transition-delay:.75s}
+.p2 .sc-dot.sel{fill:var(--hl);transition-delay:.75s}
+.sc-selmark{fill:none;stroke:var(--hl);stroke-width:1.5;stroke-linejoin:round;opacity:0}
+.p2 .sc-selmark{opacity:1;transition:opacity .3s ease .75s}
+/* oggetti nativi (p4): pieni, grigi con gli spigoli, come Revit in «ombreggiato con bordi» */
+.p4 .pv,.p4 .sel .pv{fill:var(--nf);fill-opacity:1;stroke:var(--muted);transition-delay:var(--n,0s)}
+.p4 .pl,.p4 .sel .pl{stroke:var(--muted);transition-delay:var(--n,0s)}
+.p4 .pl.ct{stroke-opacity:.45}
+.p4 .pl.wv{stroke:var(--scene)}
+.p4 .sc-row.sel{fill:var(--pnl2);fill-opacity:1;transition-delay:0s}
+.p4 .sc-dot.sel{fill:var(--lime);transition-delay:0s}
+.p4 .sc-selmark{opacity:0;transition:opacity .3s}
+.sc-natonly{opacity:0}
+.p4 .sc-natonly{opacity:1;transition:opacity .5s}
+.sc-vw.nat{opacity:0}                       /* «anteprima» esce, poi entra «nel modello» */
+.p4 .sc-vw{opacity:0;transition:opacity .2s}
+.p4 .sc-vw.nat{opacity:1;transition:opacity .3s ease .2s}
+.sc-done{opacity:0;transform:translateY(5px)}
+.p4 .sc-done{opacity:1;transform:none;transition:opacity .4s ease .6s,transform .45s ease .6s}
+.sc-done circle{fill:var(--lime)}
+.sc-done path{fill:none;stroke:var(--lime-ink);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.sc-done text{fill:var(--text)}
+/* cursore: va sulla riga (p2), poi sul pulsante (p3); il clic è un anello che si allarga */
+.sc-cur{opacity:0;transform:translate(524px,262px);
+  transition:opacity .25s ease,transform .7s cubic-bezier(.45,.05,.25,1)}
+.scene:not(.live) .sc-cur{display:none}
+.sc-arrow{fill:var(--text);stroke:var(--scene);stroke-width:1;stroke-linejoin:round}
+.sc-ring{fill:none;stroke-width:1.5;opacity:0;transform-box:fill-box;transform-origin:center}
+.sc-ring.r1{stroke:var(--hl)}
+.sc-ring.r2{stroke:var(--lime-ink)}
+.sc-press{fill:var(--lime-ink);opacity:0}
+.live .p2 .sc-cur{opacity:1;transform:translate(var(--rx),var(--ry))}
+.live .p3 .sc-cur{transform:translate(506px,310px)}
+.live .p4 .sc-cur{opacity:0;transition-delay:.35s}
+.live .p2 .sc-ring.r1{animation:scClick .55s ease-out .7s forwards}
+.live .p3 .sc-ring.r2{animation:scClick .55s ease-out .7s forwards}
+.live .p3 .sc-press{animation:scPress .6s ease-out .7s forwards}
+@keyframes scClick{0%{opacity:.9;transform:scale(.25)}100%{opacity:0;transform:scale(1.7)}}
+@keyframes scPress{0%{opacity:0}30%{opacity:.2}100%{opacity:0}}
+/* cambi di stato senza transizioni (avvio, fermo immagine) */
+.scene.snap *{transition:none!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){
+  .scene *{transition:none!important;animation:none!important}
+}
+
+/* ---------- sezioni ---------- */
+.sec{padding:96px 0 0}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:40px;margin-bottom:28px}
+.sec-head .l{display:flex;flex-direction:column;gap:12px;max-width:620px}
+.h2{font:600 clamp(28px,3.2vw,38px)/1.06 var(--disp);letter-spacing:-.006em;color:var(--text);text-wrap:balance}
+.sec-head p{max-width:420px;margin:0;font:400 13.5px/1.7 var(--sans);color:var(--muted)}
+
+/* tre cose che fa */
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.feat{display:flex;flex-direction:column;gap:10px;padding:22px 22px 20px;border-radius:var(--r-md);
+  background:var(--pnl);border:1px solid var(--hair);box-shadow:var(--sh-sm);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.feat-n{font:500 10.5px/1 var(--mono);color:var(--faint)}
+.feat h3{font:600 20px/1.15 var(--disp);letter-spacing:.01em;color:var(--text)}
+.feat p{margin:0;font:400 13px/1.65 var(--sans);color:var(--muted);text-wrap:pretty}
+.feat ul{margin:4px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.feat li{display:flex;gap:9px;font:400 12px/1.5 var(--sans);color:var(--muted)}
+.feat li::before{content:"";flex:none;width:5px;height:5px;margin-top:7px;border-radius:99px;background:var(--lime)}
+
+/* strumenti collegati: righe hairline */
+.rows{border-top:1px solid var(--hair)}
+.row{display:grid;grid-template-columns:200px minmax(0,1fr) 200px 24px;gap:24px;align-items:center;
+  padding:18px 6px;border-bottom:1px solid var(--hair);transition:background .12s}
+a.row:hover{background:var(--hover)}
+.row-t{font:600 17px/1.2 var(--disp);letter-spacing:.012em;color:var(--text)}
+.row-d{font:400 13px/1.6 var(--sans);color:var(--muted);text-wrap:pretty}
+.row-k{font:500 10.5px/1.5 var(--mono);color:var(--acc)}
+.row-go{width:14px;height:14px;fill:none;stroke:var(--faint);stroke-width:2.1;stroke-linecap:round;stroke-linejoin:round;transition:stroke .15s,transform .15s}
+a.row:hover .row-go{stroke:var(--lime);transform:translateX(3px)}
+.row.soon .row-t,.row.soon .row-d{color:var(--faint)}
+.row.soon .row-k{color:var(--faint)}
+
+/* piani: gratis / pro */
+.plans{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.plan{display:flex;flex-direction:column;gap:14px;padding:26px;border-radius:var(--r-md);border:1px solid var(--hair)}
+.plan.free{background:var(--pnl2)}
+.plan.pro{background:var(--pnl);box-shadow:var(--sh);border-color:var(--lime-line);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur)}
+.plan-top{display:flex;align-items:center;gap:10px}
+.plan-name{font:600 24px/1 var(--disp);letter-spacing:.01em;color:var(--text)}
+.plan-tag{margin-left:auto;padding:4px 9px;border-radius:999px;font:500 10px/1.4 var(--mono);
+  background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line);color:var(--text)}
+.plan.free .plan-tag{background:var(--inset);box-shadow:inset 0 0 0 1px var(--hair);color:var(--muted)}
+.plan-price{font:600 30px/1 var(--disp);color:var(--text)}
+.plan-price small{font:400 12px var(--sans);color:var(--faint);margin-left:6px}
+.plan p{margin:0;font:400 13px/1.6 var(--sans);color:var(--muted)}
+.plan ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;flex:1}
+.plan li{display:flex;gap:10px;font:400 13px/1.5 var(--sans);color:var(--text)}
+.plan li svg{flex:none;width:15px;height:15px;margin-top:2px;fill:none;stroke:var(--acc);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.plan .btn{align-self:flex-start}
+.plan-note{font:400 11px/1.6 var(--mono);color:var(--faint)}
+
+/* installazione: passi numerati */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;counter-reset:st}
+.step{display:flex;flex-direction:column;gap:8px;padding:20px;border-radius:var(--r-sm);
+  background:var(--pnl2);border:1px solid var(--hair)}
+.step-n{width:26px;height:26px;border-radius:99px;display:flex;align-items:center;justify-content:center;
+  font:600 12px/1 var(--mono);background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line);color:var(--text)}
+.step h3{font:600 16px/1.2 var(--disp);letter-spacing:.012em;color:var(--text)}
+.step p{margin:0;font:400 12.5px/1.6 var(--sans);color:var(--muted);text-wrap:pretty}
+.step code{font:500 11px var(--mono);color:var(--text);background:var(--inset);padding:1px 5px;border-radius:5px}
+.req{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:18px;font:400 11.5px/1.5 var(--mono);color:var(--faint)}
+.req b{font-weight:500;color:var(--muted)}
+
+/* domande */
+.faq{border-top:1px solid var(--hair)}
+.faq details{border-bottom:1px solid var(--hair)}
+.faq summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:14px;padding:17px 6px;
+  font:600 16.5px/1.3 var(--disp);letter-spacing:.01em;color:var(--text)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";margin-left:auto;font:400 18px/1 var(--mono);color:var(--faint)}
+.faq details[open] summary::after{content:"–"}
+.faq details p{margin:0;padding:0 6px 18px;max-width:780px;font:400 13.5px/1.7 var(--sans);color:var(--muted)}
+
+/* chiusura */
+.pagefoot{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;
+  margin:80px 0 34px;padding-top:22px;border-top:1px solid var(--hair)}
+.pagefoot p{margin:0;max-width:560px;font:400 11.5px/1.6 var(--sans);color:var(--faint)}
+.pagefoot nav{display:flex;align-items:center;gap:20px;flex-wrap:wrap;font:400 11.5px/1 var(--sans);color:var(--muted)}
+.pagefoot nav a{transition:color .15s}
+.pagefoot nav a:hover{color:var(--text)}
+
+/* ---------- responsive ---------- */
+@media (max-width:1020px){
+  .hero{grid-template-columns:1fr;gap:36px}
+  .steps{grid-template-columns:repeat(2,1fr)}
+  .row{grid-template-columns:170px minmax(0,1fr) 24px}
+  .row-k{display:none}
+}
+@media (max-width:860px){
+  .navlinks{display:none}
+  .feats,.plans{grid-template-columns:1fr}
+  .sec-head{flex-direction:column;align-items:flex-start;gap:12px}
+  .sec{padding-top:72px}
+}
+@media (max-width:560px){
+  .hero{padding-top:40px}
+  .appname{display:none}
+  .navpill{gap:12px}
+  .steps{grid-template-columns:1fr}
+  .row{grid-template-columns:minmax(0,1fr) 20px;gap:6px 14px}
+  .row-d{grid-column:1/2}
+  .row-go{grid-row:1/3;grid-column:2}
+  .hero-cta .btn{width:100%}
+  .plan{padding:20px}
+}
+</style>
+
+<!-- Statistiche di visita anonime e senza cookie (GoatCounter) — vedi /analytics.js.
+     I pulsanti con id (btnRevitDownload, che finché l'add-in è «in arrivo» diventa btnRevitNotify,
+     e btnRevitBuy) sono nella lista chiusa degli eventi. -->
+<script src="/analytics.js" defer></script>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true"></div>
+
+<!-- ================= NAV ================= -->
+<header class="topbar">
+  <div class="navpill">
+    <a class="brand" href="../" data-i18n-title="nav.home" title="Vai a viewifc.com" aria-label="viewifc.com">
+      <img class="hdr-logo" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAJoUlEQVR4nM2Za4xd1XXHf2vvc85933l4PGODiw0DebhAHVoLJyVFOAm1EhRCPjgvqa1KQSqp1ChtUgQpFrSokEaVouZD6iZRPpBQ+EAiQRGNCCiRwiOOsSH2GINtHo5f4/G87tzXOXvv1Q/3zniwZ4axkaUs6epK956712//195rr72u0DVVRAQF+Pn+DX+Us3J7UN0cPO9XRbgAJoIay34j8kzb6/aPvX/3y2eyCMA2xdwrhCdfuLxaXVm5D7gtTkwxaweyTC8E25zFsRDnDFkaGsB/T5+s3fPJTQemZ5lk2zbMvfcSnnpufX9pMPdUpSfaODGWoaoexIhcGPVmTRUFDSJi+wZialNuR320vWXLR0bGt23DyKOPYldev75gp3PPFIp24/RklhkjESwOpgrynrBnf/yO6GgI6qq9cdxs+B2+2t588hcjTbN1Kz6ciu/v6Ytm4eKl4ACs1TnQ84FTPEFb89wIgBgj8fRklvX0RRvDqfj+rVvx8uzI1VfayOxUsMFjloITgaDQrBuKZY+14DI5BzUF1YzY9lEpXMX4zC8RiQiaYiRHV1E1liDgvQt/bETkjnzBJsGd3jSLDm+UkV1VfvnUSp5/pp/R4wlxostWUhB8aLO67zMoGS7MYCSmlLsUVTfrXoJT8gWbiMgdJig3pu2gipiFBlXtvIyF2qTl8KE8ABNjeV58tp8Dr+aJk/CukIIl81OsrG5GsByb+AnFZB2XDX6FJFqJqmN2Pypi0nbQoNwYGSPDWaZnhUkVrAURJQTBGGV6ypKmQqkshOAJTtjzmz6Mgcve1yJLFwi3QlAhhCaxXUVP4cO8fvw+BqtbWNXzSX438T/UWvuITQUldCYjSJYpxshw1NnmZ4fWRkqzbmi3LFESqFQDxbKnXFWadYsxShQriYG9O3spV8YYXOXI5q3JEDqTLBcNinDZ4F9xqvY0awY+RcFu4MDot3F+gthWUfULRU/l2X0b9IwPiWLl+JEcr/y6F+8N1nhyJc+qi1OqPW0mJ4Qjb1Wo13IkicM7Q6mS8qcfHyeKOmOEAPmC0GoGdj7f4MBIgmQXs+7yiM0f34QrPkSrkcOaeE65BZfGQoBxEnjp+R4OH6yQ5D0hCBoM3kMUZaxe2+SiS1qMnUg4tL+CEcE7YXj9FFd9qE6rJRRLwsHXMr7zr5O8uT8QnOJDm1y+Qr48zRdvH+Cmz1Vo1sOSWWDBjSEC5arDGEUkICZgrCdJHILh8IEqL/2qnyRRNl43RqGYoQHePlhkYtxQLApHDzv+7R8mePNVKJUtld6Ynv4y7Wyc2kTE9gcb/PRH0xRLQlhcwLMBBfBeGLyojU08IRhEBbSbpUSJcw4NsPelXt58rcJVGydZvbbOzGTCG68ViHPKI9+vceIIVHqE4MG7AKrc+te3c91HryWKMx7+rxav70vJFxaHPFtBAe+E3l7HmksbpKlFjIKcXgnaVTlfcIweK7D7+X7WDjcYXj/FiSMV3jyo/HZHRqlscRkYY2i1WwwPD/PNb36Lu+/+Z5xvkbYMTz/eIIo549Q7bdFiIfbe8IErZ6hNRowey5PLB2TeOApoEOIk0G5Zdr+wgquvHceHaf7vMUOrETDGAhA0kM8VOHjoEHfd9U/se3UfcS6HVdi321GbCkSRLJhLz9okcyopGKu4TNizq8KRt4poECKrXUVBfecZYwyjRz3jo4GTx0fZP3KKfD46SxVVZWp6ilwuoVQs4TKlWIUHvt/LioGIhfLxggrOqhi8EEVwzaZp1qxrcvhQgYmxhFYzwnsolw1TpwJvvJpRG7c4p9hoNUNDMDE+gTHmjDGFgRUDhBAIwUM3Jkvt4kUBZyFVOwXB0KqMwVUpzYahNh2RtiOe+HGL/S9bjBhsd6SQBuIoJoojvPOd0rhbIgM451BVbARpSxm6WOjrt7gF1HtXwPmgWSaAEMdwyTrHD78zxtOPt8gXTBei+3CnIMEYOwfVeetAigHBkLaV1Gfc/KUekpyhngXM+QKedgIgOAeligWxxInFz5/9rJf5xN0vswzarQCiDKwW/ua2MpuuL9KYCZgFM/I5AM76bDY9IpbPfKHCyy9mvPyCUq6A9/MeeufUEMBlsGoNXHFlxLorIj6yucjgUEy9Hhapo7rzXQ5YCFAsG3a90OLBO8cwRlGEW79aodrvSVOWdmKg2Qhcd2PM3d8a4NOf76GnN2JmZuljbtmAxkCrGfjfR+u89Ct4/JEZ4hjWrE24464Kzjs0yKKQqoJNoG/AUptSatMB53TRsJ4TYAhQKBh+u7PJyO6MwaGIh7c32fViCxHYdH2R275WotHI0CB0c/MZgJDLw9rhCA3arTPfHW5ZgLPV9J5dGT61GKsQDN++d4ojb6d4D1tuqfDlb5TJXEaaMpdyoBP6NIWLLjH8waUxabo85ZYN2Dn2lKNvOYztHPxJDibHDA98fZKTJzqVzI03l7nz33uo9ARqU4q1ncLVGEjbgY/+eY5Kj8W75cMtGzAEpdUIc2V38FAoGo6+IfzL30/wu7dTAK7ZVOT+7X38yZ8Zpqc93kGrIay9Aj7x6SLN+mI3n/cA2LmbCL0rIlRPLxzvlUJJOHYY7vnyOL95rkkUweBQzJ0P9vOV+0r0DykqGbf9Y4VKNcK5c7/wL1oszFrwUOmxPPnYFP953zR9fQVcNlu8KSaCLBU0BG75yzyf/YsyhYLFWjh2JOPEMcf6q/O0W0ufuUsBBpa6DyuICaRpwjdur/PWoXGq1TyZ62ZmlW5eNDTrgQ9eY7j5i0X+cEOeXL5TbLSa5x7aWe/v2hwSE9FsT/Chy7/KD7Y/QbUvx8S4w3sB7ZzDwQsuU4yFXc85nni0hvOBEKB5/nCIIFEIejBJzGVpqpwJK2JJ3SkuGfg8vfEt1Nf8Bw98r5efPlRj94uOyVOeEJQoNvStEIbXGz52U4kNGwt4D8GfW0qZNVU0SYQ0DYciI/wsyZm/zVLnQealWcGHFpXClfSXPszOt7cyWX+FwdV9/N3dfYyNZowez8jakCsIK4di+gYsgtCsh7lrwXkph4YkZ63Lws+WaB4Jqo5ibh3N9Cg+1IhslRBc9+4sxLHMpSGXgev0d85LtfkCvqN5dMP6V/ZkTr/b2x/bEHReGlVEIurtQ4AjMuVO/6SbfL1Tmo1Aox5oNxXfDed7hCMEdb39sc2cfveG9a/sWUYDc/5V6YLawg3MvXvRG4ZGZhon21taTb9jxWASA6KqvtuevbBUinbazciKwSRuNf2Oxsn2lhuGRmb27kV//5vo82bye/k3xP8DmbTtkmcIcikAAAAASUVORK5CYII=" alt="APE" width="26" height="26">
+      <span class="appname">Viewer IFC · BCF</span>
+    </a>
+    <nav class="navlinks">
+      <a href="../#platform" data-i18n="nav.platform">Funzioni</a>
+      <a href="../tools/" data-i18n="nav.tools">Strumenti</a>
+      <a class="on" href="./" aria-current="page">Revit</a>
+      <a href="../guide/" data-i18n="nav.guide">Guida</a>
+      <a href="../#contact" data-i18n="nav.contact">Contatti</a>
+    </nav>
+    <div class="nav-act">
+      <div class="langsw" role="group" aria-label="Language">
+        <button data-lang="it" class="on">IT</button>
+        <button data-lang="en">EN</button>
+      </div>
+      <button class="thm" id="thmBtn" aria-label="Light / dark" title="Light / dark">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="glow" aria-hidden="true"></div>
+
+<main class="wrap">
+
+  <!-- ================= HERO ================= -->
+  <section class="hero">
+    <div class="hero-l">
+      <div class="hero-k">
+        <span class="kicker" data-i18n="hero.kicker">Add-in per Autodesk Revit</span>
+        <span class="soon-tag" data-i18n="hero.soon">In arrivo</span>
+      </div>
+      <h1 class="h1" data-i18n="hero.h1html">Gli strumenti del sito, <em>dentro Revit.</em></h1>
+      <p class="lead" data-i18n="hero.lead">Una finestra in Revit con la stessa interfaccia di viewifc.com. Il lavoro pesante — IFC, assi, terreni, calcoli — resta nel motore del sito; nel modello arriva un'anteprima leggera, e poi solo oggetti nativi: famiglie, toposolid, DirectShape.</p>
+      <div class="hero-cta">
+        <a class="btn primary lg" id="btnRevitDownload" data-addin="download" href="#">
+          <svg class="i-dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+          <svg class="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9M10.2 20.5a2 2 0 0 0 3.6 0"/></svg>
+          <span data-i18n="cta.download">Scarica per Windows</span>
+        </a>
+        <a class="btn hollow lg" href="#prezzi" data-i18n="cta.plans">Gratis e Pro</a>
+      </div>
+      <div class="hero-meta">
+        <span><b>Revit</b> 2023 · 2024 · 2025 · 2026</span>
+        <span><b data-i18n="meta.ver">Versione</b> <span data-addin="version">—</span></span>
+        <span data-i18n="meta.free">Gratis per l'anteprima</span>
+      </div>
+    </div>
+
+    <!-- scena astratta (nessuno screenshot, come la landing): la finestra di Revit con la pagina
+         dello strumento accanto, tre strumenti a rotazione (initScene nello script in fondo).
+         Ogni scena fa lo stesso giro: anteprima trasparente lime → scelta in arancio → clic su
+         «Porta in Revit» → oggetti nativi pieni; in Terrain Sculptor prima si scolpisce il terreno
+         coi pennelli Alza e Abbassa. Senza JS e con la riduzione del movimento resta ferma la
+         Trazione con la scelta, cioè la scena statica di prima.
+         Terreno e canale sono calcolati una volta per tutte con la proiezione della griglia della
+         vista (x = 176 + u·170·s, y = 342 − 220·v − h·170·s, s = 1 − 0,55·v) e scritti qui. -->
+    <figure class="scene" id="revScene" aria-hidden="true" style="margin:0">
+      <svg viewBox="0 0 560 360" xmlns="http://www.w3.org/2000/svg">
+        <rect class="sc-bg" x="0" y="0" width="560" height="360"/>
+        <!-- barra del titolo + nastro (il nome del file sta in ogni scena) -->
+        <rect class="sc-bar" x="0" y="0" width="560" height="26"/>
+        <text class="sc-txt faint" x="506" y="17">—  □  ×</text>
+        <line class="sc-hair" x1="0" y1="26" x2="560" y2="26"/>
+        <text class="sc-txt faint" x="14" y="44">Architettura</text>
+        <text class="sc-txt faint" x="96" y="44">Struttura</text>
+        <text class="sc-txt faint" x="162" y="44">Vista</text>
+        <rect class="sc-tab" x="204" y="31" width="62" height="19" rx="9.5"/>
+        <text class="sc-txt" x="214" y="44">ViewIFC</text>
+        <line class="sc-hair" x1="0" y1="56" x2="560" y2="56"/>
+        <!-- vista 3D: griglia in prospettiva -->
+        <g class="sc-grid">
+          <line x1="0" y1="330" x2="352" y2="330"/><line x1="0" y1="290" x2="352" y2="290"/>
+          <line x1="0" y1="250" x2="352" y2="250"/><line x1="0" y1="210" x2="352" y2="210"/>
+          <line x1="0" y1="170" x2="352" y2="170"/><line x1="0" y1="130" x2="352" y2="130"/>
+          <line x1="20" y1="360" x2="120" y2="70"/><line x1="110" y1="360" x2="180" y2="70"/>
+          <line x1="200" y1="360" x2="240" y2="70"/><line x1="290" y1="360" x2="300" y2="70"/>
+        </g>
+        <!-- pagina del sito nella finestra ViewIFC (titolo, righe e conteggio stanno in ogni scena) -->
+        <rect class="sc-pnl" x="364" y="68" width="184" height="280" rx="12"/>
+        <rect class="sc-line" x="378" y="100" width="156" height="1"/>
+        <rect class="sc-line" x="378" y="250" width="156" height="1"/>
+        <rect class="sc-btn" x="378" y="290" width="156" height="34" rx="17"/>
+
+        <!-- ===== 1 · Terrain Sculptor: Alza e Abbassa col pennello, piattaforma e rampa
+             → toposolid con sottoregioni e acqua. data-k = colpo di pennello (0…7) ===== -->
+        <g class="sc-s" data-sculpt data-k="0">
+          <text class="sc-txt" x="14" y="17">Autodesk Revit · Piazzale_Nord.rvt</text>
+          <text class="sc-txt faint sc-vw" x="14" y="76" data-i18n="sc.view">{3D} · anteprima</text><text class="sc-txt faint sc-vw nat" x="14" y="76" data-i18n="sc.viewNat">{3D} · nel modello</text>
+          <g class="sc-in" style="--d:0s">
+            <path class="sc-natonly sc-solid" d="M26.5 324.9L71.3 324.3L146.1 321.8L183.5 321.1L205.9 321.5L235.8 322.7L273.2 322.9L325.5 324.5L325.5 340.7L26.5 340.7Z"/>
+            <path class="pv lo" d="M26.5 324.9L71.3 324.3L146.1 321.8L183.5 321.1L205.9 321.5L235.8 322.7L273.2 322.9L325.5 324.5L283.2 208.3L255 134.9L223.4 133.5L211.5 133.8L191.8 135.4L176 135.9L156.3 135.2L124.7 131.8L112.8 132.2L97 133.9L82.9 170.7L28.8 318.4Z"/>
+            <path class="pl ct tsk c0" d="M79.3 324.1L65.2 319.5L54.9 317.1L40.8 315.4L29.9 315.3M311.7 324.1L323.8 319.9M158 321.5L139.3 314.6L102.3 297.4L83.4 290.1L70.8 286.6L61.2 285L41.3 284M233.1 321.5L252.9 314L294 294.4L312.3 287.9M301.4 258.2L290.3 262.2L259 276.6L240.3 283.3L227.3 286.9L213.9 289.5L193.3 291L176 289.2L159 284.9L145.8 280.2L108.8 264.8L91.1 259.1L70.4 255.3L52 254.6M291.3 230.6L284 234.2L264.4 247.1L253.5 252.3L238.7 256L223.2 256.8L201 254.7L172.9 249.9L157.8 246L123.2 235.6L104.5 231.4L81.7 228.1L62.2 227M281.3 203.8L275.1 208.5L262.9 222.7L255.1 229.4L246.4 233.8L240.9 235.2L235.1 235.7L226.1 234.8L216.8 232L207.6 227.5L184.2 213.6L170.6 209.2L160 207.7L149.3 207L117.1 208.1L103.8 207.8L90.9 206.4L71.1 202.7M270.8 175.9L267 178.4L263.6 182.4L255.1 202.4L249.6 210.7L242.5 215.7L234.6 217.4L228.9 216.8L222.9 214.6L213.7 208.2L206.7 200.6L190.3 176.9L185.3 172.3L178.3 169.2L171.4 169L164.4 170.9L133.9 186.7L125.9 189.6L115.3 191.7L105.1 191.9L95.5 190.4L86.6 187.2L78.4 182.9M163.1 135.6L149.5 155.6L141.2 165.5L133.2 172.2L123.2 177.4L113 179.5L108.2 179.6L101.3 178.2L93.2 174L89.6 170.9L85.1 164.9M259.5 146.7L251.8 148.4L246.8 152.5L244.5 158.9L243.3 178.8L241.3 188.2L237.6 193.8L235 195.5L230.4 196.1L224.8 193.8L221.8 191.3L215.5 182.2L211.7 172.2L204.9 145.6L199.7 135.6M146.4 134.2L141.2 147.4L134.5 157.3L131 160.8L125.7 164.7L120.5 167L115.6 168.2L110.9 168.2L106.6 167.3L102.6 165.2L99.2 162L95.1 154L93.6 142.6M136.2 132.9L132.9 142.7L128.6 149.3L123.4 153.7L116.2 156.1L113.2 155.8L110.1 154.4L108 152.5L106.1 149.3L105 142.7L106.3 132.9"/>
+            <path class="pl ct tsk c1" d="M79.3 324.1L65.2 319.5L54.9 317.1L40.8 315.4L29.9 315.3M311.7 324.1L323.9 319.9M158 321.5L139.3 314.6L102.3 297.4L83.4 290.1L70.8 286.6L61.2 285L41.3 284M233.5 321.5L253 314.2L294.2 294.9L312.3 288M301.8 259.1L293.7 262.7L268.7 275.8L250.4 282.9L237.5 286.3L224.2 288.9L210.6 290.7L196.8 291.3L179.4 289.9L162.4 286L145.8 280.2L108.8 264.8L91.1 259.1L70.4 255.3L52 254.6M292.2 233L271.5 250.5L260.9 257L252.3 260.3L246.3 261.8L230.5 263L217.5 261.6L203.8 258.6L112.1 232.9L84.5 228.4L62.2 227M282.9 207.9L270 229.4L262.3 237.9L257.3 241.5L252 244.1L246.3 245.8L237.3 246.7L224.7 244.9L212 239.5L201.8 232.8L181.5 216L176 212.6L167.9 209.5L160 207.9L149.3 207.1L117.1 208.1L103.8 207.8L90.9 206.4L71.1 202.7M272.6 180.4L270.1 186.5L265.2 210.7L260.7 220.7L256.5 226L251.8 229.8L246.6 232.3L238 233.7L229 232.5L222.7 230.1L216.3 226.4L209.6 220.7L203.8 214L199.2 207.3L183.1 176.9L180.7 174.1L176 170.9L171.4 170L164.4 171.1L133.9 186.7L125.9 189.6L115.3 191.7L105.1 191.9L95.5 190.4L86.6 187.2L78.4 182.9M163.2 135.6L149.5 155.6L141.2 165.5L133.2 172.2L123.2 177.4L113 179.5L108.2 179.6L101.3 178.2L93.2 174L89.6 170.9L85.1 164.9M260.4 149L257 152.2L255.4 158.3L258 192.1L257 202.1L255 208.8L251.2 215.1L246.6 219.1L241.5 221.3L233 221.6L224.8 218.7L217.5 213.6L211 206L206.8 198.8L203.9 192.1L200.9 182.2L198.4 168.9L195.4 145.6L192.4 135.6M146.4 134.2L141.2 147.4L134.5 157.3L131 160.8L125.7 164.7L120.5 167L115.6 168.2L110.9 168.2L106.6 167.3L102.6 165.2L99.2 162L95.1 154L93.6 142.6M224.6 134.2L227.9 136.5L230.8 139.7L239.6 154L246.3 170.6L249.2 183.8L249.6 190.4L249 195.8L246.1 203.6L241.6 208.1L239.1 209.2L233.8 209.8L230.9 209.3L225.5 206.9L218.5 200.5L212.7 190.4L209.7 180.5L208.3 166.7L208.9 157.3L210.1 150.7L214.5 139.3L217.7 135.3L219.4 134.2M136.2 132.9L132.9 142.7L128.6 149.3L123.4 153.7L116.2 156.1L113.2 155.8L110.1 154.4L108 152.5L106.1 149.3L105 142.7L106.3 132.9M221.5 186.5L218.9 178.8L218.4 168.9L219.7 164.1L221.4 161.3L223.3 159.7L225.4 159.2L227.8 159.8L230.5 161.5L236.1 168.9L239.7 178.8L239.7 188.4L238.1 192.2L236 194.3L233.6 195.3L231 195.2L225.4 191.9L221.5 186.5Z"/>
+            <path class="pl ct tsk c2" d="M79.3 324.1L65.2 319.5L54.9 317.1L40.8 315.4L29.9 315.3M311.8 324.1L323.9 319.9M158 321.5L139.3 314.6L102.3 297.4L83.4 290.1L70.8 286.6L61.2 285L41.3 284M233.8 321.5L256.4 313.1L297.3 293.9L312.4 288.2M302.1 259.9L272.2 276.7L254 283.9L241.1 287.3L227.7 289.6L210.6 291.3L196.8 291.5L179.5 289.9L162.4 286L145.8 280.2L108.8 264.8L91.1 259.1L70.4 255.3L52 254.6M293.1 235.1L276.5 251.8L264.9 260L256.3 263.7L250.3 265.3L244 266.5L234.4 266.9L224.6 266.2L211.3 263.4L176 251.7L131.7 238L114.9 233.6L87.2 228.8L62.2 227M284.4 211.5L274.3 232.8L266.6 242.3L259 247.8L253.5 250.3L247.7 251.9L238.5 252.7L225.7 250.9L215.9 247.1L209.4 243.5L199.4 236.2L178.8 216.6L173.3 212.7L165.2 209.3L157.3 207.7L149.3 207.1L117.1 208.1L103.8 207.8L90.9 206.4L71.1 202.7M274.5 185.1L270.5 214L268.4 220.7L265.1 227.4L259.4 234.1L253.9 238L248.5 240.2L239.7 241.6L230.4 240.5L224 238.3L216.2 234.1L207.8 227.1L202.1 220.7L195.5 210.7L180.8 178.9L178.4 175.4L173.7 171.7L169.1 170.7L162 172.2L133.9 186.7L125.9 189.6L115.3 191.7L105.1 191.9L95.5 190.4L86.6 187.2L78.4 182.9M163.2 135.6L149.5 155.6L141.2 165.5L133.2 172.2L123.2 177.4L113 179.5L108.2 179.6L101.3 178.2L93.2 174L89.6 170.9L85.1 164.9M261.6 151.7L260.2 155.6L260.1 162.2L263.5 185.5L264.4 198.8L263.4 208.8L261.5 215.4L256.5 223.8L249.3 229.4L241 231.7L232 231L222.5 227.3L215.4 222.1L206.9 212.1L201.4 202.1L197.8 192.1L195.4 182.2L193.4 168.9L191.2 145.6L188.7 135.6M146.4 134.2L141.2 147.4L134.5 157.3L131 160.8L125.7 164.7L120.5 167L115.6 168.2L110.9 168.2L106.6 167.3L102.6 165.2L99.2 162L95.1 154L93.6 142.6M237.7 134.2L248.4 157.3L253.4 170.6L256.8 183.8L258.1 197L256.7 206.9L254 213.2L252 216L249.8 218.3L244.8 221.3L236.5 222.6L227.5 220.4L221.4 216.8L217.9 213.8L210 203.6L205.5 193.7L202.3 180.5L201.3 164L203 147.4L206.3 134.2M136.2 132.9L132.9 142.7L128.6 149.3L123.4 153.7L116.2 156.1L113.2 155.8L110.1 154.4L108 152.5L106.1 149.3L105 142.7L106.3 132.9M212.6 194.9L210.2 188.6L208 178.8L207.4 168.9L208.4 159.1L210.6 150.9L213.8 144.8L217.3 141.4L219.1 140.5L223.2 140.2L227.7 142L233.1 146.4L238.1 152.5L244.1 162.4L248.4 172.2L251.2 182L252.4 191.9L251.9 198.4L249.6 205.5L245.5 210.6L240.5 213.1L235 213.7L229.1 212.2L222.6 208.3L216.6 201.7L212.6 194.9ZM217.4 190.6L214.8 183.6L213.5 177.1L213.2 170.5L213.9 164L216 157.5L218 154.3L221.9 151.7L226.3 151.7L231 154.3L234.5 157.5L239.2 164L242.6 170.5L245 177.1L246.4 183.6L246.3 193.3L243.6 199.8L241.1 202.3L238.7 203.6L233.4 204.2L229.5 203.1L224.4 199.9L221.1 196.4L217.4 190.6ZM221.3 181.8L219.9 174.4L220.9 167L222.6 164L224.6 162.4L226.8 162.1L229.3 162.8L232.1 164.9L235.4 168.9L238.5 175.3L239.8 181.8L239.1 188.3L236.4 192.1L234 193L231.3 192.8L228.4 191.6L225.2 188.8L221.3 181.8Z"/>
+            <path class="pl ct tsk c3" d="M79.3 324.1L65.2 319.5L54.9 317.1L40.8 315.4L29.9 315.3M224.8 298.6L222.7 296.4L220.9 292.9L220.7 289.5L223 285.4L226.2 283.9L229.5 283.6L235.7 286L239 289.5L240.5 292.9L240.3 296.4L237.8 299.9L235.7 301L232.3 301.4L228.6 300.7L224.8 298.6ZM311.8 324.1L323.9 319.9M158 321.5L139.3 314.6L102.3 297.4L83.4 290.1L70.8 286.6L61.2 285L41.3 284M214.5 321.5L216.3 318.1L215.8 314.6L209.1 300.9L207.3 290.5L208.6 283.6L210.3 280.2L213.2 276.8L219 273.3L224.8 272.2L231.4 272.8L241.6 276.8L250.8 283.6L263.7 298.1L267.8 300.5L271.5 301.3L281.7 299.9L312.4 288.2M302.1 259.9L277.8 273L268.5 275.2L258.2 273.5L240.4 266.6L230.3 263.9L220.6 263.3L214.3 264.1L208.2 266.4L201.3 271L189.5 283.4L186.2 285.9L182.8 287.4L176 288.2L165.7 286.8L155.7 283.8L111.8 265.9L94 259.9L73.3 255.7L52 254.6M293.1 235.1L280.1 248.4L272.8 254.6L264.6 258.9L255.5 260.3L249 259.7L219.6 254.2L191.6 254L182.2 252.8L165.2 248.4L128.8 237.2L112.1 232.9L84.5 228.4L62.2 227M284.4 211.5L274.3 232.8L266.6 242.2L261.6 245.9L256.1 248.4L250.2 249.5L244 249.5L234.5 248.2L221.8 245.4L213.5 242.9L205.8 239.5L196 232.8L176 214.5L170.6 211.3L165.2 209.3L157.3 207.7L149.3 207.1L117.1 208.1L103.8 207.8L90.9 206.4L71.1 202.7M274.5 185.1L270.5 214L268.4 220.7L265.4 226.8L261.3 232.3L256.5 236.3L251.2 238.9L242.5 240.3L233.2 239.4L223.8 236.7L214.2 231.9L207.7 226.8L202.2 220.7L195.5 210.7L180.8 178.9L178.4 175.4L173.7 171.7L169.1 170.7L162 172.2L133.9 186.7L125.9 189.6L115.3 191.7L105.1 191.9L95.5 190.4L86.6 187.2L78.4 182.9M163.2 135.6L149.5 155.6L141.2 165.5L133.2 172.2L123.2 177.4L113 179.5L108.2 179.6L101.3 178.2L93.2 174L89.6 170.9L85.1 164.9M261.6 151.7L260.2 155.6L260.1 162.2L263.5 185.5L264.4 198.8L263.4 208.8L261.5 215.4L256.5 223.8L249.2 229.3L240.9 231.3L231.9 230.5L222.5 226.8L215.6 222.1L206.9 212.1L201.4 202.1L197.8 192.1L195.4 182.2L193.4 168.9L191.2 145.6L188.7 135.6M146.4 134.2L141.2 147.4L134.5 157.3L131 160.8L125.7 164.7L120.5 167L115.6 168.2L110.9 168.2L106.6 167.3L102.6 165.2L99.2 162L95.1 154L93.6 142.6M237.7 134.2L248.4 157.3L253.4 170.6L256.8 183.8L258.1 197L256.7 206.9L254 213.2L252 216L249.8 218.3L244.8 221.2L236.5 222.5L227.4 220.3L221.5 216.8L217.9 213.8L210 203.6L205.5 193.7L202.3 180.5L201.3 164L203 147.4L206.3 134.2M136.2 132.9L132.9 142.7L128.6 149.3L123.4 153.7L116.2 156.1L113.2 155.8L110.1 154.4L108 152.5L106.1 149.3L105 142.7L106.3 132.9M212.6 194.9L210.2 188.6L208 178.8L207.4 168.9L208.4 159.1L210.6 150.9L213.8 144.8L217.3 141.4L219.1 140.5L223.2 140.2L227.7 142L233.1 146.4L238.1 152.5L244.1 162.4L248.4 172.2L251.2 182L252.4 191.9L251.9 198.4L249.6 205.5L245.5 210.6L240.5 213.1L235 213.6L229.1 212.2L222.6 208.3L216.6 201.7L212.6 194.9ZM217.4 190.6L214.8 183.6L213.5 177.1L213.2 170.5L213.9 164L216 157.5L218 154.3L221.9 151.7L226.3 151.7L231 154.3L234.5 157.5L239.2 164L242.6 170.5L245 177.1L246.4 183.6L246.3 193.3L243.6 199.8L241.1 202.3L238.7 203.6L233.4 204.2L229.5 203.1L224.4 199.9L221.1 196.4L217.4 190.6ZM221.3 181.8L219.9 174.4L220.9 167L222.6 164L224.6 162.4L226.8 162.1L229.3 162.8L232.1 164.9L235.4 168.9L238.5 175.3L239.8 181.8L239.1 188.3L236.4 192.1L234 193L231.3 192.8L228.4 191.6L225.2 188.8L221.3 181.8Z"/>
+            <path class="pl ct tsk c4" d="M79.3 324.1L65.2 319.5L54.9 317.1L40.8 315.4L29.9 315.3M211.2 301.5L208.5 296.4L207.5 292.9L207.5 286L208.5 282.5L210.3 279.1L215 274.3L219.9 272.1L224.3 271.4L230.9 271.9L234.3 272.9L240 275.6L244.9 279.1L251 286L252.8 289.5L254.7 296.4L253.9 303.3L251.2 308L244.9 312.5L237.9 314L230.5 313.6L223 311.3L215.9 306.8L211.2 301.5ZM311.8 324.1L323.9 319.9M158 321.5L139.3 314.6L102.3 297.4L83.4 290.1L70.8 286.6L61.2 285L41.3 284M207.2 321.5L207.7 318.1L206.7 314.6L202.1 304.3L200 297.4L199.3 290.5L200.1 283.6L202.8 276.8L205.3 273L211.3 268L217.4 265.5L223.7 264.8L230.1 265.4L236.9 267.3L242.7 269.9L248.4 273.3L256.6 280.2L269.9 295.1L274.1 297.8L277.9 298.7L281.4 298.7L288 297.2L312.4 288.2M302.1 259.9L280.5 271.4L274.5 273.1L271.3 273.4L264.4 272.2L242.8 262.8L232.7 259.5L223 258.1L213.7 258.8L204.6 262.1L198.5 266.5L182.8 284.4L179.4 286.3L172.6 287.5L162.4 285.8L152.4 282.7L111.8 265.9L94 259.9L73.3 255.7L52 254.6M293.1 235.1L280.1 248.4L272.7 254.5L264.4 258.1L258.2 258.6L251.7 257.7L231.9 252.7L219.2 250.8L206.8 250.6L188.4 252.4L179.1 251.8L166.8 248.8L128.8 237.2L112.1 232.9L84.5 228.4L62.2 227M284.4 211.5L276.2 229.4L268.9 239.9L264.1 244.1L258.8 246.9L253 248.2L246.8 248.3L219.5 242.9L205.8 238.5L196.4 232.8L176 214.5L170.6 211.3L165.2 209.3L157.3 207.7L149.3 207.1L117.1 208.1L103.8 207.8L90.9 206.4L71.1 202.7M274.5 185.1L270.5 214L268.4 220.7L265.4 226.8L261.2 232.3L256.4 236.2L251.1 238.5L242.3 239.6L229.9 237.7L220.4 234.5L213.1 230.8L205.1 224.1L199.7 217.4L193.7 207.3L180.8 178.9L178.4 175.4L173.7 171.7L169.1 170.7L162 172.2L133.9 186.7L125.9 189.6L115.3 191.7L105.1 191.9L95.5 190.4L86.6 187.2L78.4 182.9M163.2 135.6L149.5 155.6L141.2 165.5L133.2 172.2L123.2 177.4L113 179.5L108.2 179.6L101.3 178.2L93.2 174L89.6 170.9L85.1 164.9M261.6 151.7L260.2 155.6L260.1 162.2L263.5 185.5L264.4 198.8L263.4 208.8L261.5 215.4L256.5 223.8L249.2 229.2L240.8 231L231.8 230L222.4 226.5L212.8 219.3L206.9 212.1L201.4 202.1L197.8 192.1L195.4 182.2L193.4 168.9L191.2 145.6L188.7 135.6M146.4 134.2L141.2 147.4L134.5 157.3L131 160.8L125.7 164.7L120.5 167L115.6 168.2L110.9 168.2L106.6 167.3L102.6 165.2L99.2 162L95.1 154L93.6 142.6M237.7 134.2L248.4 157.3L253.4 170.6L256.8 183.8L258.1 197L256.7 206.9L254 213.2L252 216L249.8 218.2L244.8 221.2L236.5 222.4L227.4 220.1L221.6 216.8L217.9 213.7L210 203.6L205.5 193.7L202.3 180.5L201.3 164L203 147.4L206.3 134.2M136.2 132.9L132.9 142.7L128.6 149.3L123.4 153.7L116.2 156.1L113.2 155.8L110.1 154.4L108 152.5L106.1 149.3L105 142.7L106.3 132.9M212.6 194.9L210.2 188.6L208 178.8L207.4 168.9L208.4 159.1L210.6 150.9L213.8 144.8L217.3 141.4L219.1 140.5L223.2 140.2L227.7 142L233.1 146.4L238.1 152.5L244.1 162.4L248.4 172.2L251.2 182L252.4 191.9L251.9 198.4L249.6 205.5L245.5 210.6L240.5 213.1L235 213.6L229.1 212.1L222.7 208.3L216.6 201.7L212.6 194.9ZM217.4 190.6L214.8 183.6L213.5 177.1L213.2 170.5L213.9 164L216 157.5L218 154.3L221.9 151.7L226.3 151.7L231 154.3L234.5 157.5L239.2 164L242.6 170.5L245 177.1L246.4 183.6L246.3 193.3L243.6 199.8L241.1 202.3L238.7 203.6L233.4 204.2L229.5 203.1L224.4 199.9L221.1 196.4L217.4 190.6ZM221.3 181.8L219.9 174.4L220.9 167L222.6 164L224.6 162.4L226.8 162.1L229.3 162.8L232.1 164.9L235.4 168.9L238.5 175.3L239.8 181.8L239.1 188.3L236.4 192.1L234 193L231.3 192.8L228.4 191.6L225.2 188.8L221.3 181.8Z"/>
+            <path class="pl ct tsk c5" d="M79.3 324.1L65.2 319.5L54.9 317.1L40.8 315.4L29.9 315.3M211.2 301.5L208.5 296.4L207.5 292.9L207.5 286L208.5 282.5L210.3 279.1L215 274.3L219.9 272.1L224.3 271.4L230.9 271.9L234.3 272.9L240 275.6L244.9 279.1L251 286L252.8 289.5L254.7 296.4L253.9 303.3L251.2 308L244.9 312.5L237.9 314L230.5 313.6L223 311.3L215.9 306.8L211.2 301.5ZM311.8 324.1L323.9 319.9M158 321.5L139.3 314.6L102.3 297.4L92 294L75.9 292.4L72.9 291L67.6 286L54.6 284.3L41.3 284M207.2 321.5L207.7 318.1L206.7 314.6L202.1 304.3L200 297.4L199.3 290.5L200.1 283.6L202.8 276.8L205.3 273L211.3 268L217.4 265.5L223.7 264.8L230.1 265.4L236.9 267.3L242.7 269.9L248.4 273.3L256.6 280.2L269.9 295.1L274.1 297.8L277.9 298.7L281.4 298.7L288 297.2L312.4 288.2M302.1 259.9L280.5 271.4L274.5 273.1L271.3 273.4L264.4 272.2L242.8 262.8L232.7 259.5L223 258.1L213.7 258.8L204.6 262.1L198.5 266.5L182.8 284.4L179.4 286.3L172.6 287.5L165.7 286.6L155.7 283.8L152.3 283.5L145.2 286.6L111.6 283.9L78.1 282.3L77 281.3L75.7 277.9L77.8 261.5L76.3 256.2L64.3 254.8L52 254.6M293.1 235.1L280.1 248.4L272.7 254.5L264.4 258.1L258.2 258.6L251.7 257.7L231.9 252.7L222.3 251.1L209.9 250.5L191.5 252.2L182.2 252.2L172.9 250.5L157.8 246.2L155.1 241.6L153.7 224.6L152.8 221.2L151.1 218.9L148.4 218.3L137.4 218.1L128.9 219.2L115.1 219.2L107.2 217.7L96.2 217.6L92.8 219.7L84.5 228.4L62.2 227M284.4 211.5L276.2 229.4L268.9 239.9L264.1 244.1L258.8 246.9L253 248.2L246.8 248.3L219.5 242.9L205.8 238.5L196.4 232.8L176 214.5L170.6 211.3L165.2 209.3L152 206.7L138.7 206.7L136.2 206.1L133.8 204.4L131.2 204.1L115.3 204.3L112.2 206.5L109.3 207.4L93.5 206.8L71.1 202.7M274.5 185.1L270.5 214L268.4 220.7L265.4 226.8L261.2 232.3L256.4 236.2L251.1 238.5L242.3 239.6L229.9 237.7L220.4 234.5L213.1 230.8L205.1 224.1L199.7 217.4L193.7 207.3L180.8 178.9L178.4 175.4L173.7 171.7L171.4 171L166.7 170.9L159.6 173.2L141.8 183L136 188.7L118.4 189.3L112.7 191.9L105.1 191.9L95.5 190.4L86.6 187.2L78.4 182.9M163.2 135.6L144.6 161.9L138.2 173.5L135.7 174.3L121.4 174.7L118.3 177.7L115.5 179.3L105.8 179.3L99.2 177.5L93.2 174L89.6 170.9L85.1 164.9M261.6 151.7L260.2 155.6L260.1 162.2L263.5 185.5L264.4 198.8L263.4 208.8L261.5 215.4L256.5 223.8L249.2 229.2L240.8 231L231.8 230L222.4 226.5L212.8 219.3L206.9 212.1L201.4 202.1L197.8 192.1L195.4 182.2L193.4 168.9L191.2 145.6L188.7 135.6M146.4 134.2L142.8 144.1L137.5 154L137.3 157.3L126.9 159.1L124.5 160.1L121 165.2L118 167.7L115.6 168.2L110.9 168.2L106.6 167.3L102.6 165.2L99.2 162L95.1 154L93.6 142.6M237.7 134.2L248.4 157.3L253.4 170.6L256.8 183.8L258.1 197L256.7 206.9L254 213.2L252 216L249.8 218.2L244.8 221.2L236.5 222.4L227.4 220.1L221.6 216.8L217.9 213.7L210 203.6L205.5 193.7L202.3 180.5L201.3 164L203 147.4L206.3 134.2M136.2 132.9L134.3 139.4L131.1 146L120.9 155L116.2 156.1L113.2 155.8L110.1 154.4L108 152.5L106.1 149.3L105 142.7L106.3 132.9M212.6 194.9L210.2 188.6L208 178.8L207.4 168.9L208.4 159.1L210.6 150.9L213.8 144.8L217.3 141.4L219.1 140.5L223.2 140.2L227.7 142L233.1 146.4L238.1 152.5L244.1 162.4L248.4 172.2L251.2 182L252.4 191.9L251.9 198.4L249.6 205.5L245.5 210.6L240.5 213.1L235 213.6L229.1 212.1L222.7 208.3L216.6 201.7L212.6 194.9ZM217.4 190.6L214.8 183.6L213.5 177.1L213.2 170.5L213.9 164L216 157.5L218 154.3L221.9 151.7L226.3 151.7L231 154.3L234.5 157.5L239.2 164L242.6 170.5L245 177.1L246.4 183.6L246.3 193.3L243.6 199.8L241.1 202.3L238.7 203.6L233.4 204.2L229.5 203.1L224.4 199.9L221.1 196.4L217.4 190.6ZM221.3 181.8L219.9 174.4L220.9 167L222.6 164L224.6 162.4L226.8 162.1L229.3 162.8L232.1 164.9L235.4 168.9L238.5 175.3L239.8 181.8L239.1 188.3L236.4 192.1L234 193L231.3 192.8L228.4 191.6L225.2 188.8L221.3 181.8Z"/>
+          </g>
+          <g class="sc-late sel" style="--d:0s"><path class="ul" d="M81.1 274.4L144.4 274.4L148.9 226.9L94.7 226.9Z"/><path class="pv sub" d="M81.1 274.4L144.4 274.4L148.9 226.9L94.7 226.9Z"/></g>
+          <g class="sc-late" style="--d:.35s;--n:.1s"><path class="ul" d="M111.9 226.9L129.2 226.9L139.1 159.3L125.5 159.3Z"/><path class="pv sub" d="M111.9 226.9L129.2 226.9L139.1 159.3L125.5 159.3Z"/><path class="pl" d="M118.3 215.5L124 206.8L126.6 215.5M121.4 198.4L126.9 189.8L129.3 198.4M124.6 181.6L129.9 173.1L132 181.6"/></g>
+          <g class="sc-late" style="--d:.7s;--n:.2s"><path class="pv w" d="M213.5 296.8L212.4 292.9L212.2 289.8L212.6 286.8L213.7 283.8L215.8 280.8L218.7 278.5L221.4 277.3L225.5 276.5L229.8 276.8L233.4 277.8L237.4 279.7L241.1 282.3L244 285.3L246 288.3L247.4 291.4L248.2 295.9L247.4 300.8L244.6 304.9L242.4 306.7L239.5 308L233.5 309.1L227.1 308.2L222.2 306.1L216.9 301.9L213.5 296.8Z"/><path class="pl wv" d="M218.7 295Q221.4 292.8 224 295T229.2 295M225.5 285Q228.1 282.8 230.6 285T235.7 285M225.8 304.9Q228.5 302.7 231.2 304.9T236.6 304.9"/></g>
+          <!-- pennello: anello sul terreno, freccia su (Alza) o giù (Abbassa), cursore al centro -->
+          <g class="sc-brush" style="--b0:translate(253.1px,123.3px);--b1:translate(228px,196.9px);--b2:translate(235.6px,182.2px);--b3:translate(230.4px,184.6px);--b4:translate(220.9px,276.6px);--b5:translate(235px,289.4px);--b6:translate(228.8px,292.4px);--b7:translate(228.8px,292.4px)">
+            <ellipse class="sc-ring0" rx="24" ry="9"/>
+            <path class="sc-bdir up" d="M0-13V-33M-4.5-28.5 0-33 4.5-28.5"/>
+            <path class="sc-bdir dn" d="M0-33V-13M-4.5-17.5 0-13 4.5-17.5"/>
+            <path class="sc-arrow" d="M0 0V13.5L3.6 10.3 6.1 15.6 8.3 14.6 5.8 9.4H10.6Z"/>
+          </g>
+          <g class="sc-done"><circle cx="20" cy="93" r="6"/><path d="M17.3 93.2l1.9 1.9 3.6-3.8"/><text class="sc-txt" x="32" y="96.5" data-i18n="sc.ts.done">Toposolid · 2 sottoregioni · acqua</text></g>
+          <text class="sc-txt" x="378" y="90">TERRAIN SCULPTOR</text>
+          <!-- pennelli dello strumento: quello in uso si accende -->
+          <g class="sc-in" style="--d:.2s">
+            <g class="sc-chip up"><rect x="374" y="110" width="78" height="22" rx="11"/><path d="M382.5 124.5l3.5-6 3.5 6Z"/><text class="sc-txt" x="395" y="125" data-i18n="sc.ts.up">Alza</text></g>
+            <g class="sc-chip dn"><rect x="458" y="110" width="80" height="22" rx="11"/><path d="M466.5 117.5l3.5 6 3.5-6Z"/><text class="sc-txt" x="479" y="125" data-i18n="sc.ts.dn">Abbassa</text></g>
+          </g>
+          <g class="sc-late" style="--d:0s"><rect class="sc-row sel" x="374" y="136" width="164" height="22" rx="6"/><circle class="sc-dot sel" cx="386" cy="147" r="3"/><text class="sc-txt" x="396" y="151" data-i18n="sc.ts.r1">Piattaforma</text><text class="sc-txt faint" x="530" y="151" text-anchor="end" data-i18n="sc.ts.v1">+312,40</text></g>
+          <g class="sc-late" style="--d:.35s"><rect class="sc-row" x="374" y="162" width="164" height="22" rx="6"/><circle class="sc-dot" cx="386" cy="173" r="3"/><text class="sc-txt" x="396" y="177" data-i18n="sc.ts.r2">Rampa</text><text class="sc-txt faint" x="530" y="177" text-anchor="end">8 %</text></g>
+          <g class="sc-late" style="--d:.7s"><rect class="sc-row" x="374" y="188" width="164" height="22" rx="6"/><circle class="sc-dot" cx="386" cy="199" r="3"/><text class="sc-txt" x="396" y="203" data-i18n="sc.ts.r3">Acqua</text><text class="sc-txt faint" x="530" y="203" text-anchor="end" data-i18n="sc.ts.v3">+309,80</text></g>
+          <text class="sc-txt faint" x="378" y="270" data-i18n="sc.ts.count">3 opere · sterro 1240 m³</text>
+          <rect class="sc-press" x="378" y="290" width="156" height="34" rx="17"/>
+          <g class="sc-cur" style="--rx:473px;--ry:150px"><circle class="sc-ring r1" r="8"/><circle class="sc-ring r2" r="8"/><path class="sc-arrow" d="M0 0V13.5L3.6 10.3 6.1 15.6 8.3 14.6 5.8 9.4H10.6Z"/></g>
+        </g>
+
+        <!-- ===== 2 · Trazione elettrica: pali lungo il binario → famiglie di catalogo ===== -->
+        <g class="sc-s on p1 p2">
+          <text class="sc-txt" x="14" y="17">Autodesk Revit · Linea_TE.rvt</text>
+          <text class="sc-txt faint sc-vw" x="14" y="76" data-i18n="sc.view">{3D} · anteprima</text><text class="sc-txt faint sc-vw nat" x="14" y="76" data-i18n="sc.viewNat">{3D} · nel modello</text>
+          <path class="sc-rail" d="M24 318 Q196 308 326 116"/>
+          <path class="sc-rail" d="M36 330 Q212 318 340 120"/>
+          <g class="sc-drop" style="--d:0.0s;--n:0.00s"><rect class="pv f" x="72" y="296" width="18" height="8"/><rect class="pv b" x="78" y="226" width="7" height="72"/><line class="pl" x1="81" y1="236" x2="62" y2="240"/></g>
+          <g class="sc-drop" style="--d:0.2s;--n:0.08s"><rect class="pv f" x="121" y="284" width="16" height="7"/><rect class="pv b" x="126" y="220" width="6" height="65"/><line class="pl" x1="129" y1="229" x2="111" y2="233"/></g>
+          <g class="sc-drop sel" style="--d:0.4s;--n:0.16s"><rect class="pv f" x="168" y="264" width="15" height="7"/><rect class="pv b" x="173" y="206" width="6" height="59"/><line class="pl" x1="176" y1="214" x2="159" y2="219"/></g>
+          <g class="sc-drop" style="--d:0.6s;--n:0.24s"><rect class="pv f" x="213" y="236" width="13" height="6"/><rect class="pv b" x="217" y="185" width="5" height="52"/><line class="pl" x1="219" y1="192" x2="204" y2="198"/></g>
+          <g class="sc-drop" style="--d:0.8s;--n:0.32s"><rect class="pv f" x="256" y="200" width="12" height="6"/><rect class="pv b" x="260" y="154" width="5" height="47"/><line class="pl" x1="262" y1="161" x2="248" y2="168"/></g>
+          <g class="sc-drop" style="--d:1.0s;--n:0.40s"><rect class="pv f" x="297" y="156" width="11" height="5"/><rect class="pv b" x="300" y="115" width="4" height="42"/><line class="pl" x1="302" y1="121" x2="290" y2="129"/></g>
+          <g class="sc-done"><circle cx="20" cy="93" r="6"/><path d="M17.3 93.2l1.9 1.9 3.6-3.8"/><text class="sc-txt" x="32" y="96.5" data-i18n="sc.te.done">86 famiglie piazzate</text></g>
+          <text class="sc-txt" x="378" y="90" data-i18n="sc.tool">TRAZIONE ELETTRICA</text>
+          <g class="sc-in" style="--d:0.0s"><rect class="sc-row" x="374" y="110" width="164" height="22" rx="6"/><circle class="sc-dot" cx="386" cy="121" r="3"/><text class="sc-txt" x="396" y="125">P 101  LSU16</text></g>
+          <g class="sc-in" style="--d:0.2s"><rect class="sc-row" x="374" y="136" width="164" height="22" rx="6"/><circle class="sc-dot" cx="386" cy="147" r="3"/><text class="sc-txt" x="396" y="151">P 102  LSU16</text></g>
+          <g class="sc-in" style="--d:0.4s"><rect class="sc-row sel" x="374" y="162" width="164" height="22" rx="6"/><circle class="sc-dot sel" cx="386" cy="173" r="3"/><text class="sc-txt" x="396" y="177">P 103  LSU18</text></g>
+          <g class="sc-in" style="--d:0.6s"><rect class="sc-row" x="374" y="188" width="164" height="22" rx="6"/><circle class="sc-dot" cx="386" cy="199" r="3"/><text class="sc-txt" x="396" y="203">P 104  LSU16</text></g>
+          <g class="sc-in" style="--d:0.8s"><rect class="sc-row" x="374" y="214" width="164" height="22" rx="6"/><circle class="sc-dot" cx="386" cy="225" r="3"/><text class="sc-txt" x="396" y="229">P 105  LSU14</text></g>
+          <text class="sc-txt faint" x="378" y="270" data-i18n="sc.count">86 sostegni · 3 binari</text>
+          <rect class="sc-press" x="378" y="290" width="156" height="34" rx="17"/>
+          <g class="sc-cur" style="--rx:476px;--ry:176px"><circle class="sc-ring r1" r="8"/><circle class="sc-ring r2" r="8"/><path class="sc-arrow" d="M0 0V13.5L3.6 10.3 6.1 15.6 8.3 14.6 5.8 9.4H10.6Z"/></g>
+        </g>
+
+        <!-- ===== 3 · Sviluppo profili: asse sul DTM, canale a U in rilevato (banchina e scarpe
+             di riporto 3/2 fino al terreno) estruso lungo l'asse → DirectShape ===== -->
+        <g class="sc-s">
+          <text class="sc-txt" x="14" y="17">Autodesk Revit · Canale_Est.rvt</text>
+          <text class="sc-txt faint sc-vw" x="14" y="76" data-i18n="sc.view">{3D} · anteprima</text><text class="sc-txt faint sc-vw nat" x="14" y="76" data-i18n="sc.viewNat">{3D} · nel modello</text>
+          <path class="sc-ctx" d="M78.6 345.6L72.1 336.6L65.7 329.8L59.2 324.5L52.4 320.6L45.3 318L37.9 316.7L25.9 317L17.3 318.7M116.8 343.2L107.1 324.6L98.1 309.8L89.1 298.6L80 290.7L69.6 284.7L57.6 280.8L43.7 279.5L32.5 280.6M150.2 340.8L140.4 322.9L134.5 309.5L131.7 300.5L130.7 291.6L131.6 287.1L135.9 282.6L147.5 276.1L154.5 269.2L157.2 264.7L159.1 260.3L160.3 251.3L159.8 246.8L158.3 242.4L154.9 237.9L150.9 235.9L147.8 235.8L144.6 236.8L141.2 238.8L137.2 242.4L133.7 246.8L128.4 255.8L124.5 264.3L120.9 269.2L120.1 270L116.4 271L109.6 269.7L88.5 260.3L72.7 254.6L57.5 251L44.6 250.2M188.4 338.4L180.1 328.6L172 316.7L167 307.3L164 298.4L163.5 289.5L169.7 262.8L170.4 249.5L169.1 240.6L167.7 236.1L163.7 228.7L160.8 225.4L155 222.1L152 221.5L145.9 222.4L136.7 227.2L122.1 238L115.1 240.8L108.6 241.4L99.3 240L90.4 237.7L54.7 224.9M309.9 338.4L316.5 327.5L320.6 316.2L323.1 302.8L323.8 286.7M296 220.2L296.1 227.5L297.1 234.4L304 265.3L305.7 278.6L305.5 291.8L303.5 300.7L301.5 305.6L296.1 313.2L293 316.1L286.2 320.3L274.8 323.7L266.8 324.5L258.4 324.2L250 323L241.4 320.9L228.4 315.8L215.4 307.5L207.9 300.7L202.6 294.8L194.4 283L190.3 274.1L187.9 265.3L183.5 243.2L181.1 234.4L177.8 225.5L172.8 216.7L169.2 212.3L164.5 208.5L158.9 206.2L156.1 205.8L150.3 206.5L141.3 210.1L128.4 217.6L121.9 220.7L115.5 222.4L106.3 222.9L97.6 221.6L86.8 217.8L77.2 212.3L63.8 202M183.9 113.9L180.6 127.1L175.9 140.3L169.5 153.5L161.9 166.7L155.9 175.5L148.7 184.3L139.6 193L128.2 201.4L121.9 204.4L112.8 206.8L104.2 206.7L96.3 204.4L91.4 201.7L85.1 195.9L79.9 188.7L73.7 177.8M243.7 270.3L239.1 259L237.2 250.2L236.6 241.4L237.6 232.6L240.4 224.7L242.7 221.4L247.8 217.8L253.7 217.5L260.6 220.3L264.5 223.3L273 232.6L278.9 241.4L283.4 250.2L286.7 259L288.7 267.8L288.9 277.8L287.3 284L283.3 289.7L278.7 292.6L275.1 293.4L271.3 293.3L263.1 290.8L255 285.3L247.3 276.5L243.7 270.3ZM268.6 155.2L257.5 149.1L247.3 140.3L236.8 127.1L228.5 113.9M156.5 112.9L149.6 130.4L142 156.6L136.8 169.7L132.4 176.9L129 181L125.8 184.1L119.6 188.1L113.7 190L108.3 190.2L105.7 189.6L101 187.4L97 183.4L94.1 178.4L92.6 174L88.4 153.2L86.2 147.6M134.1 111.9L128.8 120.5L124.6 129.2L122.6 137.9L122.2 146.1L121.3 150.9L119.7 155.3L116.7 157.9L114.6 156.9L113.6 152.4L115.7 137.9L115.9 133.6L114.6 129.2L112.2 124.9L109 121.3L100.2 114.4"/>
+          <path class="pl sc-axis" pathLength="1" d="M95.7 337.7L99.9 324.6L104.8 312.4L110.5 301L117.8 288.7L123.4 280.7L129.2 273.3L147.5 253.2L157.4 241L182 207.2L188.2 197.8L193 189.6L199.6 175.6L204.9 160.3L208.2 145.6L210.1 129.4"/>
+          <!-- l'estrusione cresce lungo l'asse: maschera col tratto che si allunga -->
+          <mask id="scGrow" class="sc-mask" maskUnits="userSpaceOnUse" x="0" y="56" width="352" height="304"><path class="sc-grow" pathLength="1" d="M95.7 329.9L99.9 317.2L104.8 305.5L111.5 292.8L118.9 281L126.8 270L135.2 259.6L163.6 227.1L174.2 214.2L184.2 200.7L192.1 187.8L198.9 173.8L204.3 158.6L206.5 150.4L208.2 141.8L210.1 125.6"/></mask>
+          <g mask="url(#scGrow)">
+            <path class="pv lo" d="M81.6 328L86.1 315.1L92.5 300.6L99.7 287.2L108.5 273L117.7 260.2L126.8 248.4L158.4 211.5L168.7 198.7L178.1 185.5L186.4 171.5L191.1 161.6L195.2 151.1L198.5 140L200.6 130.1L202.6 115.3L197.1 110.4L194.9 129L192.5 140.4L189.9 149.6L183.9 165.1L175.5 181.1L170.7 188.8L164.3 197.5L153.6 209.7L138.2 226.3L128.9 237.4L107.8 264.5L100.3 275.1L91 289.2L81.9 305.1L73.4 322.6L68.5 335.2Z"/><path class="pv lo" d="M110.1 331.9L112.9 321.9L117.1 311.2L122.3 301.2L129.2 290.1L142.8 272.6L170.6 241.3L181.6 228.2L192 214.2L200.3 200.7L207.4 185.8L213.1 169.3L216.5 153.4L218.3 135.9L225.3 148.3L225 153.8L223.2 166.3L220.4 177.9L216.8 188.5L211.7 200.2L207.9 207.6L198.2 222.9L189.9 234L167.8 266.7L160.6 275.3L145.4 290.9L137.5 300.5L134.1 305.4L129 313.9L124.9 322.4L121.7 331.2L119.6 339.5Z"/>
+            <path class="pl hc" d="M84.2 320.2L73.2 325.3M111.4 326.7L119.8 334.6M87.1 312.6L81.6 314.6M112.9 321.9L117.3 326.5M90.3 305.3L81.4 307.7M114.6 317.2L122.3 326.6M93.7 298.3L89.3 298.9M116.5 312.7L120.5 318.2M97.2 291.6L90.2 291.8M118.5 308.3L125.4 319M100.9 285.1L97.5 284.7M120.7 304L124.2 310.2M104.7 278.9L99.3 277.5M123.1 299.8L129.2 311.7M108.5 273L105.9 271.9M125.6 295.6L128.7 302.3M112.4 267.4L108.2 264.8M128.3 291.5L133.7 304.3M116.3 261.9L114.3 260.3M131.1 287.4L133.9 294.5M120.3 256.7L116.9 253.5M134.1 283.3L139.1 297.1M124.2 251.7L122.5 249.8M137.3 279.3L139.8 286.9M128.2 246.8L125.2 243M140.5 275.2L145 289.6M132.1 242.1L130.5 239.8M143.9 271.2L146.3 279.3M136 237.5L133.2 233M147.4 267.2L151.9 282.7M139.8 233L138.4 230.5M150.9 263.2L153.3 271.7M143.7 228.6L141.1 224M154.6 259.1L158.8 275M147.4 224.3L146.1 221.8M158.2 255.1L160.5 263.7M151.2 220L148.8 215.5M161.9 251L166.2 266.7M154.8 215.8L153.6 213.3M165.7 246.9L167.9 255.1M158.4 211.5L156.2 207.1M169.4 242.7L173.2 257M161.9 207.3L160.8 205.1M173.1 238.4L175.1 245.8M165.4 203L163.3 198.9M176.8 234.1L180.3 246.7M168.7 198.7L167.6 196.6M180.4 229.7L182.3 236.2M172 194.4L169.8 190.5M184 225.2L187.4 236.6M175.1 190L173.9 187.7M187.5 220.6L189.3 226.5M178.1 185.5L175.7 181.5M190.8 215.8L194.3 226.6M181 180.9L179.6 178.6M194.1 210.9L196.2 216.9M183.8 176.3L181 171.9M197.3 205.9L201.1 216.8M186.4 171.5L184.8 169.1M200.3 200.7L202.5 206.7M188.9 166.6L185.6 162M203.1 195.3L207.5 206.6M191.1 161.6L189.3 159.1M205.8 189.7L208.2 195.8M193.3 156.5L189.6 151.7M208.2 183.8L213 195.2M195.2 151.1L193.1 148.5M210.5 177.8L213.2 184M196.9 145.7L192.8 140.9M212.5 171.5L217.9 183.4M198.5 140L196.1 137.4M214.2 164.9L217.3 171.4M199.8 134.1L195.3 129.4M215.7 158.1L221.6 170M201 128.1L198.3 125.4M216.8 151L220.2 157.4M201.9 121.8L196.9 117.1M217.7 143.6L224 155.2"/>
+            <path class="pl th" d="M68.5 335.2L73.4 322.6L81.9 305.1L91 289.2L100.3 275.1L107.8 264.5L128.9 237.4L138.2 226.3L153.6 209.7L164.3 197.5L170.7 188.8L175.5 181.1L179.1 174.9L183.9 165.1L189.9 149.6L192.5 140.4L194.9 129L196.4 118.9L197.1 110.4M119.6 339.5L122.1 329.9L125.5 321.2L129.7 312.7L135 304.2L137.5 300.5L145.4 290.9L159.2 276.3L160.6 275.3L167.8 266.7L189.9 234L198.2 222.9L207.9 207.6L214.4 194.5L218.4 184.4L220.4 177.9L221.7 173.4L224.1 161.5L225.3 148.3"/>
+            <path class="pv sub" d="M81.6 328L86.1 315.1L92.5 300.6L99.7 287.2L108.5 273L117.7 260.2L126.8 248.4L157.2 212.9L167.6 200.1L176.1 188.5L183.8 176.3L191.1 161.6L196.4 147.5L200.2 132.1L202.6 115.3L218.3 135.9L217.2 148.6L214.7 162.7L211.1 175.7L206.6 187.8L198.3 204.2L193 212.6L186.3 222.1L173.1 238.4L141.7 273.9L128.3 291.5L122.3 301.2L117.1 311.2L112.9 321.9L110.1 331.9Z"/>
+            <path class="pv in hi" d="M89.3 329L94 315.1L99.7 302.2L106 290.3L114.1 277.4L122.5 265.6L131.3 254.6L170.5 208.6L180.3 195.3L188.1 182.7L195.6 167.5L200.9 152.7L204.7 136.5L206.6 120.9L213.7 130.3L212.9 140.1L211.1 151.6L207.9 164.5L203.9 176.4L198.9 187.5L190.3 202.8L179.3 218.3L167.3 232.8L138 266.1L130.1 276.1L122.7 286.4L115.9 297.2L110.1 308.8L105.8 319.3L102.2 330.8Z"/>
+            <path class="pl th" d="M81.6 328L86.1 315.1L92.5 300.6L99.7 287.2L108.5 273L117.7 260.2L126.8 248.4L157.2 212.9L167.6 200.1L176.1 188.5L183.8 176.3L191.1 161.6L196.4 147.5L200.2 132.1L202.6 115.3M110.1 331.9L112.9 321.9L117.1 311.2L122.3 301.2L129.2 290.1L135.2 282L142.8 272.6L170.6 241.3L181.6 228.2L192 214.2L200.3 200.7L207.4 185.8L210.5 177.8L213.1 169.3L216.5 153.4L218.3 135.9M89.3 329L94 315.1L99.7 302.2L106 290.3L114.1 277.4L122.5 265.6L131.3 254.6L161.1 220L170.5 208.6L180.3 195.3L188.1 182.7L195.6 167.5L200.9 152.7L204.7 136.5L206.6 120.9M102.2 330.8L105.8 319.3L110.8 307.1L116.9 295.7L123.7 284.9L130.1 276.1L138 266.1L167.3 232.8L178.1 219.8L187.1 207.6L195.3 194.4L202.3 180.2L207.9 164.5L210.1 156L211.9 147.1L213.7 130.3"/>
+          </g>
+          <g class="sc-in" style="--d:.95s"><path class="pv" d="M119.6 339.5L110.1 331.9L104.8 331.2L104.8 341.1L86.7 338.5L86.7 328.7L81.6 328L68.5 335.2Z"/><g class="sel"><path class="pv b hi" d="M104.8 331.2L104.8 341.1L86.7 338.5L86.7 328.7L89.3 329L89.3 336.5L102.2 338.3L102.2 330.8Z"/></g></g>
+          <path class="sc-selmark" d="M208.8 205.7L204 193.4L201.2 188.3L201.2 194.6L192 176.1L192 170.2L189.6 165L186.1 160Z"/>
+          <g class="sc-done"><circle cx="20" cy="93" r="6"/><path d="M17.3 93.2l1.9 1.9 3.6-3.8"/><text class="sc-txt" x="32" y="96.5" data-i18n="sc.ps.done">DirectShape: canale e riporto</text></g>
+          <text class="sc-txt" x="378" y="90" data-i18n="sc.ps.tool">SVILUPPO PROFILI</text>
+          <g class="sc-in" style="--d:0s"><rect class="sc-row" x="374" y="110" width="164" height="22" rx="6"/><circle class="sc-dot" cx="386" cy="121" r="3"/><text class="sc-txt" x="396" y="125">DTM</text><text class="sc-txt faint" x="530" y="125" text-anchor="end" data-i18n="sc.ps.v1">rilievo</text></g>
+          <g class="sc-in" style="--d:.2s"><rect class="sc-row" x="374" y="136" width="164" height="22" rx="6"/><circle class="sc-dot" cx="386" cy="147" r="3"/><text class="sc-txt" x="396" y="151" data-i18n="sc.ps.r2">Asse</text><text class="sc-txt faint" x="530" y="151" text-anchor="end">312 m</text></g>
+          <g class="sc-in" style="--d:.95s"><rect class="sc-row sel" x="374" y="162" width="164" height="22" rx="6"/><circle class="sc-dot sel" cx="386" cy="173" r="3"/><text class="sc-txt" x="396" y="177" data-i18n="sc.ps.r3">Sezione</text><text class="sc-txt faint" x="530" y="177" text-anchor="end">U 400×250</text></g>
+          <g class="sc-in" style="--d:1.4s"><rect class="sc-row" x="374" y="188" width="164" height="22" rx="6"/><circle class="sc-dot" cx="386" cy="199" r="3"/><text class="sc-txt" x="396" y="203" data-i18n="sc.ps.r4">Pendenza</text><text class="sc-txt faint" x="530" y="203" text-anchor="end" data-i18n="sc.ps.v4">0,4 %</text></g>
+          <g class="sc-in" style="--d:1.8s"><rect class="sc-row" x="374" y="214" width="164" height="22" rx="6"/><circle class="sc-dot" cx="386" cy="225" r="3"/><text class="sc-txt" x="396" y="229" data-i18n="sc.ps.r5">Scarpa riporto</text><text class="sc-txt faint" x="530" y="229" text-anchor="end">3/2</text></g>
+          <text class="sc-txt faint" x="378" y="270" data-i18n="sc.ps.count">1 opera · riporto 2850 m³</text>
+          <rect class="sc-press" x="378" y="290" width="156" height="34" rx="17"/>
+          <g class="sc-cur" style="--rx:457px;--ry:176px"><circle class="sc-ring r1" r="8"/><circle class="sc-ring r2" r="8"/><path class="sc-arrow" d="M0 0V13.5L3.6 10.3 6.1 15.6 8.3 14.6 5.8 9.4H10.6Z"/></g>
+        </g>
+
+        <text class="sc-txt ink" x="456" y="311" text-anchor="middle" data-i18n="sc.place">Porta in Revit</text>
+      </svg>
+    </figure>
+  </section>
+
+  <!-- ================= COSA FA ================= -->
+  <section class="sec" id="cosa">
+    <div class="sec-head">
+      <div class="l">
+        <span class="kicker" data-i18n="what.k">Come funziona</span>
+        <h2 class="h2" data-i18n="what.h">Revit fa quello che sa fare bene. Il resto lo fa il sito.</h2>
+      </div>
+      <p data-i18n="what.p">Revit è lento con la geometria pesante; gli strumenti del sito leggono IFC e DTM in un attimo. L'add-in li fa lavorare insieme senza importare niente che non serva.</p>
+    </div>
+    <div class="feats">
+      <article class="feat">
+        <span class="feat-n">01</span>
+        <h3 data-i18n="f1.h">Anteprima nel modello</h3>
+        <p data-i18n="f1.p">La geometria dello strumento si vede nelle viste di Revit — 3D, piante, sezioni — senza creare un solo elemento. Come Grasshopper in Rhino.</p>
+        <ul>
+          <li data-i18n="f1.l1">Trasparente, nei colori del sito, l'elemento scelto in arancio</li>
+          <li data-i18n="f1.l2">Anche gli IFC di contesto, senza importarli</li>
+          <li data-i18n="f1.l3">Coordinate condivise del modello rispettate</li>
+        </ul>
+      </article>
+      <article class="feat">
+        <span class="feat-n">02</span>
+        <h3 data-i18n="f2.h">Oggetti nativi</h3>
+        <p data-i18n="f2.p">Quando il progetto va bene, un clic lo porta in Revit come oggetti veri, coi parametri compilati. Ctrl+Z annulla tutto in un colpo.</p>
+        <ul>
+          <li data-i18n="f2.l1">Famiglie di catalogo piazzate, ruotate e parametrizzate</li>
+          <li data-i18n="f2.l2">Toposolid nativa con sottoregioni</li>
+          <li data-i18n="f2.l3">DirectShape per le opere lineari</li>
+        </ul>
+      </article>
+      <article class="feat">
+        <span class="feat-n">03</span>
+        <h3 data-i18n="f3.h">Collegati nei due sensi</h3>
+        <p data-i18n="f3.p">Selezioni in Revit, la pagina inquadra lo stesso elemento; scegli nella pagina, Revit lo seleziona e ci zooma sopra.</p>
+        <ul>
+          <li data-i18n="f3.l1">Il progetto dello strumento si salva dentro il .rvt</li>
+          <li data-i18n="f3.l2">Riapri il modello e riprendi da dove eri</li>
+          <li data-i18n="f3.l3">Gli strumenti si aggiornano da soli col sito</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+
+  <!-- ================= STRUMENTI COLLEGATI ================= -->
+  <section class="sec" id="strumenti">
+    <div class="sec-head">
+      <div class="l">
+        <span class="kicker" data-i18n="tl.k">Strumenti collegati</span>
+        <h2 class="h2" data-i18n="tl.h">Da dove arrivano gli oggetti.</h2>
+      </div>
+      <p data-i18n="tl.p">Gli stessi strumenti che usi nel browser, gratis: dentro Revit hanno un pulsante in più.</p>
+    </div>
+    <div class="rows">
+      <a class="row" href="../tools/railway-ocs/">
+        <span class="row-t" data-i18n="tl.r1t">Trazione elettrica</span>
+        <span class="row-d" data-i18n="tl.r1d">Pali, mensole, portali e fondazioni lungo il tracciato diventano famiglie di catalogo piazzate sul supercompattato, coi parametri dimensionali compilati.</span>
+        <span class="row-k" data-i18n="tl.r1k">famiglie · parametri</span>
+        <svg class="row-go" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="row" href="../tools/terrain-sculptor/">
+        <span class="row-t">Terrain Sculptor</span>
+        <span class="row-d" data-i18n="tl.r2d">Il terreno scolpito torna in Revit come toposolid nativa del modello: piattaforme e rampe come sottoregioni, l'acqua come volume pieno.</span>
+        <span class="row-k" data-i18n="tl.r2k">toposolid · sottoregioni</span>
+        <svg class="row-go" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="row" href="../tools/profile-sweep/">
+        <span class="row-t" data-i18n="tl.r3t">Sviluppo profili</span>
+        <span class="row-d" data-i18n="tl.r3d">Fossi, canali a U e tubi in trincea sviluppati sul DTM entrano nel modello come DirectShape, senza famiglie da preparare.</span>
+        <span class="row-k">DirectShape</span>
+        <svg class="row-go" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
+      <div class="row soon">
+        <span class="row-t" data-i18n="tl.r4t">Viewer IFC · BCF</span>
+        <span class="row-d" data-i18n="tl.r4d">Il federato e le issue BCF accanto al modello Revit, in anteprima.</span>
+        <span class="row-k" data-i18n="tl.soon">in arrivo</span>
+        <span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= GRATIS / PRO ================= -->
+  <section class="sec" id="prezzi">
+    <div class="sec-head">
+      <div class="l">
+        <span class="kicker" data-i18n="pl.k">Gratis e Pro</span>
+        <h2 class="h2" data-i18n="pl.h">Guardare è gratis. Scrivere nel modello è Pro.</h2>
+      </div>
+      <p data-i18n="pl.p">Lo stesso installatore per tutti: la licenza Pro si attiva dentro l'add-in con la chiave che arriva per email. Il sito resta gratuito e open source.</p>
+    </div>
+    <div class="plans">
+      <div class="plan free">
+        <div class="plan-top"><span class="plan-name" data-i18n="pl.free">Gratis</span><span class="plan-tag" data-i18n="pl.freeTag">per sempre</span></div>
+        <div class="plan-price">0 €</div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="pl.f1">La finestra ViewIFC con tutti gli strumenti del sito</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="pl.f2">Anteprima nel modello, anche degli IFC di contesto</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="pl.f3">Revit 2023, 2024, 2025 e 2026</span></li>
+        </ul>
+        <a class="btn hollow lg" data-addin="download" href="#">
+          <svg class="i-dl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+          <svg class="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9M10.2 20.5a2 2 0 0 0 3.6 0"/></svg>
+          <span data-i18n="cta.download">Scarica per Windows</span>
+        </a>
+      </div>
+      <div class="plan pro">
+        <div class="plan-top"><span class="plan-name">Pro</span><span class="plan-tag" data-i18n="pl.trial">prova di 7 giorni</span></div>
+        <div class="plan-price"><span data-addin="price">—</span><small data-i18n="pl.per">per utente, all'anno</small></div>
+        <ul>
+          <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="pl.p1">Tutto il piano Gratis</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="pl.p2">Porta in Revit: famiglie, toposolid, DirectShape</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="pl.p3">Selezione collegata fra Revit e strumento</span></li>
+          <li><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span data-i18n="pl.p4">Progetto salvato nel .rvt, coordinate condivise impostate</span></li>
+        </ul>
+        <a class="btn primary lg" id="btnRevitBuy" data-addin="buy" href="#" aria-disabled="true">
+          <span data-i18n="pl.soon">Acquisto presto disponibile</span>
+        </a>
+        <span class="plan-note" data-i18n="pl.note">Pagamento con Stripe · disdici quando vuoi · la prova parte dall'add-in, senza carta</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= INSTALLAZIONE ================= -->
+  <section class="sec" id="installa">
+    <div class="sec-head">
+      <div class="l">
+        <span class="kicker" data-i18n="in.k">Installazione</span>
+        <h2 class="h2" data-i18n="in.h">Un file, tutte le versioni di Revit.</h2>
+      </div>
+      <p data-i18n="in.p">Niente permessi di amministratore: l'add-in si installa nella cartella dell'utente e si toglie da «App installate» di Windows.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="step-n">1</span>
+        <h3 data-i18n="in.s1h">Scarica</h3>
+        <p data-i18n="in.s1html">Avvia <code>ViewIFC-Setup.exe</code> con Revit chiuso.</p>
+      </div>
+      <div class="step">
+        <span class="step-n">2</span>
+        <h3 data-i18n="in.s2h">Avviso di Windows</h3>
+        <p data-i18n="in.s2p">Se compare «Windows ha protetto il PC», scegli «Ulteriori informazioni» e poi «Esegui comunque».</p>
+      </div>
+      <div class="step">
+        <span class="step-n">3</span>
+        <h3 data-i18n="in.s3h">Apri Revit</h3>
+        <p data-i18n="in.s3p">Alla prima apertura scegli «Carica sempre». Poi scheda ViewIFC → apri lo strumento che ti serve.</p>
+      </div>
+      <div class="step">
+        <span class="step-n">4</span>
+        <h3 data-i18n="in.s4h">Pro, se ti serve</h3>
+        <p data-i18n="in.s4p">Pulsante «Licenza»: avvia la prova di 7 giorni o incolla la chiave ricevuta per email.</p>
+      </div>
+    </div>
+    <div class="req">
+      <span><b>Windows</b> 10 · 11, 64 bit</span>
+      <span><b>Revit</b> 2023 · 2024 · 2025 · 2026</span>
+      <span><b>WebView2</b> <span data-i18n="in.wv">già presente in Windows 11 e nelle versioni recenti di Windows 10</span></span>
+      <span><b data-i18n="in.net">Connessione</b> <span data-i18n="in.netd">serve per caricare gli strumenti dal sito</span></span>
+    </div>
+  </section>
+
+  <!-- ================= DOMANDE ================= -->
+  <section class="sec" id="domande">
+    <div class="sec-head">
+      <div class="l">
+        <span class="kicker">FAQ</span>
+        <h2 class="h2" data-i18n="fq.h">Domande prima di installare.</h2>
+      </div>
+    </div>
+    <div class="faq">
+      <details>
+        <summary data-i18n="fq.q1">I miei modelli vanno su internet?</summary>
+        <p data-i18n="fq.a1">No. Gli strumenti girano dentro la finestra dell'add-in come nel browser: i file restano sul tuo computer. Dal sito arrivano solo le pagine; la licenza Pro manda al server la chiave e un'impronta anonima del PC, mai dati del modello.</p>
+      </details>
+      <details>
+        <summary data-i18n="fq.q2">Il sito resta gratuito?</summary>
+        <p data-i18n="fq.a2">Sì. Viewer e strumenti restano gratuiti e open source (AGPL-3.0). A pagamento c'è solo la parte dell'add-in che scrive nel modello Revit.</p>
+      </details>
+      <details>
+        <summary data-i18n="fq.q3">Quando aggiorno lo strumento sul sito, devo reinstallare?</summary>
+        <p data-i18n="fq.a3">No: la pagina si aggiorna da sola alla prossima apertura della finestra. L'add-in va aggiornato solo quando uno strumento chiede a Revit qualcosa di nuovo, e in quel caso te lo dice lui.</p>
+      </details>
+      <details>
+        <summary data-i18n="fq.q4">Funziona coi modelli condivisi (workshared)?</summary>
+        <p data-i18n="fq.a4">Sì: lavora nella tua copia locale come qualunque comando di Revit; il resto lo fa la sincronizzazione col centrale, quando la decidi tu.</p>
+      </details>
+      <details>
+        <summary data-i18n="fq.q5">Come disinstallo?</summary>
+        <p data-i18n="fq.a5">Da Impostazioni di Windows → App installate → ViewIFC per Revit. La licenza si libera dal pulsante «Licenza» → «Disattiva questo PC».</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================= CHIUSURA ================= -->
+  <div class="pagefoot">
+    <p data-i18n="foot.note">ViewIFC per Revit è software proprietario di Alessandro Perugini; il sito e i suoi strumenti restano AGPL-3.0. Autodesk e Revit sono marchi di Autodesk, Inc.: questo add-in non è prodotto né approvato da Autodesk.</p>
+    <nav>
+      <a href="../" data-i18n="foot.landing">Landing</a>
+      <a href="../tools/" data-i18n="nav.tools">Strumenti</a>
+      <a href="../guide/" data-i18n="nav.guide">Guida</a>
+      <a href="mailto:info@viewifc.com" data-i18n="nav.contact">Contatti</a>
+    </nav>
+  </div>
+
+</main>
+
+<script>
+/* =========================================================================
+   Dati dell'add-in — l'unico posto da toccare a ogni versione.
+   download: GitHub Releases del repo pubblico delle sole versioni compilate;
+             «latest/download» punta sempre all'ultima, quindi il link non cambia mai.
+             Vuoto = add-in «in arrivo»: etichetta nell'hero, versione «in arrivo» e i
+             pulsanti di download diventano «Avvisami all'uscita» (email a NOTIFY).
+             Il giorno del lancio: l'indirizzo qui sotto (il repo
+             arsray146/viewifc-revit con una release che contenga ViewIFC-Setup.exe)
+             e via il «presto» da landing (revit.k), Strumenti (stat.revit) e llms.txt.
+   buyUrl:   Payment Link di Stripe; vuoto = acquisto non ancora aperto.
+   price:    vuoto = prezzo non ancora deciso.
+   ========================================================================= */
+const ADDIN = {
+  version:  "0.6.0",
+  download: "",   /* al lancio: https://github.com/arsray146/viewifc-revit/releases/latest/download/ViewIFC-Setup.exe */
+  buyUrl:   "",
+  price:    ""
+};
+const NOTIFY = "info@viewifc.com";
+
+/* =========================================================================
+   i18n — parità chiavi IT/EN (convenzione di progetto)
+   ========================================================================= */
+const I18N = {
+  it:{
+    "nav.home":"Vai a viewifc.com","nav.platform":"Funzioni","nav.tools":"Strumenti",
+    "nav.guide":"Guida","nav.contact":"Contatti",
+    "hero.kicker":"Add-in per Autodesk Revit","hero.soon":"In arrivo",
+    "hero.h1html":"Gli strumenti del sito, <em>dentro Revit.</em>",
+    "hero.lead":"Una finestra in Revit con la stessa interfaccia di viewifc.com. Il lavoro pesante — IFC, assi, terreni, calcoli — resta nel motore del sito; nel modello arriva un'anteprima leggera, e poi solo oggetti nativi: famiglie, toposolid, DirectShape.",
+    "cta.download":"Scarica per Windows","cta.plans":"Gratis e Pro",
+    "cta.notify":"Avvisami all'uscita","cta.notifySubj":"ViewIFC per Revit: avvisami all'uscita",
+    "meta.ver":"Versione","meta.free":"Gratis per l'anteprima","meta.soon":"in arrivo",
+    "sc.view":"{3D} · anteprima","sc.viewNat":"{3D} · nel modello","sc.place":"Porta in Revit",
+    "sc.ts.up":"Alza","sc.ts.dn":"Abbassa","sc.ts.r1":"Piattaforma","sc.ts.v1":"+312,40","sc.ts.r2":"Rampa","sc.ts.r3":"Acqua","sc.ts.v3":"+309,80",
+    "sc.ts.count":"3 opere · sterro 1240 m³","sc.ts.done":"Toposolid · 2 sottoregioni · acqua",
+    "sc.tool":"TRAZIONE ELETTRICA","sc.count":"86 sostegni · 3 binari","sc.te.done":"86 famiglie piazzate",
+    "sc.ps.tool":"SVILUPPO PROFILI","sc.ps.v1":"rilievo","sc.ps.r2":"Asse","sc.ps.r3":"Sezione",
+    "sc.ps.r4":"Pendenza","sc.ps.v4":"0,4 %","sc.ps.r5":"Scarpa riporto",
+    "sc.ps.count":"1 opera · riporto 2850 m³","sc.ps.done":"DirectShape: canale e riporto",
+    "what.k":"Come funziona",
+    "what.h":"Revit fa quello che sa fare bene. Il resto lo fa il sito.",
+    "what.p":"Revit è lento con la geometria pesante; gli strumenti del sito leggono IFC e DTM in un attimo. L'add-in li fa lavorare insieme senza importare niente che non serva.",
+    "f1.h":"Anteprima nel modello",
+    "f1.p":"La geometria dello strumento si vede nelle viste di Revit — 3D, piante, sezioni — senza creare un solo elemento. Come Grasshopper in Rhino.",
+    "f1.l1":"Trasparente, nei colori del sito, l'elemento scelto in arancio",
+    "f1.l2":"Anche gli IFC di contesto, senza importarli",
+    "f1.l3":"Coordinate condivise del modello rispettate",
+    "f2.h":"Oggetti nativi",
+    "f2.p":"Quando il progetto va bene, un clic lo porta in Revit come oggetti veri, coi parametri compilati. Ctrl+Z annulla tutto in un colpo.",
+    "f2.l1":"Famiglie di catalogo piazzate, ruotate e parametrizzate",
+    "f2.l2":"Toposolid nativa con sottoregioni",
+    "f2.l3":"DirectShape per le opere lineari",
+    "f3.h":"Collegati nei due sensi",
+    "f3.p":"Selezioni in Revit, la pagina inquadra lo stesso elemento; scegli nella pagina, Revit lo seleziona e ci zooma sopra.",
+    "f3.l1":"Il progetto dello strumento si salva dentro il .rvt",
+    "f3.l2":"Riapri il modello e riprendi da dove eri",
+    "f3.l3":"Gli strumenti si aggiornano da soli col sito",
+    "tl.k":"Strumenti collegati","tl.h":"Da dove arrivano gli oggetti.",
+    "tl.p":"Gli stessi strumenti che usi nel browser, gratis: dentro Revit hanno un pulsante in più.",
+    "tl.r1t":"Trazione elettrica",
+    "tl.r1d":"Pali, mensole, portali e fondazioni lungo il tracciato diventano famiglie di catalogo piazzate sul supercompattato, coi parametri dimensionali compilati.",
+    "tl.r1k":"famiglie · parametri",
+    "tl.r2d":"Il terreno scolpito torna in Revit come toposolid nativa del modello: piattaforme e rampe come sottoregioni, l'acqua come volume pieno.",
+    "tl.r2k":"toposolid · sottoregioni",
+    "tl.r3t":"Sviluppo profili",
+    "tl.r3d":"Fossi, canali a U e tubi in trincea sviluppati sul DTM entrano nel modello come DirectShape, senza famiglie da preparare.",
+    "tl.r4t":"Viewer IFC · BCF",
+    "tl.r4d":"Il federato e le issue BCF accanto al modello Revit, in anteprima.",
+    "tl.soon":"in arrivo",
+    "pl.k":"Gratis e Pro","pl.h":"Guardare è gratis. Scrivere nel modello è Pro.",
+    "pl.p":"Lo stesso installatore per tutti: la licenza Pro si attiva dentro l'add-in con la chiave che arriva per email. Il sito resta gratuito e open source.",
+    "pl.free":"Gratis","pl.freeTag":"per sempre",
+    "pl.f1":"La finestra ViewIFC con tutti gli strumenti del sito",
+    "pl.f2":"Anteprima nel modello, anche degli IFC di contesto",
+    "pl.f3":"Revit 2023, 2024, 2025 e 2026",
+    "pl.trial":"prova di 7 giorni","pl.per":"per utente, all'anno","pl.tbd":"Prezzo al lancio",
+    "pl.p1":"Tutto il piano Gratis",
+    "pl.p2":"Porta in Revit: famiglie, toposolid, DirectShape",
+    "pl.p3":"Selezione collegata fra Revit e strumento",
+    "pl.p4":"Progetto salvato nel .rvt, coordinate condivise impostate",
+    "pl.buy":"Acquista Pro","pl.soon":"Acquisto presto disponibile",
+    "pl.note":"Pagamento con Stripe · disdici quando vuoi · la prova parte dall'add-in, senza carta",
+    "in.k":"Installazione","in.h":"Un file, tutte le versioni di Revit.",
+    "in.p":"Niente permessi di amministratore: l'add-in si installa nella cartella dell'utente e si toglie da «App installate» di Windows.",
+    "in.s1h":"Scarica","in.s1html":"Avvia <code>ViewIFC-Setup.exe</code> con Revit chiuso.",
+    "in.s2h":"Avviso di Windows","in.s2p":"Se compare «Windows ha protetto il PC», scegli «Ulteriori informazioni» e poi «Esegui comunque».",
+    "in.s3h":"Apri Revit","in.s3p":"Alla prima apertura scegli «Carica sempre». Poi scheda ViewIFC → apri lo strumento che ti serve.",
+    "in.s4h":"Pro, se ti serve","in.s4p":"Pulsante «Licenza»: avvia la prova di 7 giorni o incolla la chiave ricevuta per email.",
+    "in.wv":"già presente in Windows 11 e nelle versioni recenti di Windows 10",
+    "in.net":"Connessione","in.netd":"serve per caricare gli strumenti dal sito",
+    "fq.h":"Domande prima di installare.",
+    "fq.q1":"I miei modelli vanno su internet?",
+    "fq.a1":"No. Gli strumenti girano dentro la finestra dell'add-in come nel browser: i file restano sul tuo computer. Dal sito arrivano solo le pagine; la licenza Pro manda al server la chiave e un'impronta anonima del PC, mai dati del modello.",
+    "fq.q2":"Il sito resta gratuito?",
+    "fq.a2":"Sì. Viewer e strumenti restano gratuiti e open source (AGPL-3.0). A pagamento c'è solo la parte dell'add-in che scrive nel modello Revit.",
+    "fq.q3":"Quando aggiorno lo strumento sul sito, devo reinstallare?",
+    "fq.a3":"No: la pagina si aggiorna da sola alla prossima apertura della finestra. L'add-in va aggiornato solo quando uno strumento chiede a Revit qualcosa di nuovo, e in quel caso te lo dice lui.",
+    "fq.q4":"Funziona coi modelli condivisi (workshared)?",
+    "fq.a4":"Sì: lavora nella tua copia locale come qualunque comando di Revit; il resto lo fa la sincronizzazione col centrale, quando la decidi tu.",
+    "fq.q5":"Come disinstallo?",
+    "fq.a5":"Da Impostazioni di Windows → App installate → ViewIFC per Revit. La licenza si libera dal pulsante «Licenza» → «Disattiva questo PC».",
+    "foot.note":"ViewIFC per Revit è software proprietario di Alessandro Perugini; il sito e i suoi strumenti restano AGPL-3.0. Autodesk e Revit sono marchi di Autodesk, Inc.: questo add-in non è prodotto né approvato da Autodesk.",
+    "foot.landing":"Landing"
+  },
+  en:{
+    "nav.home":"Go to viewifc.com","nav.platform":"Features","nav.tools":"Tools",
+    "nav.guide":"Guide","nav.contact":"Contact",
+    "hero.kicker":"Add-in for Autodesk Revit","hero.soon":"Coming soon",
+    "hero.h1html":"The site's tools, <em>inside Revit.</em>",
+    "hero.lead":"A window in Revit with the same interface as viewifc.com. The heavy lifting — IFC, alignments, terrain, calculations — stays in the site's engine; the model gets a light preview, and then native objects only: families, toposolids, DirectShapes.",
+    "cta.download":"Download for Windows","cta.plans":"Free and Pro",
+    "cta.notify":"Notify me at launch","cta.notifySubj":"ViewIFC for Revit: let me know when it's out",
+    "meta.ver":"Version","meta.free":"Free for the preview","meta.soon":"coming soon",
+    "sc.view":"{3D} · preview","sc.viewNat":"{3D} · in the model","sc.place":"Send to Revit",
+    "sc.ts.up":"Raise","sc.ts.dn":"Lower","sc.ts.r1":"Pad","sc.ts.v1":"+312.40","sc.ts.r2":"Ramp","sc.ts.r3":"Water","sc.ts.v3":"+309.80",
+    "sc.ts.count":"3 works · cut 1240 m³","sc.ts.done":"Toposolid · 2 subregions · water",
+    "sc.tool":"OVERHEAD LINE","sc.count":"86 supports · 3 tracks","sc.te.done":"86 families placed",
+    "sc.ps.tool":"PROFILE SWEEP","sc.ps.v1":"survey","sc.ps.r2":"Alignment","sc.ps.r3":"Section",
+    "sc.ps.r4":"Slope","sc.ps.v4":"0.4 %","sc.ps.r5":"Fill slope",
+    "sc.ps.count":"1 work · fill 2850 m³","sc.ps.done":"DirectShape: channel and fill",
+    "what.k":"How it works",
+    "what.h":"Revit does what it does best. The site does the rest.",
+    "what.p":"Revit is slow with heavy geometry; the site's tools read IFC and DTMs in a moment. The add-in makes them work together without importing anything you don't need.",
+    "f1.h":"Preview in the model",
+    "f1.p":"The tool's geometry shows up in Revit's views — 3D, plans, sections — without creating a single element. Like Grasshopper in Rhino.",
+    "f1.l1":"Transparent, in the site's colours, the picked element in orange",
+    "f1.l2":"Context IFCs too, without importing them",
+    "f1.l3":"The model's shared coordinates respected",
+    "f2.h":"Native objects",
+    "f2.p":"When the design is right, one click brings it into Revit as real objects with their parameters filled in. Ctrl+Z undoes it all at once.",
+    "f2.l1":"Catalogue families placed, rotated and parameterised",
+    "f2.l2":"Native toposolid with subregions",
+    "f2.l3":"DirectShapes for linear works",
+    "f3.h":"Linked both ways",
+    "f3.p":"Select in Revit and the page frames the same element; pick on the page and Revit selects it and zooms to it.",
+    "f3.l1":"The tool's project is saved inside the .rvt",
+    "f3.l2":"Reopen the model and carry on where you left off",
+    "f3.l3":"The tools update by themselves with the site",
+    "tl.k":"Linked tools","tl.h":"Where the objects come from.",
+    "tl.p":"The same tools you use in the browser, for free: inside Revit they get one more button.",
+    "tl.r1t":"Overhead line",
+    "tl.r1d":"Masts, cantilevers, portals and foundations along the line become catalogue families placed on the formation layer, with their dimensional parameters filled in.",
+    "tl.r1k":"families · parameters",
+    "tl.r2d":"The sculpted terrain goes back into Revit as the model's native toposolid: pads and ramps as subregions, water as a solid volume.",
+    "tl.r2k":"toposolid · subregions",
+    "tl.r3t":"Profile Sweep",
+    "tl.r3d":"Ditches, U channels and trench pipes swept on the DTM enter the model as DirectShapes, with no families to prepare.",
+    "tl.r4t":"IFC · BCF Viewer",
+    "tl.r4d":"The federated model and BCF issues next to the Revit model, as a preview.",
+    "tl.soon":"coming soon",
+    "pl.k":"Free and Pro","pl.h":"Looking is free. Writing to the model is Pro.",
+    "pl.p":"The same installer for everyone: the Pro licence is activated inside the add-in with the key that arrives by email. The site stays free and open source.",
+    "pl.free":"Free","pl.freeTag":"forever",
+    "pl.f1":"The ViewIFC window with all the site's tools",
+    "pl.f2":"Preview in the model, context IFCs included",
+    "pl.f3":"Revit 2023, 2024, 2025 and 2026",
+    "pl.trial":"7-day trial","pl.per":"per user, per year","pl.tbd":"Price at launch",
+    "pl.p1":"Everything in Free",
+    "pl.p2":"Send to Revit: families, toposolids, DirectShapes",
+    "pl.p3":"Selection linked between Revit and the tool",
+    "pl.p4":"Project saved in the .rvt, shared coordinates set up",
+    "pl.buy":"Buy Pro","pl.soon":"Purchase available soon",
+    "pl.note":"Payment with Stripe · cancel anytime · the trial starts from the add-in, no card needed",
+    "in.k":"Installation","in.h":"One file, every Revit version.",
+    "in.p":"No administrator rights: the add-in installs in the user's folder and is removed from Windows' «Installed apps».",
+    "in.s1h":"Download","in.s1html":"Run <code>ViewIFC-Setup.exe</code> with Revit closed.",
+    "in.s2h":"Windows warning","in.s2p":"If «Windows protected your PC» appears, choose «More info» and then «Run anyway».",
+    "in.s3h":"Open Revit","in.s3p":"The first time, choose «Always Load». Then the ViewIFC tab → open the tool you need.",
+    "in.s4h":"Pro, if you need it","in.s4p":"«Licence» button: start the 7-day trial or paste the key you received by email.",
+    "in.wv":"already present in Windows 11 and recent Windows 10 builds",
+    "in.net":"Connection","in.netd":"needed to load the tools from the site",
+    "fq.h":"Questions before installing.",
+    "fq.q1":"Do my models go online?",
+    "fq.a1":"No. The tools run inside the add-in window just like in the browser: files stay on your computer. Only the pages come from the site; the Pro licence sends the server the key and an anonymous fingerprint of the PC, never model data.",
+    "fq.q2":"Does the site stay free?",
+    "fq.a2":"Yes. The viewer and the tools stay free and open source (AGPL-3.0). Only the part of the add-in that writes to the Revit model is paid.",
+    "fq.q3":"When a tool is updated on the site, do I have to reinstall?",
+    "fq.a3":"No: the page updates by itself the next time the window opens. The add-in only needs updating when a tool asks Revit for something new, and in that case it tells you.",
+    "fq.q4":"Does it work with workshared models?",
+    "fq.a4":"Yes: it works in your local copy like any Revit command; synchronising with central does the rest, when you decide.",
+    "fq.q5":"How do I uninstall?",
+    "fq.a5":"From Windows Settings → Installed apps → ViewIFC for Revit. The licence is released from the «Licence» button → «Deactivate this PC».",
+    "foot.note":"ViewIFC for Revit is proprietary software by Alessandro Perugini; the site and its tools stay AGPL-3.0. Autodesk and Revit are trademarks of Autodesk, Inc.: this add-in is not made or endorsed by Autodesk.",
+    "foot.landing":"Landing"
+  }
+};
+let LANG = "it";
+function tr(k){ return (I18N[LANG] && I18N[LANG][k] != null) ? I18N[LANG][k] : (I18N.it[k] ?? k); }
+
+/* i dati dell'add-in nei punti marcati data-addin (versione, link, prezzo, acquisto) */
+function applyAddin(){
+  const soon = !ADDIN.download;                  /* add-in «in arrivo»: avvisami al posto dello scarica */
+  document.documentElement.classList.toggle("addin-soon", soon);
+  document.querySelectorAll('[data-addin="version"]').forEach(el=> el.textContent = soon ? tr("meta.soon") : ADDIN.version);
+  document.querySelectorAll('[data-addin="download"]').forEach(el=>{
+    el.href = soon ? "mailto:" + NOTIFY + "?subject=" + encodeURIComponent(tr("cta.notifySubj")) : ADDIN.download;
+    /* evento distinto per le statistiche: chi chiede l'avviso non ha scaricato niente */
+    if(el.id === "btnRevitDownload" || el.id === "btnRevitNotify") el.id = soon ? "btnRevitNotify" : "btnRevitDownload";
+    const s = el.querySelector("[data-i18n]"), k = soon ? "cta.notify" : "cta.download";
+    if(s){ s.setAttribute("data-i18n", k); s.textContent = tr(k); }
+  });
+  document.querySelectorAll('[data-addin="price"]').forEach(el=>{
+    el.textContent = ADDIN.price || tr("pl.tbd");
+    const per = el.nextElementSibling;           /* «per utente, all'anno» solo accanto a un prezzo vero */
+    if(per) per.hidden = !ADDIN.price;
+  });
+  const buy = document.querySelector('[data-addin="buy"]');
+  if(buy){
+    const open = !!ADDIN.buyUrl;
+    buy.href = open ? ADDIN.buyUrl : "#prezzi";
+    buy.classList.toggle("primary", open);
+    buy.classList.toggle("hollow", !open);
+    if(open) buy.removeAttribute("aria-disabled"); else buy.setAttribute("aria-disabled", "true");
+    const s = buy.querySelector("[data-i18n]");
+    if(s){ s.setAttribute("data-i18n", open ? "pl.buy" : "pl.soon"); s.textContent = tr(open ? "pl.buy" : "pl.soon"); }
+  }
+}
+document.addEventListener("click", ev=>{
+  const a = ev.target.closest && ev.target.closest('[aria-disabled="true"]');
+  if(a) ev.preventDefault();
+});
+
+function applyLang(lang){
+  LANG = I18N[lang] ? lang : "it";
+  document.documentElement.lang = LANG;
+  const dict = I18N[LANG];
+  document.querySelectorAll("[data-i18n]").forEach(el=>{
+    const k = el.getAttribute("data-i18n");
+    if(dict[k] == null) return;
+    if(k.endsWith("html")) el.innerHTML = dict[k];
+    else el.textContent = dict[k];
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach(el=>{
+    const k = el.getAttribute("data-i18n-title");
+    if(dict[k] != null){ el.title = dict[k]; if(el.hasAttribute("aria-label")) el.setAttribute("aria-label", dict[k]); }
+  });
+  document.querySelectorAll(".langsw button").forEach(b=> b.classList.toggle("on", b.dataset.lang===LANG));
+  applyAddin();
+  try{ localStorage.setItem("viewifc_tool_lang", LANG); }catch(e){}
+}
+
+/* ---------------- init ---------------- */
+document.querySelectorAll(".langsw button").forEach(b=> b.addEventListener("click", ()=>applyLang(b.dataset.lang)));
+(function initLang(){
+  let lang = "it";
+  try{ lang = localStorage.getItem("viewifc_tool_lang") || (navigator.language||"it").slice(0,2); }catch(e){}
+  applyLang(I18N[lang] ? lang : "it");
+})();
+/* tema (default: light) — chiave condivisa con landing e viewer */
+(function initTheme(){
+  const meta = document.querySelector('meta[name="theme-color"]');
+  function setTheme(t){
+    if(t === "light") document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+    if(meta) meta.setAttribute("content", t === "light" ? "#f1f3ee" : "#141a12");
+    try{ localStorage.setItem("viewer_landing_theme", t); }catch(e){}
+  }
+  let t = "light";
+  try{ t = localStorage.getItem("viewer_landing_theme") || "light"; }catch(e){}
+  setTheme(t);
+  const b = document.getElementById("thmBtn");
+  if(b) b.addEventListener("click", ()=>{
+    setTheme(document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light");
+  });
+})();
+
+/* scena dell'hero: Terrain Sculptor → Trazione → Sviluppo profili, a giro.
+   Qui solo i tempi: ogni passo aggiunge una fase al <g> della scena (disegno e transizioni
+   nel CSS, .sc-*). Ferma con la riduzione del movimento (resta la Trazione con la scelta,
+   come senza JS); in pausa quando la scena è fuori vista o la scheda è nascosta. */
+(function initScene(){
+  const fig = document.getElementById("revScene");
+  const svg = fig && fig.querySelector("svg");
+  if(!svg) return;
+  const scenes = Array.from(svg.querySelectorAll(".sc-s"));
+  const STILL = 1;                                  /* la Trazione: il fotogramma fermo */
+  /* ms dall'inizio della scena: anteprima, scelta, clic, nativi, dissolvenza, scena dopo */
+  const STEPS = [[120,"p1"],[2500,"p2"],[3800,"p3"],[4700,"p4"],[6900,"out"],[7400,"next"]];
+  /* Terrain Sculptor (data-sculpt): prima i colpi di pennello k1…k7 (data-k), poi lo stesso giro */
+  const SCULPT = [[120,"p1"],[900,"k1"],[1350,"k2"],[1750,"k3"],[2350,"k4"],[2800,"k5"],[3200,"k6"],
+    [3800,"k7"],[5400,"p2"],[6700,"p3"],[7600,"p4"],[9600,"out"],[10100,"next"]];
+  const plan = g => g.hasAttribute("data-sculpt") ? SCULPT : STEPS;
+  const rm = window.matchMedia ? matchMedia("(prefers-reduced-motion: reduce)") : { matches:false };
+  let cur = 0, k = 0, last = 0, left = plan(scenes[0])[0][0], due = 0, timer = 0, running = false, inView = true;
+
+  function clear(g){ g.classList.remove("on", "p1", "p2", "p3", "p4"); g.setAttribute("data-k", "0"); }
+  /* cambio di stato senza transizioni: la classe snap le spegne per un fotogramma */
+  function snap(fn){
+    fig.classList.add("snap"); fn();
+    void svg.getBoundingClientRect();
+    requestAnimationFrame(()=> fig.classList.remove("snap"));
+  }
+  function wait(ms){ clearTimeout(timer); due = performance.now() + ms; timer = setTimeout(run, ms); }
+  function stop(){
+    if(!running) return;
+    running = false; clearTimeout(timer);
+    left = Math.max(0, due - performance.now());
+  }
+  function run(){
+    const g = scenes[cur], [at, ph] = plan(g)[k];
+    if(ph === "out") g.classList.remove("on");
+    else if(ph === "next"){ clear(g); cur = (cur + 1) % scenes.length; scenes[cur].classList.add("on"); }
+    else if(ph[0] === "k") g.setAttribute("data-k", ph.slice(1));
+    else g.classList.add(ph);
+    if(ph === "next"){ k = 0; last = 0; } else { k++; last = at; }
+    wait(plan(scenes[cur])[k][0] - last);
+  }
+  function start(){
+    stop();
+    snap(()=>{
+      fig.classList.add("live");
+      scenes.forEach(clear); cur = 0; scenes[0].classList.add("on");
+    });
+    k = 0; last = 0; left = plan(scenes[0])[0][0];
+  }
+  function still(){
+    stop();
+    snap(()=>{
+      fig.classList.remove("live");
+      scenes.forEach(clear); scenes[STILL].classList.add("on", "p1", "p2");
+    });
+  }
+  function sync(){
+    const go = !rm.matches && inView && !document.hidden;
+    if(go && !running){ running = true; wait(left); }
+    else if(!go) stop();
+  }
+
+  if(rm.matches) still(); else start();
+  if(rm.addEventListener) rm.addEventListener("change", ()=>{ if(rm.matches) still(); else start(); sync(); });
+  document.addEventListener("visibilitychange", sync);
+  if("IntersectionObserver" in window){
+    new IntersectionObserver(es=>{ inView = es[es.length - 1].isIntersecting; sync(); }, { threshold:.15 }).observe(fig);
+  }
+  sync();
+})();
+</script>
+</body>
+</html>

@@ -120,6 +120,14 @@ html[data-theme="light"] .glow{background:radial-gradient(66% 58% at 50% 0%,rgba
 .navlinks a.on{background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line);
   color:var(--text);font-weight:500}
 .nav-act{display:flex;align-items:center;gap:10px;flex:none;margin-left:auto}
+/* fra 860 e 1040 px le sette voci non ci stanno: resta il segno di marca, voci più strette
+   (sotto i 860 px spariscono del tutto). Intervallo perché con lo zoom la larghezza è frazionaria */
+@media (860px < width <= 1040px){
+  .navpill{gap:16px}
+  .navpill .appname{display:none}
+  .navlinks{gap:2px}
+  .navlinks a{padding:6px 7px}
+}
 .langsw{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
 .langsw button{border:0;background:none;cursor:pointer;padding:5px 8px;border-radius:999px;
   color:var(--faint);font:inherit;transition:color .12s,background .12s}
@@ -315,6 +323,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
     <nav class="navlinks">
       <a href="../#platform" data-i18n="nav.platform">Funzioni</a>
       <a class="on" href="./" aria-current="page" data-i18n="nav.tools">Strumenti</a>
+      <a href="../revit/">Revit</a>
       <a href="../#privacy" data-i18n="nav.privacy">Privacy</a>
       <a href="../#faq" data-i18n="nav.faq">FAQ</a>
       <a href="../guide/" data-i18n="nav.guide">Guida</a>
@@ -360,6 +369,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
         <span class="hs-v">1</span>
       </div>
       <span class="hs-note"><a href="https://github.com/arsray146/ifc-bcf-viewer/issues" target="_blank" rel="noopener" data-i18n="stat.note">L'ordine lo decidono le issue aperte.</a></span>
+      <span class="hs-note"><a href="../revit/" data-i18n="stat.revit">Trazione, Terrain Sculptor e Sviluppo profili presto anche dentro Revit →</a></span>
     </aside>
   </section>
 
@@ -795,6 +805,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
     <nav>
       <a href="../" data-i18n="foot.landing">Landing</a>
       <a href="../guide/" data-i18n="foot.guide">Guida</a>
+      <a href="../revit/" data-i18n="foot.revit">Dentro Revit</a>
       <a href="https://github.com/arsray146/ifc-bcf-viewer" target="_blank" rel="noopener" data-i18n="foot.src">Codice sorgente</a>
       <a class="go" href="../viewer/"><span data-i18n="cta.open">Apri il viewer</span>
         <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
@@ -817,6 +828,7 @@ const I18N = {
     "head.lead":"Ognuna prende un file, lo trasforma e te lo restituisce. Girano nel browser con lo scanner a fette: niente upload, niente account, nessun limite di dimensione imposto da noi.",
     "stat.ready":"Pronti all'uso","stat.wip":"In lavorazione",
     "stat.note":"L'ordine lo decidono le issue aperte.",
+    "stat.revit":"Trazione, Terrain Sculptor e Sviluppo profili presto anche dentro Revit →",
     "flt.all":"Tutti",
     "cat.struct":"Struttura del file","cat.data":"Dati e tabelle","cat.infra":"Infrastrutture",
     "cat.georef":"Georeferenziazione","cat.diag":"Diagnostica","cat.coord":"Coordinamento",
@@ -872,7 +884,7 @@ const I18N = {
     "cta.p":"Racconta il tuo caso in una issue: se è un problema di file — non di geometria — quasi sempre si risolve con qualche centinaio di righe e diventa il prossimo tool della lista.",
     "cta.btn":"Proponi uno strumento","cta.road":"Roadmap completa",
     "foot.note":"Ogni strumento è un file singolo, AGPL-3.0 — funziona anche offline, una volta aperta la pagina.",
-    "foot.landing":"Landing","foot.guide":"Guida","foot.src":"Codice sorgente"
+    "foot.landing":"Landing","foot.guide":"Guida","foot.revit":"Dentro Revit","foot.src":"Codice sorgente"
   },
   en:{
     "nav.home":"Go to viewifc.com","nav.platform":"Features","nav.tools":"Tools",
@@ -882,6 +894,7 @@ const I18N = {
     "head.lead":"Each one takes a file, transforms it and hands it back. They run in the browser on the sliced-read scanner: no upload, no account, no size limit imposed by us.",
     "stat.ready":"Ready to use","stat.wip":"In the works",
     "stat.note":"Open issues decide the order.",
+    "stat.revit":"Overhead line, Terrain Sculptor and Profile Sweep soon inside Revit too →",
     "flt.all":"All",
     "cat.struct":"File structure","cat.data":"Data & tables","cat.infra":"Infrastructure",
     "cat.georef":"Georeferencing","cat.diag":"Diagnostics","cat.coord":"Coordination",
@@ -936,7 +949,7 @@ const I18N = {
     "cta.p":"Tell your case in an issue: if it is a file problem — not a geometry one — it can almost always be solved with a few hundred lines, and it becomes the next tool on the list.",
     "cta.btn":"Suggest a tool","cta.road":"Full roadmap",
     "foot.note":"Each tool is a single file, AGPL-3.0 — it works offline too, once the page is open.",
-    "foot.landing":"Landing","foot.guide":"Guide","foot.src":"Source code"
+    "foot.landing":"Landing","foot.guide":"Guide","foot.revit":"Inside Revit","foot.src":"Source code"
   }
 };
 let LANG = "it";

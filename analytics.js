@@ -75,7 +75,12 @@
     /* issue e report */
     btnExportBcf:    "bcf-export",
     btnReportStats:  "report-stats",
-    btnRepExport:    "report-export"
+    btnRepExport:    "report-export",
+    /* add-in per Revit (/revit/): chi scarica l'installatore e chi apre l'acquisto
+       — insieme ai download di GitHub, la misura del mercato */
+    btnRevitDownload:"revit-download",
+    btnRevitNotify:  "revit-notify",     /* finché l'add-in è «in arrivo»: chi chiede l'avviso */
+    btnRevitBuy:     "revit-buy"
   };
 
   /* ------------------------------------------------------- caricamento ----- */

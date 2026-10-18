@@ -116,6 +116,14 @@ h1,h2,h3{margin:0}
 .navlinks a.on{background:var(--lime-soft);box-shadow:inset 0 0 0 1px var(--lime-line);
   color:var(--text);font-weight:500}
 .nav-act{display:flex;align-items:center;gap:10px;flex:none}
+/* fra 920 e 1100 px le voci non ci stanno col sottotitolo: via il sottotitolo, voci più strette
+   (sotto i 920 px spariscono del tutto). Intervallo perché con lo zoom la larghezza è frazionaria */
+@media (920px < width <= 1100px){
+  .navpill{gap:16px}
+  .navpill .appname span{display:none}
+  .navlinks{gap:2px}
+  .navlinks a{padding:6px 7px;white-space:nowrap}
+}
 .langsw{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
 .langsw button{border:0;background:none;cursor:pointer;padding:5px 8px;border-radius:999px;
   color:var(--faint);font:inherit;transition:color .12s,background .12s}
@@ -422,6 +430,7 @@ html[data-theme="light"] .glowtop{
     <nav class="navlinks">
       <a href="../#platform" data-i18n="nav.platform">Funzioni</a>
       <a href="../tools/" data-i18n="nav.tools">Strumenti</a>
+      <a href="../revit/">Revit</a>
       <a href="../#privacy" data-i18n="nav.privacy">Privacy</a>
       <a href="../#opensource" data-i18n="nav.os">Open source</a>
       <a class="on" href="./" data-i18n="nav.guide">Guida</a>

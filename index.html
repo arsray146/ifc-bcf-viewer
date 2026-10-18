@@ -168,6 +168,14 @@ section{position:relative;z-index:1;scroll-margin-top:96px}
 .navlinks a{transition:color .15s}
 .navlinks a:hover{color:var(--text)}
 .nav-act{display:flex;align-items:center;gap:10px;flex:none}
+/* fra 920 e 1080 px le sette voci non ci stanno col sottotitolo: via il sottotitolo, spazi più
+   stretti (sotto i 920 px le voci spariscono del tutto, vedi più giù). Sintassi a intervallo
+   perché con lo zoom la larghezza è frazionaria (920,8 px non è né ≤ 920 né ≥ 921) */
+@media (920px < width <= 1080px){
+  .navpill{gap:18px}
+  .navpill .appname span{display:none}
+  .navlinks{gap:16px}
+}
 .langsw{display:flex;align-items:center;gap:2px;font:500 10.5px var(--mono)}
 .langsw button{border:0;background:none;cursor:pointer;padding:5px 8px;border-radius:999px;
   color:var(--faint);font:inherit;transition:color .12s,background .12s}
@@ -335,6 +343,19 @@ html:not([data-theme="light"]) .thm .sun{display:none}
 .tools-all:hover{color:var(--lime);gap:11px}
 .tools-all svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.1;
   stroke-linecap:round;stroke-linejoin:round}
+/* rimando all'add-in per Revit (/revit/): una lastra larga sotto le card dei tool */
+.revit-strip{display:flex;align-items:center;gap:28px;margin-top:26px;padding:22px 26px;
+  border-radius:var(--r-md);background:var(--pnl);
+  backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
+  border:1px solid var(--lime-line);box-shadow:var(--sh-sm)}
+.revit-strip .l{flex:1;min-width:0;display:flex;flex-direction:column;gap:7px}
+.revit-strip h3{font-family:var(--disp);font-weight:600;font-size:21px;line-height:1.15;
+  letter-spacing:.01em;color:var(--text)}
+.revit-strip p{margin:0;max-width:640px;font-size:12.5px;line-height:1.65;color:var(--muted);text-wrap:pretty}
+.revit-strip .btn{flex:none}
+@media (max-width:720px){
+  .revit-strip{flex-direction:column;align-items:stretch;gap:16px;padding:20px}
+}
 
 /* ---------- privacy ---------- */
 .privacy-panel{display:flex;align-items:stretch;padding:44px 46px;border-radius:var(--r);
@@ -546,6 +567,7 @@ html[data-theme="light"] #dropVeil{border-color:#8aa310}
     <nav class="navlinks">
       <a href="#platform" data-i18n="nav.platform">Funzioni</a>
       <a href="tools/" data-i18n="nav.tools">Strumenti</a>
+      <a href="revit/">Revit</a>
       <a href="#privacy" data-i18n="nav.privacy">Privacy</a>
       <a href="#faq" data-i18n="nav.faq">FAQ</a>
       <a href="guide/" data-i18n="nav.guide">Guida</a>
@@ -1113,6 +1135,17 @@ html[data-theme="light"] #dropVeil{border-color:#8aa310}
         <svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
       </a>
     </div>
+    <div class="revit-strip rv">
+      <div class="l">
+        <span class="kicker" data-i18n="revit.k">Presto anche dentro Revit</span>
+        <h3 data-i18n="revit.h">ViewIFC per Revit</h3>
+        <p data-i18n="revit.p">Un add-in apre Trazione elettrica, Terrain Sculptor e Sviluppo profili in una finestra dentro Revit: anteprima leggera nel modello, poi famiglie, toposolid e DirectShape native. L'anteprima è gratis.</p>
+      </div>
+      <a class="btn hollow lg" href="revit/">
+        <span data-i18n="revit.btn">Scopri l'add-in</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
   </div>
 </section>
 
@@ -1222,6 +1255,7 @@ html[data-theme="light"] #dropVeil{border-color:#8aa310}
     <nav class="foot-links">
       <a href="#platform" data-i18n="nav.platform">Funzioni</a>
       <a href="tools/" data-i18n="nav.tools">Strumenti</a>
+      <a href="revit/">Revit</a>
       <a href="#privacy" data-i18n="nav.privacy">Privacy</a>
       <a href="#faq" data-i18n="nav.faq">FAQ</a>
       <a href="guide/" data-i18n="nav.guide">Guida</a>
@@ -1294,6 +1328,9 @@ const I18N = {
     "tools.p":"Una collezione di strumenti che cresce accanto al viewer: file singolo, tutto client-side, nessun upload e nessuna installazione.",
     "tools.tag":"Client-side","tools.soon":"In arrivo","tools.open":"Apri lo strumento",
     "tools.all":"Tutti gli strumenti — anche quelli in arrivo",
+    "revit.k":"Presto anche dentro Revit","revit.h":"ViewIFC per Revit",
+    "revit.p":"Un add-in apre Trazione elettrica, Terrain Sculptor e Sviluppo profili in una finestra dentro Revit: anteprima leggera nel modello, poi famiglie, toposolid e DirectShape native. L'anteprima è gratis.",
+    "revit.btn":"Scopri l'add-in",
     "tools.t1t":"IFC Class Patcher","tools.t1d":"Riclassifica gli elementi in blocco: cambia classe IFC e PredefinedType da una mappatura Excel (Classe → Entità → ENUMTYPE). Scegli le colonne, scarichi l'IFC corretto.",
     "tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converte le progressive IFC tra metri e formato chilometrico K+MMM,CC, nei due sensi. Scegli quali parametri convertire, scarichi l'IFC aggiornato.",
     "tools.t3t":"IFC Alignment to LandXML","tools.t3d":"Estrae le entità IfcAlignment da un file IFC4x3 e le esporta in LandXML 1.2 (planimetrico Linea/Curva/Clotoide e altimetrico PVI/ParaCurve), pronte per Dalux.",
@@ -1394,6 +1431,9 @@ const I18N = {
     "tools.p":"A set of tools growing alongside the viewer: single file, fully client-side, no upload and no install.",
     "tools.tag":"Client-side","tools.soon":"Coming soon","tools.open":"Open the tool",
     "tools.all":"All the tools — including the upcoming ones",
+    "revit.k":"Soon inside Revit too","revit.h":"ViewIFC for Revit",
+    "revit.p":"An add-in opens Overhead line, Terrain Sculptor and Profile Sweep in a window inside Revit: a light preview in the model, then native families, toposolids and DirectShapes. The preview is free.",
+    "revit.btn":"Discover the add-in",
     "tools.t1t":"IFC Class Patcher","tools.t1d":"Bulk-reclassify elements: change the IFC class and PredefinedType from an Excel mapping (Class → Entity → ENUMTYPE). You pick the columns, you download the corrected IFC.",
     "tools.t2t":"IFC Progressiva Converter","tools.t2d":"Converts IFC chainage values between metres and the kilometric format K+MMM,CC, both ways. You choose which parameters to convert, you download the updated IFC.",
     "tools.t3t":"IFC Alignment to LandXML","tools.t3d":"Extracts the IfcAlignment entities from an IFC4x3 file and exports them as LandXML 1.2 (horizontal Line/Curve/Spiral and vertical PVI/ParaCurve), ready for Dalux.",
