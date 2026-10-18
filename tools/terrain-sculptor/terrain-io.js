@@ -299,6 +299,70 @@ export function triangulate(points, Delaunator) {
   return { kind: "tin", points, faces: Uint32Array.from(d.triangles) };
 }
 
+/**
+ * Il contorno vero di un TIN (1.10.0, anteprima in Revit): i lati usati da un triangolo solo, in pianta, concatenati
+ * in anelli chiusi con l'interno a SINISTRA (esterni antiorari, buchi orari) e senza i vertici allineati. La griglia
+ * del documento lo perde (maschera a celle: i lati inclinati diventano scalette), l'anteprima lo usa per tagliare le
+ * celle del bordo e alzarci i fianchi. Da una toposolid (src.top: IFC o modello Revit, sopra e sotto nello stesso
+ * TIN) contano solo le facce verso l'alto (antiorarie in pianta); se non ce n'è nessuna, tutte.
+ * → [[[x, y], …], …] (metri, coordinate della sorgente) o null
+ */
+export function tinOutline(src, { weld = 1e-4 } = {}) {
+  if (!src || src.kind !== "tin" || !src.faces || !src.faces.length) return null;
+  const P = src.points, F = src.faces, key = new Map(), V = [];
+  const vid = (k) => {
+    const x = P[3 * k], y = P[3 * k + 1], s = Math.round(x / weld) + "," + Math.round(y / weld);
+    let v = key.get(s);
+    if (v === undefined) { v = V.length; key.set(s, v); V.push([x, y]); }
+    return v;
+  };
+  const area2 = (a, b, c) => (P[3 * b] - P[3 * a]) * (P[3 * c + 1] - P[3 * a + 1]) - (P[3 * b + 1] - P[3 * a + 1]) * (P[3 * c] - P[3 * a]);
+  const pick = (up) => {
+    const T = [];
+    for (let t = 0; t + 2 < F.length; t += 3) {
+      const a = F[t], b = F[t + 1], c = F[t + 2], s = area2(a, b, c);
+      if (!(Math.abs(s) > 1e-12)) continue;
+      if (up && s < 0) continue;
+      /* un triangolo che si chiude in un segmento unendo i vertici (una scheggia: il taglio dell'acqua a un decimo di
+         millimetro da un nodo) si lascia fuori — i vicini sui suoi due lati, ora lo stesso lato, si chiudono fra loro;
+         contato, faceva lati usati tre volte e un giro che non tornava più al punto di partenza */
+      const va = vid(a), vb = vid(b), vc = vid(c);
+      if (va === vb || vb === vc || va === vc) continue;
+      T.push(s > 0 ? [va, vb, vc] : [va, vc, vb]);
+    }
+    return T;
+  };
+  let T = src.top ? pick(true) : [];
+  if (!T.length) T = pick(false);
+  const uses = new Map(), dir = [];
+  const ek = (u, v) => (u < v ? u + "_" + v : v + "_" + u);
+  for (const [a, b, c] of T) for (const [u, v] of [[a, b], [b, c], [c, a]]) { if (u === v) continue; const k = ek(u, v); uses.set(k, (uses.get(k) || 0) + 1); dir.push([u, v]); }
+  const next = new Map();
+  for (const [u, v] of dir) if (uses.get(ek(u, v)) === 1) { if (!next.has(u)) next.set(u, []); next.get(u).push(v); }
+  const rings = [];
+  for (const start of next.keys()) {
+    while (next.get(start) && next.get(start).length) {
+      const ring = [start];
+      let cur = next.get(start).pop();
+      while (cur !== start && cur !== undefined && ring.length <= dir.length) {
+        ring.push(cur);
+        const l = next.get(cur);
+        cur = l && l.length ? l.pop() : undefined;
+      }
+      if (cur !== start || ring.length < 3) continue;
+      /* via i vertici allineati col precedente e il successivo (i lati del bordo spezzati dai triangoli) */
+      const pts = ring.map((v) => V[v]), out = [];
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[(i + pts.length - 1) % pts.length], q = pts[i], r = pts[(i + 1) % pts.length];
+        const cr = (q[0] - p[0]) * (r[1] - q[1]) - (q[1] - p[1]) * (r[0] - q[0]), len = Math.hypot(r[0] - p[0], r[1] - p[1]);
+        if (Math.abs(cr) > 1e-9 * Math.max(1, len * len)) out.push([Math.round(q[0] * 1e4) / 1e4, Math.round(q[1] * 1e4) / 1e4]);
+      }
+      if (out.length >= 3) rings.push(out);
+    }
+  }
+  return rings.length ? rings : null;
+}
+
 /* ======================================================================
    IFC — la toposolid di Revit (fase 2, «da Revit e ritorno»)
    Visto su due export veri di Revit 2025 (IFC4X3_ADD2, 2 ottobre 2026): la
@@ -744,6 +808,12 @@ export function gridSpec(ext, cell) {
 
 /* passi tondi proponibili, coi nodi che ne vengono */
 export const CELL_CHOICES = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50];
+/* una toposolid (src.top: dall'IFC o dal modello Revit) è la «creta» da scolpire, non un rilievo da rispettare: con
+   pochi punti (una toposolid piatta di 6 triangoli) il passo del file sarebbe di decine di metri. Si propone almeno
+   il passo più fine che resta sotto SCULPT_NODES nodi (~0,5 m su 500 × 350 m) */
+export const SCULPT_NODES = 1000000;
+/* → { ext, native, options, proposed, floor }: floor = il passo più fine da mostrare (TIN e raster: metà del nativo;
+   toposolid: il più fine che ci sta) */
 export function cellOptions(src, maxNodes) {
   const ext = sourceExtent(src), nat = nativeCell(src);
   const raster = src.kind === "raster" && Math.abs(src.dx - src.dy) < 1e-9;
@@ -757,8 +827,14 @@ export function cellOptions(src, maxNodes) {
   /* proposta: raster → il suo pixel se ci sta; TIN → il più fine che non scende sotto metà del passo nativo */
   const ok = out.filter(o => o.ok);
   const fine = ok.filter(o => o.cell >= (raster ? nat : nat / 2) - 1e-9);
-  const pick = (fine.length ? fine[0] : ok[ok.length - 1]) || null;
-  return { ext, native: nat, options: out, proposed: pick ? pick.cell : null };
+  let pick = (fine.length ? fine[0] : ok[ok.length - 1]) || null;
+  let floor = nat / 2;
+  if (src.top && ok.length) {
+    const sculpt = ok.find(o => o.nodes <= Math.min(SCULPT_NODES, maxNodes));
+    if (sculpt && (!pick || sculpt.cell < pick.cell)) pick = sculpt;      // mai più grosso di prima
+    floor = Math.min(floor, ok[0].cell);
+  }
+  return { ext, native: nat, options: out, proposed: pick ? pick.cell : null, floor };
 }
 
 /* ======================================================================

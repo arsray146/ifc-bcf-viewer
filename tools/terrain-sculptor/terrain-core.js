@@ -933,6 +933,21 @@ export class TerrainDoc {
      l'altra ha messo. → { ground: {cut, fill, net}, ops: { id: {cut, fill,
      net} } } — solo le opere accese che muovono terra (non acqua e aree
      bloccate) */
+  /* l'opera che dà forma al nodo k di final (anteprima in Revit: la scelta di un'opera = i suoi triangoli in
+     arancio): l'ultima accesa che lo sposta, la stessa piega di refold; dentro il contorno di una piattaforma è sua
+     anche se il terreno era già alla quota. null = terreno scolpito */
+  ownerAt(k) {
+    const { nx, cell, x0, y0 } = this.final, i = k % nx, j = (k - i) / nx, x = x0 + i * cell, y = y0 + j * cell;
+    let z = this.ground.z[k], id = null;
+    for (const e of this._evs) {
+      if (i < e.r.i0 || i > e.r.i1 || j < e.r.j0 || j > e.r.j1) continue;
+      const z2 = e.ev.at(z, x, y);
+      if (Math.abs(z2 - z) > 1e-6) id = e.id;
+      else { const o = this.getOp(e.id); if (o && o.type === "pad" && pointInPolygon(x, y, o.polygon)) id = e.id; }
+      z = z2;
+    }
+    return id;
+  }
   balanceByOp() {
     const g = this.ground, n = g.nx, m = g.ny, c = g.cell, A = c * c, Z = g.z, evs = this._evs;
     const ops = {}, acc = evs.map(e => (ops[e.id] = { cut: 0, fill: 0, net: 0 }));
@@ -1404,9 +1419,12 @@ export function waterSpill(hf, polygon) {
     celle della riva si tagliano sul pelo triangolo per triangolo (stessa
     diagonale della scena), con i vertici condivisi. Dove l'acqua arriva al
     bordo della griglia, la sezione verticale dal terreno al pelo, rivolta
-    in fuori (come i fianchi del plastico nella scena).
+    in fuori (come i fianchi del plastico nella scena). strips falso: le
+    celle tutte bagnate restano due triangoli l'una, coi lati in comune fra
+    celle vicine — per ricavarne il contorno (IO.tinOutline: l'acqua come
+    lastra in Revit), che coi giunti a T vedrebbe rive anche in mezzo.
     → { positions, triangles, area } (area della superficie in pianta, m²) */
-export function waterMesh(hf, polygon, level) {
+export function waterMesh(hf, polygon, level, { strips = true } = {}) {
   const n = hf.nx, m = hf.ny, c = hf.cell, Z = hf.z;
   const inP = new Uint8Array(n * m);
   polygonRows(hf, polygon, (j, a, b) => inP.fill(1, j * n + a, j * n + b + 1));
@@ -1416,6 +1434,10 @@ export function waterMesh(hf, polygon, level) {
   const node = (k) => vert(k, hf.x0 + (k % n) * c, hf.y0 + Math.floor(k / n) * c, level);
   const cross = (a, b) => {                              // dove il terreno incontra il pelo sul lato a–b
     const t = (level - Z[a]) / (Z[b] - Z[a]), xa = hf.x0 + (a % n) * c, ya = hf.y0 + Math.floor(a / n) * c;
+    /* a meno di 2 mm da un nodo il taglio È il nodo: niente lati più corti della tolleranza di Revit (l'acqua come
+       volume, passo 5) né schegge; i triangoli che si chiudono li toglie fan */
+    if (t * c < 0.002) return node(a);
+    if ((1 - t) * c < 0.002) return node(b);
     return vert(Math.min(a, b) + "_" + Math.max(a, b), xa + t * ((b % n) - (a % n)) * c, ya + t * (Math.floor(b / n) - Math.floor(a / n)) * c, level);
   };
   /* a ventaglio; via i triangoli piatti (un nodo esattamente alla quota del pelo fa coincidere due tagli) */
@@ -1445,7 +1467,11 @@ export function waterMesh(hf, polygon, level) {
     const flush = (i1) => { const a = j * n + run, b = j * n + i1 + 1; fan([node(a), node(b), node(b + n), node(a + n)], true); run = -1; };
     for (let i = 0; i < n - 1; i++) {
       const k = j * n + i;
-      if (wet(k) && wet(k + 1) && wet(k + n) && wet(k + n + 1)) { if (run < 0) run = i; continue; }
+      if (wet(k) && wet(k + 1) && wet(k + n) && wet(k + n + 1)) {
+        if (!strips) { fan([node(k), node(k + 1), node(k + n + 1), node(k + n)], true); continue; }   // cella per cella: nessun giunto a T
+        if (run < 0) run = i;
+        continue;
+      }
       if (run >= 0) flush(i - 1);
       if (wet(k) || wet(k + 1) || wet(k + n) || wet(k + n + 1)) { clipTri(k, k + 1, k + n + 1); clipTri(k, k + n + 1, k + n); }
     }
@@ -1466,6 +1492,87 @@ export function waterMesh(hf, polygon, level) {
     else fan([cross(a, b), ground(b), node(b)], false);
   }
   return { positions: Float64Array.from(P), triangles: Uint32Array.from(T), area };
+}
+
+/** l'acqua come VOLUME chiuso per Revit (passo 5, «sarebbe possibile avere
+    l'acqua come un volume pieno?»; la sottrazione booleana dalla toposolid,
+    18 000 facce, Revit non la riesce): in alto UNA faccia piana per specchio
+    (la riva come anello esterno, le isole come buchi: nessuno spigolo dei
+    triangoli), sotto il letto del lago `drop` più giù del terreno (resta
+    nascosto dalla toposolid, che è opaca, anche dove il TIN di Revit si
+    scosta di qualche centimetro dalla griglia), in giro le pareti verticali
+    lungo la riva e dove l'acqua arriva al poligono o al bordo della griglia.
+    Le facce della superficie di waterMesh cella per cella (vertici in comune
+    per chiave, nessun giunto a T), i lati usati una volta sola sono la riva.
+    → null se non c'è acqua; se no { positions (in alto i vertici 0…N−1 alla
+       quota del pelo, sotto N…2N−1 al letto), tops: [[esterno, …buchi]] (indici,
+       esterno antiorario, buchi orari), tris (letto, rivolto in giù), quads
+       (pareti, rivolte in fuori), area } */
+export function waterVolume(hf, polygon, level, { drop = 0.05 } = {}) {
+  const wm = waterMesh(hf, polygon, level, { strips: false }), P = wm.positions, W = wm.triangles;
+  const remap = new Map(), V = [], T = [];
+  const id = (k) => { let v = remap.get(k); if (v === undefined) { v = V.length; remap.set(k, v); V.push(k); } return v; };
+  for (let t = 0; t + 2 < W.length; t += 3) {
+    const a = W[t], b = W[t + 1], c = W[t + 2];
+    if (a === b || b === c || a === c) continue;
+    const s = (P[3 * b] - P[3 * a]) * (P[3 * c + 1] - P[3 * a + 1]) - (P[3 * b + 1] - P[3 * a + 1]) * (P[3 * c] - P[3 * a]);
+    if (!(s > 1e-12)) continue;                                  // le pareti di sezione di waterMesh (nessuna area in pianta)
+    T.push(id(a), id(b), id(c));
+  }
+  if (!T.length) return null;
+  const N = V.length, X = (v) => P[3 * V[v]], Y = (v) => P[3 * V[v] + 1];
+  /* la riva: lati usati da un triangolo solo, nel verso del triangolo (interno a sinistra) */
+  const uses = new Map(), ek = (u, v) => (u < v ? u * N + v : v * N + u);
+  for (let t = 0; t < T.length; t += 3) for (let e = 0; e < 3; e++) { const k = ek(T[t + e], T[t + (e + 1) % 3]); uses.set(k, (uses.get(k) || 0) + 1); }
+  const next = new Map();
+  let bEdges = 0;
+  for (let t = 0; t < T.length; t += 3) for (let e = 0; e < 3; e++) {
+    const u = T[t + e], v = T[t + (e + 1) % 3];
+    if (uses.get(ek(u, v)) !== 1) continue;
+    if (!next.has(u)) next.set(u, []);
+    next.get(u).push(v);
+    bEdges++;
+  }
+  /* anelli coi vertici tutti (le pareti e il letto si chiudono su quegli stessi lati); su un nodo con due uscite il
+     giro più a sinistra, come gridOutline */
+  const rings = [];
+  for (const start of [...next.keys()]) {
+    while (next.get(start) && next.get(start).length) {
+      const ring = [start];
+      let prev = start, cur = next.get(start).pop();
+      while (cur !== start && cur !== undefined && ring.length <= bEdges) {
+        ring.push(cur);
+        const l = next.get(cur);
+        if (!l || !l.length) { cur = undefined; break; }
+        let pick = l.length - 1;
+        if (l.length > 1) {
+          const ix = X(cur) - X(prev), iy = Y(cur) - Y(prev);
+          let best = -Infinity;
+          l.forEach((w, q) => { const ox = X(w) - X(cur), oy = Y(w) - Y(cur), turn = Math.atan2(ix * oy - iy * ox, ix * ox + iy * oy); if (turn > best) { best = turn; pick = q; } });
+        }
+        prev = cur;
+        cur = l.splice(pick, 1)[0];
+      }
+      if (cur === start && ring.length >= 3) rings.push(ring);
+    }
+  }
+  const area = (r) => { let s = 0; for (let q = 0; q < r.length; q++) { const u = r[q], v = r[(q + 1) % r.length]; s += X(u) * Y(v) - X(v) * Y(u); } return s / 2; };
+  const outer = rings.filter((r) => area(r) > 0), holes = rings.filter((r) => area(r) < 0);
+  const tops = outer.map((o) => {
+    const poly = o.map((v) => [X(v), Y(v)]);
+    return [o, ...holes.filter((h) => pointInPolygon(X(h[0]), Y(h[0]), poly))];
+  });
+  const pos = new Float64Array(6 * N);
+  for (let v = 0; v < N; v++) {
+    const x = X(v), y = Y(v);
+    pos.set([x, y, level], 3 * v);
+    pos.set([x, y, Math.min(level, sampleHeight(hf, x, y)) - drop], 3 * (N + v));
+  }
+  const tris = new Uint32Array(T.length);
+  for (let t = 0; t < T.length; t += 3) { tris[t] = T[t] + N; tris[t + 1] = T[t + 2] + N; tris[t + 2] = T[t + 1] + N; }   // il letto, girato
+  const quads = [];
+  for (const r of rings) for (let q = 0; q < r.length; q++) { const u = r[q], v = r[(q + 1) % r.length]; quads.push(u + N, v + N, v, u); }
+  return { positions: pos, tops, tris, quads: Uint32Array.from(quads), area: wm.area };
 }
 
 /** acqua alla quota z (dentro `polygon`, se c'è): area e quota del terreno
@@ -2121,6 +2228,340 @@ export function gridTriangles(hf) {
     T.push(a, b, cc, a, cc, d);
   }
   return { positions: P, triangles: Uint32Array.from(T), uv };
+}
+
+/* ======================================================================
+   Anteprima in Revit (add-in ViewIFC, PIANO_Revit_ViewIFC.md §19, passo 3)
+   La superficie a passo `stride` (un nodo ogni stride; l'ultima riga e
+   l'ultima colonna ci sono sempre) in riquadri di `tile` celle: ogni
+   riquadro è uno strato dell'anteprima, mandato solo quando la sua firma
+   cambia (quote al mm, classi, opere). Dentro il riquadro un gruppo per
+   classe di colore × opera, coi suoi vertici (Float32 attorno all'origine
+   del riquadro) e i suoi triangoli (Uint16: al massimo (tile + 1)² vertici,
+   sotto i 60 000 dei buffer di Revit). Celle con un angolo fuori dalla
+   maschera: via, come negli export.
+   cellCls(a, b, c, d) e cellOwner(a, b, c, d) ricevono gli indici dei 4
+   angoli nella griglia piena (anche fra i nodi saltati si legge giusto):
+   la classe di colore (intero) e l'opera (id o null) della cella.
+   interval > 0: le curve di livello del riquadro a quel passo (segmenti a
+   coppie di punti, attorno all'origine, alzati di lift), esatte sui suoi
+   triangoli: in Revit il rilievo si legge dalle curve, non dalla luce.
+   base (quota) ≠ null: i fianchi del plastico come nella pagina — pareti
+   verticali sul bordo del terreno (della griglia o della maschera) fino a
+   quella quota, rivolte in fuori, coi loro vertici (spigolo vivo con la
+   superficie) → walls: { pos, idx }; e gli spigoli in alto e in basso
+   (rim: segmenti come lines), come gli spigoli delle opere di Sviluppo
+   profili: senza volumi il terreno in Revit sembrava un foglio piatto.
+   outline (anelli [[x, y], …] con l'interno a sinistra, IO.tinOutline):
+   il contorno vero del terreno al posto della maschera a celle — le celle
+   sul bordo tagliate lungo il poligono (Sutherland–Hodgman sulla cella,
+   quote bilineari dagli angoli), i fianchi sui suoi lati, spezzati sulle
+   linee della griglia così combaciano con la superficie. Sulla maschera i
+   lati inclinati venivano scalette del passo dell'anteprima (prova in
+   Revit 2025: «i bordi inclinati vengono seghettati in base alla
+   campionatura»). I buchi tagliano solo i fianchi, non le celle.
+   → [{ ti, tj, sig, origin: [x, y, 0], groups: [{ cls, owner, pos, idx }], lines, walls, rim }]
+   ====================================================================== */
+export function previewTiles(hf, { stride = 1, tile = 128, cellCls = null, cellOwner = null, interval = 0, lift = 0.03, base = null, outline = null } = {}) {
+  const n = hf.nx, m = hf.ny, c = hf.cell, Z = hf.z, M = hf.mask, s = Math.max(1, Math.floor(stride));
+  const iv = +interval > 0 ? +interval : 0, L = [], zb = Number.isFinite(base) ? +base : null;
+  const axis = (len) => { const a = []; for (let i = 0; i < len - 1; i += s) a.push(i); a.push(len - 1); return a; };
+  const XI = axis(n), YJ = axis(m), NX = XI.length, NY = YJ.length, out = [];
+  const GX = (I) => hf.x0 + XI[I] * c, GY = (J) => hf.y0 + YJ[J] * c;
+  /* bordo della maschera smussato (terza prova in Revit 2025: «cos'è questa seghettatura sui bordi?» — sulla
+     scaletta delle celle ogni gradino aveva la sua parete): una cella con 3 angoli nella maschera diventa il
+     triangolo di quei 3, con la parete sulla diagonale. okN = nodo nella maschera; cnt = angoli buoni della cella */
+  const okN = (I, J) => (!M || M[YJ[J] * n + XI[I]] ? 1 : 0);
+  const cnt = (I, J) => (I < 0 || J < 0 || I >= NX - 1 || J >= NY - 1 ? 0 : okN(I, J) + okN(I + 1, J) + okN(I, J + 1) + okN(I + 1, J + 1));
+  const mix = (h, v) => Math.imul(h ^ v, 16777619) >>> 0;
+  const hashStr = (h, str) => { for (let q = 0; q < str.length; q++) h = mix(h, str.charCodeAt(q)); return mix(h, 0x2f); };
+  const zmm = (k) => Math.round(Z[k] * 1000) | 0;
+  /* ---- col contorno: nodi dentro (scansione per righe, pari/dispari su tutti gli anelli), celle attraversate dai
+     lati, fianchi per riquadro (coordinate del mondo, portati all'origine del riquadro all'uscita) */
+  const rings = Array.isArray(outline) ? outline.filter((r) => Array.isArray(r) && r.length >= 3) : [];
+  const useO = rings.length > 0;
+  const outer = rings.filter((r) => { let ar = 0; for (let k = 0; k < r.length; k++) { const p = r[k], q = r[(k + 1) % r.length]; ar += p[0] * q[1] - q[0] * p[1]; } return ar > 0; });   // gli antiorari: tagliano le celle
+  const cellI = (x) => Math.min(NX - 2, Math.max(0, Math.floor((x - hf.x0) / (c * s) + 1e-9)));
+  const cellJ = (y) => Math.min(NY - 2, Math.max(0, Math.floor((y - hf.y0) / (c * s) + 1e-9)));
+  const zIn = (I, J, x, y) => {                  // bilineare nella cella (I, J): sui lati della cella è lineare fra i due angoli
+    const x0 = GX(I), x1 = GX(I + 1), y0 = GY(J), y1 = GY(J + 1), u = (x - x0) / (x1 - x0), w = (y - y0) / (y1 - y0);
+    const za = Z[YJ[J] * n + XI[I]], zb2 = Z[YJ[J] * n + XI[I + 1]], zd = Z[YJ[J + 1] * n + XI[I]], ze = Z[YJ[J + 1] * n + XI[I + 1]];
+    return za * (1 - u) * (1 - w) + zb2 * u * (1 - w) + zd * (1 - u) * w + ze * u * w;
+  };
+  let insN = null, bnd = null, oh = 0;
+  const wallsBy = new Map();                     // riquadro → { P, T, R } nel mondo
+  if (useO) {
+    insN = new Uint8Array(NX * NY);
+    for (let J = 0; J < NY; J++) {
+      const y = GY(J), xs = [];
+      for (const r of rings) for (let k = 0; k < r.length; k++) {
+        const p = r[k], q = r[(k + 1) % r.length];
+        if ((p[1] <= y) !== (q[1] <= y)) xs.push(p[0] + (y - p[1]) * (q[0] - p[0]) / (q[1] - p[1]));
+      }
+      xs.sort((u, w) => u - w);
+      let q = 0;
+      for (let I = 0; I < NX; I++) { const x = GX(I); while (q < xs.length && xs[q] < x) q++; insN[J * NX + I] = q & 1; }
+    }
+    bnd = new Uint8Array((NX - 1) * (NY - 1));
+    const segBox = (p, q, x0, y0, x1, y1) => {   // il segmento tocca il rettangolo? (Liang–Barsky)
+      let t0 = 0, t1 = 1;
+      const dx = q[0] - p[0], dy = q[1] - p[1];
+      for (const [pp, qq] of [[-dx, p[0] - x0], [dx, x1 - p[0]], [-dy, p[1] - y0], [dy, y1 - p[1]]]) {
+        if (Math.abs(pp) < 1e-15) { if (qq < 0) return false; continue; }
+        const t = qq / pp;
+        if (pp < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; }
+      }
+      return true;
+    };
+    for (const r of rings) for (let k = 0; k < r.length; k++) {
+      const p = r[k], q = r[(k + 1) % r.length];
+      oh = mix(mix(oh, Math.round(p[0] * 1000) | 0), Math.round(p[1] * 1000) | 0);
+      const i0 = cellI(Math.min(p[0], q[0])), i1 = cellI(Math.max(p[0], q[0])), j0 = cellJ(Math.min(p[1], q[1])), j1 = cellJ(Math.max(p[1], q[1]));
+      for (let J = j0; J <= j1; J++) for (let I = i0; I <= i1; I++)
+        if (!bnd[J * (NX - 1) + I] && segBox(p, q, GX(I), GY(J), GX(I + 1), GY(J + 1))) bnd[J * (NX - 1) + I] = 1;
+      if (zb === null) continue;
+      /* fianco del lato p→q (dentro a sinistra, normale verso fuori): spezzato dove attraversa le linee della griglia */
+      const ts = [0, 1], dx = q[0] - p[0], dy = q[1] - p[1];
+      if (Math.abs(dx) > 1e-12) for (let I = i0; I <= i1 + 1; I++) { const t = (GX(I) - p[0]) / dx; if (t > 0 && t < 1) ts.push(t); }
+      if (Math.abs(dy) > 1e-12) for (let J = j0; J <= j1 + 1; J++) { const t = (GY(J) - p[1]) / dy; if (t > 0 && t < 1) ts.push(t); }
+      ts.sort((u, w) => u - w);
+      for (let z = 1; z < ts.length; z++) {
+        if (ts[z] - ts[z - 1] < 1e-9) continue;
+        const ua = [p[0] + ts[z - 1] * dx, p[1] + ts[z - 1] * dy], ub = [p[0] + ts[z] * dx, p[1] + ts[z] * dy];
+        const I = cellI((ua[0] + ub[0]) / 2), J = cellJ((ua[1] + ub[1]) / 2), za = zIn(I, J, ua[0], ua[1]), zb3 = zIn(I, J, ub[0], ub[1]);
+        const tk = Math.floor(J / tile) + "," + Math.floor(I / tile);
+        let w = wallsBy.get(tk);
+        if (!w) wallsBy.set(tk, (w = { P: [], T: [], R: [] }));
+        const b0 = w.P.length / 3;
+        w.P.push(ua[0], ua[1], zb, ub[0], ub[1], zb, ub[0], ub[1], zb3, ua[0], ua[1], za);
+        w.T.push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
+        w.R.push(ua[0], ua[1], za, ub[0], ub[1], zb3, ua[0], ua[1], zb, ub[0], ub[1], zb);
+      }
+    }
+  }
+  /* la cella (I, J) tagliata dagli anelli esterni (antiorari): i poligoni dentro, vertici [x, y] */
+  const clipCell = (I, J) => {
+    const x0 = GX(I), x1 = GX(I + 1), y0 = GY(J), y1 = GY(J + 1), res = [];
+    const planes = [[(p) => p[0] - x0, 0, x0], [(p) => x1 - p[0], 0, x1], [(p) => p[1] - y0, 1, y0], [(p) => y1 - p[1], 1, y1]];
+    for (const r of outer) {                     // i buchi non tagliano le celle
+      let poly = r;
+      for (const [f, ax, v] of planes) {
+        const nxt = [];
+        for (let k = 0; k < poly.length; k++) {
+          const p = poly[k], q = poly[(k + 1) % poly.length], fp = f(p), fq = f(q);
+          if (fp >= 0) nxt.push(p);
+          if ((fp >= 0) !== (fq >= 0)) { const t = fp / (fp - fq), x = p[0] + t * (q[0] - p[0]), y = p[1] + t * (q[1] - p[1]); nxt.push(ax === 0 ? [v, y] : [x, v]); }
+        }
+        poly = nxt;
+        if (poly.length < 3) break;
+      }
+      if (poly.length < 3) continue;
+      let a2 = 0;
+      for (let k = 0; k < poly.length; k++) { const p = poly[k], q = poly[(k + 1) % poly.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
+      if (a2 > 1e-10) res.push(poly);
+    }
+    return res;
+  };
+  for (let tj = 0; tj * tile < NY - 1; tj++) for (let ti = 0; ti * tile < NX - 1; ti++) {
+    const I0 = ti * tile, I1 = Math.min(I0 + tile, NX - 1), J0 = tj * tile, J1 = Math.min(J0 + tile, NY - 1);
+    const ox = GX(I0), oy = GY(J0), W = I1 - I0 + 1;
+    const groups = new Map(), WP = [], WT = [], R = [];
+    let h = mix(mix(mix(mix(mix(mix(2166136261, s), XI[I0]), YJ[J0]), Math.round(iv * 1000)), zb === null ? 0x7fff : Math.round(zb * 1000) | 0), oh);
+    for (let J = J0; J < J1; J++) for (let I = I0; I < I1; I++) {
+      const a = YJ[J] * n + XI[I], b = YJ[J] * n + XI[I + 1], d = YJ[J + 1] * n + XI[I], e = YJ[J + 1] * n + XI[I + 1];
+      let miss = -1, cut = null;
+      if (useO) {
+        if (bnd[J * (NX - 1) + I]) { cut = clipCell(I, J); if (!cut.length) { h = mix(h, 0xfffe); continue; } }
+        else if (!insN[J * NX + I]) { h = mix(h, 0xffff); continue; }
+      } else {
+        const k4 = cnt(I, J);
+        if (k4 < 3) { h = mix(h, 0xffff); continue; }
+        miss = k4 === 4 ? -1 : !okN(I, J) ? 0 : !okN(I + 1, J) ? 1 : !okN(I + 1, J + 1) ? 2 : 3;   // angolo fuori: a, b, e, d
+      }
+      h = mix(mix(mix(mix(mix(h, miss + 2), zmm(a)), zmm(b)), zmm(d)), zmm(e));
+      if (cut) h = mix(h, cut.length);
+      const cls = cellCls ? cellCls(a, b, d, e) | 0 : 0, own = cellOwner ? cellOwner(a, b, d, e) : null;
+      h = mix(h, cls);
+      if (own != null) h = hashStr(h, String(own));
+      const gk = cls + "|" + (own == null ? "" : own);
+      let g = groups.get(gk);
+      if (!g) groups.set(gk, (g = { cls, owner: own == null ? null : String(own), map: new Map(), P: [], T: [] }));
+      const P3 = (vi) => [g.P[3 * vi], g.P[3 * vi + 1], g.P[3 * vi + 2]];
+      if (cut) {
+        /* la cella tagliata: ogni pezzo a ventaglio, quote bilineari (sui lati della cella = quelle dei vicini) */
+        for (const poly of cut) {
+          const b0 = g.P.length / 3;
+          for (const [x, y] of poly) g.P.push(x - ox, y - oy, zIn(I, J, x, y));
+          for (let k = 1; k + 1 < poly.length; k++) {
+            g.T.push(b0, b0 + k, b0 + k + 1);
+            if (iv > 0) isoTri(P3(b0), P3(b0 + k), P3(b0 + k + 1), iv, lift, L);
+          }
+        }
+        continue;
+      }
+      const v = (Ii, Jj, k) => {
+        const key = (Jj - J0) * W + (Ii - I0);
+        let q = g.map.get(key);
+        if (q === undefined) { q = g.P.length / 3; g.map.set(key, q); g.P.push(GX(Ii) - ox, GY(Jj) - oy, Z[k]); }
+        return q;
+      };
+      /* triangoli antiorari (in su): la cella intera in due, o il triangolo dei 3 angoli buoni */
+      const vx = [() => v(I, J, a), () => v(I + 1, J, b), () => v(I + 1, J + 1, e), () => v(I, J + 1, d)];   // a b e d
+      const tris = miss < 0 ? [[0, 1, 2], [0, 2, 3]] : [[[1, 2, 3]], [[0, 2, 3]], [[0, 1, 3]], [[0, 1, 2]]][miss];
+      const id = [];
+      for (const tr of tris) { const q = tr.map((x) => (id[x] ??= vx[x]())); g.T.push(q[0], q[1], q[2]); }
+      if (iv > 0) for (const tr of tris) isoTri(P3(id[tr[0]]), P3(id[tr[1]]), P3(id[tr[2]]), iv, lift, L);
+      if (zb !== null && !useO) {
+        /* i lati sul bordo, percorsi in senso antiorario attorno al terreno (dentro a sinistra): parete (pb, qb, qt),
+           (pb, qt, pt) con la normale verso fuori; spigolo in alto e in basso. Un lato è di bordo se i suoi due angoli
+           sono buoni e la cella accanto non ha almeno 3 angoli buoni; la diagonale di un triangolo lo è sempre */
+        const pt = (Ii, Jj, k) => [GX(Ii) - ox, GY(Jj) - oy, Z[k]];
+        const C4 = [pt(I, J, a), pt(I + 1, J, b), pt(I + 1, J + 1, e), pt(I, J + 1, d)];
+        const wall = (p, q) => {
+          const w = WP.length / 3;
+          WP.push(p[0], p[1], zb, q[0], q[1], zb, q[0], q[1], q[2], p[0], p[1], p[2]);
+          WT.push(w, w + 1, w + 2, w, w + 2, w + 3);
+          R.push(p[0], p[1], p[2], q[0], q[1], q[2], p[0], p[1], zb, q[0], q[1], zb);
+        };
+        const sides = [[0, 1, I, J - 1], [1, 2, I + 1, J], [2, 3, I, J + 1], [3, 0, I - 1, J]];
+        for (const [p, q, nI, nJ] of sides) if (p !== miss && q !== miss && cnt(nI, nJ) < 3) wall(C4[p], C4[q]);
+        if (miss >= 0) { const nx = (miss + 1) % 4, pv = (miss + 3) % 4; wall(C4[pv], C4[nx]); }   // la diagonale, da dopo a prima dell'angolo mancante
+      }
+    }
+    for (let J = J0; J <= J1; J++) h = mix(h, zmm(YJ[J] * n + XI[I1]));   // l'ultima colonna e
+    for (let I = I0; I <= I1; I++) h = mix(h, zmm(YJ[J1] * n + XI[I]));   // l'ultima riga di quote
+    const ow = wallsBy.get(tj + "," + ti);       // i fianchi del contorno che cadono in questo riquadro
+    if (ow) {
+      const b0 = WP.length / 3;
+      for (let k = 0; k < ow.P.length; k += 3) WP.push(ow.P[k] - ox, ow.P[k + 1] - oy, ow.P[k + 2]);
+      for (const t of ow.T) WT.push(t + b0);
+      for (let k = 0; k < ow.R.length; k += 3) R.push(ow.R[k] - ox, ow.R[k + 1] - oy, ow.R[k + 2]);
+      for (let k = 0; k < ow.P.length; k += 3) h = mix(h, Math.round(ow.P[k + 2] * 1000) | 0);
+    }
+    out.push({ ti, tj, sig: h.toString(36), origin: [ox, oy, 0],
+      groups: [...groups.values()].map((g) => ({ cls: g.cls, owner: g.owner, pos: Float32Array.from(g.P), idx: Uint16Array.from(g.T) })),
+      lines: Float32Array.from(L), walls: { pos: Float32Array.from(WP), idx: Uint16Array.from(WT) }, rim: Float32Array.from(R) });
+    L.length = 0;
+  }
+  return out;
+}
+/* curve di livello a passo iv su un triangolo (esatte sulla maglia dell'anteprima): per ogni quota k·iv fra la più
+   bassa e la più alta, il segmento dove la attraversa, alzato di lift (sopra la faccia, per non sfarfallare) */
+function isoTri(p, q, r, iv, lift, L) {
+  const lo = Math.min(p[2], q[2], r[2]), hi = Math.max(p[2], q[2], r[2]);
+  for (let k = Math.ceil(lo / iv); k * iv < hi; k++) {
+    const z = k * iv, s = [];
+    for (const [u, w] of [[p, q], [q, r], [r, p]])
+      if ((u[2] < z) !== (w[2] < z)) { const t = (z - u[2]) / (w[2] - u[2]); s.push(u[0] + t * (w[0] - u[0]), u[1] + t * (w[1] - u[1]), z + lift); }
+    if (s.length === 6) L.push(...s);
+  }
+}
+
+/* ======================================================================
+   «Porta in Revit» (passo 4, PIANO_Revit_ViewIFC §19): il contorno della toposolid per topo.place.
+   gridOutline: il contorno della maschera (le celle coi 4 angoli validi) lungo le linee della griglia, anelli
+   [[x, y], …] con l'interno a sinistra (esterni antiorari, buchi orari), vertici allineati tolti; senza maschera il
+   rettangolo della griglia. Per i terreni senza contorno vero (meta.outline ce l'hanno solo gli import da TIN).
+   groundOutline: gli anelli con la quota del terreno in ogni vertice (bilineare, come l'anteprima), infittiti
+   dove il terreno lungo un lato non è una retta: Revit tira il bordo dritto fra due vertici, e su un lato di
+   300 m del rettangolo la quota del bordo sarebbe sbagliata di metri. Un lato si spezza nel punto che si
+   scosta di più dalla retta (campioni ogni mezza cella) finché lo scarto è ≤ tol o il pezzo è più corto di minLen
+   ====================================================================== */
+export function gridOutline(hf) {
+  const n = hf.nx, m = hf.ny, M = hf.mask, X = (k) => hf.x0 + (k % n) * hf.cell, Y = (k) => hf.y0 + Math.floor(k / n) * hf.cell;
+  if (!M) return [[[hf.x0, hf.y0], [X(n - 1), hf.y0], [X(n - 1), Y((m - 1) * n)], [hf.x0, Y((m - 1) * n)]]];
+  const ok = (i, j) => i >= 0 && j >= 0 && i < n - 1 && j < m - 1 && !!(M[j * n + i] && M[j * n + i + 1] && M[(j + 1) * n + i] && M[(j + 1) * n + i + 1]);
+  const next = new Map(), add = (u, v) => { const l = next.get(u); if (l) l.push(v); else next.set(u, [v]); };
+  for (let j = 0; j < m - 1; j++) for (let i = 0; i < n - 1; i++) {
+    if (!ok(i, j)) continue;
+    const a = j * n + i, b = a + 1, c = a + n + 1, d = a + n;          // la cella in senso antiorario
+    if (!ok(i, j - 1)) add(a, b);
+    if (!ok(i + 1, j)) add(b, c);
+    if (!ok(i, j + 1)) add(c, d);
+    if (!ok(i - 1, j)) add(d, a);
+  }
+  /* su un nodo con due uscite (due celle che si toccano in un angolo) si gira il più possibile a sinistra: anelli
+     semplici che si toccano in un punto, mai un otto */
+  const dir = (u, v) => [X(v) - X(u), Y(v) - Y(u)];
+  const rings = [];
+  for (const start of [...next.keys()]) {
+    while (next.get(start) && next.get(start).length) {
+      const ring = [start];
+      let prev = start, cur = next.get(start).pop();
+      while (cur !== start && cur !== undefined) {
+        ring.push(cur);
+        const l = next.get(cur);
+        if (!l || !l.length) { cur = undefined; break; }
+        let pick = l.length - 1;
+        if (l.length > 1) {
+          const [ix, iy] = dir(prev, cur);
+          let best = -Infinity;
+          l.forEach((w, q) => { const [ox, oy] = dir(cur, w), turn = Math.atan2(ix * oy - iy * ox, ix * ox + iy * oy); if (turn > best) { best = turn; pick = q; } });
+        }
+        prev = cur;
+        cur = l.splice(pick, 1)[0];
+      }
+      if (cur !== start || ring.length < 4) continue;
+      const out = [];
+      for (let q = 0; q < ring.length; q++) {
+        const p = ring[(q + ring.length - 1) % ring.length], v = ring[q], r = ring[(q + 1) % ring.length];
+        const [ax, ay] = dir(p, v), [bx, by] = dir(v, r);
+        if (Math.abs(ax * by - ay * bx) > 1e-12) out.push([X(v), Y(v)]);
+      }
+      if (out.length >= 3) rings.push(out);
+    }
+  }
+  return rings;
+}
+export function groundOutline(hf, rings, { tol = 0.01, minLen = hf.cell } = {}) {
+  const zAt = (x, y) => sampleHeight(hf, x, y), step = hf.cell / 2;
+  const split = (a, b, out) => {
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]), ns = Math.floor(len / step);
+    if (len <= minLen || ns < 2) return;
+    let worst = 0, at = -1;
+    for (let s = 1; s < ns; s++) {
+      const t = s / ns, z = zAt(a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])), e = Math.abs(z - (a[2] + t * (b[2] - a[2])));
+      if (e > worst) { worst = e; at = t; }
+    }
+    if (worst <= tol) return;
+    const x = a[0] + at * (b[0] - a[0]), y = a[1] + at * (b[1] - a[1]), p = [x, y, zAt(x, y)];
+    split(a, p, out); out.push(p); split(p, b, out);
+  };
+  return rings.filter((r) => Array.isArray(r) && r.length >= 3).map((r) => {
+    const P = r.map(([x, y]) => [x, y, zAt(x, y)]), out = [];
+    P.forEach((a, q) => { out.push(a); split(a, P[(q + 1) % P.length], out); });
+    return out;
+  });
+}
+/* l'impronta in pianta di un'opera, per le sottoregioni della toposolid (passo 5): piattaforma = il suo poligono;
+   rampa = la striscia larga `width` attorno alla linea effettiva (pathLine: con la pendenza bloccata la fine si
+   sposta), estremi dritti, giunti a spigolo vivo (oltre 4 mezze larghezze, su una curva stretta, smussati). Anello
+   antiorario [[x, y], …]; null per le altre opere o se non ha forma */
+export function opFootprint(op, ops = [op]) {
+  const ccw = (P) => { let a = 0; for (let k = 0; k < P.length; k++) { const p = P[k], q = P[(k + 1) % P.length]; a += p[0] * q[1] - q[0] * p[1]; } return a < 0 ? P.slice().reverse() : P; };
+  if (op.type === "pad") return okPts(op.polygon) && op.polygon.length >= 3 ? ccw(op.polygon.map((p) => [p[0], p[1]])) : null;
+  if (op.type !== "path") return null;
+  const L = pathLine(op, ops), h = +op.width / 2;
+  if (!okPts(L) || L.length < 2 || !(h > 0)) return null;
+  const Q = [L[0]];
+  for (const p of L.slice(1)) if (Math.hypot(p[0] - Q[Q.length - 1][0], p[1] - Q[Q.length - 1][1]) > 1e-9) Q.push(p);
+  const n = Q.length;
+  if (n < 2) return null;
+  const N = [];                                         // normali a sinistra dei tratti
+  for (let q = 1; q < n; q++) { const dx = Q[q][0] - Q[q - 1][0], dy = Q[q][1] - Q[q - 1][1], l = Math.hypot(dx, dy); N.push([-dy / l, dx / l]); }
+  const off = (p, v, s) => [p[0] + v[0] * s, p[1] + v[1] * s];
+  const side = (sg) => {
+    const out = [off(Q[0], N[0], sg * h)];
+    for (let q = 1; q < n - 1; q++) {
+      const a = N[q - 1], b = N[q], mx = a[0] + b[0], my = a[1] + b[1], ml = Math.hypot(mx, my);
+      const k = ml > 1e-9 ? h / ((mx * a[0] + my * a[1]) / ml) : Infinity;   // mezza larghezza / coseno di metà angolo
+      if (k > 4 * h) out.push(off(Q[q], a, sg * h), off(Q[q], b, sg * h));
+      else out.push([Q[q][0] + sg * mx / ml * k, Q[q][1] + sg * my / ml * k]);
+    }
+    out.push(off(Q[n - 1], N[n - 2], sg * h));
+    return out;
+  };
+  return ccw([...side(-1), ...side(1).reverse()]);
 }
 
 export function build3dm(rhino, parts, { version = 7, names = {} } = {}) {

@@ -133,6 +133,10 @@ header>*{pointer-events:auto}
 .stats .dot{width:6px;height:6px;border-radius:50%;background:var(--lime);flex:none}
 .stats .dot.wait{background:var(--amber)}
 .fastchip{font:500 10.5px/1 var(--mono);letter-spacing:.06em;color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:4px 8px}
+.rvchip{font:500 10.5px/1 var(--mono);letter-spacing:.04em;color:var(--text);border:1px solid var(--lime);border-radius:999px;padding:4px 8px;max-width:340px;overflow:hidden;text-overflow:ellipsis}
+.rvbtn{font:500 10.5px/1 var(--mono);letter-spacing:.04em;color:var(--muted);background:none;border:1px dashed var(--muted);border-radius:999px;padding:4px 9px;cursor:pointer}
+.rvbtn:hover{color:var(--text);border-color:var(--text)}
+.rvbtn.on{color:#1d2113;background:var(--lime);border:1px solid var(--lime)}
 .langsw{display:inline-flex;align-items:center;gap:3px;padding:4px}
 .langsw button{border:none;border-radius:999px;background:none;color:var(--faint);font:500 10.5px var(--mono);letter-spacing:.06em;padding:5px 9px;min-width:32px}
 .langsw button:hover{color:var(--text);background:var(--panel-2)}
@@ -460,6 +464,9 @@ html[data-theme="light"] #dlg{background:rgba(220,226,212,.45)}
   </nav>
   <span class="spacer"></span>
   <div class="stats glass pill" id="stats">
+    <span class="rvchip" id="rvChip" hidden></span>
+    <button class="rvbtn" id="rvPrev" hidden aria-pressed="false" data-i18n="rv.prev" data-i18n-title="rv.prevT" title="Mostra le opere, le terre e gli IFC di contesto visibili nelle viste del modello Revit, senza creare elementi; si aggiorna da sola mentre lavori">Anteprima in Revit</button>
+    <button class="rvbtn" id="rvPlace" hidden data-i18n="rv.place" data-i18n-title="rv.placeT" title="Porta nel modello Revit le opere, le terre e gli strati come oggetti (DirectShape nei Modelli generici, una sottocategoria per classe); ripetuto, aggiorna quelli già portati">Porta in Revit</button>
     <span class="fastchip" id="fastChip" hidden></span>
     <span class="sv"><i class="dot" id="saveDot"></i><span id="statAxis">—</span></span>
   </div>
@@ -847,6 +854,21 @@ const I18N = {
     "t.planOn": "Pianta ortografica: distanze vere, trascina per spostare.", "t.planOff": "Vista 3D.",
     "st.plan": "E {e} · N {n} · {w} pianta {p} · a {d} m dall'asse", "st.planFar": "E {e} · N {n}",
     "rail.fast": "Modalità fast (Q): sezioni ogni 10 m invece del passo scelto, per lavorare leggeri", "st.fast": "fast 10 m",
+    "rv.chip": "Revit {v} · {doc}", "rv.chipNoDoc": "Revit {v} · nessun modello aperto",
+    "rv.tip": "Pagina aperta dentro Revit con l'add-in ViewIFC {addin} (Revit {build})",
+    "rv.prev": "Anteprima in Revit", "rv.prevT": "Mostra le opere, le terre e gli IFC di contesto visibili nelle viste del modello Revit, senza creare elementi; si aggiorna da sola mentre lavori",
+    "rv.sending": "Opere in Revit: {t} triangoli…", "rv.ctxSending": "Contesto in Revit: {t} triangoli…", "rv.ctxDone": "Contesto in Revit: {t} triangoli di {n} IFC in {s} s.",
+    "rv.prevDone": "Anteprima in Revit: {n} oggetti, {t} triangoli nelle viste del modello.", "rv.prevFail": "Anteprima in Revit non riuscita: {m}",
+    "rv.err.noDoc": "Revit: apri prima un modello di progetto.", "rv.err.family": "Revit: il documento attivo è una famiglia, apri un progetto.",
+    "rv.err.far": "Revit: le opere cadono a {km} km dall'origine interna del modello — imposta le coordinate condivise del progetto (E/N come i disegni).",
+    "rv.place": "Porta in Revit", "rv.placeT": "Porta nel modello Revit le opere, le terre e gli strati come oggetti (DirectShape nei Modelli generici, una sottocategoria per classe); ripetuto, aggiorna quelli già portati",
+    "rv.plTitle": "Portare in Revit", "rv.plBody": "{n} oggetti di {w} opere nel modello «{doc}», come DirectShape nei Modelli generici (una sottocategoria e un materiale per classe). Ripetuto, aggiorna gli stessi oggetti; un Ctrl+Z in Revit li toglie tutti.",
+    "rv.plStep": "Passo delle sezioni in Revit: ogni 10 m pesa circa un ottavo del passo dell'opera. Va in Revit quello che vedi, come nell'anteprima: opere, tratti e strati accesi; quelli già in Revit e ora spenti restano come sono.",
+    "rv.pl10": "Ogni 10 m", "rv.plTool": "Passo dell'opera", "rv.plNone": "Niente da portare in Revit: nessun solido acceso (opere, tratti o strati spenti).",
+    "rv.plWorking": "In Revit: {n} oggetti, {t} triangoli…", "rv.plDone": "In Revit: {a} nuovi, {b} aggiornati — {s} solidi, {m} maglie, {t} triangoli in {sec} s.",
+    "rv.plNot": "In Revit {n} oggetti non fatti: {list}", "rv.plFail": "Portare in Revit non riuscito: {m}",
+    "rv.coordTitle": "Coordinate condivise del modello", "rv.coordBody": "Il modello non ha coordinate condivise: le opere cadrebbero a {km} km dall'origine interna. Imposto l'origine interna del modello in E {e}, N {n}, quota {z} (nord di progetto = nord reale)? Si fa una volta sola; poi il modello si linka nel federato «da coordinate condivise».",
+    "rv.coordGo": "Imposta e porta", "rv.err.coordsSet": "Le coordinate condivise del modello sono già impostate: non le cambio.",
     "t.fastOn": "Modalità fast: sezioni ogni 10 m.", "t.fastOff": "Passo pieno: le sezioni col passo di ogni opera.",
     "cm.fastOn": "Modalità fast accesa: sezioni ogni 10 m, volumi approssimati. Spegnila (Q) per il passo pieno.",
     "fx.title": "Modalità fast accesa", "fx.body": "Il modello è calcolato con una sezione ogni 10 m: geometria e volumi in uscita sarebbero approssimati. Ricalcolo al passo pieno di ogni opera per questa uscita? Finita l'uscita si torna in fast.",
@@ -1126,6 +1148,21 @@ const I18N = {
     "t.planOn": "Orthographic plan: true distances, drag to move.", "t.planOff": "3D view.",
     "st.plan": "E {e} · N {n} · {w} plan {p} · {d} m from the axis", "st.planFar": "E {e} · N {n}",
     "rail.fast": "Fast mode (Q): a section every 10 m instead of the chosen step, to work light", "st.fast": "fast 10 m",
+    "rv.chip": "Revit {v} · {doc}", "rv.chipNoDoc": "Revit {v} · no model open",
+    "rv.tip": "Page open inside Revit with the ViewIFC add-in {addin} (Revit {build})",
+    "rv.prev": "Preview in Revit", "rv.prevT": "Show the works, the earthworks and the visible context IFCs in the Revit model views, without creating elements; it updates by itself while you work",
+    "rv.sending": "Works to Revit: {t} triangles…", "rv.ctxSending": "Context to Revit: {t} triangles…", "rv.ctxDone": "Context in Revit: {t} triangles from {n} IFC in {s} s.",
+    "rv.prevDone": "Preview in Revit: {n} objects, {t} triangles in the model views.", "rv.prevFail": "Preview in Revit failed: {m}",
+    "rv.err.noDoc": "Revit: open a project model first.", "rv.err.family": "Revit: the active document is a family, open a project.",
+    "rv.err.far": "Revit: the works fall {km} km away from the model's internal origin — set the project's shared coordinates (E/N as the drawings).",
+    "rv.place": "Bring into Revit", "rv.placeT": "Bring the works, the earthworks and the layers into the Revit model as objects (DirectShapes in Generic Models, one subcategory per class); repeated, it updates the ones already there",
+    "rv.plTitle": "Bring into Revit", "rv.plBody": "{n} objects of {w} works into the model “{doc}”, as DirectShapes in Generic Models (one subcategory and one material per class). Repeated, it updates the same objects; one Ctrl+Z in Revit removes them all.",
+    "rv.plStep": "Section step in Revit: every 10 m weighs about an eighth of the work's own step. What you see goes into Revit, as in the preview: works, parts and layers switched on; the ones already in Revit and now switched off stay as they are.",
+    "rv.pl10": "Every 10 m", "rv.plTool": "Work's own step", "rv.plNone": "Nothing to bring into Revit: no solid switched on (works, parts or layers are off).",
+    "rv.plWorking": "Into Revit: {n} objects, {t} triangles…", "rv.plDone": "In Revit: {a} new, {b} updated — {s} solids, {m} meshes, {t} triangles in {sec} s.",
+    "rv.plNot": "In Revit {n} objects not made: {list}", "rv.plFail": "Bringing into Revit failed: {m}",
+    "rv.coordTitle": "Model shared coordinates", "rv.coordBody": "The model has no shared coordinates: the works would fall {km} km from the internal origin. Set the model's internal origin at E {e}, N {n}, level {z} (project north = true north)? It is done once; then the model links into the federation “by shared coordinates”.",
+    "rv.coordGo": "Set and bring", "rv.err.coordsSet": "The model's shared coordinates are already set: I am not changing them.",
     "t.fastOn": "Fast mode: a section every 10 m.", "t.fastOff": "Full step: sections at each work's own step.",
     "cm.fastOn": "Fast mode on: a section every 10 m, approximate volumes. Switch it off (Q) for the full step.",
     "fx.title": "Fast mode is on", "fx.body": "The model is computed with a section every 10 m: the geometry and volumes going out would be approximate. Recompute at each work's full step for this export? Once it is out, fast mode comes back.",
@@ -1214,11 +1251,12 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.20.0";
-import * as IO from "./profile-io.js?v=0.20.0";
+import * as C from "./profile-core.js?v=0.21.0";
+import * as IO from "./profile-io.js?v=0.21.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
+import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.20.0";
+const TOOL_VERSION = "0.21.0";
 /* il triangolatore dei tappi dei tagli (0.18): earcut di three.js, passato al motore (che resta senza import) */
 const TRI = (c, h) => THREE.ShapeUtils.triangulateShape(c.map(([x, y]) => new THREE.Vector2(x, y)), h.map((r) => r.map(([x, y]) => new THREE.Vector2(x, y))));
 const $ = (id) => document.getElementById(id);
@@ -1325,6 +1363,7 @@ const S = {
   name: "",              // nome del progetto (file in uscita)
   tav: newTav(),         // tavole (0.16): righe della chitarra, scarto del terreno, distanza fra le colonne
   pset: null,            // modello dei Pset dell'IFC (0.19, tools/common/pset-core.js); null = quello di partenza
+  uid: null,             // id del progetto per Revit (0.21, PIANO_Revit_ViewIFC.md §18): chiave «profile-sweep:<uid>» degli elementi e del progetto nel modello; si fa al primo invio
   psPart: 0,             // tratto dell'anteprima dei Pset (non si salva)
   psOpen: new Set(),     // schede dei Pset aperte nel pannello (indici; non si salva)
   hidden: {},            // elementi spenti: "w<id>", "w<id>:plan|prof|axis", "w<id>:t<k>", "w<id>:t<k>:lining|cut|fill", "dtm:<file>", "ctx:<file>", "ctx:<file>:<classe>"
@@ -2249,6 +2288,7 @@ function line(pts, mat) {
    dell'elemento dell'albero (userData.key) per accenderlo, spegnerlo e inquadrarlo */
 function buildScene() {
   clearGroup();
+  revitPreviewLater();                                     // dentro Revit: l'anteprima segue la vista (0.21)
   G.marker = null;
   const list = S.works.map((w) => ({ w, d: derivedOf(w) })).filter((x) => x.d.axis);
   if (!list.length) return;
@@ -5606,6 +5646,7 @@ function selectKey(k) {
   }
   if (k === "spare" || k.startsWith("spare:")) return;
   frameKey(k);
+  revitChose(k);                                           // dentro Revit: scelta e inquadratura anche lì (0.21)
 }
 function toggleEye(k) {
   if (k === "dtm") { S.view.layers.dtm = !S.view.layers.dtm; saveUi(); }
@@ -5698,7 +5739,7 @@ $("trNew").addEventListener("click", () => {
     return;
   }
   b.classList.remove("armed"); b.textContent = tr("tr.new");
-  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = ""; S.dtmRefs = []; S.dtmPaths = {}; S.ctx = []; S.ctxRefs = []; S.tav = newTav(); S.pset = null;
+  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = ""; S.dtmRefs = []; S.dtmPaths = {}; S.ctx = []; S.ctxRefs = []; S.tav = newTav(); S.pset = null; S.uid = null;
   DW.clear(); TIN = null; setActive(-1);
   undo.length = 0; redo.length = 0; updateUndo();
   refreshViews(); scheduleSave(); openSheet();
@@ -6094,7 +6135,7 @@ function snapshot() {
   return {
     v: 2, name: S.name, active: S.active, seq: S.seq, dtms: S.dtms, hidden: S.hidden,
     dtmRefs: S.dtmRefs, dtmPaths: Object.fromEntries(Object.entries(S.dtmPaths).filter(([k]) => names.has(k))), dtmInFile: S.dtmInFile,
-    ctx: S.ctx, ctxRefs: S.ctxRefs, ctxInFile: S.ctxInFile, tav: S.tav, pset: S.pset,
+    ctx: S.ctx, ctxRefs: S.ctxRefs, ctxInFile: S.ctxInFile, tav: S.tav, pset: S.pset, uid: S.uid,
     works: S.works.map((w) => ({ ...w, plan: strip(w.plan), prof: strip(w.prof) })),
     spare: S.spare.map(strip), drawings: [...drawings.values()],
   };
@@ -6131,6 +6172,7 @@ function restore(doc) {
   S.ctx = doc.ctx || []; S.ctxRefs = doc.ctxRefs || []; S.ctxInFile = doc.ctxInFile !== false;
   S.tav = newTav(doc.tav || {});
   S.pset = doc.pset ? PSET.normalize(doc.pset) : null;
+  S.uid = doc.uid || null;
   S.seq = Math.max(doc.seq || 1, ...S.works.map((w) => w.id + 1), ...S.works.flatMap((w) => w.secs.map((r) => r.id + 1)), ...[...dr.keys()].map((k) => k + 1));
   DW.clear();
   setActive(doc.active || 0);
@@ -6514,6 +6556,351 @@ addEventListener("keydown", (e) => {
 });
 
 /* =========================================================================
+   Dentro Revit (add-in ViewIFC, PIANO_Revit_ViewIFC.md §18): nella testata «Revit 2023 · modello», come nella
+   Trazione elettrica. Fuori da Revit RB.inRevit() è falso e non succede nulla
+   ========================================================================= */
+let REVIT = null;   // risposta di hello dell'add-in
+function renderRevit() {
+  const el = $("rvChip"), b = $("rvPrev");
+  el.hidden = !REVIT;
+  b.hidden = !REVIT || !RB.can(REVIT, "preview.mesh");
+  $("rvPlace").hidden = !REVIT || !RB.can(REVIT, "shapes.place");
+  b.classList.toggle("on", RVP.on);
+  b.setAttribute("aria-pressed", RVP.on ? "true" : "false");
+  if (!REVIT) return;
+  const name = RB.docLabel(REVIT.doc);
+  el.textContent = name ? tr("rv.chip", { v: REVIT.revit.version, doc: name }) : tr("rv.chipNoDoc", { v: REVIT.revit.version });
+  el.title = tr("rv.tip", { addin: REVIT.addin, build: REVIT.revit.build });
+}
+async function initRevit() {
+  if (!RB.inRevit()) return;
+  REVIT = await RB.hello();
+  if (!REVIT) return;
+  RB.onEvent((m) => {
+    if (m.event === "doc") { REVIT.doc = m.doc; renderRevit(); if (RVP.on) { rvSigReset(); revitPreviewLater(); } }   // l'anteprima va sul modello attivo
+    if (m.event === "preview" && !m.on) { RVP.on = false; rvSigReset(); clearTimeout(RVP.t); renderRevit(); }
+    if (m.event === "select") revitSelected(m.items);
+  });
+  renderRevit();
+}
+/* l'id del progetto (S.uid): fatto al primo invio a Revit e salvato col progetto, così i suoi elementi nel modello si
+   ritrovano anche dopo averlo riaperto da un .profiles */
+const projectUid = () => S.uid || (S.uid = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+const rvKey = () => (S.uid ? "profile-sweep:" + S.uid : "");
+const rvDoc = () => (REVIT && REVIT.doc ? (REVIT.doc.path || "") + "|" + REVIT.doc.title : "");
+
+/* Anteprima in Revit (0.21.0, PIANO_Revit_ViewIFC.md §18): i solidi dei tratti visibili nella vista 3D — le maglie del
+   motore, quote vere (la scena ha l'esagerazione) — vanno all'add-in come strato «works» di preview.mesh, un gruppo
+   per solido con la sua chiave dell'albero (w<id>:t<k>:<solido>) e i colori della Trazione elettrica; spigoli vivi
+   sdoppiati (RB.creaseSplit: l'add-in fa le normali per vertice); gli assi 3D come segmenti (preview.set); gli IFC di
+   contesto visibili come strato «context». Si rimanda solo quello che cambia (firme: modello di Revit, solidi
+   visibili e le loro maglie); la scelta nell'albero va con preview.pick, in arancio, senza rimandare geometria. Con
+   un add-in senza preview.pick (0.7.0): opere e contesto in un solo strato, la scelta rimandando tutto */
+const RVP = { on: false, t: 0, busy: false, again: false, sig: {} };
+const rvSigReset = () => { RVP.sig = {}; };
+const RV_STYLE = {
+  work: { color: "#bfd730", opacity: 0.6, edge: "#434b11" }, layer: { color: "#a8c320", opacity: 0.5, edge: "#3b440b" }, earth: { color: "#bfd730", opacity: 0.2 },
+  cut: { color: "#bfd730", opacity: 0.12 }, void: { color: "#bfd730", opacity: 0.15 }, axis: { color: "#8aa310", opacity: 1 }, sel: { color: "#ff6a2b", opacity: 0.8 },
+};
+/* rivestimento e tubo = l'opera; scavo quasi trasparente (avvolge gli strati), riporto, rinterro e rilevato velati,
+   magrone, misto e strati del tubo in lime scuro, lo spazio dei ponti appena accennato. Spigoli (prova dell'utente in
+   Revit 2025: «mi serve più contrasto con gli edge della geometria») sui solidi che li hanno nella vista 3D (SOLIDS
+   con e: rivestimento, magrone, misto cementato, tubo), come EdgesGeometry a 45°, pieni e scuri (il colore × 0,35);
+   scelti, nell'arancio scuro dell'add-in */
+const rvClass = (k) => (k === "lining" || k === "pipe" ? "work" : k === "cut" ? "cut" : k === "fill" || k === "emb" ? "earth" : k === "void" ? "void" : "layer");
+const RV_CTX = { opacity: 0.4, glass: 0.2 };
+let rvSeq = 0;
+const rvIds = new WeakMap(), rvEnc = new WeakMap();
+const rvId = (o) => { let i = rvIds.get(o); if (!i) rvIds.set(o, (i = ++rvSeq)); return i; };
+/* i solidi delle opere (all = anche quelli spenti nella vista: per la selezione in Revit) → [{ key, k, m, O, e }] */
+function rvSolids(all = false) {
+  const out = [], ly = S.view.layers, on = (k) => all || shown(k);
+  for (const w of S.works) {
+    const d = derivedOf(w), K = "w" + w.id;
+    if (!d.axis || !d.O || !on(K)) continue;
+    for (const part of d.parts) {
+      if (!part.mesh || part.gone) continue;
+      const P = K + ":t" + part.k;
+      if (!on(P)) continue;
+      for (const s of solidsOf(w)) { const m = part.mesh[s.k]; if ((all || ly[s.k]) && m && m.index.length && on(P + ":" + s.k)) out.push({ key: P + ":" + s.k, k: s.k, m, O: d.O, e: !!s.e }); }
+      const v = part.mesh.void;
+      if (v && v.index.length && on(P + ":void")) out.push({ key: P + ":void", k: "void", m: v, O: d.O });
+    }
+  }
+  return out;
+}
+const rvUnder = (key, k) => !!k && (key === k || key.startsWith(k + ":"));
+/* un solido → i suoi blocchi (spigoli vivi sdoppiati, Float32 attorno all'origine dell'opera, base64) e, se edges, i
+   suoi spigoli (RB.edgeChunks), fatti una volta per maglia */
+function rvChunks(m, edges) {
+  let e = rvEnc.get(m);
+  if (!e) {
+    const sp = RB.creaseSplit(m.positions, m.index), ch = RB.meshChunks(sp.P, null, sp.I).get("#bbbbbb") || [];
+    const ln = edges ? RB.edgeChunks(m.positions, m.index) : [];
+    e = { tris: m.index.length / 3, segs: ln.reduce((a, c) => a + c.length / 6, 0), chunks: ch.map((c) => ({ pos: RB.toB64(new Uint8Array(c.pos.buffer)), idx: RB.toB64(new Uint8Array(c.idx.buffer)) })),
+      lines: ln.map((c) => ({ pos: RB.toB64(new Uint8Array(c.buffer)) })) };
+    rvEnc.set(m, e);
+  }
+  return e;
+}
+function rvWorksGroups(sol, sel) {
+  let triangles = 0;
+  const groups = sol.map((x) => {
+    const e = rvChunks(x.m, x.e);
+    triangles += e.tris;
+    const g = { key: x.key, ...RV_STYLE[sel && sel.includes(x.key) ? "sel" : rvClass(x.k)], origin: [x.O.x, x.O.y, 0], chunks: e.chunks };
+    if (e.lines.length) g.lines = e.lines;
+    return g;
+  });
+  return { groups, triangles };
+}
+/* gli assi 3D delle opere visibili come segmenti (E, N, quota vere) */
+function rvAxisData() {
+  const lines = [], ids = [], r4 = (v) => Math.round(v * 1e4) / 1e4;
+  for (const w of S.works) {
+    const d = derivedOf(w), K = "w" + w.id;
+    if (!d.ax3 || d.ax3.pts.length < 2 || !shown(K) || !shown(K + ":axis")) continue;
+    ids.push(K + "#" + rvId(d.ax3));
+    const p = d.ax3.pts;
+    for (let i = 1; i < p.length; i++) lines.push(r4(p[i - 1].x), r4(p[i - 1].y), r4(p[i - 1].z), r4(p[i].x), r4(p[i].y), r4(p[i].z));
+  }
+  return { sig: ids.join(","), data: { tool: "profile-sweep", groups: lines.length ? [{ ...RV_STYLE.axis, boxes: [], lines }] : [] } };
+}
+/* gli IFC di contesto visibili (occhi: contesto, file, classe), come nella Trazione elettrica */
+function revitCtxSig() {
+  const vis = [];
+  if (S.view.layers.ctx !== false) for (const m of S.ctx) {
+    if (!shown("ctx:" + m.name)) continue;
+    m.parts.forEach((p, i) => { if (shown("ctx:" + m.name + ":" + p.cls)) vis.push(rvId(m) + "." + i); });
+  }
+  return vis.join("|");
+}
+function revitContextData() {
+  const groups = [];
+  let triangles = 0, files = 0;
+  if (S.view.layers.ctx !== false) for (const m of S.ctx) {
+    if (!shown("ctx:" + m.name)) continue;
+    const solid = new Map(), glass = new Map(), n0 = triangles;
+    for (const p of m.parts) if (shown("ctx:" + m.name + ":" + p.cls)) { RB.meshChunks(p.P, p.C, p.I, 60000, p.glass ? glass : solid); triangles += p.I.length / 3; }
+    if (triangles > n0) files++;
+    for (const [map, opacity] of [[solid, RV_CTX.opacity], [glass, RV_CTX.glass]])
+      for (const [color, chunks] of map)
+        groups.push({ color, opacity, origin: [m.ox, m.oy, 0], chunks: chunks.map((c) => ({ pos: RB.toB64(new Uint8Array(c.pos.buffer)), idx: RB.toB64(new Uint8Array(c.idx.buffer)) })) });
+  }
+  return { files, triangles, groups };
+}
+/* i solidi scelti: quelli sotto l'ultima chiave scelta nell'albero (o in Revit) */
+const rvPicked = (sol) => sol.filter((x) => rvUnder(x.key, RVS.key)).map((x) => x.key);
+function revitPreviewLater() {
+  if (!RVP.on) return;
+  clearTimeout(RVP.t);
+  RVP.t = setTimeout(revitPreviewSend, 300);
+}
+async function revitPreviewSend(first) {
+  if (!RVP.on) return;
+  if (RVP.busy) { RVP.again = true; return; }
+  RVP.busy = true;
+  try {
+    const layered = RB.can(REVIT, "preview.pick"), doc = rvDoc(), sol = rvSolids(), pick = rvPicked(sol);
+    const wsig = doc + "|" + sol.map((x) => x.key + "#" + rvId(x.m)).join(","), csig = doc + "|" + revitCtxSig();
+    let triangles = 0;
+    if (layered) {
+      if (wsig !== RVP.sig.works) {
+        const wd = rvWorksGroups(sol, null);
+        if (wd.triangles > 2e5) busy(tr("rv.sending", { t: ni(wd.triangles) }));
+        const r = await RB.call("preview.mesh", { tool: "profile-sweep", layer: "works", groups: wd.groups }, 300000);
+        busy("");
+        RVP.sig.works = wsig;
+        triangles = r.triangles || 0;
+      }
+      const ax = rvAxisData();
+      if (doc + "|" + ax.sig !== RVP.sig.axis) { await RB.call("preview.set", ax.data, 120000); RVP.sig.axis = doc + "|" + ax.sig; }
+      if (csig !== RVP.sig.ctx) {
+        const t0 = performance.now(), cd = revitContextData();
+        if (cd.groups.length) busy(tr("rv.ctxSending", { t: ni(cd.triangles) }));
+        const r = await RB.call("preview.mesh", { tool: "profile-sweep", layer: "context", groups: cd.groups }, 300000);
+        busy("");
+        RVP.sig.ctx = csig;
+        if (cd.groups.length) toast(tr("rv.ctxDone", { t: ni(r.triangles), n: ni(cd.files), s: nf((performance.now() - t0) / 1000, 1) }));
+      }
+      const psig = doc + "|" + pick.join(",");
+      if (psig !== RVP.sig.pick) { await RB.call("preview.pick", { keys: pick }); RVP.sig.pick = psig; }
+    } else {                                              // add-in 0.7.0: uno strato solo, la scelta in arancio dentro
+      const msig = wsig + "|" + pick.join(",") + "||" + csig;
+      if (msig !== RVP.sig.works) {
+        const wd = rvWorksGroups(sol, pick), cd = revitContextData();
+        if (wd.triangles + cd.triangles > 2e5) busy(tr("rv.sending", { t: ni(wd.triangles + cd.triangles) }));
+        const r = await RB.call("preview.mesh", { tool: "profile-sweep", layer: "context", groups: [...cd.groups, ...wd.groups] }, 300000);
+        busy("");
+        RVP.sig.works = msig;
+        triangles = r.triangles || 0;
+      }
+      const ax = rvAxisData();
+      if (doc + "|" + ax.sig !== RVP.sig.axis) { await RB.call("preview.set", ax.data, 120000); RVP.sig.axis = doc + "|" + ax.sig; }
+    }
+    if (first === true) toast(tr("rv.prevDone", { n: ni(sol.length), t: ni(triangles) }));
+  } catch (e) {
+    busy("");
+    RVP.on = false; rvSigReset();
+    renderRevit();
+    toast(e.code === "noDoc" ? tr("rv.err.noDoc") : e.code === "family" ? tr("rv.err.family") : e.code === "far" ? tr("rv.err.far", { km: nf((e.data && e.data.km) || 0, 1) }) : tr("rv.prevFail", { m: e.message }), true);
+  }
+  RVP.busy = false;
+  if (RVP.again) { RVP.again = false; revitPreviewSend(); }
+}
+async function revitPreviewToggle() {
+  if (RVP.on) {
+    RVP.on = false; rvSigReset(); clearTimeout(RVP.t); renderRevit();
+    try { await RB.call("preview.clear"); } catch (e) { /* l'add-in la toglie comunque alla chiusura */ }
+    return;
+  }
+  RVP.on = true; renderRevit();
+  revitPreviewSend(true);
+}
+$("rvPrev").addEventListener("click", revitPreviewToggle);
+/* Porta in Revit (0.21.0, PIANO_Revit_ViewIFC.md §18, scelte dell'utente: DirectShape di tutto, niente famiglie;
+   passo nel dialogo, di partenza 10 m): va in Revit quello che si vede, come nell'anteprima (rvSolids) — opere, tratti
+   e solidi accesi nell'albero, strati accesi nella vista (prova dell'utente: «avevo spento scavi e riempimenti e mi ha
+   importato tutto»). Ogni solido diventa un DirectShape nei Modelli generici, con l'id della chiave dell'albero
+   (w<id>:t<k>:<solido>, lo stesso dell'anteprima: la selezione nei due versi lo usa), una sottocategoria e un
+   materiale per classe coi colori della vista 3D, nome «opera · Tratto k · classe», Commenti con le progressive. Le
+   maglie si rifanno al passo scelto (C.workSweep come rebuildDitch, senza toccare la vista); i solidi civili portano
+   anche le loro sezioni a ogni stazione (part.bands): Revit li rifà raccordando le sezioni, con gli spigoli veri
+   («c'è modo di mantenere gli edge dei profili?»), e tiene i triangoli come riserva. Ripetuto: gli stessi oggetti
+   aggiornati; quelli già in Revit e ora spenti restano come sono (keep = tutti i solidi del progetto: per l'add-in
+   «non più nel progetto» solo quelli che non ci sono più). Modello senza coordinate condivise: l'add-in propone
+   l'origine, qui si conferma */
+const RV_MAT = {
+  lining: ["#b9bcb4", 1], lean: ["#d9dacf", 1], mix: ["#9c917c", 1], cut: ["#a8743f", 0.22], fill: ["#6f9a3a", 1], bed: ["#cdb779", 0.55],
+  surround: ["#d9c99a", 0.55], cover: ["#c2ab72", 0.55], emb: ["#8f8a4a", 1], restore: ["#55585a", 1], void: ["#4f8fd6", 0.28],
+  pipe_pvc: ["#b8622f", 1], pipe_pe: ["#3a3a3a", 1], pipe_cls: ["#b0b2aa", 1], pipe_ghisa: ["#4b4f57", 1], pipe_acciaio: ["#73808f", 1], pipe_manual: ["#8c8f88", 1],
+};
+/* l'opera al passo minimo minStep (0 = quello di ogni sezione), con gli stessi dati di rebuildDitch */
+function rvSweep(w, minStep) {
+  const d = derivedOf(w);
+  if (!d.axis || !d.prof || !d.ax3 || d.ax3.pts.length < 2) return null;
+  const L = d.axis.length, p0 = (r) => (r.fromStart ? 0 : r.p0), p1 = (r) => (r.toEnd ? L : r.p1), O = originOf(d.axis);
+  const spec = { stype: w.stype, P: w[w.stype], rows: (w.secs || []).map((r) => ({ id: r.id, p0: p0(r), p1: p1(r), stype: r.stype, P: r[r.stype], j0: r.j0, j1: r.j1 })) };
+  const bridges = (w.bridges || []).map((b) => ({ id: b.id, p0: p0(b), p1: p1(b) }));
+  const trims = (w.trims || []).map((t) => ({ id: t.id, a: t.a, b: t.b, ex: t.ex || "auto" }));
+  const sw = C.workSweep(d.axis, d.prof, w.anchors, spec, TIN ? TIN.z : () => NaN, { O, cuts: w.cuts, partWalls: w.pipe.partWalls, bridges, trims, tri: TRI, minStep });
+  return { O, parts: sw.parts };
+}
+/* i solidi accesi di un tratto, come nell'anteprima (rvSolids): occhi dell'albero e strati della vista; non la
+   superficie del fosso (solo vista) → [{ k, label }] */
+function rvPartSolids(w, part) {
+  const P = "w" + w.id + ":t" + part.k, ly = S.view.layers, has = (m) => !!(m && m.index && m.index.length);
+  if (!part.mesh || part.gone || !shown("w" + w.id) || !shown(P)) return [];
+  const list = solidsOf(w).filter((x) => ly[x.k] && shown(P + ":" + x.k) && has(part.mesh[x.k])).map((x) => ({ k: x.k, label: x.l() }));
+  if (has(part.mesh.void) && shown(P + ":void")) list.push({ k: "void", label: tr("if.bridgeSpaceType") });
+  return list;
+}
+/* le sezioni di un solido civile (part.bands[k]: gruppi di anelli consecutivi coi punti nello stesso ordine) →
+   [{ n anelli, m punti, pos: float32 attorno all'origine dell'opera, base64 }] */
+const rvBands = (bs) => (bs || []).filter((rings) => rings.length >= 2 && rings[0].length >= 3 && rings.every((r) => r.length === rings[0].length)).map((rings) => {
+  const n = rings.length, m = rings[0].length, f = new Float32Array(n * m * 3);
+  rings.forEach((r, i) => r.forEach((p, j) => f.set(p, 3 * (i * m + j))));
+  return { n, m, pos: RB.toB64(new Uint8Array(f.buffer)) };
+});
+/* gli oggetti per shapes.place */
+function revitShapeItems(minStep) {
+  const items = [];
+  let triangles = 0, banded = 0;
+  for (const w of exported()) {
+    const r = rvSweep(w, minStep);
+    if (!r) continue;
+    for (const part of r.parts) for (const x of rvPartSolids(w, part)) {
+      const m = part.mesh[x.k];
+      const pm = x.k === "pipe" ? (part.P || w.pipe).mat : null, mk = pm ? (RV_MAT["pipe_" + pm] ? "pipe_" + pm : "pipe_manual") : x.k, [color, opacity] = RV_MAT[mk] || ["#b9bcb4", 1];
+      const ch = RB.meshChunks(m.positions, null, m.index).get("#bbbbbb") || [];
+      triangles += m.index.length / 3;
+      const it = {
+        id: "w" + w.id + ":t" + part.k + ":" + x.k, name: [w.name, tr("cm.partName", { n: part.k }), x.label].join(" · "), cls: tr("nav.here") + " – " + x.label,
+        material: { name: tr("nav.here") + " – " + x.label + (pm ? " " + pipeMatName(pm) : ""), color, opacity }, origin: [r.O.x, r.O.y, 0],
+        chunks: ch.map((c) => ({ pos: RB.toB64(new Uint8Array(c.pos.buffer)), idx: RB.toB64(new Uint8Array(c.idx.buffer)) })),
+        comments: w.name + " · " + prog(part.p0) + " – " + prog(part.p1),
+      };
+      const bs = rvBands(part.bands && part.bands[x.k]);
+      if (bs.length) { it.bands = bs; banded++; }
+      items.push(it);
+    }
+  }
+  return { items, triangles, banded };
+}
+function revitPlace() {
+  let n = 0, nw = 0;
+  for (const w of exported()) { const c = derivedOf(w).parts.reduce((a, p) => a + rvPartSolids(w, p).length, 0); if (c) { n += c; nw++; } }
+  if (!n) { toast(tr("rv.plNone"), true); return; }
+  const body = `<p>${esc(tr("rv.plBody", { n: ni(n), w: ni(nw), doc: RB.docLabel(REVIT && REVIT.doc) || "—" }))}</p><p class="help">${esc(tr("rv.plStep"))}</p>`;
+  dlgOpen(tr("rv.plTitle"), body, [{ label: tr("prj.cancel"), run: dlgClose }, { label: tr("rv.plTool"), run: () => { dlgClose(); revitPlaceSend(0); } },
+    { label: tr("rv.pl10"), primary: true, run: () => { dlgClose(); revitPlaceSend(FAST_STEP); } }]);
+}
+const rvFail = (e) => toast(e.code === "noDoc" ? tr("rv.err.noDoc") : e.code === "family" ? tr("rv.err.family") : e.code === "far" ? tr("rv.err.far", { km: nf((e.data && e.data.km) || 0, 1) })
+  : e.code === "coordsSet" ? tr("rv.err.coordsSet") : tr("rv.plFail", { m: e.message }), true);
+async function revitPlaceSend(minStep) {
+  const key = "profile-sweep:" + projectUid();
+  saveNow();                                              // l'id del progetto resta col progetto
+  busy(tr("busy.sweep")); await frame();
+  try {
+    const { items, triangles } = revitShapeItems(minStep);
+    busy(tr("rv.plWorking", { n: ni(items.length), t: ni(triangles) })); await frame();
+    const keep = rvSolids(true).map((x) => x.key);         // tutti i solidi del progetto, anche spenti: restano in Revit come sono
+    const r = await RB.call("shapes.place", { key, items, keep, step: minStep }, 1800000);
+    busy("");
+    toast(tr("rv.plDone", { a: ni(r.placed), b: ni(r.updated), s: ni(r.solids), m: ni(r.meshes), t: ni(r.triangles), sec: nf(r.ms / 1000, 1) }));
+    if (r.failed && r.failed.length) toast(tr("rv.plNot", { n: ni(r.failed.length), list: [...new Set(r.failed.map((x) => x.why))].join("; ") }), true);
+  } catch (e) {
+    busy("");
+    if (e.code !== "noCoords") { rvFail(e); return; }
+    const d = e.data || {};
+    dlgOpen(tr("rv.coordTitle"), "<p>" + esc(tr("rv.coordBody", { km: nf(d.km || 0, 1), e: nf(d.E, 0), n: nf(d.N, 0), z: nf(d.Z, 0) })) + "</p>", [{ label: tr("prj.cancel"), run: dlgClose }, { label: tr("rv.coordGo"), primary: true, run: async () => {
+      dlgClose();
+      try { await RB.call("coords.setup", { E: d.E, N: d.N, Z: d.Z }); revitPlaceSend(minStep); } catch (e2) { rvFail(e2); }
+    } }]);
+  }
+}
+$("rvPlace").addEventListener("click", revitPlace);
+/* Selezione sincronizzata (0.21.0, come la Trazione elettrica): la scelta nell'albero (opera, tratto, solido) si
+   sceglie anche in Revit — gli elementi della chiave del progetto con quegli id, quando ci saranno — e Revit inquadra
+   la vista attiva sulla scatola (anche se è solo in anteprima). Scelto in Revit → scelto qui (la chiave comune dei
+   solidi scelti) e inquadrato. Niente eco: la scelta che arriva da Revit non torna indietro */
+const RVS = { t: 0, fromRevit: false, key: null };
+function revitChose(k) {
+  RVS.key = k;
+  revitPreviewLater();                                     // il solido scelto in arancio (preview.pick)
+  if (!REVIT || !RB.can(REVIT, "select") || RVS.fromRevit || !/^w\d+(:|$)/.test(k)) return;
+  const box = S.uid || RVP.on ? revitBox(k) : null, args = { key: rvKey(), ids: rvSolids(true).filter((x) => rvUnder(x.key, k)).map((x) => x.key) };
+  if (!S.uid && !box) return;                             // niente di piazzato né da inquadrare
+  if (box) args.box = box;
+  clearTimeout(RVS.t);
+  RVS.t = setTimeout(() => RB.call("select", args).catch((e) => console.warn("Revit select:", e.message)), 120);
+}
+/* la scatola di una chiave nel mondo (E, N, quota min, poi max) dalle maglie dei suoi solidi (o dall'asse 3D), +6 m */
+function revitBox(k) {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  const grow = (x, y, z) => { lo[0] = Math.min(lo[0], x); lo[1] = Math.min(lo[1], y); lo[2] = Math.min(lo[2], z); hi[0] = Math.max(hi[0], x); hi[1] = Math.max(hi[1], y); hi[2] = Math.max(hi[2], z); };
+  for (const x of rvSolids(true)) if (rvUnder(x.key, k)) { const P = x.m.positions; for (let i = 0; i + 2 < P.length; i += 3) grow(P[i] + x.O.x, P[i + 1] + x.O.y, P[i + 2]); }
+  if (!(lo[0] <= hi[0])) {
+    const w = S.works.find((v) => rvUnder(k, "w" + v.id)), d = w && derivedOf(w);
+    if (d && d.ax3) for (const p of d.ax3.pts) grow(p.x, p.y, p.z);
+  }
+  if (!(lo[0] <= hi[0])) return null;
+  const r3 = (v) => Math.round(v * 1e3) / 1e3;
+  return [lo[0] - 6, lo[1] - 6, lo[2] - 1, hi[0] + 6, hi[1] + 6, hi[2] + 1].map(r3);
+}
+function revitSelected(items) {
+  const key = rvKey(), have = new Set(rvSolids(true).map((x) => x.key));
+  const ids = key ? (items || []).filter((i) => i && i.key === key && have.has(String(i.id))).map((i) => String(i.id)) : [];
+  if (!ids.length) return;                                // altro progetto o altri elementi
+  let k = ids[0];                                         // più solidi: la chiave che li contiene tutti (tratto, opera)
+  while (k.includes(":") && !ids.every((id) => rvUnder(id, k))) k = k.slice(0, k.lastIndexOf(":"));
+  if (!ids.every((id) => rvUnder(id, k))) k = ids[0];     // opere diverse: la prima
+  if (k === RVS.key) return;                              // già scelto qui
+  RVS.fromRevit = true;
+  try { selectKey(k); } finally { RVS.fromRevit = false; }
+}
+
+/* =========================================================================
    Lingua e tema
    ========================================================================= */
 function applyLang(lang) {
@@ -6525,6 +6912,7 @@ function applyLang(lang) {
   try { localStorage.setItem("viewifc_tool_lang", LANG); } catch (e) {}
   $("pvTopTx").textContent = typesOf(W).every((t) => t === "pipe" || t === "ditch") ? tr("pv.crown") : tr("pv.top");     // legenda della lastra: cima dei muri o estradosso
   $("fastChip").textContent = tr("st.fast");
+  renderRevit();
   sheetMode();
   renderPod(); renderTree(); refreshStats(); drawPV(); status(null); cutUi();
 }
@@ -6551,6 +6939,7 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
   let lang = "it";
   try { lang = localStorage.getItem("viewifc_tool_lang") || (navigator.language || "it").slice(0, 2); } catch (e) {}
   LANG = I18N[lang] ? lang : "it";
+  initRevit();                                            // dentro Revit: il saluto all'add-in, la scritta in testata
   if (innerWidth < 900 && localStorage.getItem(UI_KEY) == null) { S.podOff = true; S.treeOff = true; }
   applyPanels();
   applyFast();
@@ -6565,7 +6954,7 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
   openSheet();
 })();
 /* aggancio per le prove dal browser: stato e funzioni, niente dati in rete */
-window.__ps = { C, IO, get S() { return S; }, get W() { return W; }, get D() { return D; }, derivedOf, setActive: (i) => { setActive(i); refreshViews(); pvFit(); }, get PV() { return PV; }, camera, controls, camP, ctlP, setPlan, togglePlan, frameAll, zoomAt, get flying() { return !!fly; }, pvFit, pvShow, loadExample, openFiles, saveNow, drawPV, drawSection, snapshot, saveProjectDialog,
+window.__ps = { C, IO, get S() { return S; }, get W() { return W; }, get REVIT() { return REVIT; }, projectUid, get RVP() { return RVP; }, get RVS() { return RVS; }, selectKey, revitShapeItems, get D() { return D; }, derivedOf, setActive: (i) => { setActive(i); refreshViews(); pvFit(); }, get PV() { return PV; }, camera, controls, camP, ctlP, setPlan, togglePlan, frameAll, zoomAt, get flying() { return !!fly; }, pvFit, pvShow, loadExample, openFiles, saveNow, drawPV, drawSection, snapshot, saveProjectDialog,
   /* pivot d'orbita: stato e un passo del loop senza aspettare il rAF (fermo a pannello nascosto) */
   orb: { get drag() { return orbDrag; }, get pivot() { return orbPivot.toArray(); }, get dot() { return orbDot && orbDot.visible; },
     step() { orbApply(performance.now()); controls.update(); camera.updateMatrixWorld(true); scene.updateMatrixWorld(true); } },

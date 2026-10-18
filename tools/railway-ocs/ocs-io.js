@@ -9,7 +9,7 @@
    Le coppie di coordinate sono «Nord Est» come vuole la specifica; si
    prova anche l'ordine scambiato e si tiene quello che chiude le giunzioni.
    ========================================================================= */
-import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis } from "./ocs-core.js?v=0.10.1";
+import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis, trackFrame, GAUGE_HALF } from "./ocs-core.js?v=0.20.0";
 
 /* ---- XML minimo: elementi, attributi, testo (niente DTD, niente namespace) ---- */
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
@@ -519,12 +519,22 @@ const hnorm = (h) => String(h == null ? "" : h).trim().toLowerCase().normalize("
    (palo su due binari, PIANO §14.1), non una seconda mensola: lunghezza della mensola che la porta e tipo */
 /* E / N (0.9.0) = coordinate dell'ASSE DEL FUSTO, nelle coordinate dei binari: con quelle valgono la posizione,
    il lato e la DR ricalcolati; progressiva e DR della tabella restano per il controllo */
-export const TABLE_FIELDS = ["num", "sta", "E", "N", "side", "dr", "mast", "L", "sosp", "L2", "sosp2", "found", "hw", "stag", "track"];
+/* portali (0.11.0): E2 / N2 = asse del SECONDO montante («Est_palo sotto», «Est montante 2»; E / N è il primo,
+   «… sopra»): una riga con le due coppie è un portale, con una sola un palo. num2 = numero del secondo montante
+   (il portale si chiama «num / num2»), block = nome del blocco («Blocco» quando c'è anche una colonna della
+   fondazione), ptype = tipologia («TIPO C 18÷27 - (2+2) x LSU22»), found2 = fondazione del secondo montante,
+   Lb = lunghezza della trave scritta (controllo) */
+export const TABLE_FIELDS = ["num", "num2", "sta", "E", "N", "E2", "N2", "side", "dr", "mast", "block", "ptype", "L", "sosp", "L2", "sosp2", "found", "found2", "Lb", "hw", "stag", "track"];
 const HDR = [
   ["L2", /^(l mensola 2|lunghezza mensola 2|mensola 2|2a mensola|seconda mensola|cantilever 2)$/],
   ["sosp2", /^(tipo sosp 2|tipo sospensione 2|sospensione 2|seconda sospensione|suspension 2|suspension type 2)$/],
   ["sosp", /^(tipo sosp|tipo sospensione|sospensione|suspension|suspension type)$/],
-  ["num", /^(n|n°|no|nr|num|numero|numero sostegno|n sostegno|sostegno|picchetto|n picchetto|numero picchetto|palo n|id|mast no|support|support no|number)$/],
+  ["num2", /^((n|n°|no|nr|num|numero)( montante)? (sotto|2)|numero 2)$/],
+  ["num", /^(n|n°|no|nr|num|numero|numero sostegno|n sostegno|sostegno|picchetto|n picchetto|numero picchetto|palo n|id|mast no|support|support no|number|(n|n°|numero)( montante)? (sopra|1))$/],
+  ["found2", /^(fondazione|blocco fondazione|tipo blocco|plinto) (sotto|2)$/],
+  ["found", /^(fondazione|blocco fondazione|tipo blocco|plinto) (sopra|1)$/],
+  ["ptype", /^(tipologia|tipologia portale|tipo portale|tipo trave)$/],
+  ["Lb", /^(l trave|lunghezza trave|luce trave|luce|beam length|span)$/],
   ["sta", /^(progressiva|prog|pk|progr|km|chilometrica|kilometrica|progressiva km|station|chainage|sta|progressiva \(m\))$/],
   ["side", /^(lato|side|lato binario|posizione|sx\/dx|s\/d)$/],
   ["dr", /^(dr|d r|distanza palo rotaia|distanza palo-rotaia|dr palo|distanza|dr \(mm\)|dr \(m\))$/],
@@ -535,10 +545,12 @@ const HDR = [
   ["stag", /^(poligonazione|stagger|poligonazione \(mm\))$/],
   ["track", /^(binario|track|asse|alignment)$/],
   // dopo «num»: una colonna «N» da sola è il numero; accanto a una colonna Est è il Nord (tableHeader)
-  ["E", /^((coord(inata)?\.? ?)?(e|est|x)( (palo|fusto|sostegno))?( \(m\))?|easting|east)$/],
-  ["N", /^((coord(inata)?\.? ?)?(nord|y)( (palo|fusto|sostegno))?( \(m\))?|coord(inata)?\.? ?n|n \(m\)|northing|north)$/],
+  ["E2", /^((coord(inata)?\.? ?)?(e|est|x)( (palo|fusto|sostegno|montante))? (sotto|2)( \(m\))?|e2|est2|x2)$/],
+  ["N2", /^((coord(inata)?\.? ?)?(nord|y)( (palo|fusto|sostegno|montante))? (sotto|2)( \(m\))?|nord2|y2)$/],
+  ["E", /^((coord(inata)?\.? ?)?(e|est|x)( (palo|fusto|sostegno|montante))?( (sopra|1))?( \(m\))?|easting|east)$/],
+  ["N", /^((coord(inata)?\.? ?)?(nord|y)( (palo|fusto|sostegno|montante))?( (sopra|1))?( \(m\))?|coord(inata)?\.? ?n|n \(m\)|northing|north)$/],
 ];
-const PALO_XY = / (palo|fusto|sostegno)( |$)/;
+const PALO_XY = / (palo|fusto|sostegno|montante)( |$)/;
 export function headerKey(h) { const t = hnorm(h); for (const [k, re] of HDR) if (re.test(t)) return k; return null; }
 /* la riga d'intestazione (fra le prime 25) e la proposta di colonne: { row, map: { campo: colonna } } */
 export function tableHeader(rows) {
@@ -557,6 +569,13 @@ export function tableHeader(rows) {
     // «Est» ed «Est_palo» insieme (estrazione dal DWG Satferr: inserimento del blocco sull'asse del binario e centro
     // del palo): valgono le coordinate del palo, quelle che il tool vuole (0.10.0)
     for (const k of ["E", "N"]) { const c = rows[r].findIndex((h) => headerKey(h) === k && PALO_XY.test(hnorm(h))); if (c >= 0) map[k] = c; }
+    // «Blocco» accanto a un'altra colonna della fondazione (estrazione Satferr: nome del blocco del DWG): è il
+    // nome del blocco, la fondazione è l'altra (0.11.0)
+    const isBlk = (c) => hnorm(rows[r][c]) === "blocco";
+    if (map.found != null && isBlk(map.found)) {
+      const o = rows[r].findIndex((h, j) => j !== map.found && headerKey(h) === "found");
+      if (o >= 0 || map.found2 != null) { map.block = map.found; if (o >= 0) map.found = o; else delete map.found; }
+    }
     const n = Object.keys(map).length;
     if (n > best.n) best = { row: r, n, map };
   }
@@ -579,31 +598,57 @@ export function sideOf(v) {
   return 0;
 }
 export function mastOf(v) { const m = String(v == null ? "" : v).match(/LSU\s*-?\s*(\d{2})\s*([abc])/i); return m ? "LSU" + m[1] + m[2].toLowerCase() : null; }
-/* un portale nella colonna del tipo (pilone PO, travi MEC, «portale»): non si importa dalla tabella */
-export const isPortalText = (v) => /portal|pilone|\bPO\b|\bMEC\b/i.test(String(v == null ? "" : v));
-/* righe → sostegni: { row, num, sta, E, N, xy, side, dr, mast, portal, L, L2, found, hw, stag, track, attrs, warn: [] }.
-   opt.masts / opt.founds = codici del catalogo (il modulo non lo importa); opt.swap = E e N scambiate */
+/* un portale nella colonna del tipo (pilone PO, travi MEC, «portale»; blocchi Satferr PO_… / TRAVE_MEC …) */
+export const isPortalText = (v) => /portal|pilone|(^|[^a-z0-9])PO([^a-z0-9]|$)|\bMEC\b|TRAVE[ _]MEC/i.test(String(v == null ? "" : v));
+/* che sostegno dice il testo (blocco, tipologia, tipo di palo) di un portale o di un palo (0.11.0):
+   { up: "PO" | "MEC" | "LSU" | null, mast: "LSU22b" | null (senza altezza: b), dbl: pali doppi }.
+   PO_… (blocchi Satferr PO_1_BIN, PO_2_BIN, PO_VARIABILE) → pilone PO; «PILONE» (MEC) → pilone MEC; LSUnn →
+   pali LSU, doppi con «(2+2)», «2x LSU», «doppio», singoli con «(1+1)» (vince sulla «2x» del tipo di palo:
+   «TIPO TN 18÷26 - (1+1) LSU22-TN» col tipo «2xLSU22-TN» = un palo per parte) */
+export function portalSpec(text) {
+  const t = String(text == null ? "" : text);
+  const lsu = /LSU\s*-?\s*(\d{2})\s*([abc])?(?![0-9])/i.exec(t);
+  const one = /\(\s*1\s*\+\s*1\s*\)/.test(t), dbl = !one && /\(\s*2\s*\+\s*2\s*\)|(^|[^0-9])2\s*x\s*LSU|doppi/i.test(t);
+  const up = /(^|[^a-z0-9])PO([^a-z0-9]|$)/i.test(t) ? "PO" : /pilone/i.test(t) ? "MEC" : lsu ? "LSU" : null;
+  return { up, mast: lsu ? "LSU" + lsu[1] + (lsu[2] || "b").toLowerCase() : null, dbl: up === "LSU" && dbl };
+}
+/* righe → sostegni: { row, num, num2, sta, E, N, xy, E2, N2, xy2, side, dr, mast, dbl, portal, spec, Lb, L, L2,
+   found, hw, stag, track, attrs, warn: [] }. portal = due coppie di coordinate (o, senza, un tipo da portale: si
+   salta). opt.masts / opt.founds = codici del catalogo (il modulo non lo importa); opt.swap = E e N scambiate */
 export function tableRecords(rows, head, map, opt = {}) {
   const masts = new Set(opt.masts || []), founds = new Map((opt.founds || []).map((f) => [f.toUpperCase(), f]));
   const used = new Set(Object.values(map).filter((c) => c != null && c >= 0));
   const hdr = rows[head] || [], out = [];
   for (let r = head + 1; r < rows.length; r++) {
     const row = rows[r], cell = (k) => (map[k] != null && map[k] >= 0 ? row[map[k]] : "");
-    const warn = [], rec = { row: r + 1, num: String(cell("num") ?? "").trim(), sta: staOf(cell("sta")), side: sideOf(cell("side")), attrs: {}, warn };
-    const e = numOf(cell("E")), n = numOf(cell("N"));
-    rec.E = opt.swap ? n : e; rec.N = opt.swap ? e : n;
+    const warn = [], rec = { row: r + 1, num: String(cell("num") ?? "").trim(), num2: String(cell("num2") ?? "").trim(), sta: staOf(cell("sta")), side: sideOf(cell("side")), attrs: {}, warn };
+    const e = numOf(cell("E")), n = numOf(cell("N")), e2 = numOf(cell("E2")), n2 = numOf(cell("N2"));
+    rec.E = opt.swap ? n : e; rec.N = opt.swap ? e : n; rec.E2 = opt.swap ? n2 : e2; rec.N2 = opt.swap ? e2 : n2;
     rec.xy = Number.isFinite(rec.E) && Number.isFinite(rec.N);
+    rec.xy2 = rec.xy && Number.isFinite(rec.E2) && Number.isFinite(rec.N2);
     if (!Number.isFinite(rec.sta) && !rec.xy) continue;     // righe senza progressiva né coordinate: titoli, totali, vuote
     rec.dr = meters(cell("dr"), 20);
-    const ms = String(cell("mast") || "").trim();
+    const ms = String(cell("mast") || "").trim(), blk = String(cell("block") || "").trim(), pt = String(cell("ptype") || "").trim();
+    // il testo del tipo: blocco, tipologia, tipo di palo e le altre colonne «tipo …» non scelte («Tipo_palo doppio»)
+    const more = row.map((v, c) => (!used.has(c) && /tipo/i.test(String(hdr[c] || "")) ? String(v).trim() : "")).filter(Boolean);
+    const kind = [blk, pt, ms, ...more].filter(Boolean).join(" | ");
+    rec.spec = portalSpec(kind);
     rec.mast = ms ? mastOf(ms) : null;
-    rec.portal = !!ms && !rec.mast && isPortalText(ms);
+    rec.portal = rec.xy2 || (!rec.mast && isPortalText(kind));
+    rec.dbl = !rec.portal && rec.spec.dbl;                  // palo doppio («PALO_DOPPIO_2xLSU», «2xLSU24»)
+    if (!rec.portal && !rec.mast && rec.spec.up === "LSU" && (rec.dbl || !ms) && masts.has(rec.spec.mast)) rec.mast = rec.spec.mast;
     if (ms && !rec.portal && !(rec.mast && masts.has(rec.mast))) { warn.push("mast"); rec.mast = null; rec.attrs[hdr[map.mast] || "mast"] = ms; }
-    rec.L = meters(cell("L"), 100); rec.L2 = meters(cell("L2"), 100);
+    if (blk) rec.attrs[String(hdr[map.block] || "").trim() || "block"] = blk;
+    if (pt) rec.attrs[String(hdr[map.ptype] || "").trim() || "ptype"] = pt;
+    if (rec.portal && ms) rec.attrs[String(hdr[map.mast] || "").trim() || "mast"] = ms;
+    rec.L = meters(cell("L"), 100); rec.L2 = meters(cell("L2"), 100); rec.Lb = meters(cell("Lb"), 100);
     rec.sosp = String(cell("sosp") ?? "").trim(); rec.sosp2 = String(cell("sosp2") ?? "").trim();
-    const fs = String(cell("found") || "").trim();
-    rec.found = fs ? founds.get(fs.toUpperCase()) || null : null;
-    if (fs && !rec.found) { warn.push("found"); rec.attrs[hdr[map.found] || "found"] = fs; }
+    // fondazione: del primo montante, se non c'è (o non è del catalogo) del secondo; i testi restano negli attributi
+    const fs = String(cell("found") || "").trim(), fs2 = String(cell("found2") || "").trim();
+    rec.found = (fs && founds.get(fs.toUpperCase())) || (fs2 && founds.get(fs2.toUpperCase())) || null;
+    if ((fs || fs2) && !rec.found) warn.push("found");
+    if (fs && rec.found !== founds.get(fs.toUpperCase())) rec.attrs[hdr[map.found] || "found"] = fs;
+    if (fs2 && rec.found !== founds.get(fs2.toUpperCase())) rec.attrs[hdr[map.found2] || "found2"] = fs2;
     rec.hw = meters(cell("hw"), 50); rec.stag = meters(cell("stag"), 5);
     rec.track = String(cell("track") ?? "").trim();
     row.forEach((v, c) => { if (!used.has(c) && String(v).trim() !== "" && String(hdr[c] || "").trim()) rec.attrs[String(hdr[c]).trim()] = String(v).trim(); });
@@ -619,14 +664,56 @@ export function tableRecords(rows, head, map, opt = {}) {
    o su quello scelto, come prima.
    → { ok: [{ i, rec, u, side, dr, xy, lat, warn }], skip: [{ rec, why, t, d }] }
    why: noTrack (binario della colonna sconosciuto), out (fuori dal binario), far (oltre maxD dal binario più
-   vicino), portal; warn: amb (un altro binario quasi alla stessa distanza), staDiff, drDiff, sideDiff, drRange */
-export const XY_DEFAULTS = { maxD: 15, drMin: 1.5, drMax: 4.5, staTol: 0.5, drTol: 0.05, ambTol: 0.5 };
+   vicino), portal (tipo da portale senza le due coppie di coordinate), between (portale senza binari caricati fra
+   i montanti); warn: amb (un altro binario quasi alla stessa distanza), staDiff, drDiff, sideDiff, drRange.
+   Portali (0.11.0, rec.xy2): { portal: true, i (binario di riferimento), u, side 1, fix: { qL, aL, qR, aR },
+   span, drL, drR, served (indici dei binari fra i montanti), dr (la minore) }; warn in più: skew (montanti
+   sfalsati lungo il binario oltre skewTol), spanDiff (luce diversa dalla «L trave» scritta oltre spanTol); la
+   DR fuori misura conta solo sotto drMin (oltre i binari caricati il portale può scavalcarne altri).
+   opt.portalW(rec) = larghezza dei montanti trasversale (di partenza 0,31 del pilone) */
+export const XY_DEFAULTS = { maxD: 15, drMin: 1.5, drMax: 4.5, staTol: 0.5, drTol: 0.05, ambTol: 0.5, skewTol: 0.25, spanTol: 0.05 };
+/* un portale dalle coordinate dei due montanti: binario di riferimento = fra quelli che passano FRA i due montanti,
+   il più vicino al punto medio (o quello della colonna); progressiva = proiezione del punto medio; montanti nel
+   riferimento del binario lì (q scostamento, a lungo il binario: la trave può essere obliqua) */
+function placePortal(rec, tracks, ixs, named, o) {
+  const A = [rec.E, rec.N], B = [rec.E2, rec.N2], M = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
+  const cand = [];
+  ixs.forEach((ix, i) => {
+    const pa = projectOn(ix, ...A), pb = projectOn(ix, ...B), pm = projectOn(ix, ...M);
+    if (Math.abs(pm.along) <= 2 && Math.abs(pa.along) <= 2 && Math.abs(pb.along) <= 2 && Math.sign(pa.lat) !== Math.sign(pb.lat)) cand.push({ i, pm });
+  });
+  if (named >= 0 && !cand.some((c) => c.i === named)) return { skip: { rec, why: "out", t: tracks[named].name } };
+  if (!cand.length) {
+    const nt = nearestTracks(ixs, ...M)[0];
+    return { skip: nt && Math.abs(nt.lat) <= o.maxD ? { rec, why: "between", t: tracks[nt.i].name } : { rec, why: "far", t: nt ? tracks[nt.i].name : "", d: nt ? Math.abs(nt.lat) : null } };
+  }
+  const ref = named >= 0 ? cand.find((c) => c.i === named) : cand.slice().sort((a, b) => Math.abs(a.pm.lat) - Math.abs(b.pm.lat))[0];
+  const u = ref.pm.u, f = trackFrame(ixs[ref.i].T, u);
+  const loc = (p) => ({ a: (p[0] - f.x) * f.tx + (p[1] - f.y) * f.ty, q: (p[0] - f.x) * f.nx + (p[1] - f.y) * f.ny });
+  let L = loc(A), R = loc(B);
+  if (L.q < R.q) [L, R] = [R, L];
+  // i binari serviti nel riferimento del portale: il punto del binario sotto il punto medio
+  const qs = cand.map((c) => { const g = trackFrame(ixs[c.i].T, c.pm.u); return (g.x - f.x) * f.nx + (g.y - f.y) * f.ny; });
+  const w = o.portalW ? o.portalW(rec) : 0.31, top = Math.max(...qs), bot = Math.min(...qs);
+  const drL = L.q - w / 2 - GAUGE_HALF - top, drR = bot - GAUGE_HALF - (R.q + w / 2), span = Math.hypot(L.q - R.q, L.a - R.a), warn = [];
+  if (Math.abs(L.a - R.a) > o.skewTol) warn.push("skew");
+  if (Number.isFinite(rec.Lb) && Math.abs(span - rec.Lb) > o.spanTol) warn.push("spanDiff");
+  if (Number.isFinite(rec.sta) && Math.abs((tracks[ref.i].s0 || 0) + u - rec.sta) > o.staTol) warn.push("staDiff");
+  if (Math.min(drL, drR) < o.drMin) warn.push("drRange");
+  return { ok: { portal: true, i: ref.i, rec, u, side: 1, fix: { qL: L.q, aL: L.a, qR: R.q, aR: R.a }, span, drL, drR, dr: Math.min(drL, drR),
+    served: cand.map((c) => c.i), xy: true, lat: null, warn } };
+}
 export function placeRecords(recs, tracks, opt = {}) {
   const o = { ...XY_DEFAULTS, ...opt }, ok = [], skip = [], ixs = tracks.map((t) => t.ix);
   for (const rec of recs) {
-    if (rec.portal) { skip.push({ rec, why: "portal" }); continue; }
     const named = rec.track ? tracks.findIndex((t) => t.name.toLowerCase() === rec.track.toLowerCase()) : -1;
     if (rec.track && named < 0) { skip.push({ rec, why: "noTrack", t: rec.track }); continue; }
+    if (rec.portal) {
+      if (!rec.xy2) { skip.push({ rec, why: "portal" }); continue; }
+      const r = placePortal(rec, tracks, ixs, named, o);
+      if (r.skip) skip.push(r.skip); else ok.push(r.ok);
+      continue;
+    }
     if (!rec.xy) {
       const i = named >= 0 ? named : o.track, t = tracks[i];
       if (!t) { skip.push({ rec, why: "noTrack", t: rec.track || "" }); continue; }

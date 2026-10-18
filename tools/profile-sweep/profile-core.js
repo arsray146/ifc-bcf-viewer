@@ -1390,11 +1390,14 @@ export function ditchSweep(stations, sh, zAt3, { O = { x: 0, y: 0 }, du = 0.1, r
     vol.lining += (a.sh.liningArea + b.sh.liningArea) / 2 * dp;
   }
   const P3 = (s, u, v) => [s.x + s.nx * u * s.k - O.x, s.y + s.ny * u * s.k - O.y, s.z + v];
-  let mesh = null;
+  let mesh = null, bands = null;
   if (sections.length >= 2) {
     // il rivestimento è un solido vero: il suo verso si decide dal volume; il suo anello gira al
-    // contrario di quelli di scavo e riporto (interno sopra, esterno sotto) → verso opposto
-    const lining = loftBand(sections.map((s) => [...s.sh.inner.map(([u, v]) => P3(s, u, v)), ...s.sh.outer.slice().reverse().map(([u, v]) => P3(s, u, v))]));
+    // contrario di quelli di scavo e riporto (interno sopra, esterno sotto) → verso opposto.
+    // Le sue sezioni anche a parte (0.21, «Porta in Revit»: Revit lo rifà raccordandole, come il canale)
+    const liningRings = sections.map((s) => [...s.sh.inner.map(([u, v]) => P3(s, u, v)), ...s.sh.outer.slice().reverse().map(([u, v]) => P3(s, u, v))]);
+    const lining = loftBand(liningRings);
+    bands = { lining: [liningRings] };
     const band = (pick) => {
       const zero = [];
       const rings = sections.map((s) => {
@@ -1415,7 +1418,7 @@ export function ditchSweep(stations, sh, zAt3, { O = { x: 0, y: 0 }, du = 0.1, r
       })),
     };
   }
-  return { sections, length, vol, mesh, miss: sections.filter((s) => !s.ok).length };
+  return { sections, length, vol, mesh, bands, miss: sections.filter((s) => !s.ok).length };
 }
 
 /**
@@ -1431,7 +1434,7 @@ export function ditchPartsSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 
     const st = sweepStations(axis, prof, anchors, { step, p0: B[i], p1: B[i + 1], extra });
     if (st.length < 2) continue;
     const sw = ditchSweep(st, sh, zAt3, { O, du, reach, shapeAt });
-    res.parts.push({ k: k0 + res.parts.length + 1, p0: B[i], p1: B[i + 1], length: sw.length, vol: sw.vol, mesh: sw.mesh, miss: sw.miss, n: st.length });
+    res.parts.push({ k: k0 + res.parts.length + 1, p0: B[i], p1: B[i + 1], length: sw.length, vol: sw.vol, mesh: sw.mesh, bands: sw.bands, miss: sw.miss, n: st.length });
   }
   return res;
 }
@@ -1805,9 +1808,17 @@ export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }
     //     [basso…, alto al contrario] girano al contrario della U → verso opposto.
     //     Gli smussi nulli lasciano punti doppi negli anelli: compactMesh toglie i triangoli che ne vengono
     const uniq = secs.filter((s, j) => !j || s.p - secs[j - 1].p > 1e-9);
-    const U0 = loftBand(uniq.map((s) => s.sh.ring.map(([u, v]) => P3(s, u, v)))), fl = !U0.flipped;
+    // sezioni dei solidi civili (0.21, «Porta in Revit»): per ogni solido i gruppi di anelli consecutivi coi punti
+    // nello stesso ordine; Revit li rifà raccordando una sezione con la successiva (spigoli veri, niente triangoli
+    // lunghi e sottili). Le mesh restano quelle di sempre; i tagli e i ponti tolgono le sezioni dove cambiano le mesh
+    const bands = { lining: [], lean: [], mix: [] };
+    const uRings = uniq.map((s) => s.sh.ring.map(([u, v]) => P3(s, u, v)));
+    const U0 = loftBand(uRings), fl = !U0.flipped;
+    bands.lining.push(uRings);
     const roofed = uniq.every((s) => s.sh.roofRing);
-    const roof = roofed ? compactMesh(loftBand(uniq.map((s) => s.sh.roofRing.map(([u, v]) => P3(s, u, v))))) : null;
+    const roofRings = roofed ? uniq.map((s) => s.sh.roofRing.map(([u, v]) => P3(s, u, v))) : null;
+    const roof = roofRings ? compactMesh(loftBand(roofRings)) : null;
+    if (roofRings) bands.lining.push(roofRings);
     const band = (list, ringOf) => {
       if (list.length < 2) return null;
       const zero = [], rings = list.map((s) => {
@@ -1817,20 +1828,26 @@ export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }
       });
       return compactMesh(loftBand(rings, fl, zero));
     };
-    const box = (list, w, lo, hi) => band(list, (s) => [[-w(s), lo(s), hi(s)], [w(s), lo(s), hi(s)]]);
+    const box = (list, w, lo, hi, cls) => {
+      const ringOf = (s) => [[-w(s), lo(s), hi(s)], [w(s), lo(s), hi(s)]];
+      // solo scatole con lo spessore in ogni stazione: il cuneo che finisce a zero (una sezione senza area) resta ai triangoli
+      if (cls && list.length >= 2 && list.every((s) => hi(s) - lo(s) > 1e-6))
+        bands[cls].push(list.map((s) => { const [a, b] = ringOf(s); return [P3(s, a[0], a[1]), P3(s, b[0], b[1]), P3(s, b[0], b[2]), P3(s, a[0], a[2])]; }));
+      return band(list, ringOf);
+    };
     const wallRuns = runsOf(secs, (s) => s.zone.kind === "wall");
     const rg = new Map(secs.map((s) => [s, channelRings(s.sh, s.cr, s.T, { nS })]));
     const mesh = {
-      lining: mergeMeshes([compactMesh(U0), roof, ...wallRuns.map((r) => box(r, (s) => s.sh.uo, (s) => s.zone.vD, (s) => s.sh.vs))]),
-      lean: mergeMeshes([...runsOf(secs, (s) => s.zone.kind !== "wall").map((r) => box(r, (s) => s.sh.um, (s) => s.sh.vm, (s) => s.sh.vs)),
-        ...wallRuns.map((r) => box(r, (s) => s.sh.um, (s) => s.zone.vD - s.sh.c.tm, (s) => s.zone.vD))]),
-      mix: mergeMeshes(runsOf(secs, (s) => s.zone.kind === "wedge").map((r) => box(r, (s) => s.sh.um, (s) => s.zone.vE, (s) => s.sh.vm))),
+      lining: mergeMeshes([compactMesh(U0), roof, ...wallRuns.map((r) => box(r, (s) => s.sh.uo, (s) => s.zone.vD, (s) => s.sh.vs, "lining"))]),
+      lean: mergeMeshes([...runsOf(secs, (s) => s.zone.kind !== "wall").map((r) => box(r, (s) => s.sh.um, (s) => s.sh.vm, (s) => s.sh.vs, "lean")),
+        ...wallRuns.map((r) => box(r, (s) => s.sh.um, (s) => s.zone.vD - s.sh.c.tm, (s) => s.zone.vD, "lean"))]),
+      mix: mergeMeshes(runsOf(secs, (s) => s.zone.kind === "wedge").map((r) => box(r, (s) => s.sh.um, (s) => s.zone.vE, (s) => s.sh.vm, "mix"))),
       cut: mergeMeshes([band(uniq, (s) => rg.get(s).cut)]),
       fill: mergeMeshes([band(secs, (s) => rg.get(s).right), band(secs, (s) => rg.get(s).left), band(secs, (s) => rg.get(s).bottom),
         roofed ? band(uniq, (s) => rg.get(s).top) : null]),
     };
     const miss = uniq.filter((s) => !s.cr.ok).length;
-    res.parts.push({ k: k0 + res.parts.length + 1, p0, p1, length, vol, mesh, miss, n: uniq.length,
+    res.parts.push({ k: k0 + res.parts.length + 1, p0, p1, length, vol, mesh, bands, miss, n: uniq.length,
       drops: walls.map((w) => ({ p: w.d.p, dz: w.d.dz, face: w.face, wedge: w.wa != null ? w.wb - w.wa : 0 })),
       sections: secs.map((s) => ({ p: s.p, z: s.z, kind: s.zone.kind, zone: s.zone, a: s.a, ok: s.cr.ok, dry: s.cr.dry })) });
     res.miss += miss; res.length += length;
@@ -2517,6 +2534,7 @@ export function bridgePart(t, id) {
   t.bridge = id;
   for (const k of Object.keys(t.vol || {})) if (!BRIDGE_KEEP.has(k)) t.vol[k] = 0;
   if (t.mesh) for (const k of Object.keys(t.mesh)) if (!BRIDGE_KEEP.has(k)) delete t.mesh[k];
+  if (t.bands) for (const k of Object.keys(t.bands)) if (!BRIDGE_KEEP.has(k)) delete t.bands[k];
   t.miss = 0;
   if ("shore" in t) t.shore = 0;
   if ("bank" in t) t.bank = [];
@@ -3902,6 +3920,7 @@ export function trimParts(parts, axis, zones, { O = { x: 0, y: 0 }, tri } = {}) 
         const vk = Math.abs(meshVolume(r.keep)), vc = Math.abs(meshVolume(r.cut));
         if (!r.cut.index.length) continue;
         if (r.keep.index.length) t.mesh[k] = r.keep; else delete t.mesh[k];
+        if (t.bands) delete t.bands[k];                        // mesh tagliata: le sezioni non la descrivono più (in Revit i triangoli)
         if (t.vol && isNum(t.vol[k])) t.vol[k] = r.keep.index.length && vk + vc > 1e-12 ? t.vol[k] * vk / (vk + vc) : 0;
       }
       // tutto dentro la zona: il tratto non c'è più (fuori da IFC, .3dm e computo; la pagina lo salta)

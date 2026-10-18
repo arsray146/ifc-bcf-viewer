@@ -5,8 +5,11 @@
    Niente DOM: si prova in Node (test/test_ocs_stake.js). Importa solo il motore.
 
    Regole (scelte dell'utente 2026-10-12; il TE 210 RFI non c'è → parametri):
-   - campata massima dal raggio: TABELLA dell'utente «per raggi fino a R:
-     campata L» dove c'è, altrimenti la regola geometrica: in curva il filo
+   - campata massima dal raggio: TABELLA dove c'è — di partenza quella RFI
+     E 65061 a (0.12.0, PIANO §22.4) letta «da R in su: campata L» (fra due raggi
+     vale il più piccolo; sotto il primo, il minore fra la prima riga e la regola); le tabelle scritte
+     prima della 0.12.0 restano «fino a R: campata L» (tableMode «upTo») —
+     altrimenti la regola geometrica: in curva il filo
      sta poligonato verso l'esterno di a al palo e a metà campata si sposta
      verso l'interno della freccia L²/8R; ammesso b oltre l'asse →
      L = √(8·R·(a + b)) (a = b = 0,20 → R 1000: 56,6 m; R 500: 40 m);
@@ -20,9 +23,11 @@
      alternata (anche rispetto ai pali fissi vicini);
    - pali appaiati: le stesse sezioni sul binario parallelo (projectStations).
    ========================================================================= */
-import { trackFrame, crossOffset } from "./ocs-core.js?v=0.10.1";
+import { trackFrame, crossOffset } from "./ocs-core.js?v=0.20.0";
 
-export const AUTO_DEFAULTS = { Lmax: 60, a: 0.2, b: 0.2, ratio: 1.25, Rout: 1500, ends: true, side: 1, table: [], excl: [], must: [], follow: null };
+/* E 65061 a, fogli 3–6: raggio di curva (m) → campata massima (m); da 1400 in su 60 (= Lmax) */
+export const RFI_SPANS = [[250, 26], [300, 30], [400, 34], [500, 39], [600, 43.5], [700, 47], [800, 50], [900, 52], [1000, 53.5], [1100, 55.5], [1200, 57], [1300, 58.5], [1400, 60]].map(([R, L]) => ({ R, L }));
+export const AUTO_DEFAULTS = { Lmax: 60, a: 0.2, b: 0.2, ratio: 1.25, Rout: 1500, ends: true, side: 1, table: RFI_SPANS, tableMode: "from", excl: [], must: [], follow: null };
 const STEP = 1;                                           // campionamento del limite (m)
 const num = (v) => (v == null || v === "" ? NaN : +v);
 
@@ -31,7 +36,11 @@ export const geomSpan = (R, a, b) => Math.sqrt(8 * Math.abs(R) * (a + b));
 export function spanLimit(R, p = {}) {
   const P = { ...AUTO_DEFAULTS, ...p }, r = Math.abs(R);
   if (!(r > 0) || !Number.isFinite(r)) return P.Lmax;
-  const row = cleanTable(P.table).find((x) => r <= x.R + 1e-9);
+  const tab = cleanTable(P.table);
+  let row;
+  const mode = p.tableMode || (p.table != null ? "upTo" : P.tableMode);          // tabella data senza modo = «fino a R» (prima della 0.12.0)
+  if (mode === "from") row = tab.length ? [...tab].reverse().find((x) => r >= x.R - 1e-9) || { L: Math.min(tab[0].L, geomSpan(r, P.a, P.b)) } : null;   // sotto il primo raggio: il minore fra la prima riga e la regola
+  else row = tab.find((x) => r <= x.R + 1e-9);
   const L = row ? row.L : geomSpan(r, P.a, P.b);
   return Math.max(1, Math.min(P.Lmax, L));
 }

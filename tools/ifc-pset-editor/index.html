@@ -2940,6 +2940,17 @@ function subjLabel(v){
 function opItems(subj){
   return (subjIsNum(subj)?NUM_OPS:TXT_OPS).map(x=>({v:x,label:tr("op."+x)}));
 }
+/* operatore naturale del soggetto: cambiando soggetto si riparte da questo
+   invece di trascinarsi quello di prima. «IsExternal CONTIENE vero» è
+   sintatticamente valido e dà zero elementi: sembra che il tool sia rotto,
+   e invece è solo l'operatore rimasto dal soggetto precedente.
+   Sono anche gli operatori degli esempi del canvas: il nome CONTIENE «REI»,
+   il tipo È «Pilastro CA 40×40», IsExternal = vero, superficie > 25 m². */
+function defaultOp(subj){
+  if(subj.startsWith("q:")) return "gt";
+  if(subj.startsWith("p:")) return "eq";
+  return (subj==="n:name"||subj==="n:desc")?"has":"eq";
+}
 function clsItems(){
   return [{v:"",label:tr("r.any")}].concat(
     STATE.idx.classes.map(c=>({v:c.v,label:c.v,mono:true,hint:nf(c.n,0)})));
@@ -2972,7 +2983,10 @@ function colItems(r){
 function renderDetail(){
   if(!STATE.idx){ ui.benchR.hidden=true; return; }
   const r=STATE.rules[STATE.sel];
-  if(!r){ ui.det.innerHTML='<p class="empty">'+tr("det.empty")+'</p>'; return; }
+  /* la barra in fondo si riallinea QUI, non nei chiamanti: ogni scelta da
+     tendina ridisegna il pannello, e dimenticarsene lasciava il bottone
+     "Applica ed esporta" spento davanti a un piano perfettamente valido */
+  if(!r){ ui.det.innerHTML='<p class="empty">'+tr("det.empty")+'</p>'; renderExec(); return; }
   const info=STATE.plan?STATE.plan.per[STATE.sel]:null;
 
   /* --- condizioni --- */
@@ -3088,6 +3102,7 @@ function renderDetail(){
       (units?" "+esc(fmt("ty.units",{u:units})).replace(/&lt;\/?b&gt;/g,""):"")+'</span>';
 
   bindDetail(r);
+  renderExec();
 }
 function bindDetail(r){
   const on=(id,ev,fn)=>{ const el=$(id); if(el) el.addEventListener(ev,fn); };
@@ -3101,9 +3116,11 @@ function bindDetail(r){
   on("dAdd","click",()=>{ (r.conds=r.conds||[]).push({t:"name",op:"has",v:""}); redraw(); });
   (r.conds||[]).forEach((c,i)=>{
     on("dCs"+i,"click",()=>ddToggle($("dCs"+i),subjItems(),condSubj(c),v=>{
+      const before=condSubj(c);
       if(v.startsWith("p:")){ c.t="prop"; c.key=v.slice(2); }
       else if(v.startsWith("q:")){ c.t="qty"; c.key=v.slice(2); }
       else { c.t=v.slice(2); c.key=""; }
+      if(v!==before) c.op=defaultOp(v);
       const allowed=subjIsNum(v)?NUM_OPS:TXT_OPS;
       if(!allowed.includes(c.op)) c.op=allowed[0];
       redraw();

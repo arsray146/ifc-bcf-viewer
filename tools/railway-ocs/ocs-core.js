@@ -306,20 +306,26 @@ export function supportParts(T, sup, R) {
   const { f, s, at } = F, z0 = f.z, th = f.th, out = [];
   const box = (k, along, q, zc, sl, st, sv) => out.push({ k, c: at(along, q, zc), sz: [sl, st, sv], th });
   const M = R.mast, face = s * (R.dr + GAUGE_HALF), qc = face + s * M.w / 2;
-  const zPlate = z0 + R.baseDz, zBase = zPlate + 0.045, zTop = zBase + M.H;
-  // fondazione: pilastrino sotto la piastra, blocco sotto il pilastrino (i B eccentrici: A2 verso il binario)
-  const Fd = R.found, zPil = zPlate - R.c1, zBlk = zPil - Fd.C;
-  box("pil", 0, qc, (zPlate + zPil) / 2, Fd.B1, Fd.A1, R.c1);
+  const Pl = plateOf(M), zHead = z0 + R.baseDz, zPlate = zHead + GROUT, zBase = zPlate + Pl.t, zTop = zBase + M.H;
+  // fondazione: pilastrino sotto la piastra (che sta GROUT più su), blocco sotto il pilastrino (i B eccentrici: A2 verso il binario)
+  const Fd = R.found, zPil = zHead - R.c1, zBlk = zPil - Fd.C;
+  box("pil", 0, qc, (zHead + zPil) / 2, Fd.B1, Fd.A1, R.c1);
   const qb = Fd.A2 != null ? qc + s * (Fd.A / 2 - Fd.A2) : qc;
   box("block", 0, qb, (zPil + zBlk) / 2, Fd.B, Fd.A, Fd.C);
-  box("plate", 0, qc, zPlate + 0.0225, 0.58, 0.58, 0.045);
-  box("mast", 0, qc, (zBase + zTop) / 2, M.d, M.w, M.H);
+  for (const x of R.dbl ? [-DOUBLE_GAP_CORE / 2, DOUBLE_GAP_CORE / 2] : [0]) {   // palo doppio (0.11.0): due fusti lungo il binario
+    box("plate", x, qc, zPlate + Pl.t / 2, Pl.b, Pl.a, Pl.t);
+    box("mast", x, qc, (zBase + zTop) / 2, M.d, M.w, M.H);
+  }
   // UNA mensola dalla faccia verso il binario; su di essa una sospensione per binario servito (il binario del
   // palo e quelli in R.susp, all'interasse off oltre il primo, filo a hw sul LORO piano del ferro) e un tirante
   // per sospensione (R.ties: il più lontano alla punta). Parti con suffisso 2, 3… per le sospensioni in più;
   // «trk» = asse del binario servito (solo per la sezione)
   const q0 = face - s * 0.115, zm = z0 + R.hm, L = R.mens.L, q1 = q0 - s * L;
   box("mens", 0, (q0 + q1) / 2, zm, 0.06, L, 0.06);
+  // attacco della mensola al palo (0.12.1, E 73012–73014): piastra sulla faccia (255 lungo il binario × 175 alta,
+  // 20 di spessore) e snodo dalla piastra all'inizio della mensola (che parte MENS_START = 115 mm oltre la faccia)
+  box("att", 0, face - s * ATT.t / 2, zm, ATT.w, ATT.t, ATT.h);
+  box("att", 0, face - s * (ATT.t + 0.115) / 2, zm, 0.06, 0.115 - ATT.t, 0.06);
   const sus = [{ off: 0, dz: 0, stag: R.stag }, ...(R.susp || [])];
   sus.forEach((x, i) => {
     const sfx = i ? String(i + 1) : "", qa = -s * x.off, qw = qa + s * x.stag, zw = z0 + x.dz + R.hw;
@@ -373,8 +379,9 @@ export function mastSolids(M, lod = "upn") {
     for (const sx of [1, -1]) B([sx * (d / 2 - tf / 2), sy * (w / 2 - tw - (b - tw) / 2), 0], [tf / 2, (b - tw) / 2, H / 2]);   // ali
   }
   if (lod !== "lattice") return out;
-  // aste piatte 30 × 6 dentro le ali; 20 mm di margine ai capi perché gli spigoli delle aste non escano dal fusto
-  const m = M.module || 0.266, e = 0.02, n = Math.floor((H - 2 * e) / m + 1e-9), y = w / 2 - b / 2, tb = 0.006, wb = 0.03;
+  // aste dentro le ali, a sezione quadrata del lato del tondo (E 66013 c: Ø20…24; senza Ø i piatti 30 × 6 di prima);
+  // 20 mm di margine ai capi perché gli spigoli delle aste non escano dal fusto
+  const m = M.module || 0.266, e = 0.02, n = Math.floor((H - 2 * e) / m + 1e-9), y = w / 2 - b / 2, tb = M.lat || 0.006, wb = M.lat || 0.03;
   const dy = 2 * y, len = Math.hypot(dy, m);
   for (const sx of [1, -1]) {
     const x = sx * (d / 2 - tf - tb / 2);
@@ -405,41 +412,64 @@ export function crossTracks(T, u, others, reach = 40) {
    servito un pendolo verticale dall'intradosso al filo («arm», «wire», «trk» con suffisso 2, 3… dal secondo).
    Quote sul piano del ferro del binario di riferimento; i montanti sulla piastra al piano del ferro del binario
    estremo dalla loro parte */
-export function portalParts(T, P, R) {
+/* Riferimento della trave (0.11.0): centro fra i due montanti, x' = larghezza della trave, y' = dal montante destro
+   al sinistro; con la trave obliqua (portali importati a coordinate, R.phi ≠ 0) è ruotato di phi rispetto al
+   binario e tutte le parti girano con lei (th = rotazione in pianta). Senza R.aL / R.aR / R.phi = come prima */
+export function portalFrame(T, P, R) {
   const F = supportFrame(T, P.u, 1);
-  if (!F) return [];
-  const { f, at } = F, z0 = f.z, th = f.th, out = [];
-  const box = (k, along, q, zc, sl, st, sv, extra) => out.push({ k, c: at(along, q, zc), sz: [sl, st, sv], th, ...(extra || {}) });
+  if (!F) return null;
+  const aL = R.aL || 0, aR = R.aR || 0, phi = R.phi || 0, c = Math.cos(phi), s = Math.sin(phi);
+  const qm = (R.qL + R.qR) / 2, am = (aL + aR) / 2, half = Math.hypot(R.qL - R.qR, aL - aR) / 2;
+  // (x', y') → (lungo il binario, scostamento) nel riferimento del binario a u
+  const aq = (x, y) => [am + x * c - y * s, qm + x * s + y * c];
+  return { F, f: F.f, th: F.f.th + phi, phi, half, aq, at: (x, y, z) => F.at(...aq(x, y), z), yOfQ: (q) => (q - qm) / c,
+    tx: F.f.tx * c + F.f.nx * s, ty: F.f.ty * c + F.f.ny * s };
+}
+export function portalParts(T, P, R) {
+  const W = portalFrame(T, P, R);
+  if (!W) return [];
+  const { f, at, th, half } = W, z0 = f.z, out = [];
+  const box = (k, x, y, zc, sl, st, sv, extra) => out.push({ k, c: at(x, y, zc), sz: [sl, st, sv], th, ...(extra || {}) });
   const B = R.beam, zb = z0 + R.hb, zt = zb + B.h;
-  for (const [q, zB, sgn] of [[R.qL, R.zBaseL, 1], [R.qR, R.zBaseR, -1]]) {
+  for (const [y, zB, sgn] of [[half, R.zBaseL, 1], [-half, R.zBaseR, -1]]) {
     const zPlate = z0 + zB, Fd = R.found, zPil = zPlate - R.c1, zBlk = zPil - Fd.C;
-    box("pil", 0, q, (zPlate + zPil) / 2, Fd.B1, Fd.A1, R.c1);
-    const qb = Fd.A2 != null ? q - sgn * (Fd.A / 2 - Fd.A2) : q;     // i B eccentrici verso i binari (dentro)
-    box("block", 0, qb, (zPil + zBlk) / 2, Fd.B, Fd.A, Fd.C);
+    box("pil", 0, y, (zPlate + zPil) / 2, Fd.B1, Fd.A1, R.c1);
+    const yb = Fd.A2 != null ? y - sgn * (Fd.A / 2 - Fd.A2) : y;     // i B eccentrici verso i binari (dentro)
+    box("block", 0, yb, (zPil + zBlk) / 2, Fd.B, Fd.A, Fd.C);
     if (R.mast) {
-      const M = R.mast, zBase = zPlate + 0.045;
-      box("plate", 0, q, zPlate + 0.0225, 0.58, 0.58, 0.045);
-      box("mast", 0, q, zBase + M.H / 2, M.d, M.w, M.H);
+      const M = R.mast, Pl = plateOf(M), zP = zPlate + GROUT, zBase = zP + Pl.t;
+      for (const x of R.dbl ? [-DOUBLE_GAP_CORE / 2, DOUBLE_GAP_CORE / 2] : [0]) {   // palo doppio: due pali lungo il binario
+        box("plate", x, y, zP + Pl.t / 2, Pl.b, Pl.a, Pl.t);
+        box("mast", x, y, zBase + M.H / 2, M.d, M.w, M.H);
+      }
     } else {
       const Pp = R.pole, zBase = zPlate + Pp.plate.t, H = zt + BEAM_TOP_GAP_CORE - zBase;
-      box("plate", 0, q, zPlate + Pp.plate.t / 2, Pp.plate.a, Pp.plate.a, Pp.plate.t);
-      box("pole", 0, q, zBase + H / 2, Pp.d, Pp.w, H);
+      box("plate", 0, y, zPlate + Pp.plate.t / 2, Pp.plate.a, Pp.plate.a, Pp.plate.t);
+      box("pole", 0, y, zBase + H / 2, Pp.d, Pp.w, H);
     }
   }
-  box("beam", 0, (R.qL + R.qR) / 2, zb + B.h / 2, BEAM_WIDTH_CORE, B.L, B.h, { beam: B.id });
+  box("beam", 0, 0, zb + B.h / 2, B.w || BEAM_WIDTH_CORE, B.L, B.h, { beam: B.id });
+  // pendoli dove la trave passa sopra il filo di ogni binario servito (con la trave obliqua più avanti o indietro)
   R.susp.forEach((x, i) => {
-    const sfx = i ? String(i + 1) : "", qw = x.q + x.stag, zw = z0 + x.dz + R.hw;
-    out.push({ k: "arm" + sfx, a: at(0, qw, zb), b: at(0, qw, zw) });
-    out.push({ k: "wire" + sfx, c: at(0, qw, zw) });
-    out.push({ k: "trk" + sfx, c: at(0, x.q, z0 + x.dz) });
+    const sfx = i ? String(i + 1) : "", yw = W.yOfQ(x.q + x.stag), zw = z0 + x.dz + R.hw;
+    out.push({ k: "arm" + sfx, a: at(0, yw, zb), b: at(0, yw, zw) });
+    out.push({ k: "wire" + sfx, c: at(0, yw, zw) });
+    out.push({ k: "trk" + sfx, c: at(0, W.yOfQ(x.q), z0 + x.dz) });
   });
   return out;
 }
 const BEAM_WIDTH_CORE = 0.6, BEAM_TOP_GAP_CORE = 0.1;    // = ocs-catalog BEAM_WIDTH, BEAM_TOP_GAP (il motore non importa il catalogo)
+const ATT = { w: 0.255, h: 0.175, t: 0.02 };              // piastra a X dell'attacco della mensola (E 73013)
+const DOUBLE_GAP_CORE = 1.1;                             // = ocs-catalog DOUBLE_GAP (E 64906 c, 0.12.0)
+/* la piastra del palo LSU sta 90 mm sopra la testa del pilastrino (E 66013 c; 0.17.0, come le famiglie RFI della
+   sessione 18): la quota del tool (baseDz, pilOut) resta quella della testa del pilastrino. = ocs-catalog PLATE_GROUT */
+export const GROUT = 0.09;
+/* la piastra di base del palo (0.12.0: per taglia da E 66013 c; a trasversale, b lungo il binario) */
+const plateOf = (M) => (M && M.plate) || { a: 0.58, b: 0.58, t: 0.045 };
 /* la trave a traliccio in solidi attorno al suo centro (x lungo il binario = larghezza, y = lunghezza, z = altezza):
    «box» = piena; altrimenti 4 correnti a L 70 agli spigoli; «lattice» = più montanti e diagonali alternate
    (Warren con montanti, come i blocchi TRAVE PO) sulle due facce verticali, modulo ≈ 1,3 × altezza */
-export function beamSolids(B, lod = "upn", width = BEAM_WIDTH_CORE) {
+export function beamSolids(B, lod = "upn", width = B.w || BEAM_WIDTH_CORE) {
   const L = B.L, h = B.h, w = width, out = [];
   const X = (c, hh, ax = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) => out.push({ c, ax, h: hh });
   if (lod === "box") { X([0, 0, 0], [w / 2, L / 2, h / 2]); return out; }
@@ -457,13 +487,54 @@ export function beamSolids(B, lod = "upn", width = BEAM_WIDTH_CORE) {
   }
   return out;
 }
+/* ---- anteprima in Revit (0.14.0, add-in ViewIFC: PIANO_Revit_ViewIFC.md §4.5) ------------------------------
+   Le parti di un sostegno (supportParts / portalParts, risolto R) come scatole orientate in coordinate del mondo,
+   le stesse della vista 3D: fusto e trave coi solidi del livello di dettaglio lod (mastSolids / beamSolids), le
+   altre parti la loro scatola, ruotate di th in pianta attorno al loro centro. Una scatola = 12 numeri: centro e
+   tre semiassi come vettori [cx, cy, cz, ux, uy, uz, vx, vy, vz, wx, wy, wz] (terna destrorsa); un segmento =
+   [x1, y1, z1, x2, y2, z2] (tiranti, sospensioni, pendoli, aste). → { boxes: [{ k, box }], segs: [{ k, seg }] } */
+export function previewSolids(P, R, lod = "upn") {
+  const boxes = [], segs = [], I = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  for (const p of P) {
+    if (p.sz) {
+      const c = Math.cos(p.th || 0), s = Math.sin(p.th || 0), rot = (v) => [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]];
+      const solids = lod !== "box" && p.k === "mast" && R.mast ? mastSolids(R.mast, lod)
+        : lod !== "box" && p.k === "beam" && R.beam ? beamSolids(R.beam, lod)
+        : [{ c: [0, 0, 0], ax: I, h: [p.sz[0] / 2, p.sz[1] / 2, p.sz[2] / 2] }];
+      for (const b of solids) {
+        const o = rot(b.c), a = b.ax.map((v, i) => rot(v.map((x) => x * b.h[i])));
+        boxes.push({ k: p.k, box: [p.c.x + o[0], p.c.y + o[1], p.c.z + o[2], ...a[0], ...a[1], ...a[2]] });
+      }
+    } else if (p.a && p.b) segs.push({ k: p.k, seg: [p.a.x, p.a.y, p.a.z, p.b.x, p.b.y, p.b.z] });
+  }
+  return { boxes, segs };
+}
+/* ---- piazzamento delle famiglie Revit (0.15.0, add-in ViewIFC R1: PIANO_Revit_ViewIFC.md §13) ----------------
+   Punto d'inserimento e asse X della famiglia secondo le convenzioni del catalogo RFI dell'utente (sessione 18):
+   origine sull'asse del palo (portale: del pilone 1 = montante destro), Z = 0 sul supercompattato, X lungo il
+   binario, Y trasversale col binario verso −Y (portale: Y lungo la trave verso il pilone 2). Il supercompattato
+   = testa del pilastrino − pilOut (con la superficie scelta è proprio lei). Palo a sinistra: X = tangente; a destra
+   X = −tangente (Y punta sempre via dal binario: niente specchiature). → { origin: {x, y, z}, xAxis: [dx, dy],
+   span (portale: distanza fra i montanti) } o null */
+export function revitFrame(T, s, R) {
+  if (R && R.kind === "portal") {
+    const W = portalFrame(T, s, R);
+    if (!W) return null;
+    return { origin: W.at(0, -W.half, W.f.z + R.zBaseR - R.pilOut), xAxis: [W.tx, W.ty], span: 2 * W.half };
+  }
+  const F = supportFrame(T, s.u, s.side);
+  if (!F || !R || !R.mast) return null;
+  const { f, s: sg, at } = F, qc = sg * (R.dr + GAUGE_HALF) + sg * R.mast.w / 2;
+  return { origin: at(0, qc, f.z + R.baseDz - R.pilOut), xAxis: [sg * f.tx, sg * f.ty] };
+}
 /* quote notevoli del sostegno, per la tabella e la sezione */
 export function supportLevels(T, sup, R) {
   const F = supportFrame(T, sup.u, sup.side);
   if (!F) return null;
-  const z0 = F.f.z, zPlate = z0 + R.baseDz;
+  const z0 = F.f.z, zHead = z0 + R.baseDz, zPlate = zHead + GROUT;
   const tie = Math.max(0, ...(R.ties || [R.tir]).map((t) => (t && Number.isFinite(t.dh) ? t.dh : 0)));
-  return { pf: z0, plate: zPlate, top: zPlate + 0.045 + R.mast.H, mens: z0 + R.hm, tie: z0 + R.hm + tie, wire: z0 + R.hw, pil: zPlate - R.c1, bottom: zPlate - R.c1 - R.found.C, E: F.f.x + F.s * (R.dr + GAUGE_HALF + R.mast.w / 2) * F.f.nx, N: F.f.y + F.s * (R.dr + GAUGE_HALF + R.mast.w / 2) * F.f.ny };
+  // head = testa del pilastrino, plate = fondo della piastra (GROUT più su, 0.17.0), pil = fondo del pilastrino
+  return { pf: z0, head: zHead, plate: zPlate, top: zPlate + plateOf(R.mast).t + R.mast.H, mens: z0 + R.hm, tie: z0 + R.hm + tie, wire: z0 + R.hw, pil: zHead - R.c1, bottom: zHead - R.c1 - R.found.C, E: F.f.x + F.s * (R.dr + GAUGE_HALF + R.mast.w / 2) * F.f.nx, N: F.f.y + F.s * (R.dr + GAUGE_HALF + R.mast.w / 2) * F.f.ny };
 }
 /* i piedi del sostegno (asse del palo o dei due montanti del portale) in pianta, e il piano del ferro dell'asse
    del binario lì (z0, riferimento delle quote del catalogo): [{ x, y }] — un piede per il palo, due (sinistro,
@@ -472,7 +543,7 @@ export function supportFeet(T, sup, R) {
   if (R && R.kind === "portal") {
     const F = supportFrame(T, sup.u, 1);
     if (!F) return null;
-    return { z0: F.f.z, feet: [R.qL, R.qR].map((q) => F.at(0, q, 0)) };
+    return { z0: F.f.z, feet: [[R.aL || 0, R.qL], [R.aR || 0, R.qR]].map(([a, q]) => F.at(a, q, 0)) };
   }
   const F = supportFrame(T, sup.u, sup.side);
   if (!F) return null;

@@ -4,13 +4,12 @@
 
    Niente import, niente DOM: dati e regole, provati in Node (test/test_ocs_catalog.js).
    Unità: metri. Da dove vengono i numeri (PIANO_Trazione_Elettrica.md §2.3, §2.4, §12):
-   - pali LSU: blocchi dinamici Satferr (Deviata Treviglio, NB4409VZZTTLC0300001A):
-     fusto a/b/c = 8,20 / 9,60 / 12,00 m sopra la piastra (45 mm, 580 mm di lato),
-     vista trasversale 300 mm (LSU14-16: correnti 60 + traliccio 180) e 400 mm
-     (LSU18-24: 70 + 260); profondità 160 mm (E 64865 foglio 4). Il fusto è fatto
-     di 2 UPN affacciate unite da un traliccio a X, modulo 266 mm (confermato
-     dall'utente con una foto, PIANO §7.2): anima 7,5, ali 10,5 (UPN 160);
-   - quote sul piano del ferro (fogli Satferr): piastra da −0,525 a −0,480 m,
+   - pali LSU: disegno RFI E 66013 c (0.12.0, PIANO §22.2; prima i blocchi Satferr
+     della Deviata Treviglio): fusto a/b/c = 8,20 / 9,60 / 12,00 m sopra la piastra,
+     LSU nn = 2 UPN nn0 affacciate (profondità lungo il binario 140…240), vista
+     trasversale 300 mm (LSU14-16) e 400 mm (LSU18-24), traliccio di tondi Ø20-24
+     con modulo 266 mm; piastra 580 × 580 spessa 25…40, LSU24 730 × 680 × 45;
+   - quote sul piano del ferro (fogli Satferr): fondo della piastra a −0,525 m,
      mensola a +6,02 m (attacco 115 mm oltre la faccia del palo), tirante da 1,0 a
      2,4 m sopra la mensola, braccio di poligonazione a +5,40 m, filo a 5,20 m;
    - DR = faccia del palo → bordo interno della rotaia più vicina (F0, §10.4);
@@ -25,23 +24,36 @@
 export const HALF_GAUGE = 0.7175;                       // bordo interno della rotaia dall'asse (scartamento 1435)
 export const MAST_SIZES = [14, 16, 18, 20, 22, 24];
 export const MAST_HEIGHTS = { a: 8.2, b: 9.6, c: 12.0 };  // fusto sopra la piastra
-export const MAST_DEPTH = 0.16;                           // lungo il binario = altezza delle UPN
-export const PLATE = { a: 0.58, t: 0.045 };
-export const LATTICE_MODULE = 0.266;                      // passo del traliccio a X fra le due UPN
+export const LATTICE_MODULE = 0.266;                      // passo del traliccio fra le due UPN
+/* E 66013 c (0.12.0, PIANO §22.2): LSU nn = 2 UPN nn0 (UNI 5680: b ala, tw anima, tf ala), piastra per taglia
+   (a trasversale, b lungo il binario, t spessore), tondi del traliccio Ø lat, tirafondi Ø bolt, peso a/b/c in kg */
+export const LSU_SPECS = {
+  14: { upn: { b: 0.06, tw: 0.007, tf: 0.01 }, plate: { a: 0.58, b: 0.58, t: 0.025 }, lat: 0.02, bolt: 0.042, kg: { a: 397, b: 448, c: 540 } },
+  16: { upn: { b: 0.065, tw: 0.0075, tf: 0.0105 }, plate: { a: 0.58, b: 0.58, t: 0.03 }, lat: 0.02, bolt: 0.042, kg: { a: 458, b: 520, c: 625 } },
+  18: { upn: { b: 0.07, tw: 0.008, tf: 0.011 }, plate: { a: 0.58, b: 0.58, t: 0.035 }, lat: 0.022, bolt: 0.045, kg: { a: 550, b: 620, c: 748 } },
+  20: { upn: { b: 0.075, tw: 0.0085, tf: 0.0115 }, plate: { a: 0.58, b: 0.58, t: 0.04 }, lat: 0.022, bolt: 0.052, kg: { a: 625, b: 705, c: 850 } },
+  22: { upn: { b: 0.08, tw: 0.009, tf: 0.0125 }, plate: { a: 0.58, b: 0.58, t: 0.04 }, lat: 0.024, bolt: 0.052, kg: { a: 700, b: 790, c: 960 } },
+  24: { upn: { b: 0.085, tw: 0.0095, tf: 0.013 }, plate: { a: 0.73, b: 0.68, t: 0.045 }, lat: 0.024, bolt: 0.052, kg: { a: 840, b: 945, c: 1135 } },
+};
 export function mastType(id) {
   const m = /^LSU(\d{2})([abc])$/.exec(String(id || ""));
   if (!m || !MAST_SIZES.includes(+m[1])) return null;
-  const size = +m[1], h = m[2];
+  const size = +m[1], h = m[2], sp = LSU_SPECS[size];
   return {
     id: "LSU" + size + h, size, h, H: MAST_HEIGHTS[h],
     w: size <= 16 ? 0.30 : 0.40,                           // trasversale al binario
-    d: MAST_DEPTH,
-    // le due UPN: b = larghezza del corrente nella vista trasversale (ala), tw anima, tf ala
-    upn: { b: size <= 16 ? 0.06 : 0.07, tw: 0.0075, tf: 0.0105 }, module: LATTICE_MODULE,
+    d: size / 100,                                         // lungo il binario = altezza delle UPN (140…240)
+    upn: { ...sp.upn }, module: LATTICE_MODULE, lat: sp.lat, plate: { ...sp.plate }, bolt: sp.bolt, kg: sp.kg[h],
     bolts: size === 24 ? { D: 0.55, E: 0.50 } : { D: 0.40, E: 0.40 },
   };
 }
 export const MASTS = MAST_SIZES.flatMap((s) => ["a", "b", "c"].map((h) => mastType("LSU" + s + h)));
+/* la piastra del palo sta 90 mm sopra la testa del pilastrino (E 66013 c; 0.17.0, come le famiglie RFI): la testa del
+   palo = testa del pilastrino + PLATE_GROUT + piastra + fusto. = ocs-core GROUT */
+export const PLATE_GROUT = 0.09;
+/* palo doppio (0.11.0: «PALO_DOPPIO_2xLSU», montanti «(2+2) x LSU22» dei portali MEC Satferr): due pali uguali
+   affiancati lungo il binario, assi a DOUBLE_GAP; la trave MEC passa in mezzo (E 64906 c, 0.12.0) */
+export const DOUBLE_GAP = 1.1;
 
 /* ---- mensole e tiranti --------------------------------------------------- */
 export const MENSOLE = [
@@ -179,7 +191,8 @@ export function resolveSupport(sup, def = TRACK_DEFAULTS, geo = null, lev = null
   const c1 = Math.max(f.C1min, Math.min(f.C1max, +pick("c1")));
   const pilOut = +pick("pilOut"), B = baseFrom(lev, pilOut, +pick("baseDz"));
   return {
-    mast: m, dr, stag, hm: +pick("hm"), hw: +pick("hw"), baseDz: B.baseDz, pilOut, fromSc: B.fromSc, sc: B.sc, scOut: B.scOut,
+    rfi: rfiMastOf(m, !!sup.dbl, mens),
+    mast: m, dbl: !!sup.dbl, dr, stag, hm: +pick("hm"), hw: +pick("hw"), baseDz: B.baseDz, pilOut, fromSc: B.fromSc, sc: B.sc, scOut: B.scOut,
     drop: -B.baseDz, dropOver: -B.baseDz > DROP_MAX + 1e-9,
     mens, Lauto: sup.L == null || sup.L === "", Lshort: L < auto.L - 1e-9, tir: tiranteFor(L),
     sosp: sup.sosp || "", susp, ties: tiesFor(L, dr, [{ off: 0, stag }, ...susp]),
@@ -197,29 +210,45 @@ export function resolveSupport(sup, def = TRACK_DEFAULTS, geo = null, lev = null
    - in alternativa un palo LSU (di partenza LSU22b) con «ATTACCO PALO TRAVE LSU22» (staffe da −1,48 a −0,10
      sotto la testa) → la trave sta con l'estradosso 0,10 m sotto la testa del palo;
    - travi a traliccio, lunghezza = interasse dei montanti (da verificare), altezza dal prospetto; larghezza in
-     pianta NON nel blocco → BEAM_WIDTH 0,60 (da verificare). Pendoli verticali dalla trave al filo, uno per
+     pianta w: MEC tipo C (luci fino a 27 m: C20, TN-xx) 0,77 da E 64906 c (0.12.0); le altre BEAM_WIDTH 0,60
+     (da verificare: E 65053, E 65056, E 65109). Pendoli verticali dalla trave al filo, uno per
      binario servito («TIPO PENDULO»), poligonazione e tipo come le sospensioni dei pali.
    Montanti ai capi della trave: la trave automatica è la più corta che copre la distanza chiesta dalle DR
    minime (sinistra e destra) e si centra fra le due posizioni minime; le DR vere possono crescere. */
 export const PO_POLE = { id: "PO", w: 0.31, d: 0.31, wall: 0.0155, plate: { a: 0.71, t: 0.04 }, Hblock: 9.636 };
+/* pilone dei portali MEC («TIPO B 28÷35 - PILONE», 0.11.0): misure NON note → quelle del pilone PO, da sostituire */
+export const MEC_POLE = { ...PO_POLE, id: "MEC" };
+export const PORTAL_UPS = ["PO", "MEC", "LSU"];
 export const BEAM_WIDTH = 0.6;
+export const MEC_C_WIDTH = 0.77;                         // trave MEC tipo C fra i due pali LSU22 (E 64906 c: 770)
 export const BEAM_TOP_GAP = 0.1;                         // estradosso della trave sotto la testa del montante
 export const BEAMS = [
   { id: "PO T4", fam: "PO", L: 14.016, h: 0.862 }, { id: "PO T20", fam: "PO", L: 20.016, h: 0.862 }, { id: "PO T31", fam: "PO", L: 22.416, h: 0.887 },
-  { id: "MEC C20", fam: "MEC", L: 16.07, h: 1.0 },
-  ...[15, 16, 17, 18, 19, 20, 23, 24, 25, 26].map((n) => ({ id: "MEC TN-" + n, fam: "MEC", L: n + 1.592, h: n <= 17 ? 1.056 : n <= 19 ? 1.074 : n === 20 ? 1.068 : 1.084 })),
+  { id: "MEC C20", fam: "MEC", L: 16.07, h: 1.0, w: MEC_C_WIDTH },
+  ...[15, 16, 17, 18, 19, 20, 23, 24, 25, 26].map((n) => ({ id: "MEC TN-" + n, fam: "MEC", L: n + 1.592, h: n <= 17 ? 1.056 : n <= 19 ? 1.074 : n === 20 ? 1.068 : 1.084, w: MEC_C_WIDTH })),
   { id: "MEC B-31", fam: "MEC", L: 32.12, h: 1.015 }, { id: "MEC B-32", fam: "MEC", L: 33.12, h: 1.018 },
   { id: "MEC A-39", fam: "MEC", L: 40.12, h: 1.179 }, { id: "MEC A-40", fam: "MEC", L: 41.12, h: 1.015 },
-].sort((a, b) => a.L - b.L);
+  // travi delle famiglie RFI dei portali coi piloni E 65018 (0.17.0, catalogo Revit: E 65018 a, E 65109), L = luce
+  // asse-asse dei piloni: con queste anche i portali automatici prendono la famiglia (ocs-rfi.js)
+  ...[["1BIN", 6.4], ["2BIN", 10.3], ["T-6", 14.4], ["T-9", 15.6], ["T-25", 20.4]].map(([n, L]) => ({ id: "PO " + n, fam: "PO", L, h: 0.8, w: 1.28 })),
+].map((b) => ({ w: BEAM_WIDTH, ...b })).sort((a, b) => a.L - b.L);
 export const beamType = (id) => BEAMS.find((b) => b.id === id) || null;
 /* la trave più corta che copre la distanza fra i montanti (o la più lunga, se nessuna basta) */
 export const beamFor = (span) => BEAMS.find((b) => b.L >= span - 1e-9) || BEAMS[BEAMS.length - 1];
+/* portali a coordinate (0.11.0): la trave della famiglia dei montanti (pilone PO → travi PO; pilone MEC e pali LSU
+   → travi MEC, come i blocchi Satferr PO_… e TRAVE_MEC), la più corta che copre; nessuna della famiglia → beamFor */
+export const beamFam = (up) => (up === "PO" ? "PO" : "MEC");
+export const beamForFam = (span, fam) => BEAMS.find((b) => b.fam === fam && b.L >= span - 1e-9) || beamFor(span);
 export const PORTAL_DEFAULTS = { up: "PO", mast: "LSU22b", hb: 8.1 };
 export const PORTAL_REACH = 40;                          // binari serviti: entro tanto dal binario di riferimento
-/* un portale: { id, kind: "portal", track (binario di riferimento), u, side, num, numUser, up ("PO" | "LSU"),
-   mast (palo LSU), beam (null = automatica), drL, drR (DR minime a sinistra/destra; null = del binario), hb
-   (intradosso della trave sul PF, solo PO), hw, found, c1, skip (id dei binari davanti esclusi a mano),
-   pend: { idBinario: { stag, type } } }.
+/* un portale: { id, kind: "portal", track (binario di riferimento), u, side, num, numUser, up ("PO" | "MEC" |
+   "LSU"), mast (palo LSU), dbl (pali doppi), beam (null = automatica), drL, drR (DR minime a sinistra/destra;
+   null = del binario), hb (intradosso della trave sul PF, piloni), hw, found, c1, skip (id dei binari davanti
+   esclusi a mano), pend: { idBinario: { stag, type } }, fix }.
+   fix (0.11.0, portali importati a coordinate) = { qL, aL, qR, aR }: assi dei due montanti nel riferimento del
+   binario a u (q scostamento, + a sinistra; a lungo il binario). Con fix i montanti stanno lì, la trave va
+   dall'uno all'altro (anche obliqua: phi = rotazione in pianta rispetto alla normale) ed è lunga quanto la loro
+   distanza (il tipo del catalogo dà famiglia e altezza); servono i binari fra i due montanti.
    geo = binari serviti [{ id, q, dz }]: scostamento dell'asse dal binario di riferimento (+ a sinistra) e
    dislivello del piano del ferro, misurati sulla geometria (ocs-core crossTracks).
    lev = { L, R }: quota del supercompattato sotto i due montanti (come in resolveSupport, relativa al piano del
@@ -227,32 +256,157 @@ export const PORTAL_REACH = 40;                          // binari serviti: entr
 export function resolvePortal(p, def = TRACK_DEFAULTS, geo = [], lev = null) {
   const d = { ...TRACK_DEFAULTS, ...(def || {}) };
   const pick = (k) => (filled(p[k]) ? p[k] : d[k]);
-  const trk = (geo && geo.length ? geo : [{ id: p.track, q: 0, dz: 0 }]).slice().sort((a, b) => b.q - a.q);
-  const up = p.up === "LSU" ? "LSU" : "PO";
+  const fx = p.fix && Number.isFinite(+p.fix.qL) && Number.isFinite(+p.fix.qR) && +p.fix.qL > +p.fix.qR ? p.fix : null;
+  let trk = (geo && geo.length ? geo : [{ id: p.track, q: 0, dz: 0 }]).slice().sort((a, b) => b.q - a.q);
+  if (fx) trk = trk.filter((t) => t.id === p.track || (t.q < +fx.qL && t.q > +fx.qR));
+  const up = PORTAL_UPS.includes(p.up) ? p.up : "PO";
   const M = up === "LSU" ? mastType(p.mast || PORTAL_DEFAULTS.mast) || mastType(PORTAL_DEFAULTS.mast) : null;
-  const w = M ? M.w : PO_POLE.w;
-  const drL = filled(p.drL) ? +p.drL : +d.dr, drR = filled(p.drR) ? +p.drR : +d.dr;
+  const pole = M ? null : up === "MEC" ? MEC_POLE : PO_POLE;
+  const w = M ? M.w : pole.w;
   const top = trk[0], bot = trk[trk.length - 1];
-  const needL = top.q + HALF_GAUGE + drL + w / 2, needR = bot.q - HALF_GAUGE - drR - w / 2, span = needL - needR;
-  const auto = beamFor(span), beam = (filled(p.beam) && beamType(p.beam)) || auto;
-  const mid = (needL + needR) / 2, qL = mid + beam.L / 2, qR = mid - beam.L / 2;
-  const hw = +pick("hw"), baseDz = +pick("baseDz"), pilOut = +pick("pilOut");
+  let drL = filled(p.drL) ? +p.drL : +d.dr, drR = filled(p.drR) ? +p.drR : +d.dr, qL, qR, aL = 0, aR = 0, span, beam;
+  if (fx) {                                               // montanti fermi: la trave li unisce
+    qL = +fx.qL; qR = +fx.qR; aL = +fx.aL || 0; aR = +fx.aR || 0;
+    span = Math.hypot(qL - qR, aL - aR);
+    beam = { ...((filled(p.beam) && beamType(p.beam)) || beamForFam(span, beamFam(up))), L: span };
+    drL = qL - w / 2 - HALF_GAUGE - top.q; drR = bot.q - HALF_GAUGE - (qR + w / 2);
+  } else {
+    const needL = top.q + HALF_GAUGE + drL + w / 2, needR = bot.q - HALF_GAUGE - drR - w / 2;
+    span = needL - needR;
+    beam = (filled(p.beam) && beamType(p.beam)) || beamFor(span);
+    const mid = (needL + needR) / 2;
+    qL = mid + beam.L / 2; qR = mid - beam.L / 2;
+  }
+  const hw = +pick("hw"), baseDz = +pick("baseDz");
+  let pilOut = +pick("pilOut");
   const bL = baseFrom(lev && lev.L, pilOut, top.dz + baseDz), bR = baseFrom(lev && lev.R, pilOut, bot.dz + baseDz);
-  const zBaseL = bL.baseDz, zBaseR = bR.baseDz, dropL = top.dz - zBaseL, dropR = bot.dz - zBaseR;
+  // famiglia RFI (0.17.0, PIANO §23): rigida e piana come in Revit, sul supercompattato del pilone 1 (montante destro,
+  // = revitFrame): testa delle due fondazioni, intradosso della trave e fondazione vengono dalla famiglia
+  const rfi = M ? null : rfiPortalOf(up, Math.hypot(qL - qR, aL - aR)), RP = rfi && RFI_PORTALS[rfi.kind === "MEC" ? "MEC" : "PO"], sc1 = bR.baseDz - pilOut;
+  const zBaseR = RP ? sc1 + RP.out : bR.baseDz, zBaseL = RP ? zBaseR : bL.baseDz, dropL = top.dz - zBaseL, dropR = bot.dz - zBaseR;
+  if (RP) { pilOut = RP.out; beam = { ...beam, h: RP.h, w: RP.w }; }
   let hb, H;                                              // intradosso della trave e altezza dei montanti (dalla piastra)
-  if (M) { const topZ = Math.min(zBaseL, zBaseR) + 0.045 + M.H; hb = topZ - BEAM_TOP_GAP - beam.h; H = M.H; }
-  else { hb = filled(p.hb) ? +p.hb : PORTAL_DEFAULTS.hb; H = null; }
+  if (M) { const topZ = Math.min(zBaseL, zBaseR) + PLATE_GROUT + M.plate.t + M.H; hb = topZ - BEAM_TOP_GAP - beam.h; H = M.H; }
+  else { hb = RP ? sc1 + RP.hb : filled(p.hb) ? +p.hb : PORTAL_DEFAULTS.hb; H = null; }
   const stag0 = +pick("stag"), pend = p.pend || {};
   const susp = trk.map((t) => { const x = pend[t.id] || {}; return { track: t.id, q: t.q, dz: t.dz, stag: filled(x.stag) ? +x.stag : stag0, type: x.type || "" }; });
-  let f = foundation(pick("found"));
+  let f = RP ? RP.found : foundation(pick("found"));
   if (!f) f = foundation(TRACK_DEFAULTS.found);
   const c1 = Math.max(f.C1min, Math.min(f.C1max, +pick("c1")));
   return {
-    kind: "portal", up, mast: M, pole: M ? null : PO_POLE, w, beam, Bauto: !filled(p.beam), short: beam.L < span - 1e-9, span,
-    qL, qR, drL: qL - w / 2 - HALF_GAUGE - top.q, drR: bot.q - HALF_GAUGE - (qR + w / 2), drLmin: drL, drRmin: drR,
+    kind: "portal", rfi, up, mast: M, dbl: !!(M && p.dbl), pole, w, beam, Bauto: !filled(p.beam), short: beam.L < span - 1e-9, span,
+    fixed: !!fx, qL, qR, aL, aR, phi: Math.atan2(aR - aL, qL - qR),
+    drL: qL - w / 2 - HALF_GAUGE - top.q, drR: bot.q - HALF_GAUGE - (qR + w / 2), drLmin: drL, drRmin: drR,
     zBaseL, zBaseR, hb, H, hw, baseDz, susp, found: f, c1, vol: 2 * foundationVolume(f, c1),
     pilOut, fromSc: bL.fromSc || bR.fromSc, scL: bL, scR: bR, dropL, dropR, dropOver: Math.max(dropL, dropR) > DROP_MAX + 1e-9,
     fits: M ? foundationFits(f, M) : true,
+  };
+}
+
+/* ---- famiglie Revit del catalogo RFI dell'utente (0.15.0, add-in ViewIFC R1: PIANO_Revit_ViewIFC.md §13) -------
+   Nomi, tipi e parametri delle famiglie generate nella sessione 18 (18.REVIT MCP\famiglie, stato del 2026-10-15,
+   catalogo in lavorazione): la traduzione dei campi del tool vive qui, l'add-in piazza e basta.
+   - pali: RFI_Sostegno_LSU14-16 (LSU14, LSU16) e RFI_Sostegno_LSU18-22 (LSU18…22), tipo = palo; d'istanza Plinto e
+     Mensola (tipi delle annidate RFI_Plinto_LSU e RFI_Mensola_D76x5), Quota_mensola (asse della mensola dal
+     supercompattato), Attacco_tirante (dall'inizio della mensola); tirante sul palo fisso a 1,00 sopra la mensola;
+   - portali MEC: una famiglia per trave tipo C (C19 / C20 / C21) con Luce d'istanza nel campo della trave;
+   - portali coi piloni PO: tralicciati a 1 e 2 binari (6,40 / 10,30) e di ormeggio (14,40 / 15,60 / 20,40), luce di
+     tipo → il tipo con la luce più vicina.
+   Senza famiglia (saltati con il motivo): LSU24, pali doppi, portali su pali LSU. */
+export const REVIT = {
+  mastFamily: { 14: "RFI_Sostegno_LSU14-16", 16: "RFI_Sostegno_LSU14-16", 18: "RFI_Sostegno_LSU18-22", 20: "RFI_Sostegno_LSU18-22", 22: "RFI_Sostegno_LSU18-22" },
+  plinto: "RFI_Plinto_LSU", mensola: "RFI_Mensola_D76x5",
+  mensole: ["768-427_L3800", "768-437_L6000", "768-439_L7000", "768-811_L9000", "768-810_L12500"],
+  tieDh: 1.0,
+  mec: [{ family: "RFI_Portale_MEC_C19", type: "C19", min: 18, max: 19 }, { family: "RFI_Portale_MEC_C20", type: "C20", min: 19, max: 20 },
+    { family: "RFI_Portale_MEC_C21", type: "C21", min: 20, max: 21 }],
+  po: [{ family: "RFI_Portale_Tralicciato", type: "1BIN_L6400", L: 6.4 }, { family: "RFI_Portale_Tralicciato", type: "2BIN_L10300", L: 10.3 },
+    { family: "RFI_Portale_Ormeggio", type: "T-6", L: 14.4 }, { family: "RFI_Portale_Ormeggio", type: "T-9", L: 15.6 },
+    { family: "RFI_Portale_Ormeggio", type: "T-25", L: 20.4 }],
+  spanTol: 0.05,
+};
+/* ---- famiglie RFI anche nel sito (0.17.0: vista 3D ed export IFC, ocs-rfi.js; PIANO §23) ------------------------
+   Il sostegno ha la geometria delle famiglie del catalogo quando la famiglia c'è (R.rfi), sennò resta la geometria
+   semplificata del tool. Scelta dell'utente (2026-10-15): forma dalle famiglie, quote dal tool.
+   - pali: LSU14…22 non doppi (REVIT.mastFamily), con ogni mensola del tool (anche 2,45 e 4,20: tubo 76,1 × 5 della
+     famiglia lungo quanto la mensola del tool) e i tiranti del tool;
+   - portali: la famiglia e il tipo che piazza l'add-in (REVIT.mec, REVIT.po), solo se la distanza fra i montanti sta
+     nel campo della trave MEC tipo C o entro REVIT.spanTol dalla luce del tipo PO; la famiglia è rigida e piana come
+     in Revit: fondazioni (P2MEC, POT), piloni e trave alle quote della famiglia sul supercompattato del pilone 1. */
+export const RFI_PORTALS = {
+  // E 65042 a: blocco 4000 (lungo il binario) × 2100 × 2500, pilastrino 2360 × 1000 × 250, filo superiore +100; trave
+  // MEC tipo C 750 × 1000 col filo inferiore a +8516 (ASSUNTO nella sessione 18: 200 sopra l'ultimo traverso del pilone)
+  MEC: { found: { id: "P2MEC", A: 2.1, B: 4.0, C: 2.5, A1: 1.0, B1: 2.36, A2: null, C1min: 0.25, C1max: 0.25, vs: null, vmin: 21.59, vmax: 21.59, bolts: null, bolts24: null }, out: 0.1, hb: 8.516, h: 1.0, w: 0.75 },
+  // E 65020 a: blocco 6000 × 2500 × 2200 senza pilastrino, filo superiore +350; trave 1280 × 800 col filo superiore
+  // 150 sotto la testa del pilone E 65018 H9586 → filo inferiore a +8986
+  PO: { found: { id: "POT", A: 2.5, B: 6.0, C: 2.2, A1: 0, B1: 0, A2: null, C1min: 0, C1max: 0, vs: null, vmin: 33, vmax: 33, bolts: null, bolts24: null }, out: 0.35, hb: 8.986, h: 0.8, w: 1.28 },
+};
+/* la famiglia di un portale coi piloni (up «MEC» o «PO») lungo span fra gli assi dei montanti, o null:
+   { kind: "MEC" | "TRAL" | "ORM", family, type, luce (m: quella del portale per le MEC, quella del tipo per le PO) } */
+export function rfiPortalOf(up, span) {
+  if (!(span > 0)) return null;
+  if (up === "MEC") {
+    const m = REVIT.mec.find((t) => span >= t.min - 1e-6 && span <= t.max + 1e-6);
+    return m ? { kind: "MEC", family: m.family, type: m.type, luce: span } : null;
+  }
+  if (up !== "PO") return null;
+  const p = REVIT.po.reduce((a, t) => (Math.abs(span - t.L) < Math.abs(span - a.L) ? t : a));
+  if (Math.abs(span - p.L) > REVIT.spanTol + 1e-9) return null;
+  return { kind: p.family === "RFI_Portale_Tralicciato" ? "TRAL" : "ORM", family: p.family, type: p.type, luce: p.L };
+}
+/* la famiglia di un palo (tipo M, doppio?, mensola) o null: { family, type, mens (tipo della mensola nel catalogo, o «») } */
+export function rfiMastOf(M, dbl, mens) {
+  const family = M && !dbl ? REVIT.mastFamily[M.size] : null;
+  if (!family) return null;
+  const t = mens ? revitMensType(mens.code, mens.L) : "";
+  return { family, type: M.id, mens: REVIT.mensole.includes(t) ? t : "" };
+}
+export const revitMensType = (code, L) => String(code).replace("/", "-") + "_L" + Math.round(L * 1000);
+const revitMensLen = (t) => +((String(t).match(/_L(\d+)$/) || [])[1] || 0) / 1000;
+/* un sostegno risolto (R) e la sua cornice (ocs-core revitFrame) → l'elemento da piazzare:
+   { family, types: [candidati in ordine, l'add-in prende il primo che c'è], origin: [E, N, Z], xAxis: [dx, dy],
+     params: { nome: { len: m } | { type: { family, types } } }, warn: [codici] }
+   oppure { skip: codice } quando il catalogo non ha la famiglia (portalLsu, double, mastSize, geom).
+   warn: mensType (mensola non nel catalogo: la più corta fra le più lunghe), susp (sospensioni in più: la famiglia
+   ha una mensola sola), equip (trasformatore / sezionatore senza famiglia), tieHeight (la famiglia tiene il tirante
+   a 1,00 sopra la mensola), spanRange (luce fuori dal campo delle travi MEC), spanType (nessun tipo di portale con
+   quella luce entro 5 cm) */
+export function revitItem(R, F) {
+  if (!R || !F) return { skip: "geom" };
+  const origin = [F.origin.x, F.origin.y, F.origin.z], xAxis = F.xAxis, warn = [];
+  if (R.kind === "portal") {
+    if (R.up === "LSU") return { skip: "portalLsu" };
+    const L = F.span;
+    if (R.up === "MEC") {
+      const gap = (t) => (L < t.min ? t.min - L : L > t.max ? L - t.max : 0);
+      const m = REVIT.mec.reduce((a, t) => (gap(t) < gap(a) ? t : a));
+      if (gap(m) > 1e-9) warn.push("spanRange");
+      return { family: m.family, types: [m.type], origin, xAxis, params: { Luce: { len: L } }, warn };
+    }
+    const p = REVIT.po.reduce((a, t) => (Math.abs(L - t.L) < Math.abs(L - a.L) ? t : a));
+    if (Math.abs(L - p.L) > REVIT.spanTol) warn.push("spanType");
+    return { family: p.family, types: [p.type], origin, xAxis, params: {}, warn, typeSpan: p.L };
+  }
+  const M = R.mast;
+  if (!M) return { skip: "geom" };
+  if (R.dbl) return { skip: "double" };
+  const family = REVIT.mastFamily[M.size];
+  if (!family) return { skip: "mastSize" };
+  const want = revitMensType(R.mens.code, R.mens.L);
+  const longer = REVIT.mensole.filter((t) => t !== want && revitMensLen(t) >= R.mens.L - 1e-9).sort((a, b) => revitMensLen(a) - revitMensLen(b));
+  if (!REVIT.mensole.includes(want)) warn.push("mensType");
+  if (R.susp && R.susp.length) warn.push("susp");
+  if (R.eq && (R.eq.trafo || R.eq.sez)) warn.push("equip");
+  const ties = R.ties && R.ties.length ? R.ties : [R.tir], tie = ties.reduce((a, t) => (t.xt > a.xt ? t : a));   // la famiglia ha un tirante: quello alla punta
+  if (Math.abs(tie.dh - REVIT.tieDh) > 0.01) warn.push("tieHeight");
+  return {
+    family, types: [M.id], origin, xAxis, warn,
+    params: {
+      Plinto: { type: { family: REVIT.plinto, types: [R.found.id] } },
+      Mensola: { type: { family: REVIT.mensola, types: [want, ...longer] } },
+      Quota_mensola: { len: R.hm - R.baseDz + R.pilOut },
+      Attacco_tirante: { len: tie.xt },
+    },
   };
 }
 
@@ -269,7 +423,7 @@ export const PSET_FIELDS = [
   { key: "beam", kinds: ["portal"], type: "label" }, { key: "beamL", kinds: ["portal"], type: "length" },
   { key: "hm", kinds: ["mast"], type: "length" }, { key: "hb", kinds: ["portal"], type: "length" }, { key: "hw", kinds: MP, type: "length" },
   { key: "stag", kinds: ["mast"], type: "length" }, { key: "sosp", kinds: MP, type: "label" }, { key: "served", kinds: MP, type: "label" },
-  { key: "nSusp", kinds: MP, type: "int" }, { key: "found", kinds: ALL, type: "label" }, { key: "c1", kinds: ALL, type: "length" },
+  { key: "nSusp", kinds: MP, type: "int" }, { key: "kg", kinds: MP, type: "real" }, { key: "found", kinds: ALL, type: "label" }, { key: "c1", kinds: ALL, type: "length" },
   { key: "vol", kinds: ALL, type: "volume" }, { key: "E", kinds: ALL, type: "length" }, { key: "N", kinds: ALL, type: "length" },
   { key: "top", kinds: MP, type: "length" }, { key: "zPil", kinds: ALL, type: "length" }, { key: "zSc", kinds: ALL, type: "length" },
 ];
@@ -277,13 +431,17 @@ export const PSET_FIELDS = [
    s0 (progressiva iniziale del binario), E, N, top, served: [nomi dei binari serviti], zPil (quota della testa
    del pilastrino), zSc (del supercompattato, se c'è) } — calcolati dalla pagina.
    vol = calcestruzzo del sostegno (portale: le due fondazioni); per kind «foundation» di un portale, di una sola */
+/* il sostegno a parole: «LSU22b», «2×LSU22b» (doppio), «PO» / «MEC» (piloni) */
+export const mastLabel = (R) => (R.mast ? (R.dbl ? "2×" : "") + R.mast.id : R.pole ? R.pole.id : "PO");
+/* peso dei pali LSU del sostegno (kg, E 66013 c): uno, due se doppio; portale: i due montanti; piloni: non noto */
+export const mastKg = (R) => (R && R.mast ? R.mast.kg * (R.dbl ? 2 : 1) * (R.kind === "portal" ? 2 : 1) : null);
 export function psetValues(s, R, ctx = {}, kind = "") {
   const portal = R && R.kind === "portal", v = {
     num: s.num, track: ctx.track, sta: (ctx.s0 || 0) + s.u, found: R.found.id, c1: R.c1, vol: portal && kind === "foundation" ? R.vol / 2 : R.vol,
-    E: ctx.E, N: ctx.N, top: ctx.top, hw: R.hw, served: (ctx.served || []).join(", "), zPil: ctx.zPil, zSc: ctx.zSc,
+    E: ctx.E, N: ctx.N, top: ctx.top, hw: R.hw, kg: mastKg(R), served: (ctx.served || []).join(", "), zPil: ctx.zPil, zSc: ctx.zSc,
   };
-  if (portal) Object.assign(v, { mast: R.mast ? R.mast.id : "PO", drL: R.drL, drR: R.drR, beam: R.beam.id, beamL: R.beam.L, hb: R.hb, nSusp: R.susp.length, sosp: [...new Set(R.susp.map((x) => x.type).filter(Boolean))].join(", ") });
-  else Object.assign(v, { side: s.side > 0 ? "S" : "D", dr: R.dr, mast: R.mast.id, mens: R.mens.L, mensCode: R.mens.code, hm: R.hm, stag: R.stag, nSusp: 1 + R.susp.length, sosp: [R.sosp, ...R.susp.map((x) => x.type)].filter(Boolean).join(", ") });
+  if (portal) Object.assign(v, { mast: mastLabel(R), drL: R.drL, drR: R.drR, beam: R.beam.id, beamL: R.beam.L, hb: R.hb, nSusp: R.susp.length, sosp: [...new Set(R.susp.map((x) => x.type).filter(Boolean))].join(", ") });
+  else Object.assign(v, { side: s.side > 0 ? "S" : "D", dr: R.dr, mast: mastLabel(R), mens: R.mens.L, mensCode: R.mens.code, hm: R.hm, stag: R.stag, nSusp: 1 + R.susp.length, sosp: [R.sosp, ...R.susp.map((x) => x.type)].filter(Boolean).join(", ") });
   return v;
 }
 

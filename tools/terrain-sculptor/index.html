@@ -164,6 +164,11 @@ header>*{pointer-events:auto}
 .stats .sv{display:flex;align-items:center;gap:6px}
 .stats .dot{width:6px;height:6px;border-radius:50%;background:var(--lime);flex:none}
 .stats .dot.wait{background:var(--amber)}
+.rvchip{font:500 10.5px/1 var(--mono);letter-spacing:.04em;color:var(--text);border:1px solid var(--lime);border-radius:999px;padding:4px 8px;max-width:340px;overflow:hidden;text-overflow:ellipsis}
+.rvbtn{font:500 10.5px/1 var(--mono);letter-spacing:.04em;color:var(--muted);background:none;border:1px dashed var(--muted);border-radius:999px;padding:4px 9px;cursor:pointer}
+.rvbtn:hover{color:var(--text);border-color:var(--text)}
+.rvbtn.on{color:#1d2113;background:var(--lime);border:1px solid var(--lime)}
+.rpsel{width:100%;min-width:0;font:400 12.5px/1.2 var(--sans);color:var(--text);background:var(--panel-2);border:1px solid var(--line);border-radius:7px;padding:6px 8px}
 .langsw{display:inline-flex;align-items:center;gap:3px;padding:4px}
 .langsw button{border:none;border-radius:999px;background:none;color:var(--faint);font:500 10.5px var(--mono);letter-spacing:.06em;padding:5px 9px;min-width:32px}
 .langsw button:hover{color:var(--text);background:var(--panel-2)}
@@ -174,6 +179,8 @@ header>*{pointer-events:auto}
 html[data-theme="light"] .thm .moon{display:none}
 html:not([data-theme="light"]) .thm .sun{display:none}
 #btnOpen{border-radius:999px;padding:9px 16px;box-shadow:var(--shadow)}
+/* mostra / nascondi il pannello: in testata, sopra il pannello, così si vede a ogni altezza della finestra */
+#bPod.on{color:var(--text);background:var(--lime-soft);border-color:var(--lime-line)}
 
 /* ---------- rail degli strumenti (sinistra) ---------- */
 #rail{position:absolute;left:14px;top:66px;bottom:14px;width:58px;z-index:6;display:flex;flex-direction:column;align-items:center;gap:4px;
@@ -317,6 +324,7 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
 .opts{display:flex;flex-direction:column;gap:8px}
 .opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:13px 16px;border-radius:14px;background:var(--panel-2);border:1px solid var(--line);text-decoration:none;color:var(--text)}
 .opt:hover{border-color:var(--lime-line)}
+.opt[hidden]{display:none}
 .opt svg{width:22px;height:22px;flex:none;fill:none;stroke:var(--acc);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
 .opt b{display:block;font:600 15px/1.2 var(--disp);letter-spacing:.02em}
 .opt span{display:block;font:400 12px/1.4 var(--sans);color:var(--muted);margin-top:3px}
@@ -327,6 +335,7 @@ html[data-theme="light"] #sheet{background:rgba(220,226,212,.45)}
 .sheet-acts{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
 
 @media (max-width:1100px){:root{--pod-w:300px}}
+@media (max-width:1180px){ header:has(#rvChip:not([hidden])) :is(.crumbs .sep,.crumbs a span){display:none} }   /* dentro Revit i pulsanti dell'add-in + quello del pannello: «Strumenti» lascia il posto */
 @media (max-width:980px){ .appname,.stats{display:none} }
 @media (max-width:760px){
   .crumbs .sep,.crumbs a span{display:none}
@@ -364,6 +373,12 @@ header{padding-top:max(14px,env(safe-area-inset-top));padding-left:max(14px,env(
   #btnOpen{padding:9px 13px}
   .form .row{grid-template-columns:1fr;gap:5px;margin:10px 0}     /* fogli: l'etichetta sopra il campo */
   .form .row>:nth-child(3):empty{display:none}
+}
+/* finestra bassa (es. dentro Revit): la rail si stringe e ci sta tutta fino a ~700 px; col dito vale la regola sotto */
+@media (max-height:840px){
+  #rail{gap:2px;padding:6px 0}
+  .rail-btn{width:34px;height:34px;border-radius:11px}
+  .rail-sep{margin:3px 0}
 }
 /* col dito: bersagli più grandi, campi a 16 px (sotto, Safari ingrandisce la pagina quando li tocchi),
    e le azioni della lista delle opere sempre visibili (niente hover) */
@@ -418,6 +433,9 @@ header{padding-top:max(14px,env(safe-area-inset-top));padding-left:max(14px,env(
   </nav>
   <span class="spacer"></span>
   <div class="stats glass pill" id="stats">
+    <span class="rvchip" id="rvChip" hidden></span>
+    <button class="rvbtn" id="rvPrev" hidden aria-pressed="false" data-i18n="rv.prev" data-i18n-title="rv.prevT" title="Mostra il terreno scolpito, le opere e l'acqua nelle viste del modello Revit, senza creare elementi, coi colori della mappa accesa; si aggiorna da sola mentre lavori">Anteprima in Revit</button>
+    <button class="rvbtn" id="rvPlace" hidden data-i18n="rv.place" data-i18n-title="rv.placeT" title="Porta il terreno nel modello Revit come toposolid; ripetuto, aggiorna la stessa toposolid">Porta in Revit</button>
     <span class="sv"><i class="dot" id="saveDot"></i><span id="statGrid">—</span></span>
   </div>
   <div class="langsw glass pill" role="group" aria-label="Language">
@@ -427,6 +445,9 @@ header{padding-top:max(14px,env(safe-area-inset-top));padding-left:max(14px,env(
   <button class="thm glass" id="thmBtn" aria-label="Light / dark" title="Light / dark">
     <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
     <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+  </button>
+  <button class="thm glass" id="bPod" data-i18n-title="rail.pod" title="Mostra / nascondi il pannello">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></svg>
   </button>
   <button class="primary" id="btnOpen"><span data-i18n="nav.open">Terreno</span></button>
 </header>
@@ -468,8 +489,6 @@ header{padding-top:max(14px,env(safe-area-inset-top));padding-left:max(14px,env(
     <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></svg></button>
   <button class="rail-btn" id="bFrame" data-i18n-title="rail.frame" title="Inquadra tutto (F)">
     <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="k">F</span></button>
-  <button class="rail-btn" id="bPod" data-i18n-title="rail.pod" title="Mostra / nascondi il pannello">
-    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></svg></button>
 </nav>
 
 <!-- ================= PANNELLO ================= -->
@@ -538,6 +557,7 @@ header{padding-top:max(14px,env(safe-area-inset-top));padding-left:max(14px,env(
       <div class="opts">
         <button class="opt" id="wNew"><svg viewBox="0 0 24 24"><path d="M3 18l6-8 4 5 3-3 5 6z"/><path d="M12 3v4M10 5h4"/></svg><span><b data-i18n="w.new">Nuovo terreno</b><span data-i18n="w.newS">piano, pendio o ondulato, fino a ~4 milioni di nodi</span></span></button>
         <button class="opt" id="wOpen"><svg viewBox="0 0 24 24"><path d="M4 20h16M12 4v12M7 11l5 5 5-5"/></svg><span><b data-i18n="w.open">Apri un file</b><span data-i18n="w.openS">progetto (.terrain), IFC (toposolid di Revit), LandXML, GeoTIFF, ESRI ASCII (.asc), punti x,y,z (.csv · .txt · .xyz) — o trascinalo qui</span></span></button>
+        <button class="opt" id="wRevit" hidden><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 4-5 5 8z"/><path d="M3 21h18"/></svg><span><b data-i18n="w.revit">Dal modello Revit</b><span data-i18n="w.revitS">la toposolid (o la topografia) del modello aperto, senza esportare nulla</span></span></button>
         <a class="opt" href="../ifc-site-context/"><svg viewBox="0 0 24 24"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg><span><b data-i18n="w.ctx">DTM reale dal tool Contesto 3D</b><span data-i18n="w.ctxS">disegna l'area sulla mappa, genera, poi «Scolpisci il terreno»</span></span></a>
       </div>
       <div class="card-foot">
@@ -564,6 +584,12 @@ header{padding-top:max(14px,env(safe-area-inset-top));padding-left:max(14px,env(
       <h3 id="iTitle" data-i18n="i.title">Apri un terreno</h3>
       <div id="iBody"></div>
       <div class="sheet-acts"><button id="iCancel" data-i18n="n.cancel">Annulla</button><button class="primary" id="iGo" data-i18n="i.go" disabled>Importa</button></div>
+    </div>
+    <!-- porta in Revit (dentro Revit, add-in ViewIFC) -->
+    <div data-panel="revit" hidden>
+      <h3 data-i18n="rp.title">Porta in Revit</h3>
+      <div id="rpBody"></div>
+      <div class="sheet-acts"><button id="rpCancel" data-i18n="n.cancel">Annulla</button><button class="primary" id="rpGo" data-i18n="rp.go" disabled>Porta in Revit</button></div>
     </div>
   </div>
 </div>
@@ -752,6 +778,33 @@ const I18N = {
     "pen.pressure": "La pressione della Pencil dosa la forza: leggera = poca, a metà = quella del cursore, a fondo = il doppio.",
     "pen.seen": "Apple Pencil: ora lavora la Pencil e il dito naviga. Si cambia nel pannello dello strumento.",
     "st.pen": " · Pencil ×{f}",
+    "rv.chip": "Revit {v} · {doc}", "rv.chipNoDoc": "Revit {v} · nessun modello aperto",
+    "rv.tip": "Pagina aperta dentro Revit con l'add-in ViewIFC {addin} (Revit {build})",
+    "w.revit": "Dal modello Revit", "w.revitS": "la toposolid (o la topografia) del modello aperto, senza esportare nulla",
+    "ter.revit": "Da Revit…", "src.revit": "Revit · {s}", "i.kind.revit": "Revit · toposolid",
+    "i.rvRead": "Leggo i terreni del modello «{d}»…", "i.rvGet": "Leggo i triangoli da Revit…", "i.rvNone": "Il modello «{d}» non ha toposolid né topografie.",
+    "i.rvEls": "Terreni del modello", "i.rvPts": "{n} punti", "i.rvSel": "scelta in Revit", "i.rvFail": "Revit non ha risposto: {m}",
+    "i.geoHow.revit": "dalle coordinate condivise del modello Revit",
+    "i.rvNote": "Coordinate interne del modello: la toposolid scolpita torna sopra quella di partenza.",
+    "rv.prev": "Anteprima in Revit", "rv.prevT": "Mostra il terreno scolpito, le opere e l'acqua nelle viste del modello Revit, senza creare elementi, coi colori della mappa accesa; si aggiorna da sola mentre lavori",
+    "rv.sending": "Terreno in Revit: {t} triangoli…", "rv.prevDone": "Anteprima in Revit: {n} riquadri, {t} triangoli nelle viste del modello.", "rv.prevFail": "Anteprima in Revit non riuscita: {m}",
+    "rv.err.noDoc": "Revit: apri prima un modello di progetto.", "rv.err.family": "Revit: il documento attivo è una famiglia, apri un progetto.",
+    "rv.err.far": "Revit: il terreno cade a {km} km dall'origine interna del modello — imposta le coordinate condivise del progetto (E/N come il rilievo).",
+    "rv.place": "Porta in Revit", "rv.placeT": "Porta il terreno nel modello Revit come toposolid; ripetuto, aggiorna la stessa toposolid",
+    "rp.title": "Porta in Revit", "rp.go": "Porta in Revit", "rp.read": "Leggo le toposolid, i tipi e i livelli di «{d}»…",
+    "rp.target": "Toposolid", "rp.tPlaced": "Aggiorna «{n}», portata prima da questo progetto", "rp.tStart": "Aggiorna «{n}», la toposolid di partenza", "rp.tNew": "Nuova toposolid",
+    "rp.type": "Tipo", "rp.level": "Livello", "rp.noTypes": "Il modello non ha tipi di toposolid: creane uno in Revit.",
+    "rp.points": "Punti", "rp.ptsMax": "{n} · il massimo di Revit {v}", "rp.cInternal": "interne del modello, come il terreno di partenza", "rp.cShared": "condivise del modello (E/N del rilievo)",
+    "rp.noteUpd": "Stessa toposolid (stesso elemento): la forma si rifà dal terreno scolpito, il contorno resta quello di Revit. Le opere sono già nella forma. Un Ctrl+Z in Revit torna indietro.",
+    "rp.noteNew": "Una toposolid nuova sul contorno del terreno, con la sua forma. Ripetuto, si aggiorna questa. Un Ctrl+Z in Revit la toglie.",
+    "rp.err.coordsSet": "Le coordinate condivise del modello sono già impostate: non le cambio.", "rp.err.version": "Questo Revit non ha le toposolid: serve Revit 2024 o più nuovo.",
+    "rp.fail": "Porta in Revit non riuscito: {m}", "rp.stepTin": "Scelgo i punti del terreno…", "rp.stepStore": "Preparo il progetto da salvare nel modello…",
+    "rp.working": "Revit: toposolid con {n} punti e {b} vertici di contorno…",
+    "rp.doneNew": "Toposolid nuova in Revit: {p} punti, scarto massimo {e} mm, {s} s.", "rp.doneUpd": "Toposolid aggiornata in Revit: {p} punti, scarto massimo {e} mm, {s} s.",
+    "rp.rejected": "{n} punti rifiutati da Revit (nel registro dell'add-in).", "rp.mismatch": "{n} vertici del bordo di Revit lontani dal contorno del terreno: i due contorni non coincidono.",
+    "rp.offZ": "Alcuni punti restano fuori quota fino a {e} cm: vedi il registro dell'add-in.",
+    "rp.coordBody": "Il modello non ha coordinate condivise: il terreno cadrebbe a {km} km dall'origine interna. Imposto l'origine interna del modello in E {e}, N {n}, quota {z} (nord di progetto = nord reale)? Si fa una volta sola.",
+    "rp.coordGo": "Imposta e porta", "rp.works": "Opere", "rp.subs": "Piattaforme e rampe come sottoregioni della toposolid ({n})", "rp.water": "Acqua come oggetti, Modelli generici ({n})", "rp.noteWorks": "Con la spunta, le opere tolte o spente nella pagina si tolgono anche da Revit; una sottoregione con la stessa impronta resta com'è (anche il materiale cambiato in Revit).", "rp.matPad": "Terrain Sculptor – Piattaforma", "rp.matRamp": "Terrain Sculptor – Rampa", "rp.waterCls": "Terrain Sculptor – Acqua", "rp.doneSubs": "Sottoregioni: {a} fatte, {b} uguali lasciate, {c} tolte.", "rp.doneWater": "Acqua: {a} oggetti, {c} tolti.", "rp.notDone": "{n} non fatte: {list}", "rp.comments": "ViewIFC Terrain Sculptor · {n}",
     "drop.veil": "Rilascia per aprire il terreno",
     "privacy": "I file non escono dal browser: niente upload. Il lavoro si salva da solo in questo browser (IndexedDB).",
   },
@@ -936,6 +989,33 @@ const I18N = {
     "pen.pressure": "Pencil pressure sets the strength: light = little, halfway = the slider's, full = double.",
     "pen.seen": "Apple Pencil: now the Pencil works and fingers navigate. Change it in the tool panel.",
     "st.pen": " · Pencil ×{f}",
+    "rv.chip": "Revit {v} · {doc}", "rv.chipNoDoc": "Revit {v} · no model open",
+    "rv.tip": "Page open inside Revit with the ViewIFC add-in {addin} (Revit {build})",
+    "w.revit": "From the Revit model", "w.revitS": "the toposolid (or topography) of the open model, nothing to export",
+    "ter.revit": "From Revit…", "src.revit": "Revit · {s}", "i.kind.revit": "Revit · toposolid",
+    "i.rvRead": "Reading the terrains of the model «{d}»…", "i.rvGet": "Reading the triangles from Revit…", "i.rvNone": "The model «{d}» has no toposolid or topography.",
+    "i.rvEls": "Terrains in the model", "i.rvPts": "{n} points", "i.rvSel": "selected in Revit", "i.rvFail": "Revit did not answer: {m}",
+    "i.geoHow.revit": "from the shared coordinates of the Revit model",
+    "i.rvNote": "Internal coordinates of the model: the sculpted toposolid goes back on top of the original one.",
+    "rv.prev": "Preview in Revit", "rv.prevT": "Show the sculpted terrain, the works and the water in the Revit model views, without creating elements, with the colours of the map that is on; it updates by itself while you work",
+    "rv.sending": "Terrain to Revit: {t} triangles…", "rv.prevDone": "Preview in Revit: {n} tiles, {t} triangles in the model views.", "rv.prevFail": "Preview in Revit failed: {m}",
+    "rv.err.noDoc": "Revit: open a project model first.", "rv.err.family": "Revit: the active document is a family, open a project.",
+    "rv.err.far": "Revit: the terrain falls {km} km away from the model's internal origin — set the project's shared coordinates (E/N as the survey).",
+    "rv.place": "Bring into Revit", "rv.placeT": "Bring the terrain into the Revit model as a toposolid; repeated, it updates the same toposolid",
+    "rp.title": "Bring into Revit", "rp.go": "Bring into Revit", "rp.read": "Reading the toposolids, types and levels of “{d}”…",
+    "rp.target": "Toposolid", "rp.tPlaced": "Update “{n}”, brought in earlier by this project", "rp.tStart": "Update “{n}”, the starting toposolid", "rp.tNew": "New toposolid",
+    "rp.type": "Type", "rp.level": "Level", "rp.noTypes": "The model has no toposolid types: create one in Revit.",
+    "rp.points": "Points", "rp.ptsMax": "{n} · the most Revit {v} takes", "rp.cInternal": "model internal, as the starting terrain", "rp.cShared": "model shared (E/N of the survey)",
+    "rp.noteUpd": "Same toposolid (same element): its shape is rebuilt from the sculpted terrain, the boundary stays Revit's. The works are already in the shape. One Ctrl+Z in Revit goes back.",
+    "rp.noteNew": "A new toposolid on the terrain outline, with its shape. Repeated, this one is updated. One Ctrl+Z in Revit removes it.",
+    "rp.err.coordsSet": "The model's shared coordinates are already set: I am not changing them.", "rp.err.version": "This Revit has no toposolids: Revit 2024 or newer is needed.",
+    "rp.fail": "Bring into Revit failed: {m}", "rp.stepTin": "Choosing the terrain points…", "rp.stepStore": "Preparing the project to save in the model…",
+    "rp.working": "Revit: toposolid with {n} points and {b} outline vertices…",
+    "rp.doneNew": "New toposolid in Revit: {p} points, largest deviation {e} mm, {s} s.", "rp.doneUpd": "Toposolid updated in Revit: {p} points, largest deviation {e} mm, {s} s.",
+    "rp.rejected": "{n} points refused by Revit (in the add-in log).", "rp.mismatch": "{n} vertices of Revit's boundary are far from the terrain outline: the two outlines do not match.",
+    "rp.offZ": "Some points stay off level by up to {e} cm: see the add-in log.",
+    "rp.coordBody": "The model has no shared coordinates: the terrain would fall {km} km from the internal origin. Set the model's internal origin at E {e}, N {n}, level {z} (project north = true north)? It is done once.",
+    "rp.coordGo": "Set and bring", "rp.works": "Works", "rp.subs": "Pads and ramps as toposolid subdivisions ({n})", "rp.water": "Water as objects, Generic Models ({n})", "rp.noteWorks": "When ticked, works removed or switched off in the page are removed from Revit too; a subdivision with the same footprint stays as it is (also a material changed in Revit).", "rp.matPad": "Terrain Sculptor – Pad", "rp.matRamp": "Terrain Sculptor – Ramp", "rp.waterCls": "Terrain Sculptor – Water", "rp.doneSubs": "Subdivisions: {a} made, {b} unchanged kept, {c} removed.", "rp.doneWater": "Water: {a} objects, {c} removed.", "rp.notDone": "{n} not done: {list}", "rp.comments": "ViewIFC Terrain Sculptor · {n}",
     "drop.veil": "Drop to open the terrain",
     "privacy": "Files never leave the browser: no upload. Your work saves itself in this browser (IndexedDB).",
   },
@@ -948,11 +1028,12 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as T from "./terrain-core.js?v=1.9.0";
-import * as IO from "./terrain-io.js?v=1.9.0";
+import * as T from "./terrain-core.js?v=1.10.0";
+import * as IO from "./terrain-io.js?v=1.10.0";
+import * as RB from "../common/revit-bridge.js?v=1.6.0";
 import Delatin from "./vendor/delatin.js";
 
-const TOOL_VERSION = "1.9.0";
+const TOOL_VERSION = "1.10.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -1585,6 +1666,7 @@ function setDoc(doc, { frameIt = true } = {}) {
   refreshBalance();
   refreshStats();
   if (S.showPts) scheduleRevitPts();
+  revitPreviewLater();                              // dentro Revit: l'anteprima del terreno nuovo
 }
 /* un DTM vero non è il lotto dell'esempio: con 270 m di dislivello le curve ogni
    0,5 m sono un tappeto scuro, e un pennello di 8 m su celle da 10 m non tocca
@@ -1654,6 +1736,7 @@ function edited(region, { ops = false, light = false } = {}) {
   if (S.map.mode) scheduleAnalysis();
   scheduleSave();
   if (S.showPts) scheduleRevitPts();
+  revitPreviewLater();                              // dentro Revit: i riquadri cambiati, a riposo
 }
 function updateUndo() {
   $("bUndo").disabled = !S.doc || !S.doc.canUndo;
@@ -1701,6 +1784,9 @@ $("bPod").addEventListener("click", () => { S.podOff = !S.podOff; S.podUser = tr
 function applyPod() { document.body.classList.toggle("pod-off", S.podOff); $("bPod").classList.toggle("on", !S.podOff); resize(); renderDrawBar(); }
 /* schermi stretti: il pannello è un foglio dal basso; la maniglia lo porta da metà a quasi tutto alto */
 const SHEET = matchMedia("(max-width: 899px)");
+/* finché l'utente non ha mai premuto il pulsante, il pannello segue la finestra: chiuso sotto i 900 px,
+   aperto sopra (anche quando la si allarga dopo il caricamento); non diventa una preferenza */
+SHEET.addEventListener("change", () => { if (!S.podUser && S.podOff !== SHEET.matches) { S.podOff = SHEET.matches; applyPod(); } });
 $("grip").addEventListener("click", () => { document.body.classList.toggle("sheet-full"); resize(); });
 function doUndo(redo) {
   if (!S.doc) return;
@@ -2136,6 +2222,7 @@ function select(id) {
   rebuildOps();
   renderTool();
   renderOpsList();
+  revitPreviewLater();                              // dentro Revit: l'opera scelta in arancio (preview.pick)
 }
 /* modifica geometrica dal vivo: una voce di storia per trascinamento */
 let drag = null;
@@ -2822,6 +2909,7 @@ function sourceLabel(m) {
   if (m.source === "example") return tr("src.example");
   if (m.source === "new") return tr("src.new");
   if (m.source === "ctx") return tr("src.ctx", { s: m.sourceName || "" });
+  if (m.source === "revit") return tr("src.revit", { s: m.sourceName || "" });
   return m.sourceName || m.source || "—";
 }
 function renderTerrain() {
@@ -2839,12 +2927,15 @@ function renderTerrain() {
     + (f.nx * f.ny > 1500000 ? `<p class="note">${esc(tr("ter.big"))}</p>` : "")
     + `<div class="row two"><span class="lbl">${esc(tr("ter.contours"))}</span><div class="chips" id="cInt">${CONTOURS.map((c) => `<button class="chip${c === S.contour ? " on" : ""}" data-v="${c}">${c ? fmtNum(c) : esc(tr("ter.cNone"))}</button>`).join("")}</div></div>`
     + `<label class="check"><input type="checkbox" id="showPts" ${S.showPts ? "checked" : ""}>${esc(tr("ter.revitPts", { n: ni(S.budget) }))}</label>`
-    + `<div class="btns"><button class="btn-sm" id="tNew">${esc(tr("ter.new"))}</button><button class="btn-sm" id="tOpen">${esc(tr("ter.open"))}</button><button class="btn-sm" id="tSave">${esc(tr("ter.saveFile"))}</button></div>`
+    + `<div class="btns"><button class="btn-sm" id="tNew">${esc(tr("ter.new"))}</button><button class="btn-sm" id="tOpen">${esc(tr("ter.open"))}</button>`
+    + (revitTopo() ? `<button class="btn-sm" id="tRevit">${esc(tr("ter.revit"))}</button>` : "")
+    + `<button class="btn-sm" id="tSave">${esc(tr("ter.saveFile"))}</button></div>`
     + `<p class="note" id="saveNote">${esc(saveText())}</p><p class="note">${esc(tr("ter.prjHint"))}</p>`;
   $("cInt").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c) return; S.contour = +c.dataset.v; terrainMat.uniforms.interval.value = S.contour; renderTerrain(); saveUi(); });
   $("showPts").addEventListener("change", () => { S.showPts = $("showPts").checked; if (S.showPts) scheduleRevitPts(0); else revitPts.visible = false; });
   $("tNew").addEventListener("click", () => openSheet("new"));
   $("tOpen").addEventListener("click", () => $("fileIn").click());
+  if ($("tRevit")) $("tRevit").addEventListener("click", () => openRevit());
   $("tSave").addEventListener("click", () => runExport(exportProject));
 }
 /* --- plastico: blocco (preferenza), fondo e sabbia (del terreno); l'acqua è un'opera (strumento W) --- */
@@ -2968,6 +3059,7 @@ let anTimer = 0, cfAuto = 1;
 function applyMap() {
   const U = terrainMat.uniforms, m = S.map;
   U.mapMode.value = m.mode; U.slopeMax.value = m.slopeMax; U.cfMax.value = m.cfMax || cfAuto || 1;
+  revitPreviewLater();                              // dentro Revit: i colori della mappa anche nell'anteprima
 }
 /* pendenza massima e modo del limite (fase 4): gli stessi per la mappa, il pennello «Limita pendenza» e il
    comando su tutto il terreno (S.map) — righe uguali nella sezione Analisi (prefisso "an") e nel pannello del pennello ("lm") */
@@ -3242,12 +3334,13 @@ $("btnOpen").addEventListener("click", () => openSheet("welcome"));
 $("wClose").addEventListener("click", closeSheet);
 $("wNew").addEventListener("click", () => openSheet("new"));
 $("wOpen").addEventListener("click", () => $("fileIn").click());
+$("wRevit").addEventListener("click", () => openRevit());
 $("nCancel").addEventListener("click", () => openSheet("welcome"));
 $("iCancel").addEventListener("click", () => (S.doc ? closeSheet() : openSheet("welcome")));
 $("sheet").addEventListener("click", (e) => { if (e.target === $("sheet") && S.doc) closeSheet(); });
 
 const workCount = () => (S.doc ? S.doc.ops.length : 0);
-const hasWork = () => !!S.doc && (!!S.doc.meta.edited || S.doc.meta.source === "file" || S.doc.meta.source === "ctx");
+const hasWork = () => !!S.doc && (!!S.doc.meta.edited || S.doc.meta.source === "file" || S.doc.meta.source === "ctx" || S.doc.meta.source === "revit");
 function renderNew() {
   const cells = [0.25, 0.5, 1, 2];
   $("nCell").innerHTML = cells.map((c) => `<button class="chip${c === NEW.cell ? " on" : ""}" data-v="${c}">${nf(c, c % 1 ? 2 : 0)} m</button>`).join("");
@@ -3281,6 +3374,7 @@ let pendingImport = null;
 $("fileIn").addEventListener("change", () => { const f = $("fileIn").files[0]; $("fileIn").value = ""; if (f) openFile(f); });
 async function openFile(file) {
   openSheet("import");
+  rvInfo = null;                                   // un «Da Revit» ancora in corso non scrive più nella scheda
   const body = $("iBody"), go = $("iGo");
   go.disabled = true;
   body.innerHTML = `<p class="note">${esc(tr("i.reading", { f: file.name }))}</p>`;
@@ -3314,19 +3408,20 @@ function showImport(src, info, keepCell = null) {
   pendingImport = { src, info, cell: keep ? keepCell : co.proposed };
   const data = src.kind === "raster" ? tr("i.dataRaster", { w: ni(src.W), h: ni(src.H), c: nf(src.dx, src.dx % 1 ? 2 : 0) })
     : info.kind === "pts" ? tr("i.dataPts", { p: ni(src.count) })
-    : info.kind === "ifc" ? tr("i.dataIfc", { f: ni(src.stats.kept), v: ni(src.stats.vertical) })
+    : info.kind === "ifc" || info.kind === "revit" ? tr("i.dataIfc", { f: ni(src.stats.kept), v: ni(src.stats.vertical) })
     : tr("i.dataTin", { p: ni(src.points.length / 3), f: ni(src.faces.length / 3) });
   const crs = src.crs && (src.crs.epsg || src.crs.name) ? (src.crs.epsg ? "EPSG:" + src.crs.epsg : "") + (src.crs.name ? " " + src.crs.name : "") : tr("i.crsUnknown");
-  const chips = co.options.filter((o) => o.cell >= co.native / 2 - 1e-9).slice(0, 7);     // più fine di metà del nativo non serve
+  const chips = co.options.filter((o) => o.cell >= co.floor - 1e-9).slice(0, 7);     // più fine di metà del nativo non serve (toposolid: fin dove ci sta)
   const render = () => {
     $("iBody").innerHTML =
       `<div class="kv"><span>${esc(tr("i.file"))}</span><b>${esc(info.file)}</b></div>`
       + `<div class="kv"><span>${esc(tr("i.type"))}</span><b>${esc(tr("i.kind." + info.kind))}</b></div>`
       + (info.ifc ? ifcImportRows(info.ifc) : "")
+      + (info.rv ? revitImportRows(info.rv) : "")
       + `<div class="kv"><span>${esc(tr("i.data"))}</span><b>${esc(data)}</b></div>`
       + info.extra.map((x) => `<div class="kv"><span></span><b>${esc(x)}</b></div>`).join("")
       + `<div class="kv"><span>${esc(tr("i.extent"))}</span><b>${nf(e.x1 - e.x0, 1)} × ${nf(e.y1 - e.y0, 1)} m</b></div>`
-      + (info.ifc ? "" : `<div class="kv"><span>${esc(tr("i.crs"))}</span><b>${esc(crs)}</b></div>`)
+      + (info.ifc || info.rv ? "" : `<div class="kv"><span>${esc(tr("i.crs"))}</span><b>${esc(crs)}</b></div>`)
       + `<div class="sub">${esc(tr("i.cell"))}</div><div class="chips" id="iCell">${chips.map((o) => `<button class="chip${o.cell === pendingImport.cell ? " on" : ""}" data-v="${o.cell}" ${o.ok ? "" : "disabled"} title="${esc(tr("i.nodesOf", { n: ni(o.nodes) }))}">${nf(o.cell, o.cell % 1 ? 2 : 0)} m${o.native ? " · " + esc(tr("i.native")) : ""}</button>`).join("")}</div>`
       + `<p class="note" id="iNote"></p>`;
     const cur = co.options.find((o) => o.cell === pendingImport.cell);
@@ -3334,6 +3429,7 @@ function showImport(src, info, keepCell = null) {
       + (NODE_CAP < T.MAX_NODES && chips.some((o) => !o.ok) ? (cur ? "<br>" : "") + esc(tr("n.capDevice")) : "");
     $("iCell").addEventListener("click", (ev) => { const c = ev.target.closest(".chip"); if (!c || c.disabled) return; pendingImport.cell = +c.dataset.v; render(); });
     if (info.ifc) { $("iBody").querySelectorAll("[data-el]").forEach((cb) => cb.addEventListener("change", () => ifcTogglePick(+cb.dataset.el, cb.checked))); ifcBindRows(info.ifc); }
+    if (info.rv) $("iBody").querySelectorAll("[data-rv]").forEach((cb) => cb.addEventListener("change", () => revitTogglePick(cb.dataset.rv, cb.checked)));
     $("iGo").disabled = !cur;
   };
   render();
@@ -3459,7 +3555,419 @@ function geoText(fr) {
   const F = fr.frame;
   return tr("i.geoVal", { crs: fr.crs || tr("i.crsUnknown"), e: nf(F.E, 3), n: nf(F.N, 3), h: nf(F.H, 3), r: nf(fr.rot, 3) }) + " · " + tr("i.geoHow." + fr.how);
 }
-$("iCancel").addEventListener("click", stopIfcWorker);
+$("iCancel").addEventListener("click", () => { stopIfcWorker(); rvInfo = null; });
+
+/* --- dal modello Revit aperto (add-in ViewIFC, PIANO_Revit_ViewIFC.md §19, passo 2) -----------------------
+   topo.list → i terreni del modello (toposolid, topografie), spuntati quelli scelti in Revit; topo.get → i loro
+   triangoli in metri, coordinate INTERNE (Float32 attorno a un'origine + Uint32, base64). Poi la stessa strada
+   dell'IFC (ifcTerrainTIN → griglia): meta.ifc col frame delle coordinate condivise (i modelli di riferimento si
+   posano come con l'IFC dello stesso progetto), meta.revit coi terreni di partenza (il bersaglio di «Porta in Revit») */
+const revitTopo = () => !!REVIT && RB.can(REVIT, "topo.get");
+let rvInfo = null;      // il modello aperto nella scheda (come ifcInfo)
+async function openRevit() {
+  openSheet("import");
+  const body = $("iBody");
+  $("iGo").disabled = true;
+  stopIfcWorker(); ifcInfo = null;
+  const dn = RB.docLabel(REVIT && REVIT.doc);
+  body.innerHTML = `<p class="note">${esc(tr("i.rvRead", { d: dn }))}</p>`;
+  const me = rvInfo = { kind: "revit" };
+  const fail = (m) => { if (rvInfo === me) body.innerHTML = `<p class="note warn">${esc(m)}</p>`; };
+  let list;
+  try { list = await RB.call("topo.list", {}, 60000); } catch (e) { return fail(tr("i.rvFail", { m: e.message || String(e) })); }
+  if (rvInfo !== me) return;
+  if (!list.items.length) return fail(tr("i.rvNone", { d: dn }));
+  const cands = list.items.map((c) => ({ ...c, pick: !!c.selected }));
+  if (!cands.some((c) => c.pick)) cands[0].pick = true;
+  const fr = list.frame ? { E: list.frame.E, N: list.frame.N, H: list.frame.H, c: list.frame.c, s: list.frame.s, k: 1 } : null;
+  const rot = fr ? Math.atan2(fr.s, fr.c) * 180 / Math.PI : 0;
+  me.rv = { doc: dn, cands, meshes: new Map(), frame: { frame: fr, how: fr ? "revit" : null, crs: null, rot, notes: [] } };
+  me.info = { kind: "revit", file: dn, name: dn, extra: [], rv: me.rv };
+  await revitShow(me, null);
+}
+/* i triangoli dei terreni spuntati (chiesti a Revit solo quelli che non ha già), il TIN e la scheda. Le spunte restano
+   cliccabili mentre Revit risponde: disegna solo la chiamata più recente (gen), con le spunte di DOPO l'attesa */
+async function revitShow(me, keepCell) {
+  const rv = me.rv, gen = rv.gen = (rv.gen || 0) + 1;
+  const miss = rv.cands.filter((c) => c.pick && !rv.meshes.has(c.id));
+  if (miss.length) {
+    $("iGo").disabled = true;
+    $("iNote") ? ($("iNote").textContent = tr("i.rvGet")) : ($("iBody").innerHTML = `<p class="note">${esc(tr("i.rvGet"))}</p>`);
+    let got;
+    try { got = await RB.call("topo.get", { ids: miss.map((c) => c.id) }, 120000); }
+    catch (e) {
+      if (e.code === "noTris") for (const c of miss) rv.meshes.set(c.id, null);     // senza triangoli: non si richiedono più
+      if (rvInfo === me && rv.gen === gen) revitWarn(me, tr("i.rvFail", { m: e.message || String(e) }));
+      return;
+    }
+    if (rvInfo !== me) return;
+    for (const c of miss) if (!rv.meshes.has(c.id)) rv.meshes.set(c.id, null);      // saltato dall'add-in (senza triangoli)
+    for (const it of got.items) rv.meshes.set(it.id, revitMesh(it));
+    if (rv.gen !== gen) return;                     // le spunte sono cambiate nell'attesa: disegna la chiamata più recente
+  }
+  const info = me.info, picked = rv.cands.filter((c) => c.pick), meshes = picked.map((c) => rv.meshes.get(c.id)).filter(Boolean);
+  let src;
+  try {
+    if (!meshes.length) throw new Error(tr("i.ifcPickOne"));
+    src = IO.ifcTerrainTIN(meshes, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]);
+    /* con le sottoregioni (piattaforme e rampe portate dal passo 5) topo.get manda anche le loro facce, dopo quelle
+       dell'host (hostTris): la superficie le tiene (la quota più alta), il contorno no — i loro lati non sono il bordo */
+    if (meshes.some((m) => m.hostTris > 0 && 3 * m.hostTris < m.index.length))
+      src.hostOutline = IO.tinOutline(IO.ifcTerrainTIN(meshes.map((m) => ({ ...m, index: m.hostTris > 0 ? m.index.subarray(0, 3 * m.hostTris) : m.index })), [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0]));
+  } catch (e) { return revitWarn(me, e.message || String(e)); }
+  const ids = picked.map((c) => c.id);
+  info.meta = { name: rv.doc || "revit", source: "revit", sourceName: rv.doc, crs: null,
+    ifc: { frame: rv.frame.frame, how: rv.frame.how, base: null, rot: rv.frame.rot, notes: [] },
+    revit: { doc: rv.doc, ids, names: picked.map((c) => c.name) } };
+  showImport(src, info, keepCell);
+}
+/* scheda senza import possibile: le spunte restano (si corregge la scelta senza ripartire), sotto l'avviso */
+function revitWarn(me, msg) {
+  pendingImport = null;
+  $("iBody").innerHTML = revitImportRows(me.rv) + `<p class="note warn">${esc(msg)}</p>`;
+  $("iBody").querySelectorAll("[data-rv]").forEach((cb) => cb.addEventListener("change", () => revitTogglePick(cb.dataset.rv, cb.checked)));
+  $("iGo").disabled = true;
+}
+/* un terreno di topo.get → { positions (Float64, metri interni), index } come le mesh dell'IFC */
+function revitMesh(it) {
+  const pb = RB.fromB64(it.pos), ib = RB.fromB64(it.idx);
+  const f = new Float32Array(pb.buffer, 0, pb.length / 4), o = it.origin, P = new Float64Array(f.length);
+  for (let i = 0; i < f.length; i += 3) { P[i] = f[i] + o[0]; P[i + 1] = f[i + 1] + o[1]; P[i + 2] = f[i + 2] + o[2]; }
+  return { id: it.id, positions: P, index: new Uint32Array(ib.buffer, 0, ib.length / 4), hostTris: +it.hostTris || 0 };
+}
+function revitTogglePick(id, on) {
+  if (!rvInfo || !rvInfo.rv) return;
+  const c = rvInfo.rv.cands.find((x) => x.id === id);
+  if (c) c.pick = on;
+  revitShow(rvInfo, pendingImport ? pendingImport.cell : null);
+}
+function revitImportRows(rv) {
+  const els = rv.cands.map((c) => `<label class="check"><input type="checkbox" data-rv="${esc(c.id)}" ${c.pick ? "checked" : ""}>${esc(c.name || c.type || c.id)} <span class="dim">· ${esc(c.type)}${c.level ? " · " + esc(c.level) : ""}${c.points ? " · " + esc(tr("i.rvPts", { n: ni(c.points) })) : ""}${c.selected ? " · " + esc(tr("i.rvSel")) : ""}</span></label>`).join("");
+  return `<div class="sub">${esc(tr("i.rvEls"))}</div>${els}`
+    + `<div class="kv"><span>${esc(tr("i.coords"))}</span><b>${esc(tr("i.coordsSite"))}</b></div>`
+    + `<div class="kv"><span>${esc(tr("i.georef"))}</span><b>${esc(geoText(rv.frame))}</b></div>`
+    + `<p class="note">${esc(tr("i.rvNote"))}</p>`;
+}
+
+/* --- anteprima in Revit (passo 3, PIANO_Revit_ViewIFC.md §19) -------------------------------------------------
+   La superficie finale in riquadri (T.previewTiles: un nodo ogni `stride`, ~RVT_NODES nodi in tutto), uno strato
+   «terrain:i:j» di preview.mesh per riquadro, rimandato solo quando la sua firma cambia (un colpo di pennello rimanda
+   uno o due riquadri). Colori a classi dalla mappa accesa nella pagina — naturali: lime; pendenze: entro, vicina,
+   oltre, molto oltre la soglia; sterri e riporti: tre livelli per parte — e ogni cella sa l'opera che le dà forma
+   (TerrainDoc.ownerAt): l'opera scelta va in arancio con preview.pick, senza rimandare geometria. L'acqua nello
+   strato «water». Coordinate: terreno da Revit o da IFC (meta.ifc) e terreni locali nelle INTERNE del modello
+   (coords "internal", add-in 0.9.0), terreni di mappa nelle condivise */
+const RVT_NODES = 150000;
+/* colori (prove in Revit 2025): il lime #bfd730 a 0,45–0,6 sul bianco, illuminato dall'alto, veniva giallo («il
+   nostro è praticamente giallo») — il verde bottiglia di Sviluppo profili nasce dagli strati trasparenti uno
+   sull'altro, il terreno è uno strato solo → un oliva scuro più coprente. Le curve di livello piene, più scure: col
+   terreno quasi piano il rilievo si legge da loro («così tutta piatta non si capisce nulla»). Nelle mappe la classe
+   «niente da segnalare» resta del colore del terreno */
+const RVT_NAT = ["#50640c", 0.85];
+const RVT_COL = {
+  nat: [RVT_NAT],
+  slope: [RVT_NAT, ["#f2b84d", 0.8], ["#e04d2e", 0.85], ["#8c1c14", 0.9]],
+  cf: [RVT_NAT, ["#d9a27f", 0.8], ["#d77b55", 0.85], ["#d65933", 0.9], ["#93acd0", 0.8], ["#5a8bd0", 0.85], ["#3878d1", 0.9]],
+};
+const RVT_WATER = { color: "#3d8fd6", opacity: 0.6 }, RVT_ISO = "#26300a", RVT_ISO_MAX = 150;
+/* «più vicina a Sviluppo profili»: i fianchi del plastico fino alla base del blocco della pagina, più scuri e a tinta
+   piena (glow alto: niente luce, così le pareti in fila non fanno la zebra), gli spigoli del bordo in alto e in
+   basso, e poca luce propria sulle facce del terreno (glow, add-in 0.9.0): i pendii prendono ombra */
+const RVT_WALL = { color: "#3a4a0c", opacity: 0.9, glow: 0.9 }, RVT_GLOW = 0.2;
+/* il passo delle curve: quello del pannello Terreno (curve spente = niente), ×5 finché i livelli restano ≤ RVT_ISO_MAX */
+function rvInterval() {
+  let iv = +S.contour || 0;
+  const r = S.range.max - S.range.min;
+  while (iv > 0 && r / iv > RVT_ISO_MAX) iv *= 5;
+  return iv;
+}
+const RVP = { on: false, t: 0, busy: false, again: false, sent: new Map(), psig: "", doc: "" };
+const revitPreviewable = () => !!REVIT && RB.can(REVIT, "preview.pick") && RB.can(REVIT, "topo.get");
+const rvDoc = () => (REVIT && REVIT.doc ? (REVIT.doc.path || "") + "|" + REVIT.doc.title : "");
+const rvCoords = () => (docKind().kind === "map" ? undefined : "internal");
+const rvPalette = () => (S.map.mode === 1 ? RVT_COL.slope : S.map.mode === 2 ? RVT_COL.cf : RVT_COL.nat);
+/* i riquadri del terreno finale coi colori della mappa e le opere */
+function revitTerrainTiles() {
+  const f = S.doc.final, b = S.doc.base.z, Z = f.z, n = f.nx, c = f.cell, mode = S.map.mode;
+  const stride = Math.max(1, Math.ceil(Math.sqrt((f.nx * f.ny) / RVT_NODES)));
+  const slopeAt = (k) => {                       // pendenza nel nodo a differenze centrali, come T.slopeOver
+    const i = k % n, j = (k - i) / n, il = i > 0 ? k - 1 : k, ir = i < n - 1 ? k + 1 : k, jd = j > 0 ? k - n : k, ju = j < f.ny - 1 ? k + n : k;
+    const gx = (Z[ir] - Z[il]) / (c * ((ir - il) || 1)), gy = (Z[ju] - Z[jd]) / (c * (((ju - jd) / n) || 1));
+    return Math.hypot(gx, gy);
+  };
+  const smax = S.map.slopeMax, cfMax = mode === 2 ? (S.map.cfMax || T.cutFillScale(S.doc.base, f) || 1) : 1;
+  const slopeCls = (k) => { const r = slopeAt(k) / smax; return r < 0.7 ? 0 : r <= T.SLOPE_TOL ? 1 : r <= 2 ? 2 : 3; };
+  const cellCls = mode === 1 ? (a, bb, d, e) => Math.max(slopeCls(a), slopeCls(bb), slopeCls(d), slopeCls(e))
+    : mode === 2 ? (...ks) => {
+      let k = ks[0];
+      for (const q of ks) if (Math.abs(Z[q] - b[q]) > Math.abs(Z[k] - b[k])) k = q;
+      const dz = Z[k] - b[k];
+      if (Math.abs(dz) < 0.02) return 0;
+      const u = Math.abs(dz) / cfMax, lv = u < 1 / 3 ? 1 : u < 2 / 3 ? 2 : 3;
+      return dz < 0 ? lv : lv + 3;
+    } : null;
+  const own = new Map(), ownerAt = (k) => { let o = own.get(k); if (o === undefined) own.set(k, (o = S.doc.ownerAt(k))); return o; };
+  const cellOwner = S.doc.ops.length ? (...ks) => { for (const k of ks) { const o = ownerAt(k); if (o) return o; } return null; } : null;
+  return T.previewTiles(f, { stride, cellCls, cellOwner, interval: rvInterval(), base: look.base(), outline: S.doc.meta.outline || null });   // il contorno vero, se l'import l'ha salvato
+}
+/* l'acqua: un gruppo per specchio acceso, con la sua chiave (si sceglie come le opere), alla quota che ha davvero
+   (look.levelOf: mai oltre il trabocco, come nella pagina e negli export) */
+function revitWaterGroups() {
+  const groups = [];
+  for (const o of S.doc.ops) {
+    if (o.type !== "water" || o.on === false || !Array.isArray(o.polygon) || o.polygon.length < 3) continue;
+    const wm = T.waterMesh(S.doc.final, o.polygon, look.levelOf(o)), P = wm.positions;
+    if (!wm.triangles.length) continue;
+    const ox = Math.floor(P[0]), oy = Math.floor(P[1]), L = new Float64Array(P.length);
+    for (let i = 0; i < P.length; i += 3) { L[i] = P[i] - ox; L[i + 1] = P[i + 1] - oy; L[i + 2] = P[i + 2]; }
+    const ch = RB.meshChunks(L, null, wm.triangles).get("#bbbbbb") || [];
+    groups.push({ ...RVT_WATER, key: o.id, origin: [ox, oy, 0], chunks: ch.map((q) => ({ pos: RB.toB64(new Uint8Array(q.pos.buffer)), idx: RB.toB64(new Uint8Array(q.idx.buffer)) })) });
+  }
+  return groups;
+}
+function revitPreviewLater() {
+  if (!RVP.on) return;
+  clearTimeout(RVP.t);
+  RVP.t = setTimeout(revitPreviewSend, 300);
+}
+async function revitPreviewSend(first) {
+  if (!RVP.on || !S.doc) return;
+  if (RVP.busy) { RVP.again = true; return; }
+  RVP.busy = true;
+  try {
+    const doc = rvDoc(), coords = rvCoords(), pal = rvPalette();
+    if (doc !== RVP.doc) { RVP.sent.clear(); RVP.psig = ""; RVP.doc = doc; }
+    const tiles = revitTerrainTiles(), seen = new Set(), base = "|" + S.map.mode + "|" + (coords || "shared");
+    let triangles = 0, waiting = false;
+    for (const t of tiles) {
+      const name = "terrain:" + t.ti + ":" + t.tj, sig = t.sig + base;
+      seen.add(name);
+      triangles += t.groups.reduce((s, g) => s + g.idx.length / 3, 0);
+      if (RVP.sent.get(name) === sig) continue;
+      if (first === true && !waiting) { busy(tr("rv.sending", { t: "…" })); waiting = true; }
+      const b64 = (a) => RB.toB64(new Uint8Array(a.buffer, a.byteOffset, a.byteLength));
+      const groups = t.groups.map((g) => ({ color: pal[g.cls][0], opacity: pal[g.cls][1], glow: RVT_GLOW, ...(g.owner ? { key: g.owner } : {}), origin: t.origin,
+        chunks: [{ pos: b64(g.pos), idx: b64(g.idx) }] }));
+      if (t.walls.idx.length) groups.push({ ...RVT_WALL, origin: t.origin, chunks: [{ pos: b64(t.walls.pos), idx: b64(t.walls.idx) }] });   // fianchi
+      const lines = [t.lines, t.rim].filter((a) => a.length).map((a) => ({ pos: b64(a) }));                              // curve di livello e spigoli
+      if (lines.length) groups.push({ color: RVT_ISO, opacity: 1, edge: RVT_ISO, origin: t.origin, chunks: [], lines });
+      await RB.call("preview.mesh", { tool: "terrain-sculptor", layer: name, coords, groups }, 120000);
+      RVP.sent.set(name, sig);
+    }
+    for (const name of [...RVP.sent.keys()])            // riquadri che non ci sono più (terreno nuovo, passo diverso)
+      if (name.startsWith("terrain:") && !seen.has(name)) { await RB.call("preview.mesh", { tool: "terrain-sculptor", layer: name, coords, groups: [] }); RVP.sent.delete(name); }
+    const wops = S.doc.ops.filter((o) => o.type === "water" && o.on !== false);   // l'acqua segue il terreno solo se c'è
+    const wsig = wops.length ? JSON.stringify(wops.map((o) => [o.id, o.level, o.polygon])) + tiles.map((t) => t.sig).join(",") + base : "-" + doc;
+    if (RVP.sent.get("water") !== wsig) {
+      await RB.call("preview.mesh", { tool: "terrain-sculptor", layer: "water", coords, groups: revitWaterGroups() }, 120000);
+      RVP.sent.set("water", wsig);
+    }
+    const pick = S.sel ? [S.sel] : [], psig = doc + "|" + pick.join(",");
+    if (psig !== RVP.psig) { await RB.call("preview.pick", { keys: pick }); RVP.psig = psig; }
+    busy("");
+    if (first === true) toast(tr("rv.prevDone", { n: ni(tiles.length), t: ni(triangles) }));
+  } catch (e) {
+    busy("");
+    RVP.on = false; RVP.sent.clear(); RVP.psig = "";
+    renderRevit();
+    toast(e.code === "noDoc" ? tr("rv.err.noDoc") : e.code === "family" ? tr("rv.err.family") : e.code === "far" ? tr("rv.err.far", { km: nf((e.data && e.data.km) || 0, 1) }) : tr("rv.prevFail", { m: e.message }), true);
+  }
+  RVP.busy = false;
+  if (RVP.again) { RVP.again = false; revitPreviewSend(); }
+}
+async function revitPreviewToggle() {
+  clearTimeout(RVP.t);
+  if (RVP.on) {
+    RVP.on = false; RVP.sent.clear(); RVP.psig = ""; renderRevit();
+    try { await RB.call("preview.clear"); } catch (e) { /* l'add-in la toglie comunque alla chiusura */ }
+    return;
+  }
+  RVP.on = true; renderRevit();
+  revitPreviewSend(true);
+}
+$("rvPrev").addEventListener("click", revitPreviewToggle);
+
+/* --- «Porta in Revit» (passo 4, PIANO_Revit_ViewIFC.md §19) -------------------------------------------------
+   Il terreno finale come toposolid NATIVA (topo.place, add-in 0.9.0, Revit 2024+): i punti del TIN robusto (lo
+   stesso del CSV: budget, punti quotati tenuti) e il contorno con le quote (quello vero dell'import, se no quello
+   della maschera; infittito dove il bordo non va dritto, T.groundOutline). Bersaglio: la toposolid già portata da
+   questo progetto (firma «terrain-sculptor:<uid>», la cerca l'add-in) → se no quella di partenza (terreno aperto
+   da Revit con una toposolid sola) → se no una nuova, col tipo e il livello scelti qui. Coordinate come
+   l'anteprima (rvCoords). Il progetto .terrain va nel modello nella stessa transazione (store: un Ctrl+Z).
+   Passo 5: piattaforme e rampe accese come SOTTOREGIONI della toposolid (l'impronta, T.opFootprint; la forma è già
+   nella toposolid) e l'acqua come oggetti (DirectShape, come Sviluppo profili), nella stessa transazione; con la
+   spunta le opere tolte o spente si tolgono anche da Revit, senza la spunta quelle in Revit restano come sono */
+const RPL = { list: null, target: "", type: "", level: "", budget: 0, busy: false, subs: true, water: true };
+const RVT_SUB = { pad: ["rp.matPad", "#a8a59c"], path: ["rp.matRamp", "#8f8676"] }, RVT_WATER_SLAB = 0.05;
+/* le opere come sottoregioni: piattaforme e rampe accese con un'impronta */
+function revitSubdivisions() {
+  const r4 = (v) => Math.round(v * 1e4) / 1e4;
+  return S.doc.ops.filter((o) => (o.type === "pad" || o.type === "path") && o.on !== false).map((o) => {
+    const fp = T.opFootprint(o, S.doc.ops);
+    if (!fp) return null;
+    const [mk, color] = RVT_SUB[o.type];
+    return { id: o.id, name: opName(o), kind: o.type === "pad" ? "pad" : "ramp", loops: [fp.map((p) => p.map(r4))], material: { name: tr(mk), color, opacity: 1 } };
+  }).filter(Boolean);
+}
+/* l'acqua come oggetti di shapes.place: uno per specchio acceso, alla quota che ha davvero (mai oltre il trabocco) */
+function revitWaterItems() {
+  const items = [];
+  for (const o of S.doc.ops) {
+    if (o.type !== "water" || o.on === false || !Array.isArray(o.polygon) || o.polygon.length < 3) continue;
+    const lv = look.levelOf(o), wm = T.waterMesh(S.doc.final, o.polygon, lv), P = wm.positions;
+    if (!wm.triangles.length) continue;
+    const ox = Math.floor(P[0]), oy = Math.floor(P[1]), L = new Float64Array(P.length);
+    for (let i = 0; i < P.length; i += 3) { L[i] = P[i] - ox; L[i + 1] = P[i + 1] - oy; L[i + 2] = P[i + 2]; }
+    const ch = RB.meshChunks(L, null, wm.triangles).get("#bbbbbb") || [];
+    /* slab: il contorno della zona bagnata (i lati usati da un triangolo solo; le pareti verticali sul bordo della
+       griglia non hanno area in pianta e restano fuori) → l'add-in estrude una lastra di 5 cm sotto il pelo: una
+       faccia piana, spigoli solo sulla riva (prova in Revit 2025: la maglia a strisce mostrava ogni triangolo). vol
+       («l'acqua come un volume pieno?»): il volume chiuso di T.waterVolume, una faccia piana in alto e il letto 5 cm
+       sotto il terreno (la sottrazione dalla toposolid Revit non la riesce); la lastra e poi i triangoli come ripiego */
+    const wc = T.waterMesh(S.doc.final, o.polygon, lv, { strips: false }), rings = IO.tinOutline({ kind: "tin", points: wc.positions, faces: wc.triangles });
+    const wv = T.waterVolume(S.doc.final, o.polygon, lv, { drop: RVT_WATER_SLAB });
+    const b64 = (a) => RB.toB64(new Uint8Array(a.buffer, a.byteOffset, a.byteLength));
+    let vol = null;
+    if (wv) {
+      const f = new Float32Array(wv.positions.length);
+      for (let i = 0; i < f.length; i += 3) { f[i] = wv.positions[i] - ox; f[i + 1] = wv.positions[i + 1] - oy; f[i + 2] = wv.positions[i + 2]; }
+      vol = { origin: [ox, oy, 0], pos: b64(f), tops: wv.tops, tris: b64(wv.tris), quads: b64(wv.quads) };
+    }
+    items.push({ id: o.id, name: `${opName(o)} · ${nf(lv, 2)} m`, cls: tr("rp.waterCls"), material: { name: tr("rp.waterCls"), color: RVT_WATER.color, opacity: RVT_WATER.opacity },
+      origin: [ox, oy, 0], chunks: ch.map((q) => ({ pos: RB.toB64(new Uint8Array(q.pos.buffer)), idx: RB.toB64(new Uint8Array(q.idx.buffer)) })),
+      ...(rings ? { slab: { loops: rings, top: lv, bottom: lv - RVT_WATER_SLAB } } : {}), ...(vol ? { vol } : {}) });
+  }
+  return items;
+}
+const revitPlaceable = () => !!REVIT && RB.can(REVIT, "topo.place");
+const placeKey = () => "terrain-sculptor:" + projectUid();
+const rvErr = (e) => e.code === "noDoc" ? tr("rv.err.noDoc") : e.code === "family" ? tr("rv.err.family") : e.code === "far" ? tr("rv.err.far", { km: nf((e.data && e.data.km) || 0, 1) })
+  : e.code === "coordsSet" ? tr("rp.err.coordsSet") : e.code === "version" ? tr("rp.err.version") : tr("rp.fail", { m: e.message || String(e) });
+/* la toposolid di partenza ancora nel modello: terreno aperto da Revit con una sola toposolid */
+function rpStart() {
+  const rv = S.doc.meta.revit, items = (RPL.list && RPL.list.items) || [];
+  return rv && Array.isArray(rv.ids) && rv.ids.length === 1 ? items.find((c) => c.id === rv.ids[0] && c.kind === "toposolid") || null : null;
+}
+async function openRevitPlace() {
+  if (!S.doc || !revitPlaceable() || RPL.busy) return;
+  openSheet("revit");
+  $("rpGo").disabled = true;
+  $("rpBody").innerHTML = `<p class="note">${esc(tr("rp.read", { d: RB.docLabel(REVIT.doc) || "—" }))}</p>`;
+  try { RPL.list = await RB.call("topo.list", { key: placeKey() }, 60000); }
+  catch (e) { $("rpBody").innerHTML = `<p class="note warn">${esc(rvErr(e))}</p>`; return; }
+  RPL.target = "";
+  const bs = rpBudgets();
+  if (!bs.includes(RPL.budget)) RPL.budget = bs.filter((n) => n <= S.budget).pop() || bs[0];
+  renderRevitPlace();
+}
+/* i punti che regge il Revit aperto, senza sceglierne la versione (prova in Revit 2025: «deve essere in accordo con il
+   revit aperto»): fino al 2025 10 000, dal 2026 10 000 o 20 000. Il 50 000 del CSV chiede di cambiare Revit.ini: qui no */
+const rvVersion = () => +((REVIT && REVIT.revit && REVIT.revit.version) || 0);
+const rpBudgets = () => (rvVersion() >= 2026 ? [10000, 20000] : [10000]);
+function renderRevitPlace(warn) {
+  const L = RPL.list, placed = L.placed, start = rpStart(), dk = rvCoords();
+  const opts = [];
+  if (placed) opts.push(["placed", tr("rp.tPlaced", { n: placed.name || placed.type || "" })]);
+  else if (start) opts.push(["start", tr("rp.tStart", { n: start.name || start.type || "" })]);
+  opts.push(["new", tr("rp.tNew")]);
+  if (!opts.some(([v]) => v === RPL.target)) RPL.target = opts[0][0];
+  const types = L.types || [], levels = L.levels || [];
+  if (!types.includes(RPL.type)) RPL.type = (start && types.includes(start.type) ? start.type : types[0]) || "";
+  if (!levels.some((l) => l.name === RPL.level)) {          // il livello più alto sotto il terreno (coordinate interne), se no il primo
+    const zmin = S.range.min, below = dk === "internal" ? levels.filter((l) => l.z <= zmin + 0.01) : [];
+    RPL.level = (start && levels.some((l) => l.name === start.level) ? start.level : below.length ? below[below.length - 1].name : levels[0] && levels[0].name) || "";
+  }
+  const isNew = RPL.target === "new";
+  let h = `<div class="sub">${esc(tr("rp.target"))}</div>`
+    + opts.map(([v, l]) => `<label class="check"><input type="radio" name="rpT" value="${v}" ${v === RPL.target ? "checked" : ""}>${esc(l)}</label>`).join("");
+  if (isNew) h += `<div class="form"><div class="row"><label for="rpType">${esc(tr("rp.type"))}</label><select class="rpsel" id="rpType">${types.map((t) => `<option${t === RPL.type ? " selected" : ""}>${esc(t)}</option>`).join("")}</select><span></span></div>`
+    + `<div class="row"><label for="rpLevel">${esc(tr("rp.level"))}</label><select class="rpsel" id="rpLevel">${levels.map((l) => `<option value="${esc(l.name)}"${l.name === RPL.level ? " selected" : ""}>${esc(l.name)} · ${nf(l.z, 2)} m</option>`).join("")}</select><span></span></div></div>`
+    + (types.length ? "" : `<p class="note warn">${esc(tr("rp.noTypes"))}</p>`);
+  const bs = rpBudgets();
+  h += (bs.length > 1
+    ? `<div class="sub">${esc(tr("rp.points"))}</div><div class="chips" id="rpBudget">${bs.map((n) => `<button class="chip${n === RPL.budget ? " on" : ""}" data-v="${n}">${ni(n)}</button>`).join("")}</div>`
+    : `<div class="kv"><span>${esc(tr("rp.points"))}</span><b>${esc(tr("rp.ptsMax", { n: ni(bs[0]), v: rvVersion() || "" }))}</b></div>`)
+    + `<div class="kv"><span>${esc(tr("exp.coords"))}</span><b>${esc(tr(dk === "internal" ? "rp.cInternal" : "rp.cShared"))}</b></div>`;
+  const nSub = S.doc.ops.filter((o) => (o.type === "pad" || o.type === "path") && o.on !== false).length, nWat = S.doc.ops.filter((o) => o.type === "water" && o.on !== false).length;
+  h += `<div class="sub">${esc(tr("rp.works"))}</div>`
+    + `<label class="check"><input type="checkbox" id="rpSubs" ${RPL.subs ? "checked" : ""}>${esc(tr("rp.subs", { n: ni(nSub) }))}</label>`
+    + `<label class="check"><input type="checkbox" id="rpWater" ${RPL.water ? "checked" : ""}>${esc(tr("rp.water", { n: ni(nWat) }))}</label>`
+    + `<p class="note">${esc(tr(isNew ? "rp.noteNew" : "rp.noteUpd"))} ${esc(tr("rp.noteWorks"))}</p>`
+    + (warn || "");
+  $("rpBody").innerHTML = h;
+  $("rpBody").querySelectorAll('input[name="rpT"]').forEach((r) => r.addEventListener("change", () => { RPL.target = r.value; renderRevitPlace(); }));
+  if ($("rpType")) $("rpType").addEventListener("change", () => { RPL.type = $("rpType").value; });
+  if ($("rpLevel")) $("rpLevel").addEventListener("change", () => { RPL.level = $("rpLevel").value; });
+  $("rpSubs").addEventListener("change", () => { RPL.subs = $("rpSubs").checked; });
+  $("rpWater").addEventListener("change", () => { RPL.water = $("rpWater").checked; });
+  if ($("rpBudget")) $("rpBudget").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c) return; RPL.budget = +c.dataset.v; renderRevitPlace(); });
+  $("rpGo").disabled = isNew && !types.length;
+}
+/* gli argomenti di topo.place: punti Float32 attorno a un'origine al metro, contorno con le quote, progetto */
+async function revitPlaceArgs() {
+  const f = S.doc.final, n = f.nx;
+  const tin = T.robustTIN(f, Delatin, await loadDelaunator(), { maxPoints: RPL.budget, keep: spotKeep() }), C = tin.coords;
+  const rings = T.groundOutline(f, S.doc.meta.outline || T.gridOutline(f), { tol: 0.01 });
+  let ox = Infinity, oy = Infinity, oz = Infinity;
+  for (const r of rings) for (const [x, y, z] of r) { ox = Math.min(ox, x); oy = Math.min(oy, y); oz = Math.min(oz, z); }
+  for (let v = 0; v < tin.points; v++) oz = Math.min(oz, f.z[C[2 * v + 1] * n + C[2 * v]]);
+  ox = Math.floor(ox); oy = Math.floor(oy); oz = Math.floor(oz);
+  const pos = new Float32Array(tin.points * 3);
+  for (let v = 0; v < tin.points; v++) {
+    const i = C[2 * v], j = C[2 * v + 1];
+    pos[3 * v] = f.x0 + i * f.cell - ox; pos[3 * v + 1] = f.y0 + j * f.cell - oy; pos[3 * v + 2] = f.z[j * n + i] - oz;
+  }
+  await step("rp.stepStore");
+  const saved = new Date().toISOString(), raw = T.encodeProject(S.doc.snapshot(), { tool: TOOL_VERSION, saved });
+  const bytes = typeof CompressionStream === "function" ? await pipeBytes(raw, new CompressionStream("gzip")) : raw;
+  const r4 = (v) => Math.round(v * 1e4) / 1e4, start = rpStart();
+  const args = {
+    key: placeKey(), coords: rvCoords(), points: { origin: [ox, oy, oz], pos: RB.toB64(new Uint8Array(pos.buffer)) },
+    outline: rings.map((r) => r.map((p) => p.map(r4))), comments: tr("rp.comments", { n: S.doc.meta.name || "" }),
+    store: { tool: "terrain-sculptor", name: S.doc.meta.name || fileBase(), version: TOOL_VERSION, items: 1, saved, data: RB.toB64(bytes) },
+  };
+  if (RPL.target === "start" && start) args.target = start.id;
+  if (RPL.target === "new") Object.assign(args, { mode: "new", type: RPL.type, level: RPL.level });
+  if (RPL.subs) args.subdivisions = revitSubdivisions();
+  if (RPL.water) args.water = revitWaterItems();
+  return { args, tin, rings };
+}
+async function revitPlaceSend() {
+  if (RPL.busy || !S.doc) return;
+  RPL.busy = true;
+  $("rpGo").disabled = true;
+  projectUid(); saveNow();                                   // l'id del progetto resta col progetto
+  try {
+    await step("rp.stepTin");
+    const { args, tin, rings } = await revitPlaceArgs();
+    busy(tr("rp.working", { n: ni(tin.points), b: ni(rings.reduce((s, r) => s + r.length, 0)) })); await frame();
+    const r = await RB.call("topo.place", args, 1800000);
+    busy("");
+    closeSheet();
+    const sb = r.subdivisions, wt = r.water, notDone = [...((sb && sb.failed) || []), ...((wt && wt.failed) || [])];
+    const bad = r.rejected > 0 || r.mismatch > 0 || r.maxErr > 0.01 || notDone.length > 0;
+    toast(tr(r.created ? "rp.doneNew" : "rp.doneUpd", { p: ni(r.added), e: nf(r.maxErr * 1000, 0), s: nf(r.ms / 1000, 1) })
+      + (sb ? " " + tr("rp.doneSubs", { a: ni(sb.made), b: ni(sb.kept), c: ni(sb.removed) }) : "")
+      + (wt ? " " + tr("rp.doneWater", { a: ni(wt.placed + wt.updated), c: ni(wt.removed || 0) }) : "")
+      + (notDone.length ? " " + tr("rp.notDone", { n: ni(notDone.length), list: [...new Set(notDone.map((x) => x.why))].join("; ") }) : "")
+      + (r.rejected ? " " + tr("rp.rejected", { n: ni(r.rejected) }) : "") + (r.mismatch ? " " + tr("rp.mismatch", { n: ni(r.mismatch) }) : "")
+      + (r.maxErr > 0.01 ? " " + tr("rp.offZ", { e: nf(r.maxErr * 100, 1) }) : ""), bad);
+  } catch (e) {
+    busy("");
+    if (e.code === "noCoords") {
+      const d = e.data || {};
+      renderRevitPlace(`<p class="note warn">${esc(tr("rp.coordBody", { km: nf(d.km || 0, 1), e: nf(d.E, 0), n: nf(d.N, 0), z: nf(d.Z, 0) }))}</p><div class="btns"><button class="btn-sm" id="rpCoords">${esc(tr("rp.coordGo"))}</button></div>`);
+      $("rpCoords").addEventListener("click", async () => {
+        try { await RB.call("coords.setup", { E: d.E, N: d.N, Z: d.Z }); RPL.busy = false; revitPlaceSend(); }
+        catch (e2) { renderRevitPlace(`<p class="note warn">${esc(rvErr(e2))}</p>`); }
+      });
+    } else if (!$("sheet").hidden) renderRevitPlace(`<p class="note warn">${esc(rvErr(e))}</p>`);
+    else toast(rvErr(e), true);
+  } finally { RPL.busy = false; if (!$("sheet").hidden && $("rpGo")) $("rpGo").disabled = false; }
+}
+$("rvPlace").addEventListener("click", openRevitPlace);
+$("rpCancel").addEventListener("click", closeSheet);
+$("rpGo").addEventListener("click", revitPlaceSend);
 
 /* =========================================================================
    Modelli di riferimento (fase 2c): il progetto (edificio, strutture…) nella
@@ -3662,7 +4170,10 @@ $("iGo").addEventListener("click", async () => {
   try {
     const g = IO.buildGrid(src, cell);
     const base = { nx: g.nx, ny: g.ny, cell: g.cell, x0: g.x0, y0: g.y0, z: g.z, mask: g.mask };
-    const doc = new T.TerrainDoc(base, { meta: { ...info.meta, origin: originFor(base), stats: g.stats } });
+    /* il contorno vero del TIN (1.10.0): la griglia lo perde nella maschera a celle; serve all'anteprima in Revit
+       (bordo tagliato lungo il poligono, fianchi sui suoi lati) e poi alla toposolid che torna in Revit */
+    const outline = src.kind === "tin" ? src.hostOutline || IO.tinOutline(src) : null;   // da Revit con le sottoregioni: quello dell'host (revitShow)
+    const doc = new T.TerrainDoc(base, { meta: { ...info.meta, origin: originFor(base), stats: g.stats, ...(outline ? { outline } : {}) } });
     setDoc(doc);
     await saveNow();
     closeSheet();
@@ -3849,6 +4360,40 @@ function tick(now) {
 }
 
 /* =========================================================================
+   Dentro Revit (add-in ViewIFC, PIANO_Revit_ViewIFC.md §19): nella testata «Revit 2025 · modello», come nella
+   Trazione elettrica e in Sviluppo profili. Fuori da Revit RB.inRevit() è falso e non succede nulla
+   ========================================================================= */
+let REVIT = null;   // risposta di hello dell'add-in
+function renderRevit() {
+  const el = $("rvChip");
+  el.hidden = !REVIT;
+  $("wRevit").hidden = !revitTopo();                // «Dal modello Revit» nel benvenuto, solo se l'add-in sa leggere i terreni
+  const b = $("rvPrev");                            // «Anteprima in Revit»: add-in con strati, scelta e coordinate interne (0.9.0)
+  b.hidden = !revitPreviewable();
+  b.classList.toggle("on", RVP.on);
+  b.setAttribute("aria-pressed", RVP.on ? "true" : "false");
+  $("rvPlace").hidden = !revitPlaceable();          // «Porta in Revit»: add-in con topo.place (0.9.0, Revit 2024+)
+  if (!REVIT) return;
+  const name = RB.docLabel(REVIT.doc);
+  el.textContent = name ? tr("rv.chip", { v: REVIT.revit.version, doc: name }) : tr("rv.chipNoDoc", { v: REVIT.revit.version });
+  el.title = tr("rv.tip", { addin: REVIT.addin, build: REVIT.revit.build });
+}
+async function initRevit() {
+  if (!RB.inRevit()) return;
+  REVIT = await RB.hello();
+  if (!REVIT) return;
+  RB.onEvent((m) => {
+    if (m.event === "doc") { REVIT.doc = m.doc; renderRevit(); revitPreviewLater(); }   // l'anteprima va sul modello attivo
+    if (m.event === "preview" && !m.on) { RVP.on = false; RVP.sent.clear(); RVP.psig = ""; clearTimeout(RVP.t); renderRevit(); }
+  });
+  renderRevit();
+  renderTerrain();                                  // «Da Revit…» fra i pulsanti del pannello Terreno
+}
+/* l'id del progetto per Revit: chiave «terrain-sculptor:<uid>» della toposolid e delle opere nel modello. Sta nei
+   meta del documento (salvataggio e .terrain), si fa al primo invio; un terreno nuovo o importato non ce l'ha */
+const projectUid = () => S.doc.meta.uid || (S.doc.meta.uid = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+
+/* =========================================================================
    Lingua e tema
    ========================================================================= */
 function applyLang(lang) {
@@ -3858,6 +4403,7 @@ function applyLang(lang) {
   document.querySelectorAll("[data-i18n-title]").forEach((el) => { const k = el.getAttribute("data-i18n-title"); if (I18N[LANG][k] != null) { el.title = I18N[LANG][k]; el.setAttribute("aria-label", I18N[LANG][k]); } });
   document.querySelectorAll(".langsw button").forEach((b) => b.classList.toggle("on", b.dataset.lang === LANG));
   try { localStorage.setItem("viewifc_tool_lang", LANG); } catch (e) {}
+  renderRevit();
   if (S.doc) { renderPod(); refreshBalance(); refreshStats(); }
   if (!$("sheet").hidden && !document.querySelector('#sheet [data-panel="new"]').hidden) renderNew();
   status(null);
@@ -3887,7 +4433,8 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
   let lang = "it";
   try { lang = localStorage.getItem("viewifc_tool_lang") || (navigator.language || "it").slice(0, 2); } catch (e) {}
   LANG = I18N[lang] ? lang : "it";
-  if (!S.podUser) S.podOff = innerWidth < 900;      // finché l'utente non sceglie, segue la finestra (e non diventa una preferenza)
+  initRevit();                                      // dentro Revit: il saluto all'add-in, la scritta in testata
+  if (!S.podUser) S.podOff = SHEET.matches;      // finché l'utente non sceglie, segue la finestra (vedi SHEET; non diventa una preferenza)
   applyPod();
   if (!renderer) { $("noGl").textContent = tr("t.webgl"); applyLang(LANG); return; }
   terrainMat.uniforms.interval.value = S.contour;
@@ -3919,7 +4466,7 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
   else openSheet("welcome");
 })();
 /* aggancio per le prove dal browser (come __banco della fase 0): niente dati del progetto, solo stato */
-window.__ts = { T, IO, get S() { return S; }, get draft() { return draft; }, get handles() { return handleList.map((h) => ({ kind: h.kind, k: h.k, screen: toScreen(h.x, h.y, h.z) })); },
+window.__ts = { T, IO, get S() { return S; }, get REVIT() { return REVIT; }, projectUid, openRevit, get rvInfo() { return rvInfo; }, get RVP() { return RVP; }, revitPreviewToggle, get RPL() { return RPL; }, openRevitPlace, revitPlaceArgs, revitPlaceSend, select, edited, applyMap, get draft() { return draft; }, get handles() { return handleList.map((h) => ({ kind: h.kind, k: h.k, screen: toScreen(h.x, h.y, h.z) })); },
   get refs() { return refs.map((r) => ({ name: r.name, state: r.state, how: r.how, notes: r.notes, elements: r.elements, tris: r.tris, simplified: r.simplified, box: r.meshes.length ? (({ min, max }) => [min.toArray(), max.toArray()])(new THREE.Box3().setFromObject(refGroup)) : null })); },
   get look() { return S.doc ? { block: !!S.look.block, ...lookOf(), baseEff: look.base(), waters: look.wOps.map((o) => ({ id: o.id, level: o.level, n: o.polygon.length })), meshes: look.wMeshes.length } : null; },
   camera, controls, pick, setMode, frameAll, saveNow, get renderer() { return renderer; }, renderNow: () => renderer.render(scene, camera), get NODE_CAP() { return NODE_CAP; } };

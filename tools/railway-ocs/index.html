@@ -116,6 +116,10 @@ header>*{pointer-events:auto}
 .stats .dot{width:6px;height:6px;border-radius:50%;background:var(--lime);flex:none}
 .stats .dot.wait{background:var(--amber)}
 .fastchip{font:500 10.5px/1 var(--mono);letter-spacing:.06em;color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:4px 8px}
+.rvchip{font:500 10.5px/1 var(--mono);letter-spacing:.04em;color:var(--text);border:1px solid var(--lime);border-radius:999px;padding:4px 8px;max-width:340px;overflow:hidden;text-overflow:ellipsis}
+.rvbtn{font:500 10.5px/1 var(--mono);letter-spacing:.04em;color:var(--muted);background:none;border:1px dashed var(--muted);border-radius:999px;padding:4px 9px;cursor:pointer}
+.rvbtn:hover{color:var(--text);border-color:var(--text)}
+.rvbtn.on{color:#1d2113;background:var(--lime);border:1px solid var(--lime)}
 .langsw{display:inline-flex;align-items:center;gap:3px;padding:4px}
 .langsw button{border:none;border-radius:999px;background:none;color:var(--faint);font:500 10.5px var(--mono);letter-spacing:.06em;padding:5px 9px;min-width:32px}
 .langsw button:hover{color:var(--text);background:var(--panel-2)}
@@ -382,6 +386,9 @@ body.scpick #cv{cursor:crosshair}
   </nav>
   <span class="spacer"></span>
   <div class="stats glass pill" id="stats">
+    <span class="rvchip" id="rvChip" hidden></span>
+    <button class="rvbtn" id="rvPrev" hidden aria-pressed="false" data-i18n="rv.prev" data-i18n-title="rv.prevT" title="Mostra i sostegni e gli IFC di contesto visibili nelle viste del modello Revit, senza creare elementi; si aggiorna da sola mentre lavori">Anteprima in Revit</button>
+    <button class="rvbtn" id="rvPlace" hidden data-i18n="rv.place" data-i18n-title="rv.placeT" title="Piazza i sostegni mostrati nel modello Revit con le famiglie del catalogo RFI; ripetuto, aggiorna quelli già piazzati">Piazza in Revit</button>
     <span class="fastchip" id="fastChip" hidden></span>
     <span class="sv"><i class="dot" id="saveDot"></i><span id="statTracks">—</span></span>
   </div>
@@ -566,14 +573,37 @@ const I18N = {
     "pt.line": "rettifilo", "pt.arc": "curva R {r} m", "pt.clo": "clotoide (R {r} m qui)", "pt.left": "a sinistra", "pt.right": "a destra",
     "pt.inner": "rotaia interna", "pt.cap": "Sezione a {p}, guardando avanti · scala vera", "pt.capHov": "Cursore a {p}, guardando avanti · scala vera", "pt.offV": "Offset", "pt.offVv": "{h} m lat. · {v} m vert.",
     "vw.title": "Vista", "vw.step": "Passo", "vw.stepHelp": "Il passo con cui il binario si disegna (sempre anche ai capi degli elementi). In modalità fast si lavora a 10 m: più leggero e veloce.",
-    "vw.lod": "Fusto dei pali", "vw.lodBox": "pieno", "vw.lodUpn": "2 UPN senza traliccio", "vw.lodLat": "2 UPN + traliccio",
-    "vw.lodHelp": "Il fusto LSU è fatto di due UPN affacciate unite da un traliccio a X (modulo 266 mm). La geometria si fa una volta per tipo di palo e la condividono tutti i pali di quel tipo: anche col traliccio la scena resta leggera.",
+    "vw.lod": "Dettaglio dei sostegni", "vw.lodBox": "pieno", "vw.lodUpn": "profili senza traliccio", "vw.lodLat": "tutto, traliccio compreso",
+    "vw.lodHelp": "Pali LSU14…LSU22 e portali MEC, tralicciati e di ormeggio del catalogo RFI hanno la geometria delle famiglie Revit (piastra, due UPN, traliccio di tondi piegati, attacchi, mensola a tubo, plinto; piloni, travi a traliccio e fondazioni dei portali): la stessa che l'add-in ViewIFC piazza in Revit e che va nell'IFC. Gli altri (LSU24, pali doppi, portali su pali LSU, luci fuori dai tipi) restano semplificati. «Pieno» disegna fusti e travi interi, «profili» senza traliccio, controventi e tirafondi. Ogni pezzo si fa una volta e lo condividono tutti i sostegni uguali: anche col traliccio la scena resta leggera.",
     "vw.fast": "Fast (10 m)", "vw.fastOn": "Modalità fast accesa: passo di 10 m. Spegnila (Q) per il passo pieno.", "vw.plan": "Pianta ortografica", "vw.planHelp": "In pianta (T) la vista è ortografica: distanze vere in ogni punto dello schermo, sotto il cursore Est, Nord e la progressiva del binario. Trascina per spostare, rotella per lo zoom verso il cursore.",
     "pv.title": "Profilo", "pv.inner": "livelletta (rotaia interna)", "pv.axis": "asse del binario", "pv.ground": "terreno", "pv.cant": "sopraelevazione",
     "pv.fit": "Tutto", "pv.fitT": "Tutto il profilo · sul profilo: rotella zoom, trascina sposta, clic sceglie il punto, doppio clic porta la vista 3D lì",
     "pv.cantMax": "sopraelevazione fino a {c} mm", "pv.kmh": "{v} km/h", "pv.noProf": "Il binario non ha un profilo: scegline uno nel pannello Binario.",
     "st.at": "{p} · E {e} · N {n} · PF {z} · sopraelev. {c} mm", "st.plan": "E {e} · N {n} · {t} {p} · scostamento {q} m", "st.planFar": "E {e} · N {n}",
     "st.fast": "fast 10 m",
+    "rv.chip": "Revit {v} · {doc}", "rv.chipNoDoc": "Revit {v} · nessun modello aperto",
+    "rv.tip": "Pagina aperta dentro Revit con l'add-in ViewIFC {addin} (Revit {build})",
+    "rv.prev": "Anteprima in Revit", "rv.prevT": "Mostra i sostegni e gli IFC di contesto visibili nelle viste del modello Revit, senza creare elementi; si aggiorna da sola mentre lavori",
+    "rv.shSending": "Pezzi delle famiglie in Revit: {n}…", "rv.ctxSending": "Contesto in Revit: {t} triangoli…", "rv.ctxDone": "Contesto in Revit: {t} triangoli di {n} IFC in {s} s.",
+    "rv.prevDone": "Anteprima in Revit: {n} sostegni, {t} triangoli nelle viste del modello.", "rv.prevFail": "Anteprima in Revit non riuscita: {m}",
+    "rv.err.noDoc": "Revit: apri prima un modello di progetto.", "rv.err.family": "Revit: il documento attivo è una famiglia, apri un progetto.",
+    "rv.err.far": "Revit: i sostegni cadono a {km} km dall'origine interna del modello — imposta le coordinate condivise del progetto (E/N come i binari).",
+    "rv.place": "Piazza in Revit", "rv.placeT": "Piazza i sostegni mostrati nel modello Revit con le famiglie del catalogo RFI; ripetuto, aggiorna quelli già piazzati",
+    "rv.plTitle": "Piazza i sostegni in Revit", "rv.plBody": "{n} sostegni mostrati diventano famiglie del catalogo RFI nel modello «{doc}». Una sola transazione: Ctrl+Z in Revit la annulla tutta. Ripetuto, aggiorna gli stessi elementi.",
+    "rv.plSkip": "Non piazzati, manca la famiglia nel catalogo:", "rv.plWarn": "Piazzati con un avviso:", "rv.plGo": "Piazza", "rv.plNone": "Nessun sostegno mostrato da piazzare.",
+    "rv.skip.portalLsu": "portali su pali LSU", "rv.skip.double": "pali doppi", "rv.skip.mastSize": "pali LSU24", "rv.skip.geom": "senza geometria",
+    "rv.w.mensType": "mensola non nel catalogo: messa la più corta fra le più lunghe", "rv.w.susp": "più sospensioni: la famiglia ha una mensola sola",
+    "rv.w.equip": "trasformatore o sezionatore: senza famiglia, non piazzato", "rv.w.tieHeight": "tirante: la famiglia lo tiene a 1,00 sopra la mensola",
+    "rv.w.spanRange": "luce fuori dal campo delle travi MEC C19–C21", "rv.w.spanType": "nessun tipo di portale con quella luce (entro 5 cm): il più vicino",
+    "rv.plDone": "Revit: {a} piazzati, {b} aggiornati in {s} s.", "rv.plNotPlaced": "In Revit non piazzati {n}: {list}", "rv.plFail": "Piazzamento in Revit non riuscito: {m}",
+    "rv.coordTitle": "Coordinate condivise del modello", "rv.coordBody": "Il modello non ha coordinate condivise: i sostegni cadrebbero a {km} km dall'origine interna. Imposto l'origine interna del modello in E {e}, N {n}, quota {z} (nord di progetto = nord reale)? Si fa una volta sola; poi il modello si linka nel federato «da coordinate condivise».",
+    "rv.coordGo": "Imposta e piazza", "rv.err.coordsSet": "Le coordinate condivise del modello sono già impostate: non le cambio.",
+    "rv.pruneTitle": "Sostegni non più nel progetto", "rv.pruneBody": "Nel modello Revit ci sono {n} elementi piazzati prima da questo progetto che ora non ci sono più. Toglierli?", "rv.pruneGo": "Togli", "rv.pruneDone": "Revit: tolti {n} elementi.",
+    "rv.plStore": "Il progetto si salva anche dentro il modello: riaprendo il file Revit lo ritrovi qui.", "rv.plDoneSt": "Revit: {a} piazzati, {b} aggiornati in {s} s; progetto salvato nel modello.",
+    "rv.stBusy": "Revit: progetto non salvato nel modello (lo ha in mano un altro utente del modello condiviso); i sostegni sono piazzati.",
+    "rv.stTitle": "Progetto salvato nel modello", "rv.stBody": "Il modello «{doc}» contiene il progetto «{name}» (salvato col piazzamento il {d}, {n} sostegni), diverso da quello aperto qui. Aprirlo?",
+    "rv.stNewer": "Il modello «{doc}» contiene una versione più recente di questo progetto («{name}», salvata col piazzamento il {d}, {n} sostegni), forse da un altro PC. Aprirla?",
+    "rv.stLater": "Non ora", "rv.stOpening": "Apro il progetto dal modello…", "rv.stOpened": "Aperto il progetto «{name}» salvato nel modello «{doc}»: {n} sostegni.", "rv.stFail": "Progetto dal modello non aperto: {m}",
     "t.read": "Leggo {f}…", "t.fail": "{f}: non riesco a leggerlo ({m}).", "t.noAlign": "{f}: nessun asse (Alignment) nel file.",
     "t.loaded": "{n}: {l} m, {e} elementi ({c} clotoidi), giunzioni {j} mm, profilo «{p}», sopraelevazione fino a {k} mm.",
     "t.loadedMany": "Aperti {n} binari da {f}.", "t.replaced": "{n}: sostituito con quello di {f} (offset mantenuto).",
@@ -582,14 +612,14 @@ const I18N = {
     "t.skip": "{f}: tipo di file non riconosciuto (servono .xml/.landxml, .ifc, .dwg/.dxf, .csv/.xlsx o .ocs).", "t.fastOn": "Modalità fast: passo di 10 m.", "t.fastOff": "Passo pieno: 1 m.",
     "t.planOn": "Pianta ortografica: distanze vere, trascina per spostare.", "t.planOff": "Vista 3D.",
     "ix.btn": "Esporta IFC", "ix.btnT": "Scarica un IFC 4x3 con binari (IfcAlignment), sostegni, fondazioni e Pset, nelle coordinate dei binari",
-    "ix.title": "Esporta IFC 4x3", "ix.lod": "Fusto dei pali", "ix.tracks": "Binari", "ix.nSup": "{n} sostegni", "ix.align": "Assi dei binari (IfcAlignment)",
+    "ix.title": "Esporta IFC 4x3", "ix.lod": "Dettaglio dei sostegni", "ix.tracks": "Binari", "ix.nSup": "{n} sostegni", "ix.align": "Assi dei binari (IfcAlignment)",
     "ix.rails": "Rotaie semplici (IfcRail): di solito no, l'armamento c'è già nel federato", "ix.go": "Esporta",
-    "ix.help": "Coordinate del file = quelle dei binari (niente IfcMapConversion): si federa così com'è. Pali e portali con un placement cartesiano già ruotato sulla tangente; progressiva, lato, DR ed Est/Nord dell'asse del fusto nei Pset del modello del progetto. Tipi uguali (fusto, mensola, piastra, fondazione, trave) disegnati una volta sola.",
+    "ix.help": "Coordinate del file = quelle dei binari (niente IfcMapConversion): si federa così com'è. Pali e portali con un placement cartesiano già ruotato sulla tangente; progressiva, lato, DR ed Est/Nord dell'asse del fusto nei Pset del modello del progetto. Tipi uguali (fusto, mensola, piastra, fondazione, trave) disegnati una volta sola. I sostegni con la famiglia RFI del catalogo escono coi pezzi della famiglia Revit, coi suoi nomi (RFI_Palo_LSU16b, RFI_Plinto_LSU P4, RFI_TraveMEC_C_CL2…).",
     "ix.none": "Nessun binario scelto.", "ix.busy": "Scrivo l'IFC…", "ix.done": "IFC esportato: {f} — {m} pali, {p} portali, {fo} fondazioni, {a} assi, {t} tipi condivisi, {mb} MB.", "ix.fail": "IFC non esportato: {m}",
     "ix.fastTitle": "Modalità fast accesa", "ix.fastBody": "Le rotaie si disegnano con una sezione ogni 10 m: in curva sarebbero spezzate. Le esporto al passo pieno? Assi, sostegni e fondazioni non cambiano col passo.",
     "ix.fastFull": "Passo pieno ed esporta", "ix.fastAsIs": "Esporta così (10 m)",
     "ifc.site": "Sito", "ifc.railway": "Trazione elettrica", "ifc.mast": "Palo", "ifc.portal": "Portale", "ifc.stem": "Fusto", "ifc.plate": "Piastra", "ifc.mens": "Mensola", "ifc.tie": "Tirante",
-    "ifc.susp": "Sospensione", "ifc.pend": "Pendolo", "ifc.found": "Fondazione", "ifc.beam": "Trave", "ifc.pole": "Pilone", "ifc.trafo": "Trasformatore", "ifc.sez": "Sezionatore",
+    "ifc.susp": "Sospensione", "ifc.pend": "Pendolo", "ifc.found": "Fondazione", "ifc.beam": "Trave", "ifc.pole": "Pilone", "ifc.trafo": "Trasformatore", "ifc.sez": "Sezionatore", "ifc.att": "Attacco mensola", "ifc.attTie": "Attacco tirante", "ifc.attBeam": "Attacco trave",
     "ifc.railL": "Rotaia sinistra", "ifc.railR": "Rotaia destra", "ifc.steel": "Acciaio", "ifc.concrete": "Calcestruzzo", "ifc.offset": "Offset dall'asse ricevuto",
     "prj.saveTitle": "Salva progetto", "prj.file": "File", "prj.cancel": "Annulla", "prj.save": "Salva", "prj.open": "Apri", "prj.saveFirst": "Salva prima l'attuale",
     "prj.saveHelp": "Il file contiene binari (anche le polilinee e la taratura dei disegni), profili scelti, offset, sostegni e occhi accesi; si riapre trascinandolo qui o da «Apri un progetto salvato», anche su un altro PC.",
@@ -607,7 +637,7 @@ const I18N = {
     "su.sel": "Sostegno {n}", "su.num": "Numero", "su.side": "Lato", "su.dr": "DR", "su.mast": "Palo", "su.ofTrack": "del binario ({v})",
     "su.mens": "Mensola", "su.auto": "automatica ({v})", "su.hm": "Quota mensola", "su.hw": "Altezza filo", "su.stag": "Poligonazione", "su.stagU": "m (+ al palo)",
     "su.found": "Fondazione", "su.c1": "Pilastrino C1", "su.eq": "Apparecchiature", "su.trafo": "Trasformatore su palo", "su.sez": "Sezionatore su palo",
-    "su.eqHelp": "Misure di partenza, da verificare: manca ancora un tipologico.",
+    "su.eqHelp": "Misure di partenza, da verificare: manca ancora un tipologico.", "su.dbl": "palo doppio (due fusti lungo il binario, assi a 0,40 m da verificare)",
     "su.noFit": "I tirafondi della fondazione non vanno per il {m}: servono {d}×{e} mm.",
     "su.pos": "E / N", "su.posV": "{e} / {n}", "su.top": "Testa del palo", "su.vol": "Calcestruzzo", "su.volV": "{v} m³ · {f}, C1 {c} m",
     "su.secCap": "Sezione al palo {n}, guardando avanti · scala vera", "su.lTop": "testa +{v}", "su.lMens": "mensola +{v}", "su.lWire": "filo {v}",
@@ -667,8 +697,10 @@ const I18N = {
     "au.help": "Propone i pali del binario scelto fra i punti fermi: i pali messi, spostati o corretti a mano e i portali restano; quelli proposti in precedenza nel campo si ricalcolano. La proposta si vede in ambra (profilo e 3D) e si conferma; poi il binario si rinumera (i numeri scritti a mano restano).",
     "au.from": "Da progressiva", "au.to": "A progressiva", "au.ends": "Capi", "au.endsOn": "un palo ai due capi del campo",
     "au.rules": "Regole", "au.Lmax": "Campata massima in retta", "au.a": "Poligonazione al palo", "au.b": "Scostamento a metà campata", "au.ratio": "Rapporto fra campate vicine", "au.Rout": "Poligonazione verso l'esterno sotto R",
-    "au.rulesHelp": "Senza la tabella la campata massima in curva viene dalla freccia del filo: L = √(8·R·(a + b)), con a la poligonazione al palo e b lo scostamento ammesso a metà campata (0,20 + 0,20: R 1000 → 56,6 m; R 500 → 40 m), mai oltre la campata in retta. Valori di partenza da verificare: il capitolato TE 210 non c'è.",
-    "au.table": "Tabella raggio → campata (sostituisce la regola dove c'è)", "au.tUpTo": "fino a R · campata", "au.delRow": "Togli la riga", "au.addRow": "+ Riga",
+    "au.rulesHelp": "Senza la tabella la campata massima in curva viene dalla freccia del filo: L = √(8·R·(a + b)), con a la poligonazione al palo e b lo scostamento ammesso a metà campata (0,20 + 0,20: R 1000 → 56,6 m; R 500 → 40 m), mai oltre la campata in retta. Di partenza c'è la tabella RFI E 65061 a (campate massime per raggio, corredo del capitolato TE 2014): la regola vale solo se la tabella si svuota.",
+    "au.table": "Tabella raggio → campata (sostituisce la regola dove c'è)", "au.tUpTo": "fino a R · campata", "au.delRow": "Togli la riga", "au.addRow": "+ Riga", "au.tFrom": "da R · campata", "au.rfi": "Tabella RFI", "au.rfiT": "Rimette la tabella RFI E 65061 a (campate massime per raggio, da R in su)",
+    "au.tFromHelp": "Da R in su vale la campata della riga; fra due raggi vale quello più piccolo; sotto il primo, il minore fra la prima riga e la regola qui sopra. Di partenza: RFI E 65061 a.",
+    "au.tUpToHelp": "Fino a R vale la campata della riga (tabella scritta prima della 0.12.0); oltre l'ultima riga, la regola.",
     "au.cons": "Vincoli", "au.excl": "Zone senza pali", "au.must": "Punti obbligati", "au.follow": "Pali appaiati al binario", "au.followNo": "nessuno",
     "au.consHelp": "Zone e punti a progressive del file, separati da «;» (1+200–1+260; 2+000/2+050). Ai bordi di una zona va un palo. Pali appaiati: le sezioni dei pali già confermati sull'altro binario diventano punti obbligati qui (dove corre parallelo entro 15 m).",
     "au.propose": "Proponi", "au.result": "Proposta: {n} pali nuovi", "au.kept": "Pali fermi · proposti sostituiti", "au.keptV": "{k} · {r}", "au.spans": "Campate min · max · media", "au.spansV": "{a} · {b} · {m} m",
@@ -676,7 +708,10 @@ const I18N = {
     "au.more": "… e altri {n} avvisi.", "au.clean": "Nessun avviso: campate entro il limite e rapporti rispettati.", "au.confirm": "Conferma", "au.discard": "Scarta",
     "au.proposed": "Proposta per {t}: {n} pali nuovi (in ambra). Conferma o scarta.", "au.done": "{n} pali proposti aggiunti su {t}; binario rinumerato.",
     "po.kind": "Portale", "po.what": "Cosa", "po.kMast": "palo con mensola", "po.kPortal": "portale", "po.added": "Portale {n} a {p}, su {k} binari.", "po.sel": "Portale {n}",
-    "po.up": "Montanti", "po.upPO": "pilone PO (si stira fino alla trave)", "po.upLSU": "pali LSU con attacco alla trave", "po.beam": "Trave",
+    "po.up": "Montanti", "po.upPO": "pilone PO (si stira fino alla trave)", "po.upMEC": "pilone MEC (misure del PO, da verificare)", "po.dbl": "pali doppi (due per parte, lungo il binario)",
+    "po.fixed": "Montanti fermi sulle coordinate della tabella: trave di {L} m dall'uno all'altro.", "po.skew": "Obliqua: montanti sfalsati di {a} m lungo il binario.",
+    "po.drLf": "DR a sinistra (sposta il montante)", "po.drRf": "DR a destra (sposta il montante)", "po.free": "Libera i montanti", "po.freeT": "Dimentica le coordinate: montanti e trave come per un portale messo a mano (DR minime, trave del catalogo)",
+    "po.helpFix": "Portale importato a coordinate: serve i binari caricati fra i due montanti (togli la spunta per escluderne uno). Il tipo di trave dà solo famiglia e altezza; la lunghezza è la distanza fra i montanti. Trascinandolo lungo il binario i montanti si spostano insieme.", "po.upLSU": "pali LSU con attacco alla trave", "po.beam": "Trave",
     "po.short": "La trave {b} ({L} m) è più corta della distanza chiesta fra i montanti ({s} m): le DR scendono sotto quelle scritte.",
     "po.drL": "DR minima a sinistra", "po.drR": "DR minima a destra", "po.drReal": "DR vere · interasse montanti", "po.drRealV": "{l} · {r} · {s} m",
     "po.hb": "Intradosso trave", "po.hbLsu": "+{v} m (0,10 sotto la testa del palo)", "po.tracks": "Binari davanti al portale ({n} serviti)", "po.qAt": "a {q} m", "po.stagU": "m (+ a sinistra)", "po.pend": "Pendolo",
@@ -693,7 +728,7 @@ const I18N = {
     "pk.mast": "palo", "pk.portal": "portale", "pk.foundation": "fondazione",
     "pf.num": "Numero", "pf.track": "Binario", "pf.sta": "Progressiva", "pf.side": "Lato", "pf.dr": "DR", "pf.drL": "DR sinistra", "pf.drR": "DR destra", "pf.mast": "Sostegno", "pf.mens": "Mensola", "pf.mensCode": "Codice mensola",
     "pf.beam": "Trave", "pf.beamL": "Lunghezza trave", "pf.hm": "Quota mensola", "pf.hb": "Intradosso trave", "pf.hw": "Altezza filo", "pf.stag": "Poligonazione", "pf.sosp": "Sospensioni", "pf.served": "Binari serviti",
-    "pf.nSusp": "Numero di sospensioni", "pf.found": "Fondazione", "pf.c1": "C1", "pf.vol": "Calcestruzzo", "pf.E": "Est", "pf.N": "Nord", "pf.top": "Quota testa",
+    "pf.nSusp": "Numero di sospensioni", "pf.kg": "Peso pali (kg)", "pf.found": "Fondazione", "pf.c1": "C1", "pf.vol": "Calcestruzzo", "pf.E": "Est", "pf.N": "Nord", "pf.top": "Quota testa",
     "su.sNoTrack": "Il binario {t} non passa davanti al palo: vale l'interasse scritto.", "su.Lshort": "La mensola di {L} m non arriva all'ultima sospensione: serve almeno la {a} m.", "su.attrs": "Dalla tabella",
     "tt.title": "Tratti ({n})", "tt.row": "Tratto {n}", "tt.poles": "{n} pali", "tt.del": "Togli",
     "tt.clear": "Pulisci i pali", "tt.clearT": "Toglie dai pali del tratto i valori scritti a mano che il tratto imposta: tornano a seguire il tratto",
@@ -706,13 +741,16 @@ const I18N = {
     "im.mode": "Pali già piazzati", "im.add": "si tengono, i nuovi si aggiungono", "im.replace": "si tolgono dai binari della tabella",
     "im.count": "{n} sostegni da importare, {s} righe saltate.", "im.warn": "{n} righe con palo o blocco che il catalogo non conosce: prendono il valore del binario, il testo della tabella resta fra gli attributi.",
     "im.noSta": "Manca la colonna della progressiva (o quelle di Est e Nord).", "im.skipRow": "Riga {r}: {m}.",
-    "im.E": "Est (asse del palo)", "im.N": "Nord (asse del palo)", "im.xy": "Coordinate", "im.swap": "Est e Nord scambiate (leggi la colonna Est come Nord)",
+    "im.E": "Est (asse del palo / 1° montante)", "im.N": "Nord (asse del palo / 1° montante)", "im.E2": "Est 2° montante (portali)", "im.N2": "Nord 2° montante (portali)",
+    "im.num2": "Numero 2° montante", "im.block": "Blocco (nome)", "im.ptype": "Tipologia del portale", "im.found2": "Fondazione 2° montante", "im.Lb": "Lunghezza trave (controllo)",
+    "im.portals": "Di cui {n} portali (due coppie di coordinate): montanti fermi sulle coordinate, trave dall'uno all'altro.", "im.between": "portale senza binari caricati fra i montanti (il più vicino è {t})",
+    "im.wSkew": "montanti sfalsati di {a} m lungo il binario: trave obliqua", "im.wSpan": "trave scritta {a} m, distanza fra i montanti {b} m", "im.wRangeP": "DR {v} sotto {a} m", "im.xy": "Coordinate", "im.swap": "Est e Nord scambiate (leggi la colonna Est come Nord)",
     "im.swapAuto": "Lette come scritte, le coordinate non cadono sui binari; scambiate sì: le leggo scambiate (togli la spunta se è sbagliato).",
-    "im.maxD": "Lontano oltre", "im.drRange": "DR ammessa", "im.perTrack": "Per binario: {l}.", "im.xyCount": "{n} pali posizionati dalle coordinate, {w} con avvisi.",
-    "im.warnRow": "Riga {r} ({n}): {m}.", "im.portal": "portale (si mette a mano)", "im.far": "a {d} m dal binario {t}, troppo lontano", "im.farAll": "nessun binario davanti al palo",
+    "im.maxD": "Lontano oltre", "im.drRange": "DR ammessa", "im.perTrack": "Per binario: {l}.", "im.xyCount": "{n} sostegni posizionati dalle coordinate, {w} con avvisi.",
+    "im.warnRow": "Riga {r} ({n}): {m}.", "im.portal": "portale senza le coordinate del 2° montante (si mette a mano)", "im.far": "a {d} m dal binario {t}, troppo lontano", "im.farAll": "nessun binario davanti al sostegno",
     "im.wAmb": "fra due binari quasi alla stessa distanza, preso {t}", "im.wSta": "progressiva della tabella {a}, dalle coordinate {b}", "im.wDr": "DR della tabella {a}, dalle coordinate {b}",
     "im.wSide": "lato della tabella diverso da quello delle coordinate", "im.wRange": "DR {v} fuori da {a} – {b} m",
-    "im.xyHelp": "Con Est e Nord (l'asse del fusto, nelle coordinate dei binari) ogni palo va sul binario della colonna «binario» o sul più vicino; progressiva, lato e DR (faccia del palo → bordo interno della rotaia) si ricalcolano dalla proiezione, e quelle scritte nella tabella fanno da controllo (avviso oltre 0,50 m di progressiva o 0,05 m di DR). Le righe oltre {d} m dai binari si saltano; i portali si mettono a mano. I pali importati sono fissi: il picchettamento automatico riempie i buchi fra loro.",
+    "im.xyHelp": "Con Est e Nord (l'asse del fusto, nelle coordinate dei binari) ogni palo va sul binario della colonna «binario» o sul più vicino; progressiva, lato e DR (faccia del palo → bordo interno della rotaia) si ricalcolano dalla proiezione, e quelle scritte nella tabella fanno da controllo (avviso oltre 0,50 m di progressiva o 0,05 m di DR). Le righe oltre {d} m dai binari si saltano. Una riga con anche Est/Nord del 2° montante è un portale: i montanti restano sulle loro coordinate, la trave li unisce (anche obliqua) ed è lunga quanto la loro distanza, servono i binari caricati fra i due; i montanti vengono da blocco, tipologia e tipo di palo (PO_… pilone PO, PILONE pilone MEC, LSUnn pali LSU, doppi con «(2+2)» o «2x»). I pali importati sono fissi: il picchettamento automatico riempie i buchi fra loro.",
     "im.help": "Le colonne si riconoscono dall'intestazione (anche quelle del cartiglio Satferr: NUMERO_SOSTEGNO, TIPO_PALO, L_MENSOLA, TIPO_BLOCCO…) e qui si correggono. Millimetri e metri si distinguono da soli; il lato si legge da S/D, sx/dx, sinistra/destra (senza lato: dispari e pari come la numerazione del binario). Le colonne che il tool non usa restano sul palo fra gli attributi.",
     "im.go": "Importa", "im.none": "Nessun sostegno da importare.", "im.done": "Importati {n} sostegni da {f} ({s} righe saltate).",
     "drop.veil": "Rilascia i file",
@@ -748,14 +786,37 @@ const I18N = {
     "pt.line": "straight", "pt.arc": "curve R {r} m", "pt.clo": "clothoid (R {r} m here)", "pt.left": "to the left", "pt.right": "to the right",
     "pt.inner": "inner rail", "pt.cap": "Section at {p}, looking ahead · true scale", "pt.capHov": "Cursor at {p}, looking ahead · true scale", "pt.offV": "Offset", "pt.offVv": "{h} m lat. · {v} m vert.",
     "vw.title": "View", "vw.step": "Step", "vw.stepHelp": "The step the track is drawn with (always also at element ends). Fast mode works at 10 m: lighter and quicker.",
-    "vw.lod": "Mast shaft", "vw.lodBox": "solid", "vw.lodUpn": "2 UPN without lattice", "vw.lodLat": "2 UPN + lattice",
-    "vw.lodHelp": "The LSU shaft is two facing UPN channels joined by an X lattice (266 mm module). The geometry is built once per mast type and shared by every mast of that type: the scene stays light even with the lattice.",
+    "vw.lod": "Support detail", "vw.lodBox": "solid", "vw.lodUpn": "sections without lattice", "vw.lodLat": "everything, lattice included",
+    "vw.lodHelp": "LSU14…LSU22 masts and the MEC, lattice and anchoring portals of the RFI catalogue use the geometry of the Revit families (base plate, two UPN channels, lattice of bent round bars, brackets, tubular cantilever, plinth; portal poles, lattice beams and foundations): the same the ViewIFC add-in places in Revit and that goes into the IFC. The others (LSU24, double masts, portals on LSU masts, spans outside the types) stay simplified. «Solid» draws whole shafts and beams, «sections» leaves out lattice, bracing and anchor bolts. Each piece is built once and shared by all identical supports: the scene stays light even with the lattice.",
     "vw.fast": "Fast (10 m)", "vw.fastOn": "Fast mode on: 10 m step. Switch it off (Q) for the full step.", "vw.plan": "Orthographic plan", "vw.planHelp": "In plan (T) the view is orthographic: true distances anywhere on screen, East, North and the track chainage under the cursor. Drag to move, wheel to zoom towards the cursor.",
     "pv.title": "Profile", "pv.inner": "design level (inner rail)", "pv.axis": "track axis", "pv.ground": "ground", "pv.cant": "cant",
     "pv.fit": "All", "pv.fitT": "The whole profile · on the profile: wheel zooms, drag moves, click picks the point, double-click brings the 3D view there",
     "pv.cantMax": "cant up to {c} mm", "pv.kmh": "{v} km/h", "pv.noProf": "The track has no vertical profile: pick one in the Track panel.",
     "st.at": "{p} · E {e} · N {n} · RL {z} · cant {c} mm", "st.plan": "E {e} · N {n} · {t} {p} · offset {q} m", "st.planFar": "E {e} · N {n}",
     "st.fast": "fast 10 m",
+    "rv.chip": "Revit {v} · {doc}", "rv.chipNoDoc": "Revit {v} · no model open",
+    "rv.tip": "Page open inside Revit with the ViewIFC add-in {addin} (Revit {build})",
+    "rv.prev": "Preview in Revit", "rv.prevT": "Show the supports and the visible context IFCs in the Revit model views, without creating elements; it updates by itself while you work",
+    "rv.shSending": "Family pieces to Revit: {n}…", "rv.ctxSending": "Context to Revit: {t} triangles…", "rv.ctxDone": "Context in Revit: {t} triangles from {n} IFC in {s} s.",
+    "rv.prevDone": "Preview in Revit: {n} supports, {t} triangles in the model views.", "rv.prevFail": "Preview in Revit failed: {m}",
+    "rv.err.noDoc": "Revit: open a project model first.", "rv.err.family": "Revit: the active document is a family, open a project.",
+    "rv.err.far": "Revit: the supports fall {km} km away from the model's internal origin — set the project's shared coordinates (E/N as the tracks).",
+    "rv.place": "Place in Revit", "rv.placeT": "Place the shown supports in the Revit model with the RFI catalogue families; run again, it updates those already placed",
+    "rv.plTitle": "Place the supports in Revit", "rv.plBody": "{n} shown supports become RFI catalogue families in the model “{doc}”. One transaction: Ctrl+Z in Revit undoes it all. Run again, it updates the same elements.",
+    "rv.plSkip": "Not placed, no family in the catalogue:", "rv.plWarn": "Placed with a warning:", "rv.plGo": "Place", "rv.plNone": "No shown support to place.",
+    "rv.skip.portalLsu": "portals on LSU masts", "rv.skip.double": "double masts", "rv.skip.mastSize": "LSU24 masts", "rv.skip.geom": "no geometry",
+    "rv.w.mensType": "cantilever not in the catalogue: the shortest of the longer ones", "rv.w.susp": "more droppers: the family has a single cantilever",
+    "rv.w.equip": "transformer or switch: no family, not placed", "rv.w.tieHeight": "tie: the family keeps it 1.00 above the cantilever",
+    "rv.w.spanRange": "span outside the MEC C19–C21 beam range", "rv.w.spanType": "no portal type with that span (within 5 cm): the nearest",
+    "rv.plDone": "Revit: {a} placed, {b} updated in {s} s.", "rv.plNotPlaced": "Not placed in Revit {n}: {list}", "rv.plFail": "Placing in Revit failed: {m}",
+    "rv.coordTitle": "Model shared coordinates", "rv.coordBody": "The model has no shared coordinates: the supports would fall {km} km from the internal origin. Set the model's internal origin at E {e}, N {n}, level {z} (project north = true north)? It is done once; then the model links into the federation “by shared coordinates”.",
+    "rv.coordGo": "Set and place", "rv.err.coordsSet": "The model's shared coordinates are already set: I am not changing them.",
+    "rv.pruneTitle": "Supports no longer in the project", "rv.pruneBody": "The Revit model has {n} elements placed earlier by this project that are no longer in it. Remove them?", "rv.pruneGo": "Remove", "rv.pruneDone": "Revit: {n} elements removed.",
+    "rv.plStore": "The project is also saved inside the model: reopen the Revit file and you find it here.", "rv.plDoneSt": "Revit: {a} placed, {b} updated in {s} s; project saved in the model.",
+    "rv.stBusy": "Revit: project not saved in the model (another user of the shared model owns it); the supports are placed.",
+    "rv.stTitle": "Project saved in the model", "rv.stBody": "The model “{doc}” contains the project “{name}” (saved when placing on {d}, {n} supports), different from the one open here. Open it?",
+    "rv.stNewer": "The model “{doc}” contains a newer version of this project (“{name}”, saved when placing on {d}, {n} supports), maybe from another PC. Open it?",
+    "rv.stLater": "Not now", "rv.stOpening": "Opening the project from the model…", "rv.stOpened": "Opened the project “{name}” saved in the model “{doc}”: {n} supports.", "rv.stFail": "Project from the model not opened: {m}",
     "t.read": "Reading {f}…", "t.fail": "{f}: cannot read it ({m}).", "t.noAlign": "{f}: no alignment in the file.",
     "t.loaded": "{n}: {l} m, {e} elements ({c} clothoids), junctions {j} mm, profile “{p}”, cant up to {k} mm.",
     "t.loadedMany": "Opened {n} tracks from {f}.", "t.replaced": "{n}: replaced with the one from {f} (offset kept).",
@@ -764,14 +825,14 @@ const I18N = {
     "t.skip": "{f}: file type not recognised (needs .xml/.landxml, .ifc, .dwg/.dxf, .csv/.xlsx or .ocs).", "t.fastOn": "Fast mode: 10 m step.", "t.fastOff": "Full step: 1 m.",
     "t.planOn": "Orthographic plan: true distances, drag to move.", "t.planOff": "3D view.",
     "ix.btn": "Export IFC", "ix.btnT": "Download an IFC 4x3 with tracks (IfcAlignment), supports, foundations and Psets, in the tracks' coordinates",
-    "ix.title": "Export IFC 4x3", "ix.lod": "Mast shaft", "ix.tracks": "Tracks", "ix.nSup": "{n} supports", "ix.align": "Track alignments (IfcAlignment)",
+    "ix.title": "Export IFC 4x3", "ix.lod": "Support detail", "ix.tracks": "Tracks", "ix.nSup": "{n} supports", "ix.align": "Track alignments (IfcAlignment)",
     "ix.rails": "Simple rails (IfcRail): usually not, the track is already in the federated model", "ix.go": "Export",
-    "ix.help": "File coordinates = the tracks' coordinates (no IfcMapConversion): it federates as is. Masts and portals with a Cartesian placement already turned on the tangent; chainage, side, DR and the shaft axis Easting/Northing in the project's Pset template. Equal types (shaft, cantilever, plate, foundation, beam) drawn only once.",
+    "ix.help": "File coordinates = the tracks' coordinates (no IfcMapConversion): it federates as is. Masts and portals with a Cartesian placement already turned on the tangent; chainage, side, DR and the shaft axis Easting/Northing in the project's Pset template. Equal types (shaft, cantilever, plate, foundation, beam) drawn only once. Supports with an RFI catalogue family are written with the pieces of the Revit family, under its names (RFI_Palo_LSU16b, RFI_Plinto_LSU P4, RFI_TraveMEC_C_CL2…).",
     "ix.none": "No track chosen.", "ix.busy": "Writing the IFC…", "ix.done": "IFC exported: {f} — {m} masts, {p} portals, {fo} foundations, {a} alignments, {t} shared types, {mb} MB.", "ix.fail": "IFC not exported: {m}",
     "ix.fastTitle": "Fast mode is on", "ix.fastBody": "Rails are drawn with a section every 10 m: in curves they would be broken. Export them at the full step? Alignments, supports and foundations do not depend on the step.",
     "ix.fastFull": "Full step and export", "ix.fastAsIs": "Export as is (10 m)",
     "ifc.site": "Site", "ifc.railway": "Overhead contact line", "ifc.mast": "Mast", "ifc.portal": "Portal", "ifc.stem": "Shaft", "ifc.plate": "Base plate", "ifc.mens": "Cantilever", "ifc.tie": "Tie",
-    "ifc.susp": "Suspension", "ifc.pend": "Dropper", "ifc.found": "Foundation", "ifc.beam": "Beam", "ifc.pole": "Pole", "ifc.trafo": "Transformer", "ifc.sez": "Disconnector",
+    "ifc.susp": "Suspension", "ifc.pend": "Dropper", "ifc.found": "Foundation", "ifc.beam": "Beam", "ifc.pole": "Pole", "ifc.trafo": "Transformer", "ifc.sez": "Disconnector", "ifc.att": "Cantilever bracket", "ifc.attTie": "Stay bracket", "ifc.attBeam": "Beam bracket",
     "ifc.railL": "Left rail", "ifc.railR": "Right rail", "ifc.steel": "Steel", "ifc.concrete": "Concrete", "ifc.offset": "Offset from the received alignment",
     "prj.saveTitle": "Save project", "prj.file": "File", "prj.cancel": "Cancel", "prj.save": "Save", "prj.open": "Open", "prj.saveFirst": "Save the current one first",
     "prj.saveHelp": "The file holds tracks (drawing polylines and calibration included), chosen profiles, offsets, supports and visibility; reopen it by dropping it here or from “Open a saved project”, also on another PC.",
@@ -789,7 +850,7 @@ const I18N = {
     "su.sel": "Support {n}", "su.num": "Number", "su.side": "Side", "su.dr": "DR", "su.mast": "Mast", "su.ofTrack": "track's ({v})",
     "su.mens": "Cantilever", "su.auto": "automatic ({v})", "su.hm": "Cantilever height", "su.hw": "Wire height", "su.stag": "Stagger", "su.stagU": "m (+ to mast)",
     "su.found": "Foundation", "su.c1": "Plinth C1", "su.eq": "Equipment", "su.trafo": "Pole-mounted transformer", "su.sez": "Pole-mounted switch",
-    "su.eqHelp": "Starting dimensions, to be checked: no standard drawing yet.",
+    "su.eqHelp": "Starting dimensions, to be checked: no standard drawing yet.", "su.dbl": "double mast (two shafts along the track, axes 0.40 m apart, to be checked)",
     "su.noFit": "The foundation's anchor bolts do not suit the {m}: it needs {d}×{e} mm.",
     "su.pos": "E / N", "su.posV": "{e} / {n}", "su.top": "Mast top", "su.vol": "Concrete", "su.volV": "{v} m³ · {f}, C1 {c} m",
     "su.secCap": "Section at mast {n}, looking ahead · true scale", "su.lTop": "top +{v}", "su.lMens": "cantilever +{v}", "su.lWire": "wire {v}",
@@ -849,8 +910,10 @@ const I18N = {
     "au.help": "Proposes the masts of the chosen track between the fixed points: masts placed, moved or corrected by hand and portals stay; those proposed earlier in the range are recomputed. The proposal shows in amber (profile and 3D) and is confirmed; then the track is renumbered (hand-written numbers stay).",
     "au.from": "From chainage", "au.to": "To chainage", "au.ends": "Ends", "au.endsOn": "a mast at both ends of the range",
     "au.rules": "Rules", "au.Lmax": "Maximum span on straight", "au.a": "Stagger at the mast", "au.b": "Mid-span offset allowed", "au.ratio": "Ratio between adjacent spans", "au.Rout": "Stagger to the outside below R",
-    "au.rulesHelp": "Without the table the maximum span in curves comes from the wire sag: L = √(8·R·(a + b)), with a the stagger at the mast and b the offset allowed at mid-span (0.20 + 0.20: R 1000 → 56.6 m; R 500 → 40 m), never beyond the straight span. Starting values to be checked: the TE 210 specification is missing.",
-    "au.table": "Radius → span table (replaces the rule where present)", "au.tUpTo": "up to R · span", "au.delRow": "Remove the row", "au.addRow": "+ Row",
+    "au.rulesHelp": "Without the table the maximum span in curves comes from the wire sag: L = √(8·R·(a + b)), with a the stagger at the mast and b the offset allowed at mid-span (0.20 + 0.20: R 1000 → 56.6 m; R 500 → 40 m), never beyond the straight span. The starting table is RFI E 65061 a (maximum spans by radius, from the TE 2014 specification drawings): the rule applies only if the table is emptied.",
+    "au.table": "Radius → span table (replaces the rule where present)", "au.tUpTo": "up to R · span", "au.delRow": "Remove the row", "au.addRow": "+ Row", "au.tFrom": "from R · span", "au.rfi": "RFI table", "au.rfiT": "Puts back the RFI E 65061 a table (maximum spans by radius, from R up)",
+    "au.tFromHelp": "From R up the row's span applies; between two radii the smaller one; below the first, the smaller of the first row and the rule above. Starting table: RFI E 65061 a.",
+    "au.tUpToHelp": "Up to R the row's span applies (table written before 0.12.0); past the last row, the rule.",
     "au.cons": "Constraints", "au.excl": "Zones without masts", "au.must": "Mandatory points", "au.follow": "Masts paired with track", "au.followNo": "none",
     "au.consHelp": "Zones and points in file chainages, separated by «;» (1+200–1+260; 2+000/2+050). A mast goes at each zone edge. Paired masts: the sections of the masts already confirmed on the other track become mandatory points here (where it runs parallel within 15 m).",
     "au.propose": "Propose", "au.result": "Proposal: {n} new masts", "au.kept": "Fixed masts · proposed replaced", "au.keptV": "{k} · {r}", "au.spans": "Spans min · max · mean", "au.spansV": "{a} · {b} · {m} m",
@@ -858,7 +921,10 @@ const I18N = {
     "au.more": "… and {n} more warnings.", "au.clean": "No warnings: spans within the limit and ratios respected.", "au.confirm": "Confirm", "au.discard": "Discard",
     "au.proposed": "Proposal for {t}: {n} new masts (in amber). Confirm or discard.", "au.done": "{n} proposed masts added on {t}; track renumbered.",
     "po.kind": "Portal", "po.what": "What", "po.kMast": "mast with cantilever", "po.kPortal": "portal", "po.added": "Portal {n} at {p}, over {k} tracks.", "po.sel": "Portal {n}",
-    "po.up": "Uprights", "po.upPO": "PO column (stretched up to the beam)", "po.upLSU": "LSU masts with beam clamp", "po.beam": "Beam",
+    "po.up": "Uprights", "po.upPO": "PO column (stretched up to the beam)", "po.upMEC": "MEC column (PO sizes, to be checked)", "po.dbl": "double masts (two per side, along the track)",
+    "po.fixed": "Uprights fixed on the table coordinates: {L} m beam from one to the other.", "po.skew": "Skewed: uprights staggered by {a} m along the track.",
+    "po.drLf": "DR on the left (moves the upright)", "po.drRf": "DR on the right (moves the upright)", "po.free": "Release the uprights", "po.freeT": "Forget the coordinates: uprights and beam as for a portal placed by hand (minimum DRs, catalogue beam)",
+    "po.helpFix": "Portal imported from coordinates: it serves the loaded tracks between the two uprights (untick one to leave it out). The beam type only gives family and depth; the length is the distance between the uprights. Dragging it along the track moves the uprights together.", "po.upLSU": "LSU masts with beam clamp", "po.beam": "Beam",
     "po.short": "Beam {b} ({L} m) is shorter than the distance required between the uprights ({s} m): the DRs fall below the written ones.",
     "po.drL": "Minimum DR on the left", "po.drR": "Minimum DR on the right", "po.drReal": "Actual DRs · upright spacing", "po.drRealV": "{l} · {r} · {s} m",
     "po.hb": "Beam soffit", "po.hbLsu": "+{v} m (0.10 below the mast top)", "po.tracks": "Tracks in front of the portal ({n} served)", "po.qAt": "at {q} m", "po.stagU": "m (+ to the left)", "po.pend": "Dropper",
@@ -875,7 +941,7 @@ const I18N = {
     "pk.mast": "mast", "pk.portal": "portal", "pk.foundation": "foundation",
     "pf.num": "Number", "pf.track": "Track", "pf.sta": "Chainage", "pf.side": "Side", "pf.dr": "DR", "pf.drL": "DR left", "pf.drR": "DR right", "pf.mast": "Support", "pf.mens": "Cantilever", "pf.mensCode": "Cantilever code",
     "pf.beam": "Beam", "pf.beamL": "Beam length", "pf.hm": "Cantilever height", "pf.hb": "Beam soffit", "pf.hw": "Wire height", "pf.stag": "Stagger", "pf.sosp": "Suspensions", "pf.served": "Tracks served",
-    "pf.nSusp": "Number of suspensions", "pf.found": "Foundation", "pf.c1": "C1", "pf.vol": "Concrete", "pf.E": "East", "pf.N": "North", "pf.top": "Top level",
+    "pf.nSusp": "Number of suspensions", "pf.kg": "Masts weight (kg)", "pf.found": "Foundation", "pf.c1": "C1", "pf.vol": "Concrete", "pf.E": "East", "pf.N": "North", "pf.top": "Top level",
     "su.sNoTrack": "Track {t} does not pass in front of the mast: the written spacing applies.", "su.Lshort": "The {L} m cantilever does not reach the last suspension: at least the {a} m is needed.", "su.attrs": "From the table",
     "tt.title": "Stretches ({n})", "tt.row": "Stretch {n}", "tt.poles": "{n} masts", "tt.del": "Remove",
     "tt.clear": "Clear the masts", "tt.clearT": "Removes from the stretch's masts the hand-typed values the stretch sets: they follow the stretch again",
@@ -888,13 +954,16 @@ const I18N = {
     "im.mode": "Masts already placed", "im.add": "are kept, the new ones are added", "im.replace": "are removed from the table's tracks",
     "im.count": "{n} supports to import, {s} rows skipped.", "im.warn": "{n} rows with a mast or block the catalogue does not know: they take the track's value, the table text stays among the attributes.",
     "im.noSta": "The chainage column (or the Easting and Northing ones) is missing.", "im.skipRow": "Row {r}: {m}.",
-    "im.E": "Easting (mast axis)", "im.N": "Northing (mast axis)", "im.xy": "Coordinates", "im.swap": "Easting and Northing swapped (read the Easting column as Northing)",
+    "im.E": "Easting (mast axis / 1st upright)", "im.N": "Northing (mast axis / 1st upright)", "im.E2": "Easting 2nd upright (portals)", "im.N2": "Northing 2nd upright (portals)",
+    "im.num2": "2nd upright number", "im.block": "Block (name)", "im.ptype": "Portal type", "im.found2": "2nd upright foundation", "im.Lb": "Beam length (check)",
+    "im.portals": "Of which {n} portals (two coordinate pairs): uprights fixed on the coordinates, beam from one to the other.", "im.between": "portal with no loaded track between the uprights (the nearest is {t})",
+    "im.wSkew": "uprights staggered by {a} m along the track: skewed beam", "im.wSpan": "written beam {a} m, distance between the uprights {b} m", "im.wRangeP": "DR {v} below {a} m", "im.xy": "Coordinates", "im.swap": "Easting and Northing swapped (read the Easting column as Northing)",
     "im.swapAuto": "Read as written, the coordinates miss the tracks; swapped they hit them: they are read swapped (untick if wrong).",
-    "im.maxD": "Too far beyond", "im.drRange": "Allowed DR", "im.perTrack": "Per track: {l}.", "im.xyCount": "{n} masts placed from coordinates, {w} with warnings.",
-    "im.warnRow": "Row {r} ({n}): {m}.", "im.portal": "portal (place it by hand)", "im.far": "{d} m from track {t}, too far", "im.farAll": "no track in front of the mast",
+    "im.maxD": "Too far beyond", "im.drRange": "Allowed DR", "im.perTrack": "Per track: {l}.", "im.xyCount": "{n} supports placed from coordinates, {w} with warnings.",
+    "im.warnRow": "Row {r} ({n}): {m}.", "im.portal": "portal without the 2nd upright coordinates (place it by hand)", "im.far": "{d} m from track {t}, too far", "im.farAll": "no track in front of the support",
     "im.wAmb": "between two tracks at almost the same distance, {t} taken", "im.wSta": "table chainage {a}, from coordinates {b}", "im.wDr": "table DR {a}, from coordinates {b}",
     "im.wSide": "table side differs from the coordinates", "im.wRange": "DR {v} outside {a} – {b} m",
-    "im.xyHelp": "With Easting and Northing (the mast axis, in the tracks' coordinates) each mast goes to the track of the “track” column or to the nearest one; chainage, side and DR (mast face → inner rail edge) are recomputed from the projection, and those written in the table are checked (warning beyond 0.50 m of chainage or 0.05 m of DR). Rows farther than {d} m from the tracks are skipped; portals are placed by hand. Imported masts are fixed: automatic staking fills the gaps between them.",
+    "im.xyHelp": "With Easting and Northing (the mast axis, in the tracks' coordinates) each mast goes to the track of the “track” column or to the nearest one; chainage, side and DR (mast face → inner rail edge) are recomputed from the projection, and those written in the table are checked (warning beyond 0.50 m of chainage or 0.05 m of DR). Rows farther than {d} m from the tracks are skipped. A row that also has the 2nd upright Easting/Northing is a portal: the uprights stay on their coordinates, the beam joins them (skewed too) and is as long as their distance, it serves the loaded tracks between the two; the uprights come from block, type and mast type (PO_… PO column, PILONE MEC column, LSUnn LSU masts, doubled with “(2+2)” or “2x”). Imported masts are fixed: automatic staking fills the gaps between them.",
     "im.help": "Columns are recognised from the header (also those of the Satferr title block: NUMERO_SOSTEGNO, TIPO_PALO, L_MENSOLA, TIPO_BLOCCO…) and can be fixed here. Millimetres and metres are told apart; the side reads from S/D, L/R, left/right (no side: odd and even as the track numbering). Columns the tool does not use stay on the mast as attributes.",
     "im.go": "Import", "im.none": "No supports to import.", "im.done": "Imported {n} supports from {f} ({s} rows skipped).",
     "drop.veil": "Drop the files",
@@ -909,13 +978,15 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./ocs-core.js?v=0.10.1";
-import * as IO from "./ocs-io.js?v=0.10.1";
-import * as K from "./ocs-catalog.js?v=0.10.1";
-import * as AU from "./ocs-stake.js?v=0.10.1";
+import * as C from "./ocs-core.js?v=0.20.0";
+import * as IO from "./ocs-io.js?v=0.20.0";
+import * as K from "./ocs-catalog.js?v=0.20.0";
+import * as AU from "./ocs-stake.js?v=0.20.0";
+import * as RFI from "./ocs-rfi.js?v=0.20.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
+import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.10.1";
+const TOOL_VERSION = "0.20.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -949,7 +1020,7 @@ const frame = () => new Promise((r) => setTimeout(r, 30));
 /* Un binario: l'asse letto dal LandXML (pianta, profili, sopraelevazione, velocità) + le scelte dell'utente
    (profilo, offset). La geometria si tiene com'è letta (elementi con il loro inizio dichiarato). */
 const S = {
-  tracks: [], active: -1, seq: 1, name: "",
+  tracks: [], active: -1, seq: 1, name: "", uid: "",   // uid: identificativo del progetto per gli elementi piazzati in Revit (0.15.0), fatto al primo piazzamento
   hidden: {},            // elementi spenti: "t<id>", "t<id>:rails|deck|align"
   pt: null,              // progressiva (u) del punto scelto sul binario attivo
   supports: [], supSeq: 1, sel: null, place: false,   // sostegni (F2): elenco, id, sostegno scelto, piazzamento col clic
@@ -1643,7 +1714,7 @@ const disposeTree = (o) => o.traverse((c) => { if (c.geometry && !c.geometry.use
    di quel tipo (i solidi vengono da C.mastSolids: pieno, 2 UPN, 2 UPN + traliccio a X) */
 const MASTGEO = new Map();
 const mastGeometry = (M) => solidGeometry("mast|" + M.id, () => C.mastSolids(M, S.view.lod || "lattice"));
-const beamGeometry = (B) => solidGeometry("beam|" + B.id, () => C.beamSolids(B, S.view.lod || "lattice"));
+const beamGeometry = (B) => solidGeometry("beam|" + B.id + "|" + B.L.toFixed(3), () => C.beamSolids(B, S.view.lod || "lattice"));
 function solidGeometry(id, solids) {
   const key = id + "|" + (S.view.lod || "lattice");
   let geo = MASTGEO.get(key);
@@ -1666,6 +1737,66 @@ function solidGeometry(id, solids) {
   MASTGEO.set(key, geo);
   return geo;
 }
+/* famiglie RFI (0.17.0, ocs-rfi.js: i generatori delle famiglie Revit del catalogo): un pezzo condiviso (palo per tipo,
+   plinto, attacchi, mensola, pilone, fondazione, tratto di trave) = una geometria per livello di dettaglio, la usano
+   tutti i sostegni; i tiranti (d'istanza) hanno la loro. Solidi in metri nel riferimento del pezzo: estrusi di contorni
+   con fori (ExtrudeGeometry), tondi e tubi, tondi piegati (tubo a sezione costante lungo la spezzata) */
+const RFIGEO = new Map();
+function rfiSolidGeometry(sol) {
+  const pos = [], nor = [];
+  const put = (g) => {
+    const n = g.index ? g.toNonIndexed() : g, p = n.attributes.position.array;
+    if (!n.attributes.normal) n.computeVertexNormals();
+    const q = n.attributes.normal.array;
+    for (let i = 0; i < p.length; i++) { pos.push(p[i]); nor.push(q[i]); }
+    if (n !== g) n.dispose();
+    g.dispose();
+  };
+  const V3 = (a) => new THREE.Vector3(a[0], a[1], a[2]);
+  const basis = (U, N, o) => { const u = V3(U).normalize(), n = V3(N).normalize(), v = new THREE.Vector3().crossVectors(n, u); return new THREE.Matrix4().makeBasis(u, v, n).setPosition(V3(o)); };
+  const ring = (r, ri) => { const sh = new THREE.Shape().absarc(0, 0, r, 0, 2 * Math.PI, false); if (ri > 0) sh.holes.push(new THREE.Path().absarc(0, 0, ri, 0, 2 * Math.PI, true)); return sh; };
+  for (const s of sol) {
+    if (s.t === "ext") {
+      const sh = new THREE.Shape(s.loop.map(([u, v]) => new THREE.Vector2(u, v)));
+      for (const [u, v, r] of s.holes) sh.holes.push(new THREE.Path().absarc(u, v, r, 0, 2 * Math.PI, true));
+      const g = new THREE.ExtrudeGeometry(sh, { depth: s.d, bevelEnabled: false, curveSegments: 12 });
+      g.applyMatrix4(basis(s.u, s.n, s.o)); put(g);
+    } else if (s.t === "bar") {
+      const d = [s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]], len = Math.hypot(...d), seg = s.r < 0.015 ? 6 : s.r < 0.03 ? 8 : 16;
+      if (!(len > 1e-6)) continue;
+      const w = d.map((x) => x / len), h = Math.abs(w[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0], u = [h[1] * w[2] - h[2] * w[1], h[2] * w[0] - h[0] * w[2], h[0] * w[1] - h[1] * w[0]];
+      const g = new THREE.ExtrudeGeometry(ring(s.r, s.ri), { depth: len, bevelEnabled: false, curveSegments: seg });
+      g.applyMatrix4(basis(u, w, s.a)); put(g);
+    } else {                                               // tondo piegato: anelli di 6 punti lungo la spezzata
+      const P = s.pts.map(V3), n = P.length, NR = 6, rings = [];
+      let ref = null;
+      for (let i = 0; i < n; i++) {
+        const t = new THREE.Vector3().subVectors(P[Math.min(n - 1, i + 1)], P[Math.max(0, i - 1)]).normalize();
+        if (!ref) ref = Math.abs(t.z) < 0.9 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0);
+        const a = ref.clone().sub(t.clone().multiplyScalar(ref.dot(t))).normalize(), b = new THREE.Vector3().crossVectors(t, a);
+        ref = a;                                           // trasporto del riferimento: niente torsioni
+        rings.push(Array.from({ length: NR }, (_, k) => { const th = (2 * Math.PI * k) / NR; return a.clone().multiplyScalar(Math.cos(th)).add(b.clone().multiplyScalar(Math.sin(th))); }));
+      }
+      for (let i = 0; i + 1 < n; i++) for (let k = 0; k < NR; k++) {
+        const k2 = (k + 1) % NR, q = [[i, k], [i + 1, k], [i + 1, k2], [i, k], [i + 1, k2], [i, k2]];
+        for (const [j, m] of q) { const d = rings[j][m]; pos.push(P[j].x + s.r * d.x, P[j].y + s.r * d.y, P[j].z + s.r * d.z); nor.push(d.x, d.y, d.z); }
+      }
+    }
+  }
+  if (!pos.length) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+  geo.computeBoundingSphere();
+  return geo;
+}
+function rfiGeometry(pc) {
+  const lod = S.view.lod || "lattice";
+  if (pc.own) return rfiSolidGeometry(RFI.solidsOf(pc, lod));   // tirante: suo, si butta col sostegno
+  const key = pc.key + "|" + lod;
+  if (!RFIGEO.has(key)) { const g = rfiSolidGeometry(RFI.solidsOf(pc, lod)); if (g) g.userData.shared = true; RFIGEO.set(key, g); }
+  return RFIGEO.get(key);
+}
 function setMastLod(lod) {
   if (S.view.lod === lod) return;
   S.view.lod = lod; saveUi();
@@ -1683,10 +1814,22 @@ function buildSupport(s) {
   g.userData.sup = s.id; g.userData.key = "t" + t.id + ":sup";
   const at = (p) => [p.x - G.O.x, p.y - G.O.y, Zs(p.z)];
   const lod = (S.view.lod || "lattice") !== "box";
+  // famiglia RFI del catalogo (0.17.0): i suoi pezzi al posto delle parti semplificate; restano sospensioni, pendoli,
+  // filo e apparecchiature
+  const RP = RFI.rfiPlaced(T, s, R);
+  if (RP) for (const pc of RP.pieces) {
+    const geo = rfiGeometry(pc);
+    if (!geo) continue;
+    const conc = pc.k === "plinto" || pc.k === "fond", light = pc.k === "palo" || pc.k === "pilone";
+    const m = new THREE.Mesh(geo, conc ? mats.conc : sel ? mats.supSel : light ? mats.mast : mats.mens);
+    m.position.set(...at(pc.w)); m.rotation.z = pc.th;
+    m.userData.sup = s.id; g.add(m);
+  }
   for (const p of P) {
+    if (RP && RFI.replaces(p.k)) continue;
     if (p.sz) {
-      const steel = p.k === "mast" || p.k === "pole" || p.k === "plate" || p.k === "beam" || p.k.startsWith("mens");
-      const mat = steel ? (sel ? mats.supSel : p.k.startsWith("mens") || p.k === "beam" ? mats.mens : mats.mast) : p.k === "trafo" || p.k === "sez" ? mats.equip : mats.conc;
+      const steel = p.k === "mast" || p.k === "pole" || p.k === "plate" || p.k === "beam" || p.k === "att" || p.k.startsWith("mens");
+      const mat = steel ? (sel ? mats.supSel : p.k.startsWith("mens") || p.k === "att" || p.k === "beam" ? mats.mens : mats.mast) : p.k === "trafo" || p.k === "sez" ? mats.equip : mats.conc;
       const geo = lod && p.k === "mast" ? mastGeometry(R.mast) : lod && p.k === "beam" ? beamGeometry(R.beam) : null;
       const m = new THREE.Mesh(geo || UNIT_BOX, mat);
       m.position.set(...at(p.c)); m.rotation.z = p.th;
@@ -1703,6 +1846,7 @@ function buildSupport(s) {
   return g;
 }
 function buildSupports() {
+  revitPreviewLater();
   SUPG.clear();
   for (const t of S.tracks) {
     if (!shown("t" + t.id) || !shown("t" + t.id + ":sup")) continue;
@@ -1710,6 +1854,7 @@ function buildSupports() {
   }
 }
 function updateSupport(id) {
+  revitPreviewLater();
   const old = SUPG.get(id);
   if (old) { G.group.remove(old); disposeTree(old); SUPG.delete(id); }
   const s = supById(id), t = s && trackById(s.track);
@@ -1809,6 +1954,7 @@ function selectSupport(id, frame = false) {
     if (frame) frameSupport(s);
   }
   setMarker(S.pt); renderSup(); renderPoint(); renderTree(); drawPV();
+  revitSelectLater(id);
 }
 function frameSupport(s) {
   const g = SUPG.get(s.id);
@@ -2355,7 +2501,7 @@ const DWG_BASE = new URL("../profile-sweep/vendor/libredwg-web/", location.href)
 let PS = null;
 async function psModules() {
   if (!PS) {
-    const [io, core] = await Promise.all([import("../profile-sweep/profile-io.js?v=0.20.0"), import("../profile-sweep/profile-core.js?v=0.20.0")]);
+    const [io, core] = await Promise.all([import("../profile-sweep/profile-io.js?v=0.21.0"), import("../profile-sweep/profile-core.js?v=0.21.0")]);
     PS = { IO: io, C: core };
   }
   return PS;
@@ -2676,8 +2822,8 @@ function renderSup() {
     for (const x of list) {
       const R = supResolved(x), fw = !R.fits || footWarn(R);
       h += isPortal(x)
-        ? `<div class="sr${x.id === S.sel ? " on" : ""}" data-sid="${x.id}"><span>${esc(x.num)}</span><span>${esc(prog(A.s0 + x.u))}</span><span title="${esc(tr("po.kind"))}">P</span><span>${nf(Math.min(R.drL, R.drR), 2)}</span><span>${esc(R.mast ? R.mast.id : "PO")}</span><span${R.short ? ' class="warn"' : ""}>${esc(R.beam.id.replace(/^(PO|MEC) /, ""))}</span><span${fw ? ` class="warn" title="${esc(tr("su.fWarn"))}"` : ""}>${esc(R.found.id)}</span></div>`
-        : `<div class="sr${x.id === S.sel ? " on" : ""}" data-sid="${x.id}"><span>${esc(x.num)}</span><span>${esc(prog(A.s0 + x.u))}</span><span>${x.side > 0 ? "S" : "D"}</span><span>${nf(R.dr, 2)}</span><span>${esc(R.mast.id)}</span><span>${nf(R.mens.L, 2)}</span><span${fw ? ` class="warn" title="${esc(tr("su.fWarn"))}"` : ""}>${esc(R.found.id)}</span></div>`;
+        ? `<div class="sr${x.id === S.sel ? " on" : ""}" data-sid="${x.id}"><span>${esc(x.num)}</span><span>${esc(prog(A.s0 + x.u))}</span><span title="${esc(tr("po.kind"))}">P</span><span>${nf(Math.min(R.drL, R.drR), 2)}</span><span>${esc(K.mastLabel(R))}</span><span${R.short ? ' class="warn"' : ""}>${esc(R.beam.id.replace(/^(PO|MEC) /, ""))}</span><span${fw ? ` class="warn" title="${esc(tr("su.fWarn"))}"` : ""}>${esc(R.found.id)}</span></div>`
+        : `<div class="sr${x.id === S.sel ? " on" : ""}" data-sid="${x.id}"><span>${esc(x.num)}</span><span>${esc(prog(A.s0 + x.u))}</span><span>${x.side > 0 ? "S" : "D"}</span><span>${nf(R.dr, 2)}</span><span>${esc(K.mastLabel(R))}</span><span>${nf(R.mens.L, 2)}</span><span${fw ? ` class="warn" title="${esc(tr("su.fWarn"))}"` : ""}>${esc(R.found.id)}</span></div>`;
     }
     h += `</div><div class="btns"><button class="btn-sm" id="suRenum" title="${esc(tr("su.renumT"))}">${esc(tr("su.renum"))}</button></div>`;
   } else h += `<p class="empty">${esc(tr("su.none"))}</p>`;
@@ -2710,6 +2856,7 @@ function supEditor(s, def) {
   h += `<div class="row"><span class="lbl">${esc(tr("au.flag"))}</span><label class="chk"><input type="checkbox" data-f="auto"${s.auto ? " checked" : ""}> ${esc(tr("au.flagOn"))}</label></div>`;
   h += `<div class="row"><label for="seDr">${esc(tr("su.dr"))}${src("dr")}</label>${numIn("seDr", s.dr != null ? nf(s.dr, 3) : "", "m", `data-f="dr" placeholder="${esc(nf(def.dr, 3))}"`)}</div>`;
   h += `<div class="row"><label for="seMast">${esc(tr("su.mast"))}${src("mast")}</label><select id="seMast" class="sel" data-f="mast">${opt("", ofLbl("mast"), s.mast || "")}${K.MASTS.map((m) => opt(m.id, m.id, s.mast || "")).join("")}</select></div>`;
+  h += `<div class="row"><span class="lbl"></span><label class="chk"><input type="checkbox" data-f="dbl"${R.dbl ? " checked" : ""}> ${esc(tr("su.dbl"))}</label></div>`;
   const auto = K.mensolaFor(R.dr, R.stag, R.susp);
   h += `<div class="row"><label for="seL">${esc(tr("su.mens"))}</label><select id="seL" class="sel" data-f="L">${opt("", tr("su.auto", { v: nf(auto.L, 2) + " m" }), s.L != null ? s.L : "")}${K.MENSOLE.map((m) => opt(m.L, nf(m.L, 2) + " m · " + m.code, s.L != null ? s.L : "")).join("")}</select></div>`;
   h += `<div class="row"><label for="seHm">${esc(tr("su.hm"))}${src("hm")}</label>${numIn("seHm", s.hm != null ? nf(s.hm, 2) : "", "m", `data-f="hm" placeholder="${esc(nf(def.hm, 2))}"`)}</div>`;
@@ -2726,7 +2873,7 @@ function supEditor(s, def) {
   h += kv(tr("su.top"), esc(nf(lv.top, 3) + " m"));
   // fondazione sul supercompattato (0.7.0)
   h += kv(tr("su.sc"), esc(R.fromSc ? (R.scOut > 0 ? tr("su.scEdge", { z: nf(lv.pf + R.sc, 3), d: nf(R.scOut, 2) }) : tr("su.scV", { z: nf(lv.pf + R.sc, 3) })) : S.sc.length ? tr("su.scMiss", { d: nf(SC_MAX, 0) }) : tr("su.scNone")), S.sc.length > 0 && (!R.fromSc || R.scOut > 0));
-  h += kv(tr("su.pil"), esc(tr("su.pilV", { z: nf(lv.plate, 3), d: nf(R.drop, 3) })), R.dropOver);
+  h += kv(tr("su.pil"), esc(tr("su.pilV", { z: nf(lv.head, 3), d: nf(R.drop, 3) })), R.dropOver);
   if (R.dropOver) h += `<p class="note warn">${esc(tr("su.dropOver", { d: nf(R.drop, 2), m: nf(K.DROP_MAX, 2) }))}</p>`;
   if (lv.top < lv.tie - 1e-9) h += `<p class="note warn">${esc(tr("su.short", { h: nf(lv.top - lv.pf, 2), t: nf(lv.tie - lv.pf, 2) }))}</p>`;
   h += kv(tr("su.vol"), esc(tr("su.volV", { v: nf(R.vol, 2), f: R.found.id, c: nf(R.c1, 2) })));
@@ -2739,20 +2886,26 @@ function supEditor(s, def) {
 /* il portale scelto: montanti, trave (automatica o a mano), DR minime ai due lati, intradosso (PO), binari serviti
    con il loro pendolo (poligonazione e tipo), fondazione, sezione */
 function portalEditor(s, def) {
-  const R = supResolved(s), geo = portalGeo(s), auto = K.beamFor(R.span);
+  const R = supResolved(s), geo = portalGeo(s), auto = R.fixed ? K.beamForFam(R.span, K.beamFam(R.up)) : K.beamFor(R.span);
   const src = (k) => { const v = K.valueSource(s, A.ocs, k); return v.from === "row" ? ` <i class="src" title="${esc(tr("su.fromRow", { n: v.row + 1 }))}">${esc(tr("tt.badge", { n: v.row + 1 }))}</i>` : ""; };
   const ofLbl = (k) => { const v = K.valueSource({ ...s, [k]: null }, A.ocs, k); return v.from === "row" ? tr("su.ofRow", { n: v.row + 1, v: def[k] }) : tr("su.ofTrack", { v: def[k] }); };
   let h = `<div class="selcard"><div class="selh"><b>${esc(tr("po.sel", { n: s.num }))}</b><span>${esc(prog(A.s0 + s.u, 3))}</span></div>`;
   h += `<div class="row"><label for="seNum">${esc(tr("su.num"))}</label><input id="seNum" class="txt" data-f="num" value="${esc(s.num)}" spellcheck="false"></div>`;
   h += `<div class="row"><label for="seSta">${esc(tr("su.at"))}</label><input id="seSta" class="txt" data-f="sta" value="${esc(prog(A.s0 + s.u, 3))}" spellcheck="false"></div>`;
-  h += `<div class="row"><label for="seUp">${esc(tr("po.up"))}</label><select id="seUp" class="sel" data-f="up">${opt("PO", tr("po.upPO"), R.up)}${opt("LSU", tr("po.upLSU"), R.up)}</select></div>`;
-  if (R.up === "LSU") h += `<div class="row"><label for="sePMast">${esc(tr("su.mast"))}</label><select id="sePMast" class="sel" data-f="mast">${K.MASTS.map((m) => opt(m.id, m.id, R.mast.id)).join("")}</select></div>`;
-  h += `<div class="row"><label for="seBeam">${esc(tr("po.beam"))}</label><select id="seBeam" class="sel" data-f="beam">${opt("", tr("su.auto", { v: auto.id + " · " + nf(auto.L, 2) + " m" }), s.beam || "")}${K.BEAMS.map((b) => opt(b.id, b.id + " · " + nf(b.L, 2) + " m", s.beam || "")).join("")}</select></div>`;
+  h += `<div class="row"><label for="seUp">${esc(tr("po.up"))}</label><select id="seUp" class="sel" data-f="up">${opt("PO", tr("po.upPO"), R.up)}${opt("MEC", tr("po.upMEC"), R.up)}${opt("LSU", tr("po.upLSU"), R.up)}</select></div>`;
+  if (R.up === "LSU") {
+    h += `<div class="row"><label for="sePMast">${esc(tr("su.mast"))}</label><select id="sePMast" class="sel" data-f="mast">${K.MASTS.map((m) => opt(m.id, m.id, R.mast.id)).join("")}</select></div>`;
+    h += `<div class="row"><span class="lbl"></span><label class="chk"><input type="checkbox" data-f="dbl"${R.dbl ? " checked" : ""}> ${esc(tr("po.dbl"))}</label></div>`;
+  }
+  // montanti dalle coordinate (0.11.0): fermi, la trave li unisce (anche obliqua)
+  if (R.fixed) h += `<p class="note">${esc(tr("po.fixed", { L: nf(R.span, 3) }))}${Math.abs(R.aL - R.aR) > 0.005 ? " " + esc(tr("po.skew", { a: nf(Math.abs(R.aL - R.aR), 2) })) : ""}</p>`;
+  h += `<div class="row"><label for="seBeam">${esc(tr("po.beam"))}</label><select id="seBeam" class="sel" data-f="beam">${opt("", tr("su.auto", { v: auto.id + (R.fixed ? "" : " · " + nf(auto.L, 2) + " m") }), s.beam || "")}${K.BEAMS.map((b) => opt(b.id, b.id + (R.fixed ? "" : " · " + nf(b.L, 2) + " m"), s.beam || "")).join("")}</select></div>`;
   if (R.short) h += `<p class="note warn">${esc(tr("po.short", { b: R.beam.id, L: nf(R.beam.L, 2), s: nf(R.span, 2) }))}</p>`;
-  h += `<div class="row"><label for="seDrL">${esc(tr("po.drL"))}${src("dr")}</label>${numIn("seDrL", s.drL != null ? nf(s.drL, 3) : "", "m", `data-f="drL" placeholder="${esc(nf(def.dr, 3))}"`)}</div>`;
-  h += `<div class="row"><label for="seDrR">${esc(tr("po.drR"))}${src("dr")}</label>${numIn("seDrR", s.drR != null ? nf(s.drR, 3) : "", "m", `data-f="drR" placeholder="${esc(nf(def.dr, 3))}"`)}</div>`;
-  h += kv(tr("po.drReal"), esc(tr("po.drRealV", { l: nf(R.drL, 3), r: nf(R.drR, 3), s: nf(R.qL - R.qR, 3) })));
-  if (R.up === "PO") h += `<div class="row"><label for="seHb">${esc(tr("po.hb"))}</label>${numIn("seHb", s.hb != null ? nf(s.hb, 2) : "", "m", `data-f="hb" placeholder="${esc(nf(K.PORTAL_DEFAULTS.hb, 2))}"`)}</div>`;
+  const drv = (k) => (R.fixed ? nf(R[k], 3) : s[k] != null ? nf(s[k], 3) : "");
+  h += `<div class="row"><label for="seDrL">${esc(R.fixed ? tr("po.drLf") : tr("po.drL"))}${R.fixed ? "" : src("dr")}</label>${numIn("seDrL", drv("drL"), "m", `data-f="drL" placeholder="${esc(nf(def.dr, 3))}"`)}</div>`;
+  h += `<div class="row"><label for="seDrR">${esc(R.fixed ? tr("po.drRf") : tr("po.drR"))}${R.fixed ? "" : src("dr")}</label>${numIn("seDrR", drv("drR"), "m", `data-f="drR" placeholder="${esc(nf(def.dr, 3))}"`)}</div>`;
+  h += kv(tr("po.drReal"), esc(tr("po.drRealV", { l: nf(R.drL, 3), r: nf(R.drR, 3), s: nf(R.span, 3) })));
+  if (!R.mast) h += `<div class="row"><label for="seHb">${esc(tr("po.hb"))}</label>${numIn("seHb", s.hb != null ? nf(s.hb, 2) : "", "m", `data-f="hb" placeholder="${esc(nf(K.PORTAL_DEFAULTS.hb, 2))}"`)}</div>`;
   else h += kv(tr("po.hb"), esc(tr("po.hbLsu", { v: nf(R.hb, 3) })));
   h += `<div class="row"><label for="seHw">${esc(tr("su.hw"))}${src("hw")}</label>${numIn("seHw", s.hw != null ? nf(s.hw, 2) : "", "m", `data-f="hw" placeholder="${esc(nf(def.hw, 2))}"`)}</div>`;
   h += `<div class="row"><label for="seFound">${esc(tr("su.found"))}${src("found")}</label><select id="seFound" class="sel" data-f="found">${opt("", ofLbl("found"), s.found || "")}${K.FOUNDATIONS.map((f) => opt(f.id, f.id, s.found || "")).join("")}</select></div>`;
@@ -2769,7 +2922,8 @@ function portalEditor(s, def) {
     h += `<div class="row"><label for="sePs${g.id}">${esc(tr("su.stag"))}</label>${numIn("sePs" + g.id, nf(x.stag, 2), tr("po.stagU"), `data-f="pend:${g.id}:stag"`)}</div>`;
     h += `<div class="row"><label for="sePt${g.id}">${esc(tr("po.pend"))}</label><input id="sePt${g.id}" class="txt" data-f="pend:${g.id}:type" list="sospTypes" value="${esc(pe.type || "")}" spellcheck="false"></div>`;
   }
-  h += `<p class="help">${esc(tr("po.help"))}</p>`;
+  h += `<p class="help">${esc(R.fixed ? tr("po.helpFix") : tr("po.help"))}</p>`;
+  if (R.fixed) h += `<div class="btns"><button class="btn-sm" id="seFree" title="${esc(tr("po.freeT"))}">${esc(tr("po.free"))}</button></div>`;
   h += kv(tr("su.vol"), esc(tr("po.volV", { v: nf(R.vol, 2), f: R.found.id, c: nf(R.c1, 2) })));
   const Fz = C.supportFrame(TA(), s.u, 1), z0p = Fz ? Fz.f.z : 0;
   for (const [lab, x, zB, dr] of [[tr("su.sL"), R.scL, R.zBaseL, R.dropL], [tr("su.sR"), R.scR, R.zBaseR, R.dropR]]) {
@@ -2882,7 +3036,7 @@ function supSection(s, R) {
   }
   g += scPath(F, q0, q1, X, Y, Zr, r);
   // parti (il fusto a 2 UPN: i due correnti pieni, il traliccio fra loro in trasparenza)
-  const fill = { block: "var(--panel-2)", pil: "var(--panel-2)", plate: "var(--steel)", mast: "var(--steel)", mens: "var(--text)", trafo: "var(--amber)", sez: "var(--amber)" };
+  const fill = { block: "var(--panel-2)", pil: "var(--panel-2)", plate: "var(--steel)", mast: "var(--steel)", mens: "var(--text)", att: "var(--text)", trafo: "var(--amber)", sez: "var(--amber)" };
   const upn = (S.view.lod || "lattice") !== "box";
   for (const p of P) {
     if (p.sz) {
@@ -2949,6 +3103,7 @@ function bindSup(s) {
   b.querySelectorAll("[data-f]").forEach((el) => el.addEventListener("change", () => editSupport(s, el.dataset.f, el.type === "checkbox" ? el.checked : el.value)));
   if ($("seSAdd")) $("seSAdd").addEventListener("click", () => addSusp(s));
   b.querySelectorAll("[data-sxdel]").forEach((el) => el.addEventListener("click", () => delSusp(s, +el.dataset.sxdel)));
+  if ($("seFree")) $("seFree").addEventListener("click", () => editSupport(s, "fix", null));
   $("seGo").addEventListener("click", () => frameSupport(s));
   $("seDup").addEventListener("click", () => dupSupport(s.id));
   $("seDel").addEventListener("click", () => deleteSupport(s.id));
@@ -3035,12 +3190,20 @@ const imOpt = { masts: K.MASTS.map((m) => m.id), founds: K.FOUNDATIONS.map((f) =
 /* larghezza del fusto del palo che la riga avrà (il suo tipo, o quello del binario e dei tratti lì): la DR dalle
    coordinate dell'asse del fusto ne toglie metà */
 const imMastW = (i, u, rec) => (K.mastType(rec.mast || supDefAt(S.tracks[i], u).mast) || K.mastType(K.TRACK_DEFAULTS.mast)).w;
+/* i montanti del portale della riga (0.11.0): dal blocco / tipologia / tipo di palo → { up, mast, dbl } */
+const imPortalUp = (rec) => {
+  const p = rec.spec || {}, up = K.PORTAL_UPS.includes(p.up) ? p.up : "PO";
+  return { up, mast: up === "LSU" ? (K.mastType(p.mast) ? p.mast : K.PORTAL_DEFAULTS.mast) : null, dbl: up === "LSU" && !!p.dbl };
+};
+/* il numero: del portale «N° sopra / N° sotto» (i due montanti), del palo il suo */
+const imNum = (o) => (o.portal && o.rec.num2 ? (o.rec.num ? o.rec.num + " / " : "") + o.rec.num2 : o.rec.num);
+const imPortalW = (rec) => { const p = imPortalUp(rec); return p.mast ? K.mastType(p.mast).w : (p.up === "MEC" ? K.MEC_POLE : K.PO_POLE).w; };
 /* i sostegni che l'import farebbe: { ok: [{ t, rec, u, side, dr, xy, warn }], skip: [{ rec, why }] } */
 function imPlan(st) {
   const rows = st.sheets[st.sheet].rows, recs = IO.tableRecords(rows, st.head, st.map, { ...imOpt, swap: st.swap });
-  const P = IO.placeRecords(recs, st.trk, { track: S.tracks.findIndex((t) => t.id === st.track), mastW: imMastW, maxD: st.maxD, drMin: st.drMin, drMax: st.drMax });
+  const P = IO.placeRecords(recs, st.trk, { track: S.tracks.findIndex((t) => t.id === st.track), mastW: imMastW, portalW: imPortalW, maxD: st.maxD, drMin: st.drMin, drMax: st.drMax });
   const why = (s) => (s.why === "noTrack" ? tr("im.noTrack", { t: s.t }) : s.why === "out" ? tr("im.out", { t: s.t }) : s.why === "portal" ? tr("im.portal")
-    : s.d != null ? tr("im.far", { d: nf(s.d, 1), t: s.t }) : tr("im.farAll"));
+    : s.why === "between" ? tr("im.between", { t: s.t }) : s.d != null ? tr("im.far", { d: nf(s.d, 1), t: s.t }) : tr("im.farAll"));
   return { recs, ok: P.ok.map((o) => ({ ...o, t: S.tracks[o.i] })), skip: P.skip.map((s) => ({ rec: s.rec, why: why(s) })) };
 }
 /* gli avvisi di una riga a coordinate, a parole */
@@ -3048,9 +3211,10 @@ function imWarnText(o, st) {
   const r = o.rec, t = o.t;
   return o.warn.map((w) => w === "amb" ? tr("im.wAmb", { t: t.name }) : w === "staDiff" ? tr("im.wSta", { a: prog(r.sta), b: prog((t.s0 || 0) + o.u) })
     : w === "drDiff" ? tr("im.wDr", { a: nf(r.dr, 3), b: nf(o.dr, 3) }) : w === "sideDiff" ? tr("im.wSide")
-    : tr("im.wRange", { v: nf(o.dr, 3), a: nf(st.drMin, 2), b: nf(st.drMax, 2) })).join("; ");
+    : w === "skew" ? tr("im.wSkew", { a: nf(Math.abs(o.fix.aL - o.fix.aR), 2) }) : w === "spanDiff" ? tr("im.wSpan", { a: nf(r.Lb, 3), b: nf(o.span, 3) })
+    : o.portal ? tr("im.wRangeP", { v: nf(o.dr, 3), a: nf(st.drMin, 2) }) : tr("im.wRange", { v: nf(o.dr, 3), a: nf(st.drMin, 2), b: nf(st.drMax, 2) })).join("; ");
 }
-const imLabel = (k) => ({ num: tr("su.num"), sta: tr("su.at"), E: tr("im.E"), N: tr("im.N"), side: tr("su.side"), dr: tr("su.dr"), mast: tr("su.mast"), L: tr("su.mens"), sosp: tr("im.sosp"), L2: tr("im.L2"), sosp2: tr("im.sosp2"), found: tr("su.found"), hw: tr("su.hw"), stag: tr("su.stag"), track: tr("im.track") })[k];
+const imLabel = (k) => ({ num: tr("su.num"), num2: tr("im.num2"), sta: tr("su.at"), E: tr("im.E"), N: tr("im.N"), E2: tr("im.E2"), N2: tr("im.N2"), side: tr("su.side"), dr: tr("su.dr"), mast: tr("su.mast"), block: tr("im.block"), ptype: tr("im.ptype"), L: tr("su.mens"), sosp: tr("im.sosp"), L2: tr("im.L2"), sosp2: tr("im.sosp2"), found: tr("su.found"), found2: tr("im.found2"), Lb: tr("im.Lb"), hw: tr("su.hw"), stag: tr("su.stag"), track: tr("im.track") })[k];
 function imRender(st) {
   const sh = st.sheets[st.sheet], hdr = sh.rows[st.head] || [];
   const cols = hdr.map((h, c) => [c, String(h || "").trim() || tr("im.col", { n: c + 1 })]);
@@ -3075,6 +3239,8 @@ function imRender(st) {
   for (const o of P.ok) per.set(o.t, (per.get(o.t) || 0) + 1);
   h += `<div class="sub">${esc(tr("dw.preview"))}</div>`;
   h += `<p class="note">${esc(tr("im.count", { n: P.ok.length, s: P.skip.length }))}</p>`;
+  const np = P.ok.filter((o) => o.portal).length;
+  if (np) h += `<p class="note">${esc(tr("im.portals", { n: np }))}</p>`;
   if (per.size > 1) h += `<p class="note">${esc(tr("im.perTrack", { l: [...per].map(([t, n]) => t.name + " " + n).join(" · ") }))}</p>`;
   if (nxy.length) h += `<p class="note${wxy.length ? " warn" : ""}">${esc(tr("im.xyCount", { n: nxy.length, w: wxy.length }))}</p>`;
   if (bad) h += `<p class="note warn">${esc(tr("im.warn", { n: bad }))}</p>`;
@@ -3082,9 +3248,11 @@ function imRender(st) {
   if (P.ok.length) {
     h += `<div class="stab"><div class="sr sh"><span>${esc(tr("su.hN"))}</span><span>${esc(tr("su.hSta"))}</span><span>${esc(tr("su.hSide"))}</span><span>${esc(tr("su.hDr"))}</span><span>${esc(tr("su.hMast"))}</span><span>${esc(tr("su.hMens"))}</span><span>${esc(tr("su.hFound"))}</span></div>`;
     for (const o of P.ok.slice(0, 40)) {
-      const r = o.rec, side = o.side, sd = side > 0 ? tr("su.sL") : side < 0 ? tr("su.sR") : "·", st0 = (o.t.s0 || 0) + o.u;
+      const r = o.rec, side = o.side, sd = o.portal ? "P" : side > 0 ? tr("su.sL") : side < 0 ? tr("su.sR") : "·", st0 = (o.t.s0 || 0) + o.u;
       const wt = o.warn.length ? imWarnText(o, st) : "", wc = (...k) => (o.warn.some((w) => k.includes(w)) ? ' class="warn"' : "");
-      h += `<div class="sr"${wt ? ` title="${esc(wt)}"` : ""}><span>${esc(r.num || "·")}</span><span title="${esc(o.t.name + " " + prog(st0))}"${wc("staDiff", "amb")}>${esc(prog(st0))}</span><span${wc("sideDiff")}>${esc(sd)}</span><span${wc("drDiff", "drRange")}>${Number.isFinite(o.dr) ? nf(o.dr, 2) : "·"}</span><span${r.warn.includes("mast") ? ' class="warn"' : ""}>${esc(r.mast || (r.warn.includes("mast") ? "?" : "·"))}</span><span>${Number.isFinite(r.L) ? nf(r.L, 2) : "·"}</span><span${r.warn.includes("found") ? ' class="warn"' : ""}>${esc(r.found || (r.warn.includes("found") ? "?" : "·"))}</span></div>`;
+      // portale: «P», la DR minore, i montanti, la luce al posto della mensola
+      const pu = o.portal ? imPortalUp(r) : null, mast = pu ? K.mastLabel({ mast: pu.mast ? K.mastType(pu.mast) : null, dbl: pu.dbl, pole: { id: pu.up } }) : r.dbl && r.mast ? "2×" + r.mast : r.mast;
+      h += `<div class="sr"${wt ? ` title="${esc(wt)}"` : ""}><span>${esc(imNum(o) || "·")}</span><span title="${esc(o.t.name + " " + prog(st0))}"${wc("staDiff", "amb")}>${esc(prog(st0))}</span><span${wc("sideDiff")}${o.portal ? ` title="${esc(tr("po.kind"))}"` : ""}>${esc(sd)}</span><span${wc("drDiff", "drRange")}>${Number.isFinite(o.dr) ? nf(o.dr, 2) : "·"}</span><span${r.warn.includes("mast") ? ' class="warn"' : ""}>${esc(mast || (r.warn.includes("mast") ? "?" : "·"))}</span><span${wc("skew", "spanDiff")}>${o.portal ? nf(o.span, 2) : Number.isFinite(r.L) ? nf(r.L, 2) : "·"}</span><span${r.warn.includes("found") ? ' class="warn"' : ""}>${esc(r.found || (r.warn.includes("found") ? "?" : "·"))}</span></div>`;
     }
     h += `</div>`;
   }
@@ -3111,6 +3279,14 @@ function imApply(st) {
   let last = null;
   for (const o of P.ok.sort((a, b) => a.u - b.u)) {
     const { t, rec, u } = o, def = supDef(t), list = supsOf(t);
+    if (o.portal) {                                      // portale (0.11.0): montanti fermi sulle coordinate, fisso
+      const pu = imPortalUp(rec), num = imNum(o);
+      const s = { id: S.supSeq++, kind: "portal", track: t.id, u, side: 1, num: num || K.nextNumber(list, 1, def), numUser: !!num, up: pu.up, mast: pu.mast, dbl: pu.dbl,
+        beam: null, drL: null, drR: null, hb: null, hw: Number.isFinite(rec.hw) ? rec.hw : null, found: rec.found, c1: null, skip: [], pend: {},
+        fix: { qL: o.fix.qL, aL: o.fix.aL, qR: o.fix.qR, aR: o.fix.aR }, attrs: Object.keys(rec.attrs).length ? rec.attrs : undefined };
+      S.supports.push(s); last = s;
+      continue;
+    }
     let side = o.side;                                   // dalle coordinate (0.9.0) o dalla colonna del lato
     if (!side) { const n = parseInt(String(rec.num).replace(/^\D+/, ""), 10); side = Number.isFinite(n) && def.numMode === "parity" ? ((n % 2 === 1) === !!def.oddLeft ? 1 : -1) : 1; }
     const prev = list.filter((x) => x.u <= u).sort((a, b) => b.u - a.u)[0];
@@ -3121,7 +3297,7 @@ function imApply(st) {
     const two = Number.isFinite(rec.L2) || !!rec.sosp2, nb = two ? neighborTrack(t, u, side) : null;
     const L = Number.isFinite(rec.L) && Number.isFinite(rec.L2) ? Math.max(rec.L, rec.L2) : fin(rec.L) ?? fin(rec.L2);
     const s = { id: S.supSeq++, track: t.id, u, side, num: rec.num || K.nextNumber(list, side, def), numUser: !!rec.num, stag,
-      mast: rec.mast, dr: o.xy ? Math.round(o.dr * 1000) / 1000 : fin(o.dr), L, hm: null, hw: fin(rec.hw), found: rec.found, c1: null, sosp: rec.sosp || null, eq: { trafo: false, sez: false },
+      mast: rec.mast, dbl: rec.dbl || undefined, dr: o.xy ? Math.round(o.dr * 1000) / 1000 : fin(o.dr), L, hm: null, hw: fin(rec.hw), found: rec.found, c1: null, sosp: rec.sosp || null, eq: { trafo: false, sez: false },
       susp: two ? [{ track: nb ? nb.t.id : null, off: null, stag: null, type: rec.sosp2 || null }] : [], attrs: Object.keys(rec.attrs).length ? rec.attrs : undefined };
     S.supports.push(s); last = s;
   }
@@ -3144,9 +3320,15 @@ function editSupport(s, k, v) {
   else if (k === "trafo" || k === "sez") s.eq = { ...(s.eq || {}), [k]: !!v };
   else if (k === "auto") s.auto = !!v;
   else if (k === "sosp") s.sosp = String(v).trim() || null;
+  else if (k === "dbl") s.dbl = !!v;                                   // pali doppi (0.11.0)
   // portale
-  else if (k === "up") s.up = v === "LSU" ? "LSU" : "PO";
+  else if (k === "up") s.up = K.PORTAL_UPS.includes(v) ? v : "PO";
   else if (k === "beam") s.beam = v || null;
+  else if (k === "fix") s.fix = null;                                  // libera i montanti: trave automatica come a mano
+  else if ((k === "drL" || k === "drR") && s.fix) {                    // montanti fermi: la DR sposta quello di quel lato
+    const x = parseNum(v), R = supResolved(s);
+    if (Number.isFinite(x)) { const d = x - R[k], q = k === "drL" ? "qL" : "qR"; s.fix = { ...s.fix, [q]: s.fix[q] + (k === "drL" ? d : -d) }; }
+  }
   else if (k === "drL" || k === "drR" || k === "hb") { const x = parseNum(v); s[k] = String(v).trim() === "" ? null : Number.isFinite(x) ? x : s[k]; }
   else if (k.startsWith("srv:")) { const id = +k.slice(4), skip = new Set(s.skip || []); if (v) skip.delete(id); else skip.add(id); s.skip = [...skip]; }
   else if (k.startsWith("pend:")) {
@@ -3185,7 +3367,7 @@ function delSusp(s, i) {
    Sculptor, ctxAssemble di profile-core), con in più per ogni elemento nome, tipo, layer e Pset: servono a
    «tutti quelli uguali» (negli IFC Civil 3D del federato BG-PSP il nome è vuoto: decidono i Pset).
    ========================================================================= */
-const TS_IO = new URL("../terrain-sculptor/terrain-io.js?v=1.8.0", location.href).href;
+const TS_IO = new URL("../terrain-sculptor/terrain-io.js?v=1.10.0", location.href).href;
 const CTX_OPEN = 300000, CTX_STALL = 40000, CTX_STALL_SIMPLE = 120000, CTX_REACH = 200;
 function ctxWorkerMain() {   // gira DENTRO il worker (serializzata con toString)
   self.onmessage = async (ev) => {
@@ -3397,6 +3579,7 @@ function buildScMeshes() {
   scBuiltFor = S.sc;
 }
 function placeCtx() {
+  revitPreviewLater();                                    // anteprima in Revit accesa: il contesto visibile può essere cambiato
   if (scBuiltFor !== S.sc) buildScMeshes();
   for (const o of CTXG.children) {
     const u = o.userData, m = u.sc != null ? S.sc[u.sc] : S.ctx.find((x) => x.name === u.ctx);
@@ -3560,7 +3743,8 @@ function scPath(F, q0, q1, X, Y, Zr, r) {
    sostituisce i pali proposti del campo e rinumera il binario (i numeri scritti a mano restano).
    ========================================================================= */
 function majoritySide(t) { const n = supsOf(t).filter((s) => !isPortal(s)).reduce((a, s) => a + s.side, 0); return n < 0 ? -1 : 1; }
-const autoOf = (t) => ({ ...AU.AUTO_DEFAULTS, side: majoritySide(t), a: null, sta0: null, sta1: null, ...((t && t.ocs && t.ocs.auto) || {}) });
+/* le regole salvate prima della 0.12.0 non hanno tableMode: la loro tabella è «fino a R» */
+const autoOf = (t) => { const sv = (t && t.ocs && t.ocs.auto) || {}; return { ...AU.AUTO_DEFAULTS, side: majoritySide(t), a: null, sta0: null, sta1: null, ...sv, tableMode: sv.tableMode || (sv.table ? "upTo" : AU.AUTO_DEFAULTS.tableMode) }; };
 /* «1+200–1+260; 2+000 / 2+050» → [{ u0, u1 }] e «1+500; 1+800» → [sta] (progressive del file) */
 function parseRanges(txt) {
   const out = [];
@@ -3576,7 +3760,7 @@ const parseList = (txt) => String(txt || "").split(/[;\n]+/).map((x) => parseSta
 /* la proposta per il binario t: regole, pali fissi, punti obbligati, zone escluse, pali appaiati al binario guida */
 function proposeFor(t) {
   const a = autoOf(t), T = derivedOf(t).T, def = supDef(t);
-  const P = { Lmax: +a.Lmax, a: Number.isFinite(parseFloat(a.a)) ? +a.a : Math.abs(def.stag), b: +a.b, ratio: +a.ratio, Rout: +a.Rout, ends: !!a.ends, table: a.table || [] };
+  const P = { Lmax: +a.Lmax, a: Number.isFinite(parseFloat(a.a)) ? +a.a : Math.abs(def.stag), b: +a.b, ratio: +a.ratio, Rout: +a.Rout, ends: !!a.ends, table: a.table || [], tableMode: a.tableMode };
   const u0 = Number.isFinite(a.sta0) ? Math.max(0, a.sta0 - t.s0) : 0, u1 = Number.isFinite(a.sta1) ? Math.min(t.length, a.sta1 - t.s0) : t.length;
   const keep = supsOf(t).filter((s) => !s.auto || s.u < u0 - 1e-6 || s.u > u1 + 1e-6);
   let must = (a.must || []).map((x) => x - t.s0), follow = null;
@@ -3648,9 +3832,10 @@ function renderAuto() {
   h += `<p class="help">${esc(tr("au.rulesHelp"))}</p>`;
   h += `<div class="sub">${esc(tr("au.table"))}</div>`;
   (a.table || []).forEach((r, i) => {
-    h += `<div class="row"><label>${esc(tr("au.tUpTo"))}</label><div class="addrow">${numIn("auTR" + i, v(r.R, 0), "m", `data-au="tR:${i}" aria-label="R"`)}${numIn("auTL" + i, v(r.L, 1), "m", `data-au="tL:${i}" aria-label="L"`)}<button class="btn-sm" data-aua="delRow:${i}" title="${esc(tr("au.delRow"))}">×</button></div></div>`;
+    h += `<div class="row"><label>${esc(a.tableMode === "from" ? tr("au.tFrom") : tr("au.tUpTo"))}</label><div class="addrow">${numIn("auTR" + i, v(r.R, 0), "m", `data-au="tR:${i}" aria-label="R"`)}${numIn("auTL" + i, v(r.L, 1), "m", `data-au="tL:${i}" aria-label="L"`)}<button class="btn-sm" data-aua="delRow:${i}" title="${esc(tr("au.delRow"))}">×</button></div></div>`;
   });
-  h += `<div class="btns"><button class="btn-sm" data-aua="addRow">${esc(tr("au.addRow"))}</button></div>`;
+  h += `<div class="btns"><button class="btn-sm" data-aua="addRow">${esc(tr("au.addRow"))}</button><button class="btn-sm" data-aua="rfiTable" title="${esc(tr("au.rfiT"))}">${esc(tr("au.rfi"))}</button></div>`;
+  h += `<p class="help">${esc(a.tableMode === "from" ? tr("au.tFromHelp") : tr("au.tUpToHelp"))}</p>`;
   h += `<div class="sub">${esc(tr("au.cons"))}</div>`;
   h += `<div class="row"><label for="auEx">${esc(tr("au.excl"))}</label><input id="auEx" class="txt" data-au="excl" value="${esc((a.excl || []).map((z) => prog(z.u0) + "–" + prog(z.u1)).join("; "))}" placeholder="1+200–1+260; …" spellcheck="false"></div>`;
   h += `<div class="row"><label for="auMu">${esc(tr("au.must"))}</label><input id="auMu" class="txt" data-au="must" value="${esc((a.must || []).map((x) => prog(x)).join("; "))}" placeholder="1+500; …" spellcheck="false"></div>`;
@@ -3687,6 +3872,7 @@ function editAuto(k, v) {
   else if (k.startsWith("tR:") || k.startsWith("tL:")) { const i = +k.slice(3), x = parseNum(v), tab = (a.table || []).map((r) => ({ ...r })); if (tab[i] && Number.isFinite(x) && x > 0) tab[i][k[1]] = x; a.table = tab; }
   else if (k === "addRow") { const tab = a.table || [], last = tab[tab.length - 1]; a.table = [...tab, last ? { R: last.R + 200, L: Math.min(+a.Lmax, last.L + 5) } : { R: 300, L: 35 }]; }
   else if (k.startsWith("delRow:")) a.table = (a.table || []).filter((_, i) => i !== +k.slice(7));
+  else if (k === "rfiTable") { a.table = AU.RFI_SPANS.map((r) => ({ ...r })); a.tableMode = "from"; }
   else if (k === "excl") a.excl = parseRanges(v);
   else if (k === "must") a.must = parseList(v);
   else if (k === "follow") a.follow = v === "" ? null : +v;
@@ -3703,7 +3889,7 @@ function editAuto(k, v) {
    ========================================================================= */
 const IFCT = { label: "IfcLabel", text: "IfcText", identifier: "IfcIdentifier", length: "IfcLengthMeasure", area: "IfcAreaMeasure", volume: "IfcVolumeMeasure", angle: "IfcPlaneAngleMeasure", ratio: "IfcPositiveRatioMeasure", real: "IfcReal", int: "IfcInteger", bool: "IfcBoolean" };
 const fieldLabel = (k) => ({ num: tr("pf.num"), track: tr("pf.track"), sta: tr("pf.sta"), side: tr("pf.side"), dr: tr("pf.dr"), drL: tr("pf.drL"), drR: tr("pf.drR"), mast: tr("pf.mast"), mens: tr("pf.mens"), mensCode: tr("pf.mensCode"),
-  beam: tr("pf.beam"), beamL: tr("pf.beamL"), hm: tr("pf.hm"), hb: tr("pf.hb"), hw: tr("pf.hw"), stag: tr("pf.stag"), sosp: tr("pf.sosp"), served: tr("pf.served"), nSusp: tr("pf.nSusp"), found: tr("pf.found"), c1: tr("pf.c1"),
+  beam: tr("pf.beam"), beamL: tr("pf.beamL"), hm: tr("pf.hm"), hb: tr("pf.hb"), hw: tr("pf.hw"), stag: tr("pf.stag"), sosp: tr("pf.sosp"), served: tr("pf.served"), nSusp: tr("pf.nSusp"), kg: tr("pf.kg"), found: tr("pf.found"), c1: tr("pf.c1"),
   vol: tr("pf.vol"), E: tr("pf.E"), N: tr("pf.N"), top: tr("pf.top"), zPil: tr("pf.zPil"), zSc: tr("pf.zSc") })[k] || k;
 const warnText = (c) => ({ noName: tr("pw.noName"), stdPrefix: tr("pw.stdPrefix"), noKinds: tr("pw.noKinds"), dupSet: tr("pw.dupSet"), dupProp: tr("pw.dupProp"), noKey: tr("pw.noKey"), badConst: tr("pw.badConst") })[c] || c;
 const kindLabel = (k) => ({ mast: tr("pk.mast"), portal: tr("pk.portal"), foundation: tr("pk.foundation") })[k] || k;
@@ -3721,15 +3907,15 @@ function psetCtx(s, R, kind) {
   const t = trackById(s.track), T = derivedOf(t).T;
   let E, N, top, served, zPil, zSc;
   if (isPortal(s)) {
-    const F = C.supportFrame(T, s.u, 1), q = (R.qL + R.qR) / 2;
-    E = F.f.x + q * F.f.nx; N = F.f.y + q * F.f.ny; top = F.f.z + R.hb + R.beam.h;
+    const F = C.supportFrame(T, s.u, 1), c = C.portalFrame(T, s, R).at(0, 0, 0);     // centro della trave (anche obliqua)
+    E = c.x; N = c.y; top = F.f.z + R.hb + R.beam.h;
     served = R.susp.map((x) => (trackById(x.track) || {}).name || "");
     zPil = F.f.z + Math.min(R.zBaseL, R.zBaseR);                       // il montante più basso
     const scs = [R.scL, R.scR].filter((x) => x.fromSc).map((x) => F.f.z + x.sc);
     zSc = scs.length ? Math.min(...scs) : null;
   } else {
     const lv = C.supportLevels(T, s, R);
-    E = lv.E; N = lv.N; top = lv.top; zPil = lv.plate; zSc = R.fromSc ? lv.pf + R.sc : null;
+    E = lv.E; N = lv.N; top = lv.top; zPil = lv.head; zSc = R.fromSc ? lv.pf + R.sc : null;
     served = [t.name, ...R.susp.map((x) => (x.track != null && trackById(x.track) ? trackById(x.track).name : tr("su.sManual")))];
   }
   const v = K.psetValues(s, R, { track: t.name, s0: t.s0, E, N, top, served, zPil, zSc }, kind);
@@ -3981,7 +4167,7 @@ $("trNew").addEventListener("click", () => {
   if (!armedNew) { armedNew = true; b.classList.add("armed"); b.textContent = tr("tr.newArm"); setTimeout(() => { armedNew = false; b.classList.remove("armed"); b.textContent = tr("tr.new"); }, 3000); return; }
   armedNew = false; b.classList.remove("armed"); b.textContent = tr("tr.new");
   pushUndo();                                           // anche «Nuovo progetto» si annulla (Ctrl+Z)
-  S.tracks = []; DT.clear(); S.hidden = {}; S.pt = null; S.name = ""; setActive(-1);
+  S.tracks = []; DT.clear(); S.hidden = {}; S.pt = null; S.name = ""; S.uid = ""; setActive(-1);
   S.supports = []; S.sel = null; S.pset = null;
   S.sc = []; S.ctx = []; S.scCand = null; if (S.scPick) setScPick(false); buildCtxMeshes();
   refreshAll(); scheduleSave(); openSheet();
@@ -4006,10 +4192,10 @@ function idbOpen() {
 }
 let saveTimer = 0, dirty = false;
 function scheduleSave() { dirty = true; $("saveDot").classList.add("wait"); clearTimeout(saveTimer); saveTimer = setTimeout(saveNow, 1200); refreshStats(); }
-const snapshot = () => ({ v: 1, name: S.name, active: S.active, seq: S.seq, hidden: S.hidden, pt: S.pt, tracks: S.tracks, supports: S.supports, supSeq: S.supSeq, pset: S.pset, sc: S.sc });
+const snapshot = () => ({ v: 1, name: S.name, uid: S.uid, active: S.active, seq: S.seq, hidden: S.hidden, pt: S.pt, tracks: S.tracks, supports: S.supports, supSeq: S.supSeq, pset: S.pset, sc: S.sc });
 function restore(doc) {
   S.tracks = (doc.tracks || []).map((t) => ({ ...t, off: { h: 0, v: 0, rows: [], ...(t.off || {}) } }));
-  S.hidden = doc.hidden || {}; S.name = doc.name || ""; S.pt = doc.pt != null ? doc.pt : null;
+  S.hidden = doc.hidden || {}; S.name = doc.name || ""; S.uid = doc.uid || ""; S.pt = doc.pt != null ? doc.pt : null;
   S.seq = Math.max(doc.seq || 1, ...S.tracks.map((t) => t.id + 1));
   for (const t of S.tracks) t.ocs = { ...K.TRACK_DEFAULTS, ...(t.ocs || {}) };
   S.supports = (doc.supports || []).filter((x) => S.tracks.some((t) => t.id === x.track)).map(K.migrateSupport);   // «seconda mensola» 0.4.0 → sospensione
@@ -4091,11 +4277,15 @@ function saveProjectDialog(then = null) {
     } },
   ]);
 }
+/* il file di progetto .ocs (anche quello salvato nel modello Revit): JSON compresso con gzip quando si può */
+async function projectBytes() {
+  const raw = IO.encodeProject(snapshot(), { tool: TOOL_VERSION, saved: new Date().toISOString(), tracks: S.tracks.map((t) => t.name), supports: S.supports.length });
+  return typeof CompressionStream === "function" ? pipeBytes(raw, new CompressionStream("gzip")) : raw;
+}
 async function saveProject(name) {
   S.name = name;
   try {
-    const raw = IO.encodeProject(snapshot(), { tool: TOOL_VERSION, saved: new Date().toISOString(), tracks: S.tracks.map((t) => t.name), supports: S.supports.length });
-    const bytes = typeof CompressionStream === "function" ? await pipeBytes(raw, new CompressionStream("gzip")) : raw;
+    const bytes = await projectBytes();
     download(name + PRJ_EXT, bytes, "application/octet-stream");
     toast(tr("prj.saved", { f: name + PRJ_EXT }));
     scheduleSave();
@@ -4172,11 +4362,11 @@ function ifcDialog() {
 async function exportIfc(o, railStep) {
   busy(tr("ix.busy")); await frame();
   try {
-    const X = await import("./ocs-ifc.js?v=0.10.1");
+    const X = await import("./ocs-ifc.js?v=0.20.0");
     const tpl = psetTpl();
     const labels = { site: tr("ifc.site"), railway: tr("ifc.railway"), mast: tr("ifc.mast"), portal: tr("ifc.portal"), stem: tr("ifc.stem"), plate: tr("ifc.plate"),
       mens: tr("ifc.mens"), tie: tr("ifc.tie"), susp: tr("ifc.susp"), pend: tr("ifc.pend"), found: tr("ifc.found"), beam: tr("ifc.beam"), pole: tr("ifc.pole"), trafo: tr("ifc.trafo"),
-      sez: tr("ifc.sez"), railL: tr("ifc.railL"), railR: tr("ifc.railR"), steel: tr("ifc.steel"), concrete: tr("ifc.concrete"), offset: tr("ifc.offset") };
+      sez: tr("ifc.sez"), att: tr("ifc.att"), attTie: tr("ifc.attTie"), attBeam: tr("ifc.attBeam"), railL: tr("ifc.railL"), railR: tr("ifc.railR"), steel: tr("ifc.steel"), concrete: tr("ifc.concrete"), offset: tr("ifc.offset") };
     const tracks = S.tracks.filter((t) => o.ids.includes(t.id)).map((t) => ({
       name: t.name, T: derivedOf(t).T, gauge: (t.cant && t.cant.gauge) || 1.5, align: o.align, rails: o.rails,
       sups: supsOf(t).slice().sort((a, b) => a.u - b.u).map((s) => {
@@ -4315,8 +4505,338 @@ function applyLang(lang) {
   document.querySelectorAll(".langsw button").forEach((b) => b.classList.toggle("on", b.dataset.lang === LANG));
   try { localStorage.setItem("viewifc_tool_lang", LANG); } catch (e) {}
   $("fastChip").textContent = tr("st.fast");
+  renderRevit();
   renderPod(); renderTree(); refreshStats(); drawPV(); status(null);
 }
+
+/* =========================================================================
+   Dentro Revit (add-in ViewIFC, PIANO_Revit_ViewIFC.md): nella testata «Revit 2023 · modello».
+   Fuori da Revit RB.inRevit() è falso e non succede nulla.
+   ========================================================================= */
+let REVIT = null;   // risposta di hello dell'add-in
+function renderRevit() {
+  const el = $("rvChip"), b = $("rvPrev");
+  el.hidden = !REVIT;
+  b.hidden = !REVIT || !RB.can(REVIT, "preview.set");
+  $("rvPlace").hidden = !REVIT || !RB.can(REVIT, "place");
+  b.classList.toggle("on", RVP.on);
+  b.setAttribute("aria-pressed", RVP.on ? "true" : "false");
+  if (!REVIT) return;
+  const name = RB.docLabel(REVIT.doc);
+  el.textContent = name ? tr("rv.chip", { v: REVIT.revit.version, doc: name }) : tr("rv.chipNoDoc", { v: REVIT.revit.version });
+  el.title = tr("rv.tip", { addin: REVIT.addin, build: REVIT.revit.build });
+}
+async function initRevit() {
+  if (!RB.inRevit()) return;
+  REVIT = await RB.hello();
+  if (!REVIT) return;
+  RB.onEvent((m) => {
+    if (m.event === "doc") { REVIT.doc = m.doc; renderRevit(); revitStoreCheck(); }
+    if (m.event === "preview" && !m.on) { RVP.on = false; RVP.ctxSig = null; RVP.shapes.clear(); clearTimeout(RVP.t); renderRevit(); }
+    if (m.event === "select") revitSelected(m.items);
+  });
+  renderRevit();
+}
+/* Selezione sincronizzata (0.16.0, R3, PIANO_Revit_ViewIFC.md §15): il sostegno scelto qui si sceglie anche in Revit
+   (se è piazzato) e Revit inquadra la vista attiva su di lui (pure se è solo in anteprima) — a ogni scelta, anche col
+   clic nella vista 3D (0.18.1: prima solo dalla tabella o dall'albero, e la prova dell'utente «se seleziono nel tool,
+   Revit rimane fermo»), come la pagina che vola sul sostegno scelto in Revit. Niente eco: la scelta che arriva da
+   Revit non torna indietro, e l'add-in non rimanda quella fatta per conto della pagina */
+const RVS = { t: 0, fromRevit: false };
+const rvKey = () => (S.uid ? "railway-ocs:" + S.uid : "");
+function revitSelectLater(id) {
+  if (!REVIT || !RB.can(REVIT, "select") || RVS.fromRevit) return;
+  const box = id != null && (S.uid || RVP.on) ? revitBox(id) : null, args = { key: rvKey(), ids: id != null ? [String(id)] : [] };
+  if (!S.uid && !box) return;                             // niente di piazzato né da inquadrare
+  if (box) args.box = box;
+  clearTimeout(RVS.t);
+  RVS.t = setTimeout(() => RB.call("select", args).catch((e) => console.warn("Revit select:", e.message)), 120);
+}
+/* la scatola di un sostegno nel mondo (E, N, quota min, poi max) dai solidi dell'anteprima, con 6 m di margine */
+function revitBox(id) {
+  const s = supById(id), t = s && trackById(s.track);
+  if (!t) return null;
+  const R = supResolved(s), pv = C.previewSolids(supParts(derivedOf(t).T, s, R), R, "upn"), lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (const { box: b } of pv.boxes)
+    for (let k = 0; k < 3; k++) { const e = Math.abs(b[3 + k]) + Math.abs(b[6 + k]) + Math.abs(b[9 + k]); lo[k] = Math.min(lo[k], b[k] - e); hi[k] = Math.max(hi[k], b[k] + e); }
+  if (!(lo[0] <= hi[0])) return null;
+  const r3 = (v) => Math.round(v * 1e3) / 1e3;
+  return [lo[0] - 6, lo[1] - 6, lo[2] - 1, hi[0] + 6, hi[1] + 6, hi[2] + 1].map(r3);
+}
+function revitSelected(items) {
+  const key = rvKey(), it = key && (items || []).find((i) => i && i.key === key && supById(+i.id));
+  if (!it || +it.id === S.sel) return;                    // altro progetto, altri elementi, o già scelto qui
+  RVS.fromRevit = true;
+  try { selectSupport(+it.id, true); } finally { RVS.fromRevit = false; }
+}
+/* Il progetto salvato nel modello (0.16.0, R3): «Piazza in Revit» salva anche il progetto dentro il .rvt (stessa
+   transazione); l'add-in dice quali progetti ci sono (doc.stored) al saluto e a ogni cambio di modello. Lo stesso
+   progetto aperto qui: niente. Un altro: pagina vuota → si apre da solo, altrimenti si chiede (una volta per modello
+   e progetto). Lo stesso ma più recente nel modello (piazzato da un altro PC): si chiede anche quello */
+const RVST = { ready: false, busy: false, asked: new Set() };
+async function revitStorePayload() {
+  return { tool: "railway-ocs", name: S.name || fileBase(), version: TOOL_VERSION, items: S.supports.length, saved: new Date().toISOString(), data: RB.toB64(await projectBytes()) };
+}
+function revitStoreCheck() {
+  if (!RVST.ready || RVST.busy || !REVIT || !RB.can(REVIT, "store.get") || !$("dlg").hidden) return;
+  const doc = REVIT.doc, list = ((doc && doc.stored) || []).filter((e) => e && e.tool === "railway-ocs" && e.key);
+  if (!list.length) return;
+  const e = list.slice().sort((a, b) => String(b.saved).localeCompare(String(a.saved)))[0];
+  const same = e.key === rvKey(), newer = same && Date.parse(e.saved) > (S.lastSave || 0) + 60000;
+  if (same && !newer) return;
+  if (!S.tracks.length) { revitStoreOpen(e); return; }
+  const ask = (doc.path || doc.title) + "|" + e.key + "|" + e.saved;
+  if (RVST.asked.has(ask)) return;
+  RVST.asked.add(ask);
+  const d = new Date(e.saved), when = isNaN(d) ? "—" : d.toLocaleString(LANG === "en" ? "en-GB" : "it-IT", { dateStyle: "medium", timeStyle: "short" });
+  const v = { doc: RB.docLabel(doc), name: e.name || "—", d: when, n: ni(e.items || 0) };
+  const b = `<p>${esc(same ? tr("rv.stNewer", v) : tr("rv.stBody", v))}</p><p class="note warn">${esc(tr("prj.replace", { n: S.tracks.length }))}</p>`;
+  dlgOpen(tr("rv.stTitle"), b, [
+    { label: tr("rv.stLater"), run: dlgClose },
+    { label: tr("prj.saveFirst"), run: () => { dlgClose(); saveProjectDialog(() => revitStoreOpen(e)); } },
+    { label: tr("prj.open"), primary: true, run: () => { dlgClose(); revitStoreOpen(e); } },
+  ]);
+}
+async function revitStoreOpen(e) {
+  RVST.busy = true;
+  busy(tr("rv.stOpening"));
+  try {
+    const r = await RB.call("store.get", { key: e.key }, 120000);
+    let u8 = RB.fromB64(r.data);
+    if (IO.isGzip(u8)) {
+      if (typeof DecompressionStream !== "function") throw new Error(tr("prj.noGzip"));
+      u8 = await pipeBytes(u8, new DecompressionStream("gzip"));
+    }
+    const res = IO.decodeProject(u8);
+    closeSheet();
+    restore(res.doc);
+    if (!S.name) S.name = r.name || "";
+    refreshAll(); pvFit(); frameAll(); await saveNow();
+    busy(null);
+    toast(tr("rv.stOpened", { name: S.name || "—", doc: RB.docLabel(REVIT.doc), n: ni(S.supports.length) }));
+  } catch (err) {
+    busy(null);
+    console.error(err);
+    toast(tr("rv.stFail", { m: (err && err.message) || String(err) }), true);
+  }
+  RVST.busy = false;
+}
+/* Anteprima in Revit (0.14.0, PIANO_Revit_ViewIFC.md §4.5): i sostegni mostrati nella vista 3D vanno all'add-in
+   come scatole orientate e segmenti (C.previewSolids, fusti e travi a 2 UPN) in coordinate del mondo, raggruppati
+   per colore (il sostegno scelto in arancio); Revit li disegna nelle viste del modello senza creare elementi.
+   Accesa, si rimanda da sola a ogni sostegno rifatto (buildSupports / updateSupport: aggiunta, spostamento,
+   modifica, scelta, annulla), al massimo una richiesta alla volta */
+const RVP = { on: false, t: 0, busy: false, again: false, ctxSig: null, shapes: new Set() };
+/* come l'anteprima di Grasshopper, coi colori del sito (richieste dell'utente: prima nere, poi «più brillanti, i
+   colori del sito»): lime --lime #bfd730 per i fusti, --lime-deep per mensole, travi e aste, fondazioni in lime
+   molto trasparente, apparecchiature --amber, il sostegno scelto nell'arancio della selezione del viewer --hl;
+   opacità delle facce per gruppo, l'add-in fa gli spigoli più scuri e pieni */
+const RV_STYLE = {
+  steel: { color: "#bfd730", opacity: 0.6 }, mens: { color: "#a8c320", opacity: 0.7 }, conc: { color: "#bfd730", opacity: 0.28 },
+  equip: { color: "#e0a63a", opacity: 0.7 }, line: { color: "#8aa310", opacity: 1 }, sel: { color: "#ff6a2b", opacity: 0.8 },
+};
+const rvClass = (k) => (k === "pil" || k === "block" ? "conc" : k === "trafo" || k === "sez" ? "equip" : k.startsWith("mens") || k === "att" || k === "beam" ? "mens" : "steel");
+/* famiglie RFI in Revit (0.20.0, add-in 0.7.0 «preview.shapes»; prova dell'utente: «la shadow mostrata in Revit è
+   quella dei modelli vecchi, sul sito ho aggiornato i modelli»): i pezzi delle famiglie come nella vista 3D (ocs-rfi,
+   stesso livello di dettaglio: scelta dell'utente), mandati una volta per pezzo condiviso (palo per tipo, plinto,
+   mensola, pilone, trave…; i tiranti d'istanza per forma) e poi solo dove sta ogni istanza (punto e rotazione):
+   scegliere un sostegno non rimanda geometria. Le altre parti (sospensioni, pendoli, apparecchiature) e i sostegni
+   senza famiglia restano scatole e segmenti. Con un add-in senza preview.shapes: tutto scatole come prima */
+const rvPieceClass = (k) => (k === "plinto" || k === "fond" ? "conc" : k === "palo" || k === "pilone" ? "steel" : "mens");
+function rvHash(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); }
+const rvShapeKey = (pc, lod) => (pc.own ? pc.k + "#" + rvHash(JSON.stringify(pc.own)) : pc.key) + "|" + lod;
+function revitPreviewData() {
+  const groups = {}, grp = (c) => (groups[c] = groups[c] || { ...RV_STYLE[c], boxes: [], lines: [] }), r4 = (v) => Math.round(v * 1e4) / 1e4, r7 = (v) => Math.round(v * 1e7) / 1e7;
+  const pieces = RB.can(REVIT, "preview.shapes"), lod = S.view.lod || "lattice", need = new Map();
+  let n = 0;
+  for (const id of SUPG.keys()) {
+    const s = supById(id), t = s && trackById(s.track);
+    if (!t) continue;
+    const R = supResolved(s), T = derivedOf(t).T, sel = id === S.sel, RP = pieces ? RFI.rfiPlaced(T, s, R) : null;
+    if (RP) for (const pc of RP.pieces) {
+      const key = rvShapeKey(pc, lod), g = grp(sel ? "sel" : rvPieceClass(pc.k)), at = (g.instances = g.instances || {});
+      (at[key] = at[key] || []).push(r4(pc.w.x), r4(pc.w.y), r4(pc.w.z), r7(pc.th));
+      if (!need.has(key)) need.set(key, pc);
+    }
+    const pv = C.previewSolids(supParts(T, s, R).filter((p) => !(RP && RFI.replaces(p.k))), R, "upn");
+    for (const b of pv.boxes) grp(sel ? "sel" : rvClass(b.k)).boxes.push(...b.box.map(r4));
+    for (const g of pv.segs) grp(sel ? "sel" : "line").lines.push(...g.seg.map(r4));
+    n++;
+  }
+  return { data: { tool: "railway-ocs", supports: n, groups: Object.values(groups) }, need };
+}
+/* i pezzi che l'add-in non ha ancora: la loro maglia (la geometria della vista 3D, RFIGEO) nel riferimento del pezzo,
+   a pacchetti di ~8 MB */
+async function revitShapesSync(need) {
+  const todo = [...need].filter(([k]) => !RVP.shapes.has(k));
+  if (!todo.length) return;
+  busy(tr("rv.shSending", { n: ni(todo.length) }));
+  let batch = [], bytes = 0;
+  const flush = async () => {
+    if (!batch.length) return;
+    await RB.call("preview.shapes", { shapes: batch }, 300000);
+    for (const sh of batch) RVP.shapes.add(sh.key);
+    batch = []; bytes = 0;
+  };
+  try {
+    for (const [key, pc] of todo) {
+      const geo = rfiGeometry(pc), chunks = geo ? RB.shapeChunks(geo.attributes.position.array, geo.attributes.normal.array) : [];
+      if (geo && pc.own) geo.dispose();                     // tirante: la sua, non in RFIGEO
+      const enc = chunks.map((c) => ({ pos: RB.toB64(new Uint8Array(c.pos.buffer)), idx: RB.toB64(new Uint8Array(c.idx.buffer)) }));
+      batch.push({ key, chunks: enc });                     // anche vuoto: così l'add-in lo conosce
+      bytes += enc.reduce((a, c) => a + c.pos.length + c.idx.length, 0);
+      if (bytes > 8e6) await flush();
+    }
+    await flush();
+  } finally { busy(null); }
+}
+function revitPreviewLater() {
+  if (!RVP.on) return;
+  clearTimeout(RVP.t);
+  RVP.t = setTimeout(revitPreviewSend, 300);
+}
+async function revitPreviewSend(first) {
+  if (!RVP.on) return;
+  if (RVP.busy) { RVP.again = true; return; }
+  RVP.busy = true;
+  try {
+    const { data, need } = revitPreviewData();
+    await revitShapesSync(need);
+    let r = await RB.call("preview.set", data, 120000);
+    if (r.missing && r.missing.length) {                   // l'add-in non li ha (anteprima tolta da lui): di nuovo
+      for (const k of r.missing) RVP.shapes.delete(k);
+      await revitShapesSync(need);
+      r = await RB.call("preview.set", data, 120000);
+    }
+    if (first === true) toast(tr("rv.prevDone", { n: ni(data.supports), t: ni(r.triangles || 0) }));
+    await revitContextSync();
+  } catch (e) {
+    busy(null);
+    RVP.on = false; RVP.ctxSig = null; RVP.shapes.clear();
+    renderRevit();
+    toast(e.code === "noDoc" ? tr("rv.err.noDoc") : e.code === "family" ? tr("rv.err.family") : e.code === "far" ? tr("rv.err.far", { km: nf((e.data && e.data.km) || 0, 1) }) : tr("rv.prevFail", { m: e.message }), true);
+  }
+  RVP.busy = false;
+  if (RVP.again) { RVP.again = false; revitPreviewSend(); }
+}
+/* Il contesto in Revit (0.18.0, R2 bis, PIANO_Revit_ViewIFC.md §16): con l'anteprima accesa vanno all'add-in anche
+   gli IFC di contesto visibili qui (occhi dell'albero: contesto, file, classe), come secondo strato (preview.mesh):
+   colori dell'IFC, velati come nella vista 3D (0,4; i vetri 0,2), in blocchi binari per colore (RB.meshChunks).
+   Si rimanda solo quando cambia (file aperti o tolti, occhi, modello di Revit), non a ogni sostegno */
+const RV_CTX = { opacity: 0.4, glass: 0.2 };
+let rvCtxSeq = 0;
+function revitCtxSig() {
+  const vis = [];
+  if (shown("ctx")) for (const m of S.ctx) {
+    if (!shown("ctx:" + m.name)) continue;
+    m.rvSeq = m.rvSeq || ++rvCtxSeq;                     // lo stesso nome riaperto è un altro contesto
+    m.parts.forEach((p, i) => { if (shown("ctx:" + m.name + ":" + p.cls)) vis.push(m.rvSeq + "." + i); });
+  }
+  return vis.length ? [REVIT && REVIT.doc ? (REVIT.doc.path || "") + "|" + REVIT.doc.title : "", ...vis].join("|") : "";
+}
+function revitContextData() {
+  const groups = [];
+  let triangles = 0, files = 0;
+  if (shown("ctx")) for (const m of S.ctx) {
+    if (!shown("ctx:" + m.name)) continue;
+    const solid = new Map(), glass = new Map(), n0 = triangles;
+    for (const p of m.parts) if (shown("ctx:" + m.name + ":" + p.cls)) { RB.meshChunks(p.P, p.C, p.I, 60000, p.glass ? glass : solid); triangles += p.I.length / 3; }
+    if (triangles > n0) files++;
+    for (const [map, opacity] of [[solid, RV_CTX.opacity], [glass, RV_CTX.glass]])
+      for (const [color, chunks] of map)
+        groups.push({ color, opacity, origin: [m.ox, m.oy, 0], chunks: chunks.map((c) => ({ pos: RB.toB64(new Uint8Array(c.pos.buffer)), idx: RB.toB64(new Uint8Array(c.idx.buffer)) })) });
+  }
+  return { tool: "railway-ocs", layer: "context", files, triangles, groups };
+}
+async function revitContextSync() {
+  if (!RB.can(REVIT, "preview.mesh")) return;
+  const sig = revitCtxSig();
+  if (sig === (RVP.ctxSig || "")) return;
+  const t0 = performance.now(), cd = revitContextData();
+  if (cd.groups.length) busy(tr("rv.ctxSending", { t: ni(cd.triangles) }));
+  const r = await RB.call("preview.mesh", cd, 300000);
+  busy(null);
+  RVP.ctxSig = sig;
+  if (cd.groups.length) toast(tr("rv.ctxDone", { t: ni(r.triangles), n: ni(cd.files), s: nf((performance.now() - t0) / 1000, 1) }));
+}
+async function revitPreviewToggle() {
+  if (RVP.on) {
+    RVP.on = false; RVP.ctxSig = null; RVP.shapes.clear(); clearTimeout(RVP.t); renderRevit();
+    try { await RB.call("preview.clear"); } catch (e) { /* l'add-in la toglie comunque alla chiusura */ }
+    return;
+  }
+  RVP.on = true; renderRevit();
+  revitPreviewSend(true);
+}
+$("rvPrev").addEventListener("click", revitPreviewToggle);
+/* Piazzamento delle famiglie in Revit (0.15.0, PIANO_Revit_ViewIFC.md §13): i sostegni mostrati → K.revitItem
+   (famiglia, tipo e parametri del catalogo RFI dell'utente) col punto e l'asse di C.revitFrame; l'add-in li piazza o
+   li aggiorna (riconosciuti da progetto + sostegno: S.uid, fatto al primo piazzamento e salvato col progetto), in
+   una transazione sola. Modello senza coordinate condivise: l'add-in propone l'origine, qui si conferma. Elementi
+   di questo progetto non più nel progetto (keep = TUTTI i sostegni, anche dei binari nascosti): si tolgono solo
+   dopo la conferma */
+const projectUid = () => S.uid || (S.uid = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+const RV_SKIP = { portalLsu: () => tr("rv.skip.portalLsu"), double: () => tr("rv.skip.double"), mastSize: () => tr("rv.skip.mastSize"), geom: () => tr("rv.skip.geom") };
+const RV_WARN = {
+  mensType: () => tr("rv.w.mensType"), susp: () => tr("rv.w.susp"), equip: () => tr("rv.w.equip"), tieHeight: () => tr("rv.w.tieHeight"),
+  spanRange: () => tr("rv.w.spanRange"), spanType: () => tr("rv.w.spanType"),
+};
+function revitPlaceItems() {
+  const items = [], skips = {}, warns = {}, r4 = (v) => Math.round(v * 1e4) / 1e4, r9 = (v) => Math.round(v * 1e9) / 1e9;
+  for (const id of SUPG.keys()) {
+    const s = supById(id), t = s && trackById(s.track);
+    if (!t) continue;
+    const R = supResolved(s), it = K.revitItem(R, C.revitFrame(derivedOf(t).T, s, R));
+    if (it.skip) { skips[it.skip] = (skips[it.skip] || 0) + 1; continue; }
+    for (const w of it.warn) warns[w] = (warns[w] || 0) + 1;
+    items.push({ id: String(s.id), family: it.family, types: it.types, origin: it.origin.map(r4), xAxis: it.xAxis.map(r9), params: it.params,
+      comments: [s.num, t.name, prog(t.s0 + s.u)].filter((x) => x != null && x !== "").join(" · ") });
+  }
+  return { items, skips, warns };
+}
+function revitPlace() {
+  const P = revitPlaceItems();
+  if (!P.items.length) { toast(tr("rv.plNone"), true); return; }
+  const li = (o, M) => Object.entries(o).map(([k, n]) => `<li>${esc(M[k] ? M[k]() : k)}: ${ni(n)}</li>`).join("");
+  let body = `<p>${esc(tr("rv.plBody", { n: ni(P.items.length), doc: RB.docLabel(REVIT && REVIT.doc) || "—" }))}</p>`;
+  if (Object.keys(P.skips).length) body += `<p>${esc(tr("rv.plSkip"))}</p><ul>${li(P.skips, RV_SKIP)}</ul>`;
+  if (Object.keys(P.warns).length) body += `<p>${esc(tr("rv.plWarn"))}</p><ul>${li(P.warns, RV_WARN)}</ul>`;
+  if (RB.can(REVIT, "store.get")) body += `<p class="help">${esc(tr("rv.plStore"))}</p>`;
+  dlgOpen(tr("rv.plTitle"), body, [{ label: tr("prj.cancel"), run: dlgClose }, { label: tr("rv.plGo"), primary: true, run: () => { dlgClose(); revitPlaceSend(P.items); } }]);
+}
+const rvFail = (e) => toast(e.code === "noDoc" ? tr("rv.err.noDoc") : e.code === "family" ? tr("rv.err.family") : e.code === "far" ? tr("rv.err.far", { km: nf((e.data && e.data.km) || 0, 1) })
+  : e.code === "coordsSet" ? tr("rv.err.coordsSet") : tr("rv.plFail", { m: e.message }), true);
+async function revitPlaceSend(items) {
+  const key = "railway-ocs:" + projectUid(), keep = S.supports.map((s) => String(s.id));
+  saveNow();                                              // l'uid del progetto resta col progetto
+  busy(tr("rv.plGo") + "…");
+  try {
+    const store = RB.can(REVIT, "store.get") ? await revitStorePayload() : null, args = { key, items, keep };
+    if (store) args.store = store;                        // R3: il progetto anche nel modello, nella stessa transazione
+    const r = await RB.call("place", args, 600000);
+    busy(null);
+    if (r.stored && REVIT.doc) REVIT.doc.stored = [...(REVIT.doc.stored || []).filter((e) => e.key !== key), r.stored];
+    const v = { a: ni(r.placed), b: ni(r.updated), s: nf(r.ms / 1000, 1) };
+    toast(r.stored ? tr("rv.plDoneSt", v) : tr("rv.plDone", v));
+    if (store && !r.stored) toast(tr("rv.stBusy"), true);
+    if (r.failed && r.failed.length) toast(tr("rv.plNotPlaced", { n: ni(r.failed.length), list: [...new Set(r.failed.map((f) => f.why))].join("; ") }), true);
+    if (r.orphans > 0) {
+      dlgOpen(tr("rv.pruneTitle"), `<p>${esc(tr("rv.pruneBody", { n: ni(r.orphans) }))}</p>`, [{ label: tr("prj.cancel"), run: dlgClose }, { label: tr("rv.pruneGo"), primary: true, run: async () => {
+        dlgClose();
+        try { const p = await RB.call("place.prune", { key, keep }, 120000); toast(tr("rv.pruneDone", { n: ni(p.removed) })); } catch (e) { rvFail(e); }
+      } }]);
+    }
+  } catch (e) {
+    busy(null);
+    if (e.code !== "noCoords") { rvFail(e); return; }
+    const d = e.data || {};
+    dlgOpen(tr("rv.coordTitle"), `<p>${esc(tr("rv.coordBody", { km: nf(d.km || 0, 1), e: nf(d.E, 0), n: nf(d.N, 0), z: nf(d.Z, 0) }))}</p>`, [{ label: tr("prj.cancel"), run: dlgClose }, { label: tr("rv.coordGo"), primary: true, run: async () => {
+      dlgClose();
+      try { await RB.call("coords.setup", { E: d.E, N: d.N, Z: d.Z }); revitPlaceSend(items); } catch (e2) { rvFail(e2); }
+    } }]);
+  }
+}
+$("rvPlace").addEventListener("click", revitPlace);
 document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("click", () => applyLang(b.dataset.lang)));
 (function initTheme() {
   const meta = document.querySelector('meta[name="theme-color"]');
@@ -4340,6 +4860,7 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
   let lang = "it";
   try { lang = localStorage.getItem("viewifc_tool_lang") || (navigator.language || "it").slice(0, 2); } catch (e) {}
   LANG = I18N[lang] ? lang : "it";
+  const rvReady = initRevit();
   if (innerWidth < 900 && localStorage.getItem(UI_KEY) == null) { S.podOff = true; S.treeOff = true; }
   applyPanels();
   $("bFast").classList.toggle("on", S.fast);
@@ -4353,6 +4874,7 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
   requestAnimationFrame(tick);
   if (saved && S.tracks.length) toast(tr("t.restored", { d: new Date(saved.t).toLocaleString(LANG === "en" ? "en-GB" : "it-IT", { dateStyle: "medium", timeStyle: "short" }) }));
   else openSheet();
+  rvReady.then(() => { RVST.ready = true; revitStoreCheck(); });   // dentro Revit: il progetto salvato nel modello, dopo quello del browser
 })();
 /* aggancio per le prove dal browser: stato e funzioni, niente dati in rete */
 window.__ocs = { C, IO, get S() { return S; }, get A() { return A; }, TA, derivedOf, camera, camP, controls, ctlP, frameAll, setPlan, setFast, zoomAt, openFiles, saveNow, snapshot, buildScene, drawPV,
