@@ -585,9 +585,16 @@ main.left-off .left-resize{display:none}
 @keyframes idsspin{to{transform:rotate(360deg)}}
 /* ===== CLASH (feature/clash v2.6.0) ===== */
 :root{--clash-a:#d93025;--clash-b:#2e9e44}
-#clashPane .clash-opts{display:flex;gap:6px;align-items:center;margin-top:9px}
-#clashPane .clash-opts .qto-sel{flex:1;margin-top:0;width:auto}
-#clashTol{width:70px;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--text);font:inherit;font-size:13px;padding:6px 8px;text-align:right;user-select:text}
+/* tipo di test a tutta larghezza, tolleranza su una riga sua (2.10.3): il <select>
+   chiede ~225 px (l'opzione più lunga) e il pannello ne dà 188–282, sulla stessa
+   riga il campo usciva dal bordo e «mm» spariva */
+#clashPane .clash-opts{display:flex;flex-direction:column;gap:9px;margin-top:9px}
+#clashPane .clash-opts .qto-sel{margin-top:0;min-width:0}
+.clash-tolrow{display:flex;align-items:center;gap:8px}
+.clash-tolrow .qto-lbl{flex:1;margin-top:0}
+.clash-tol{flex:0 0 auto;display:flex;align-items:center;gap:5px;width:96px;height:32px;padding:0 10px;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;cursor:text}
+.clash-tol:focus-within{border-color:var(--lime-deep)}
+#clashTol{flex:1;min-width:0;width:100%;background:none;border:none;outline:none;color:var(--text);font:inherit;font-size:13px;text-align:right;user-select:text}
 .clash-unit{font-family:var(--mono);font-size:11px;color:var(--muted)}
 #clashControls{flex:1;overflow-y:auto;padding:13px 15px;user-select:none}
 #clashLeftNote{padding:14px 2px}
@@ -647,10 +654,9 @@ main.left-off .left-resize{display:none}
 .clash-mtx{margin-top:12px;padding-top:9px;border-top:1px solid var(--line)}
 .clash-mtx-head{display:flex;align-items:center;gap:6px}
 .clash-mtx-head .qto-lbl{flex:1;margin-top:0}
-.mtx-btn{flex:0 0 auto;width:26px;height:26px;border:1px solid var(--line-2);border-radius:6px;background:var(--panel-2);color:var(--text);cursor:pointer;font-size:13px;line-height:1}
-.mtx-btn:hover:not(:disabled){border-color:var(--lime-deep)}
-.mtx-btn:disabled{opacity:.45;cursor:not-allowed}
-.clash-mtx-head .pc-add{width:26px;height:26px}
+/* ⤓ modello e ＋ carica: lo stesso micro-bottone .pc-add (2.10.3; il ⤓ aveva una
+   classe sua che non azzerava il padding dei button → più largo e glifo in basso) */
+.clash-mtx-head .pc-add{flex:0 0 auto;width:26px;height:26px}
 #clashMtxInfo{margin-top:6px}
 #clashMtxInfo:empty{display:none}
 #clashMtxInfo .mtx-err{font-family:var(--mono);font-size:10.5px;color:#C0392B;line-height:1.5;margin-top:4px}
@@ -1562,14 +1568,19 @@ body.diff-embed #railDiff{display:flex}
               <option value="hard" data-i18n="clash.hard">Hard — compenetrazione</option>
               <option value="clearance" data-i18n="clash.clearance">Clearance — distanza minima</option>
             </select>
-            <input id="clashTol" type="text" inputmode="decimal" value="50" data-i18n-title="clash.tolT" title="Tolleranza in millimetri. Hard: le compenetrazioni sotto la soglia sono ignorate. Clearance: distanza minima richiesta tra gli elementi.">
-            <span class="clash-unit">mm</span>
+            <div class="clash-tolrow">
+              <label class="qto-lbl" for="clashTol" data-i18n="clash.tol">Tolleranza</label>
+              <label class="clash-tol" data-i18n-title="clash.tolT" title="Tolleranza in millimetri. Hard: le compenetrazioni sotto la soglia sono ignorate. Clearance: distanza minima richiesta tra gli elementi.">
+                <input id="clashTol" type="text" inputmode="decimal" value="50">
+                <span class="clash-unit">mm</span>
+              </label>
+            </div>
           </div>
           <button id="btnClashRun" class="ids-run" data-i18n="clash.run" disabled>▶ Esegui clash</button>
           <div class="clash-mtx">
             <div class="clash-mtx-head">
               <span class="qto-lbl" data-i18n="clash.mtxTitle">Matrice interferenze (CSV)</span>
-              <button id="btnClashMtxTpl" class="mtx-btn" data-i18n-title="clash.mtxTpl" title="Scarica un modello CSV con i set dei modelli caricati">⤓</button>
+              <button id="btnClashMtxTpl" class="pc-add" data-i18n-title="clash.mtxTpl" title="Scarica un modello CSV con i set dei modelli caricati">⤓</button>
               <button id="btnClashMtxLoad" class="pc-add" data-i18n-title="clash.mtxLoad" title="Carica matrice interferenze (.csv)">＋</button>
             </div>
             <div id="clashMtxInfo"></div>
@@ -1851,16 +1862,16 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
    bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
    ogni release il .js vecchio in cache non viene più usato. vendor/ resta
    senza versione: cambia solo quando si aggiornano three o web-ifc. */
-import { readLASHeader, parseLAS } from "./las.js?v=2.10.2";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
-import { parseE57, e57PointCount } from "./e57.js?v=2.10.2";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js?v=2.10.2";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.2";  // feature QTO (v2.5.0)
+import { readLASHeader, parseLAS } from "./las.js?v=2.10.3";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.10.3";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.10.3";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.3";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.2";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.3";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.2";  // studio verifica nuvola ↔ modello
-import * as SRCH from "./search.js?v=2.10.2";                          // feature Cerca (v2.10.0): confronti, regole, CSV
-import * as CAPS from "./caps.js?v=2.10.2";                            // tappi pieni delle sezioni (v2.10.2)
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.3";  // studio verifica nuvola ↔ modello
+import * as SRCH from "./search.js?v=2.10.3";                          // feature Cerca (v2.10.0): confronti, regole, CSV
+import * as CAPS from "./caps.js?v=2.10.3";                            // tappi pieni delle sezioni (v2.10.2)
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -1954,7 +1965,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.10.2";
+const APP_VERSION = "2.10.3";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2067,6 +2078,7 @@ const STRINGS = {
     "clash.grpModels": "Modelli", "clash.grpClasses": "Classi IFC",
     "clash.hard": "Hard — compenetrazione",
     "clash.clearance": "Clearance — distanza minima",
+    "clash.tol": "Tolleranza",
     "clash.tolT": "Tolleranza in millimetri. Hard: le compenetrazioni sotto la soglia sono ignorate. Clearance: distanza minima richiesta tra gli elementi.",
     "clash.run": "▶ Esegui clash", "clash.rerun": "▶ Riesegui clash",
     "clash.stop": "■ Ferma",
@@ -2626,6 +2638,7 @@ const STRINGS = {
     "clash.grpModels": "Models", "clash.grpClasses": "IFC classes",
     "clash.hard": "Hard — interpenetration",
     "clash.clearance": "Clearance — minimum distance",
+    "clash.tol": "Tolerance",
     "clash.tolT": "Tolerance in millimetres. Hard: penetrations below the threshold are ignored. Clearance: minimum distance required between elements.",
     "clash.run": "▶ Run clash", "clash.rerun": "▶ Re-run clash",
     "clash.stop": "■ Stop",
