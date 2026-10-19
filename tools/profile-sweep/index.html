@@ -892,6 +892,14 @@ const I18N = {
     "dz.name": "Opera disegnata", "dz.planFile": "Pianta disegnata nel tool", "dz.profFile": "Profilo scritto nel tool",
     "dz.done": "«{w}»: {m} m. Il profilo è provvisorio (1 m sotto il DTM ai vertici della pianta): modificalo nella lastra (M).",
     "exp.plan": "Pianta 2D (DXF)", "exp.planT": "Le piante delle opere accese come polilinee 2D con gli archi, in coordinate di mappa: da riportare nel CAD",
+    "ve.sub": "Velo (superficie finita)", "ve.fmt": "Formato", "ve.xml": "TIN LandXML (.xml)", "ve.xyz": "Punti a griglia (.xyz)", "ve.grd": "Griglia Surfer (.grd)",
+    "ve.step": "Passo della griglia", "ve.btn": "Esporta il velo", "ve.busy": "Preparo il velo…", "ve.file": "velo", "ve.grid": "griglia {s} cm",
+    "ve.help": "Per l'idraulica: la superficie finita delle opere accese vista dall'alto, un file per opera. Interno del canale o del fosso, cima dei muri, banchine e scarpe fino al terreno; sopra il tubo il terreno ripristinato o il rilevato; nei ponti la struttura. Le pareti verticali (muri a piombo, salti) diventano scarpe larghe 1 cm: una TIN non ha due quote nello stesso punto. Nei punti a griglia e nel .grd i nodi stanno sui multipli del passo in coordinate di mappa (quelli di file diversi combaciano); il .grd è quello binario di Surfer, letto anche da QGIS e Global Mapper, coi nodi fuori dall'opera vuoti.",
+    "ve.noDtm": "Senza DTM le scarpe non arrivano al terreno: il velo è la sola opera.",
+    "ve.desc": "Superficie finita: interno dell'opera, cima dei muri, banchine e scarpe fino al terreno",
+    "ve.done": "Velo di «{w}»: {n} triangoli, {a} m² in pianta", "ve.doneG": "Velo di «{w}»: {n} nodi ogni {s} cm", "ve.none": "«{w}»: niente superficie da esportare",
+    "ve.big": "«{w}»: la griglia sarebbe di {nx} × {ny} nodi, troppi per il browser: alza il passo o usa la TIN", "ve.s7": "«{w}»: oltre 32 767 nodi per lato, il .grd è nel formato di Surfer 7",
+    "ve.err": "Non riesco a fare il velo: {e}",
     "tv.sub": "Tavole (DXF)", "tv.btn": "Profili e sezioni (.dxf)", "tv.file": "tavole", "tv.subP": "Profilo longitudinale: righe della chitarra",
     "sc.sub": "Sezioni correnti", "sc.on": "Nello stesso file, sotto il profilo", "sc.step": "Una sezione ogni", "sc.guitar": "Chitarrina", "sc.marks": "Quote sul disegno", "sc.areas": "Aree",
     "sc.help": "1:100 non deformate (la stessa finestra delle quote del profilo), in griglia sotto la chitarra della loro opera, in ordine di progressiva. Oltre al passo: vertici di progetto, salti (1 m a monte e a valle), cambi di sezione, capi dei ponti. Terreno dal DTM, opera e scavo dalla sezione del tratto; nei ponti solo l'opera.",
@@ -1186,6 +1194,14 @@ const I18N = {
     "dz.name": "Drawn work", "dz.planFile": "Plan drawn in the tool", "dz.profFile": "Profile written in the tool",
     "dz.done": "«{w}»: {m} m. The profile is provisional (1 m below the DTM at the plan vertices): edit it in the profile strip (M).",
     "exp.plan": "Plan 2D (DXF)", "exp.planT": "The plans of the visible works as 2D polylines with arcs, in map coordinates: to bring back into CAD",
+    "ve.sub": "Finished surface", "ve.fmt": "Format", "ve.xml": "LandXML TIN (.xml)", "ve.xyz": "Grid points (.xyz)", "ve.grd": "Surfer grid (.grd)",
+    "ve.step": "Grid spacing", "ve.btn": "Export the surface", "ve.busy": "Building the surface…", "ve.file": "finished surface", "ve.grid": "grid {s} cm",
+    "ve.help": "For hydraulics: the finished surface of the visible works seen from above, one file per work. Inside of the channel or ditch, wall tops, berms and slopes down to the ground; over the pipe the reinstated ground or the embankment; on bridges the structure. Vertical walls (plumb walls, drops) become 1 cm wide slopes: a TIN cannot hold two levels at the same point. In grid points and .grd the nodes sit on multiples of the spacing in map coordinates (those of different files line up); the .grd is Surfer's binary one, also read by QGIS and Global Mapper, with the nodes outside the work left blank.",
+    "ve.noDtm": "Without a DTM the slopes do not reach the ground: the surface is the work alone.",
+    "ve.desc": "Finished surface: inside of the work, wall tops, berms and slopes down to the ground",
+    "ve.done": "Surface of «{w}»: {n} triangles, {a} m² in plan", "ve.doneG": "Surface of «{w}»: {n} nodes every {s} cm", "ve.none": "«{w}»: no surface to export",
+    "ve.big": "«{w}»: the grid would have {nx} × {ny} nodes, too many for the browser: raise the spacing or use the TIN", "ve.s7": "«{w}»: more than 32,767 nodes per side, the .grd is in the Surfer 7 format",
+    "ve.err": "Could not build the surface: {e}",
     "tv.sub": "Drawings (DXF)", "tv.btn": "Profiles and sections (.dxf)", "tv.file": "drawings", "tv.subP": "Longitudinal profile: table rows",
     "sc.sub": "Cross sections", "sc.on": "In the same file, below the profile", "sc.step": "One section every", "sc.guitar": "Small table", "sc.marks": "Levels on the drawing", "sc.areas": "Areas",
     "sc.help": "Undistorted 1:100 (the same viewport as the profile levels), in a grid below their work's table, by chainage. Besides the spacing: design vertices, drops (1 m upstream and downstream), section changes, bridge ends. Ground from the DTM, work and excavation from the stretch's section; on bridges only the work.",
@@ -1251,12 +1267,12 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.21.0";
-import * as IO from "./profile-io.js?v=0.21.0";
+import * as C from "./profile-core.js?v=0.22.0";
+import * as IO from "./profile-io.js?v=0.22.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.21.0";
+const TOOL_VERSION = "0.22.0";
 /* il triangolatore dei tappi dei tagli (0.18): earcut di three.js, passato al motore (che resta senza import) */
 const TRI = (c, h) => THREE.ShapeUtils.triangulateShape(c.map(([x, y]) => new THREE.Vector2(x, y)), h.map((r) => r.map(([x, y]) => new THREE.Vector2(x, y))));
 const $ = (id) => document.getElementById(id);
@@ -1348,6 +1364,9 @@ const TV_ROWS = [{ k: "pts", l: () => tr("tv.rPts") }, { k: "zT", l: () => tr("t
 /* tabulato dei movimenti terra (0.17): nello stesso file, a destra delle sezioni (serve che ci siano) */
 const newTav = (t = {}) => ({ rows: TV_ROWS.map((r) => r.k), tol: 0.05, gap: 2.5, sec: true, step: 25, sGuitar: true, sMarks: true, sAreas: true, earth: true, plan: true, pScale: 1000, ...t });
 const PL_SCALES = [500, 1000, 2000, 5000];       // scale della pianta georeferita nelle tavole (scelta dell'utente: più scale)
+/* velo (0.22): formato (TIN LandXML, punti a griglia, .grd di Surfer) e passo della griglia (m; 10 cm: quello chiesto dall'idraulico) */
+const VE_FMTS = ["xml", "xyz", "grd"], VE_LABEL = { xml: () => tr("ve.xml"), xyz: () => tr("ve.xyz"), grd: () => tr("ve.grd") };
+const newVelo = (v = {}) => { const o = { fmt: "xml", step: 0.1, ...v }; if (!VE_FMTS.includes(o.fmt)) o.fmt = "xml"; if (!(o.step > 0)) o.step = 0.1; return o; };
 const S = {
   works: [],             // opere del progetto
   active: -1,            // indice dell'opera attiva: pannello, profilo e ancoraggi parlano di lei
@@ -1362,6 +1381,7 @@ const S = {
   ctxInFile: true,       // «Salva progetto» mette il contesto dentro il file (l'ultima scelta)
   name: "",              // nome del progetto (file in uscita)
   tav: newTav(),         // tavole (0.16): righe della chitarra, scarto del terreno, distanza fra le colonne
+  velo: newVelo(),       // velo (0.22): formato e passo della griglia
   pset: null,            // modello dei Pset dell'IFC (0.19, tools/common/pset-core.js); null = quello di partenza
   uid: null,             // id del progetto per Revit (0.21, PIANO_Revit_ViewIFC.md §18): chiave «profile-sweep:<uid>» degli elementi e del progetto nel modello; si fa al primo invio
   psPart: 0,             // tratto dell'anteprima dei Pset (non si salva)
@@ -5432,8 +5452,10 @@ function renderExport() {
     + `<div class="btns"><button id="expDxf"${okAx ? "" : " disabled"}>${esc(tr("exp.dxf"))}</button><button id="expXml"${okAx ? "" : " disabled"}>${esc(tr("exp.xml"))}</button>`
     + `<button id="expPlan"${exported().some((w) => derivedOf(w).axis) ? "" : " disabled"} title="${esc(tr("exp.planT"))}">${esc(tr("exp.plan"))}</button></div>`
     + `<p class="help">${esc(tr("exp.note"))}</p>`
+    + renderVelo(okDitch)
     + renderTav(okAx);
   $("expName").addEventListener("change", (e) => { S.name = e.target.value.trim(); scheduleSave(); });
+  bindVelo();
   bindTav();
   $("expIfc").addEventListener("click", fastGuard(exportIFC));
   $("expCsv").addEventListener("click", fastGuard(exportCSV));
@@ -5441,6 +5463,25 @@ function renderExport() {
   $("expXml").addEventListener("click", exportXML);
   $("expPlan").addEventListener("click", exportPlanDXF);
   $("exp3dm").addEventListener("click", fastGuard(export3dm));
+}
+/* velo (0.22) nel pannello Esporta: formato e passo della griglia (si usa per i punti e il .grd) */
+function renderVelo(ok) {
+  const V = S.velo;
+  return `<div class="sub">${esc(tr("ve.sub"))}</div>`
+    + `<div class="row"><label for="veFmt">${esc(tr("ve.fmt"))}</label><select id="veFmt" class="txt">${VE_FMTS.map((f) => `<option value="${f}"${f === V.fmt ? " selected" : ""}>${esc(VE_LABEL[f]())}</option>`).join("")}</select></div>`
+    + `<div class="pgrid"><label for="veStep">${esc(tr("ve.step"))}<span class="numbox"><input type="number" id="veStep" step="any" min="1" value="${+(V.step * 100).toFixed(2)}"${V.fmt === "xml" ? " disabled" : ""}><span>cm</span></span></label></div>`
+    + `<div class="btns"><button id="expVelo"${ok ? "" : " disabled"}>${esc(tr("ve.btn"))}</button></div>`
+    + `<p class="help">${esc(tr("ve.help"))}${TIN ? "" : " " + esc(tr("ve.noDtm"))}</p>`;
+}
+function bindVelo() {
+  $("veFmt").addEventListener("change", (e) => { S.velo = newVelo({ ...S.velo, fmt: e.target.value }); $("veStep").disabled = S.velo.fmt === "xml"; scheduleSave(); });
+  $("veStep").addEventListener("change", (e) => {
+    const v = Number(e.target.value) / 100;
+    if (e.target.value === "" || !(v >= 0.01)) { renderExport(); return; }
+    S.velo = newVelo({ ...S.velo, step: v });
+    scheduleSave();
+  });
+  $("expVelo").addEventListener("click", fastGuard(exportVelo));
 }
 /* tavole (0.16) nel pannello Esporta: le righe della chitarra da mettere (scelta dell'utente: si decide qui),
    scarto dei punti del terreno (cm) e distanza minima fra le colonne (m) */
@@ -5739,7 +5780,7 @@ $("trNew").addEventListener("click", () => {
     return;
   }
   b.classList.remove("armed"); b.textContent = tr("tr.new");
-  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = ""; S.dtmRefs = []; S.dtmPaths = {}; S.ctx = []; S.ctxRefs = []; S.tav = newTav(); S.pset = null; S.uid = null;
+  S.works = []; S.spare = []; S.dtms = []; S.hidden = {}; S.name = ""; S.dtmRefs = []; S.dtmPaths = {}; S.ctx = []; S.ctxRefs = []; S.tav = newTav(); S.pset = null; S.uid = null; S.velo = newVelo();
   DW.clear(); TIN = null; setActive(-1);
   undo.length = 0; redo.length = 0; updateUndo();
   refreshViews(); scheduleSave(); openSheet();
@@ -5850,12 +5891,46 @@ function exportSheets() {
   download(fileBase() + " - " + tr("tv.file") + ".dxf", IO.profileSheetsDXF({ sheets, rows, labels, cross: { guitar: T.sGuitar, marks: T.sMarks, areas: T.sAreas },
     plan: T.plan ? { scale: T.pScale } : null, summary }), "application/dxf");
 }
+const stampNow = () => {
+  const d = new Date(), pad = (n) => String(n).padStart(2, "0");
+  return { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` };
+};
 function exportXML() {
   const ws = exportWorks(false);
   if (!ws.length) return;
-  const d = new Date(), pad = (n) => String(n).padStart(2, "0");
-  const stamp = { date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, time: `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` };
-  download(fileBase() + ".xml", IO.landXML({ alignments: ws.map((x) => ({ name: x.name, axis: x.axis, pvi: x.pvi })), stamp }), "application/xml");
+  download(fileBase() + ".xml", IO.landXML({ alignments: ws.map((x) => ({ name: x.name, axis: x.axis, pvi: x.pvi })), stamp: stampNow() }), "application/xml");
+}
+/* Velo (0.22): per ogni opera accesa la superficie finita vista dall'alto (C.veloTin sulle superfici dei tratti, nelle coordinate
+   locali dell'opera), un file per opera (scelta dell'utente 2026-10-19: «fammi 4 file separati»), nel formato scelto */
+async function exportVelo() {
+  const ws = exported().map((w) => ({ w, d: derivedOf(w) })).filter(({ d }) => d.parts && d.parts.length && d.O);
+  if (!ws.length) return;
+  const btn = $("expVelo"), label = btn.textContent, V = S.velo, cm = +(V.step * 100).toFixed(2);
+  btn.disabled = true; btn.textContent = tr("ve.busy");
+  try {
+    const Del = await loadDelaunator();
+    await new Promise((r) => setTimeout(r, 30));                 // il testo del pulsante si vede prima del lavoro
+    const stamp = stampNow(), clean = (s) => String(s).replace(/[\\/:*?"<>|]+/g, "_").trim();
+    for (const { w, d } of ws) {
+      const tin = C.veloTin(C.veloSets(d.parts), Del);
+      if (!tin || !tin.tri.length) { toast(tr("ve.none", { w: w.name }), true); continue; }
+      const head = (fileBase() === clean(w.name) ? fileBase() : fileBase() + " - " + clean(w.name)) + " - " + tr("ve.file");
+      if (V.fmt === "xml") {
+        download(head + ".xml", IO.veloLandXML({ surfaces: [{ name: w.name, desc: tr("ve.desc"), tin, O: d.O }], stamp }), "application/xml");
+        toast(tr("ve.done", { w: w.name, n: ni(tin.tri.length / 3), a: ni(tin.area) }));
+        continue;
+      }
+      let g;
+      try { g = C.veloGrid(tin, d.O, V.step); } catch (e) { if (!e.nodes) throw e; toast(tr("ve.big", { w: w.name, nx: ni(e.nx), ny: ni(e.ny) }), true); continue; }
+      const tag = " " + tr("ve.grid", { s: nf(cm, cm % 1 ? 1 : 0) });
+      if (V.fmt === "xyz") download(head + tag + ".xyz", IO.gridXYZ(g), "text/plain");
+      else { const r = IO.surferGrid(g); download(head + tag + ".grd", r.bytes, "application/octet-stream"); if (r.version === 7) { toast(tr("ve.s7", { w: w.name }), true); continue; } }
+      toast(tr("ve.doneG", { w: w.name, n: ni(g.n), s: nf(cm, cm % 1 ? 1 : 0) }));
+    }
+  } catch (e) {
+    console.error(e);
+    toast(tr("ve.err", { e: e.message || String(e) }), true);
+  } finally { btn.disabled = false; btn.textContent = label; }
 }
 function exportIFC() {
   const ws = exportWorks(true);
@@ -6135,7 +6210,7 @@ function snapshot() {
   return {
     v: 2, name: S.name, active: S.active, seq: S.seq, dtms: S.dtms, hidden: S.hidden,
     dtmRefs: S.dtmRefs, dtmPaths: Object.fromEntries(Object.entries(S.dtmPaths).filter(([k]) => names.has(k))), dtmInFile: S.dtmInFile,
-    ctx: S.ctx, ctxRefs: S.ctxRefs, ctxInFile: S.ctxInFile, tav: S.tav, pset: S.pset, uid: S.uid,
+    ctx: S.ctx, ctxRefs: S.ctxRefs, ctxInFile: S.ctxInFile, tav: S.tav, pset: S.pset, uid: S.uid, velo: S.velo,
     works: S.works.map((w) => ({ ...w, plan: strip(w.plan), prof: strip(w.prof) })),
     spare: S.spare.map(strip), drawings: [...drawings.values()],
   };
@@ -6171,6 +6246,7 @@ function restore(doc) {
   S.dtmRefs = doc.dtmRefs || []; S.dtmPaths = doc.dtmPaths || {}; S.dtmInFile = doc.dtmInFile !== false;
   S.ctx = doc.ctx || []; S.ctxRefs = doc.ctxRefs || []; S.ctxInFile = doc.ctxInFile !== false;
   S.tav = newTav(doc.tav || {});
+  S.velo = newVelo(doc.velo || {});
   S.pset = doc.pset ? PSET.normalize(doc.pset) : null;
   S.uid = doc.uid || null;
   S.seq = Math.max(doc.seq || 1, ...S.works.map((w) => w.id + 1), ...S.works.flatMap((w) => w.secs.map((r) => r.id + 1)), ...[...dr.keys()].map((k) => k + 1));

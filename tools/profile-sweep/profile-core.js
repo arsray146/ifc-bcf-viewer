@@ -1685,6 +1685,29 @@ export function channelRings(sh, cr, T, { nS = 10 } = {}) {
   return { cut, right: side(1), left: side(-1), bottom, top };
 }
 
+/**
+ * La superficie finita di una sezione del canale (il velo, 0.22): [[u, v]…] da sinistra a destra, a topologia fissa per la mesh.
+ * Canale aperto: piede (o ciglio) della scarpa finita, banchina e cima dei muri a H, le pareti e il fondo interni (sh.inner, smussi
+ * compresi), poi lo stesso a destra; fra la banchina e il piede F è una retta: bastano i capi. Scatolare: F = max(terreno, rilevato)
+ * da piede a piede, nS campioni per scarpa e 8 sopra la soletta, col campione libero dove il terreno passa la cima del rilevato.
+ * Sezione asciutta (senza terreno sotto): solo l'opera, cima dei muri e interno o estradosso della soletta; i punti delle scarpe
+ * restano sui bordi (doppi: i triangoli nulli si tolgono).
+ */
+function channelFinish(sh, cr, T, { nS = 10 } = {}) {
+  const { uoT, ub, H } = sh;
+  if (!sh.roof) {
+    if (cr.dry) return [[-uoT, H], [-uoT, H], [-uoT, H], ...sh.inner, [uoT, H], [uoT, H], [uoT, H]];
+    return [[cr.L.u, cr.L.v], [-ub, H], [-uoT, H], ...sh.inner, [uoT, H], [ub, H], [cr.R.u, cr.R.v]];
+  }
+  const us = [], fx = [];
+  const seg = (a, b, n) => { for (let j = 0; j < n; j++) { us.push(a + (b - a) * j / n); fx.push(j === 0); } };
+  if (cr.dry) { seg(-uoT, -uoT, nS); seg(-uoT, uoT, 8); seg(uoT, uoT, nS); us.push(uoT); return us.map((u) => [u, sh.vC]); }
+  const L = Math.min(cr.L.u, -ub), R = Math.max(cr.R.u, ub);
+  seg(L, -ub, nS); seg(-ub, ub, 8); seg(ub, R, nS); us.push(R); fx.push(true);
+  snapCross(us, fx, (u) => T(u) - cr.Fe(u));
+  return us.map((u) => { const f = cr.F(u); return [u, Number.isFinite(f) ? f : cr.Fe(u)]; });
+}
+
 /** Area del poligono di un anello [[u, basso, alto]…]. */
 export const ringArea = (r) => Math.abs(shoelace([...r.map(([u, l]) => [u, l]), ...r.slice().reverse().map(([u, , h]) => [u, h])]));
 
@@ -1722,7 +1745,8 @@ function runsOf(arr, pred) {
  * k0 = numerazione dei tratti, shapeAt(p) = la sezione a ogni progressiva
  * (raccordi); sh.roof = scatolare (la soletta va nel cls).
  * Ritorna { parts: [{ k, p0, p1, length, vol, mesh, miss, n, drops }], drops, miss, length, vol };
- *   vol e mesh: lining (U + soletta + muri di testa), lean (magrone), mix (cunei in misto cementato), cut (scavo), fill (rinterro).
+ *   vol e mesh: lining (U + soletta + muri di testa), lean (magrone), mix (cunei in misto cementato), cut (scavo), fill (rinterro);
+ *   solo mesh: surface (la superficie finita, aperta: il velo, 0.22).
  */
 export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, step = 1, cuts = [], du = 0.1, reach = 50, nS = 10, p0: r0 = -Infinity, p1: r1 = Infinity, k0 = 0, shapeAt = null, extra: more = [] } = {}) {
   const KEYS = ["lining", "lean", "mix", "cut", "fill"];
@@ -1845,6 +1869,8 @@ export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }
       cut: mergeMeshes([band(uniq, (s) => rg.get(s).cut)]),
       fill: mergeMeshes([band(secs, (s) => rg.get(s).right), band(secs, (s) => rg.get(s).left), band(secs, (s) => rg.get(s).bottom),
         roofed ? band(uniq, (s) => rg.get(s).top) : null]),
+      // la superficie finita (0.22, il velo; aperta, come quella del fosso): la zona delle stazioni doppie tocca solo lo scavo
+      surface: compactMesh(loftOpen(uniq.map((s) => channelFinish(s.sh, s.cr, s.T, { nS }).map(([u, v]) => P3(s, u, v))))),
     };
     const miss = uniq.filter((s) => !s.cr.ok).length;
     res.parts.push({ k: k0 + res.parts.length + 1, p0, p1, length, vol, mesh, bands, miss, n: uniq.length,
@@ -2135,6 +2161,22 @@ export function pipeRings(sh, cr, T, { nS = 8, nB = 3, nE = 6 } = {}) {
   };
 }
 
+/**
+ * La superficie finita sopra la trincea (il velo, 0.22): S = max(terreno, rilevato) dal bordo più esterno a sinistra (ciglio dello
+ * scavo, parete su S o piede del rilevato) a quello a destra, nS campioni per lato e 6 sopra la trincea; col rilevato i campioni
+ * liberi vanno sulla fine della banchina e dove il terreno passa la cima del rilevato. Senza rilevato è il terreno ripristinato.
+ * Sezione asciutta: niente (tutti i punti sull'asse, triangoli nulli).
+ */
+function pipeFinish(sh, cr, T, { nS = 8 } = {}) {
+  const hw = cr.W / 2, us = [], fx = [];
+  const seg = (a, b, n) => { for (let j = 0; j < n; j++) { us.push(a + (b - a) * j / n); fx.push(j === 0); } };
+  if (cr.dry) return Array.from({ length: 2 * nS + 7 }, () => [0, sh.vt]);
+  const x0 = Math.min(cr.EL.u, cr.SL.u, cr.toeL.u, -hw), x1 = Math.max(cr.ER.u, cr.SR.u, cr.toeR.u, hw);
+  seg(x0, -hw, nS); seg(-hw, hw, 6); seg(hw, x1, nS); us.push(x1); fx.push(true);
+  if (sh.emb) { for (const x of [-cr.ub, cr.ub]) if (x > x0 && x < x1) snapAt(us, fx, x); snapCross(us, fx, (u) => T(u) - cr.Fe(u)); }
+  return us.map((u) => { const s = cr.S(u); return [u, Number.isFinite(s) ? s : cr.vTop]; });
+}
+
 /** Tubo cavo fra anelli (esterno, interno: N punti ciascuno): pareti e corone ai capi; verso dal volume. */
 function loftTube(outer, inner) {
   const n = outer.length, N = outer[0].length, P = new Float64Array(n * 2 * N * 3), I = [];
@@ -2160,7 +2202,8 @@ function loftTube(outer, inner) {
  * EN 1610 sul tratto, o quella data), sezioni, volumi per sezioni ragguagliate,
  * superficie da blindare e mesh nelle coordinate locali (x − O.x, y − O.y, z).
  * Ritorna { parts: [{ k, p0, p1, length, vol, shore, width, walls, minCov, minCovF, low, bank, mesh, miss, n, sections }], drops, miss, length, vol, shore }.
- *   vol e mesh: pipe (tubo), bed (letto), surround (rinfianco), cover (ricoprimento), fill (reinterro), restore (ripristino), cut (scavo), emb (rilevato).
+ *   vol e mesh: pipe (tubo), bed (letto), surround (rinfianco), cover (ricoprimento), fill (reinterro), restore (ripristino), cut (scavo), emb (rilevato);
+ *   solo mesh: surface (la superficie finita sopra la trincea, aperta: il velo, 0.22).
  *   minCov / minCovF: ricoprimento minimo dal terreno / dalla superficie finita { v, p }; low: tratti col
  *   ricoprimento dal terreno sotto p.covMin, bank: tratti in rilevato — [{ p0, p1, v }] (v: il minimo, l'altezza massima).
  * 0.9: p0/p1 = solo quel pezzo dell'asse, k0 = numerazione dei tratti, shapeAt(p) = il tubo a ogni
@@ -2266,7 +2309,8 @@ export function pipeSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, s
     // il verso da una scatola sulle stesse stazioni: lo scavo può mancare del tutto (tubo in rilevato) e un volume ~0 non orienta
     const fl = uniq.length > 1 ? loftBand(uniq.map((s) => [P3(s, -1, 0), P3(s, 1, 0), P3(s, 1, 1), P3(s, -1, 1)])).flipped : false;
     const band = (key) => { if (!rg[0][key]) return null; const r = ringsOf(key); return compactMesh(loftBand(r.rings, fl, r.zeros)); };
-    const mesh = { pipe, cut: band("cut"), bed: band("bed"), surround: mergeMeshes([band("surroundLow"), band("surroundUp")]), cover: band("cover"), fill: band("fill"), restore: band("restore"), emb: band("emb") };
+    const mesh = { pipe, cut: band("cut"), bed: band("bed"), surround: mergeMeshes([band("surroundLow"), band("surroundUp")]), cover: band("cover"), fill: band("fill"), restore: band("restore"), emb: band("emb"),
+      surface: compactMesh(loftOpen(uniq.map((s) => pipeFinish(s.sh, s.cr, s.T).map(([u, v]) => P3(s, u, v))))) };      // il velo (0.22), solo mesh
     for (const key of KEYS) if (!mesh[key]) mesh[key] = { positions: new Float64Array(0), index: new Uint32Array(0) };
     const vertLen = secs.reduce((a, s, j) => a + (j && !s.m && !secs[j - 1].m ? s.p - secs[j - 1].p : 0), 0);
     let minCov = null, minCovF = null;
@@ -4082,4 +4126,410 @@ export function zoneSplit(pts, zones, ends = null) {
   });
   if (cur.length) out.push(cur);
   return out.filter((l) => l.length > 1);
+}
+
+/* =========================================================================
+   Velo (0.22): la superficie finita dell'opera come TIN, per l'idraulico
+   (richiesta dell'utente 2026-10-19: «superfici tin che ricalcano come un
+   velo il post-operam»: interno del canale, cima dei muri, banchine e scarpe
+   fino al terreno, solo l'impronta dell'opera). La stessa via della pezza
+   sugli IFC già consegnati (scripts/velo-ifc), qui sulla superficie finita
+   dei tratti (mesh.surface): la si guarda dall'alto, esatta, senza campioni.
+   1. facce candidate: superfici aperte = tutte le non verticali; solidi (i
+      tratti a ponte: la struttura) = solo le facce rivolte in su;
+   2. la parte visibile di ogni faccia: poligoni convessi, togliendo in pianta
+      dove un'altra faccia sta sopra (dove due si sovrappongono, all'interno
+      delle curve strette, vince la più alta);
+   3. pareti verticali (muri interni a piombo, salti): una TIN non ha due
+      quote nello stesso punto → il pezzo basso arretra di delta (1 cm) al
+      piede della parete, che diventa una scarpa ripidissima;
+   4. TIN vincolata sui bordi dei pezzi (Delaunator iniettato + vincoli per
+      scambio di diagonale) coi vertici sulla griglia del millimetro: gli
+      orientamenti sono esatti e con le coordinate al mm nel file nessun
+      triangolo si gira; si tengono i triangoli dentro l'impronta, i buchi
+      chiusi piccoli e le tacche strette si riempiono.
+   ========================================================================= */
+export const VELO = Object.freeze({ delta: 0.01, nz: 0.05, tolz: 0.005, amin: 1e-7, weld: 1e-3, cliff: 0.02, hole: 5, notch: 0.5 });
+
+const area2 = (p) => { let a = 0; for (let i = 0, n = p.length; i < n; i++) { const q = p[i], r = p[(i + 1) % n]; a += q[0] * r[1] - r[0] * q[1]; } return a / 2; };
+const bbox2 = (p) => { let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const [x, y] of p) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return [x0, y0, x1, y1]; };
+/** Il poligono convesso p (antiorario) dalla parte a x + b y + c >= 0 (Sutherland-Hodgman), senza punti doppi; null se resta meno di un triangolo. */
+function clipHalf(p, a, b, c) {
+  const out = [], n = p.length;
+  for (let i = 0; i < n; i++) {
+    const P = p[i], Q = p[(i + 1) % n], dp = a * P[0] + b * P[1] + c, dq = a * Q[0] + b * Q[1] + c;
+    if (dp >= 0) out.push(P);
+    if ((dp >= 0) !== (dq >= 0)) { const t = dp / (dp - dq); out.push([P[0] + t * (Q[0] - P[0]), P[1] + t * (Q[1] - P[1])]); }
+  }
+  const r = [];
+  for (const q of out) { const l = r[r.length - 1]; if (!l || Math.abs(l[0] - q[0]) > 1e-9 || Math.abs(l[1] - q[1]) > 1e-9) r.push(q); }
+  while (r.length > 1 && Math.abs(r[0][0] - r[r.length - 1][0]) <= 1e-9 && Math.abs(r[0][1] - r[r.length - 1][1]) <= 1e-9) r.pop();
+  return r.length >= 3 ? r : null;
+}
+/** Retta del lato i di un poligono antiorario: a x + b y + c >= 0 a sinistra (dentro). */
+const edgeLine = (p, i) => { const [ax, ay] = p[i], [bx, by] = p[(i + 1) % p.length]; return [-(by - ay), bx - ax, (by - ay) * ax - (bx - ax) * ay]; };
+/** I pezzi convessi di P fuori dal convesso C; P intero se C non lo copre per un'area (non si spezza sulle rette di C che lo attraversano). */
+function subtractConvex(P, C, amin) {
+  let inter = P;
+  for (let i = 0; i < C.length && inter; i++) { const [a, b, c] = edgeLine(C, i); if (Math.hypot(a, b) >= 1e-9) inter = clipHalf(inter, a, b, c); }
+  if (!inter || area2(inter) <= amin) return [P];
+  const out = [];
+  let cur = P;
+  for (let i = 0; i < C.length && cur; i++) {
+    const [a, b, c] = edgeLine(C, i);
+    if (Math.hypot(a, b) < 1e-9) continue;                   // lato nullo: il semipiano sarebbe tutto il piano (pezzi doppi)
+    const o = clipHalf(cur, -a, -b, -c);
+    if (o && area2(o) > amin) out.push(o);
+    cur = clipHalf(cur, a, b, c);
+    if (cur && area2(cur) <= amin) cur = null;
+  }
+  return out;
+}
+
+/**
+ * Il velo: la TIN della superficie vista dall'alto di un insieme di mesh. sets = [{ positions, index, solid }] in coordinate locali
+ * (solid: solo le facce rivolte in su). Delaunator iniettato (quello del Terrain Sculptor). opt: le soglie di VELO (delta =
+ * arretramento al piede delle pareti verticali). Ritorna { x, y, z: Float64Array (x, y sulla griglia del millimetro), tri:
+ * Uint32Array (antiorari visti dall'alto), area (m² in pianta), walls (lati in cima a una parete verticale), lost (bordi dei
+ * pezzi che la TIN non ha potuto rispettare) } o null se non c'è niente da vedere.
+ */
+export function veloTin(sets, Delaunator, opt = {}) {
+  const { delta: DELTA, nz: NZ, tolz: TOLZ, amin: AMIN, weld: WELD, cliff: CLIFF, hole: HOLE, notch: NOTCH } = { ...VELO, ...opt };
+  /* 1. facce candidate: in pianta antiorarie, z = A x + B y + C */
+  const TXY = [], PA = [], PB = [], PC = [];
+  for (const m of sets) {
+    const P = m && m.positions, I = m && m.index;
+    if (!P || !I) continue;
+    for (let k = 0; k < I.length; k += 3) {
+      const a = 3 * I[k], b = 3 * I[k + 1], c = 3 * I[k + 2];
+      const ux = P[b] - P[a], uy = P[b + 1] - P[a + 1], uz = P[b + 2] - P[a + 2], wx = P[c] - P[a], wy = P[c + 1] - P[a + 1], wz = P[c + 2] - P[a + 2];
+      const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx, l = Math.hypot(nx, ny, nz);
+      if (!(l > 1e-12)) continue;
+      if (m.solid ? nz / l <= NZ : Math.abs(nz / l) <= NZ) continue;
+      const A = -nx / nz, B = -ny / nz, t = [[P[a], P[a + 1]], [P[b], P[b + 1]], [P[c], P[c + 1]]];
+      TXY.push(area2(t) < 0 ? [t[0], t[2], t[1]] : t);
+      PA.push(A); PB.push(B); PC.push(P[a + 2] - A * P[a] - B * P[a + 1]);
+    }
+  }
+  const NC = TXY.length;
+  if (!NC) return null;
+  const zP = (i, x, y) => PA[i] * x + PB[i] * y + PC[i];
+  // celle di 2 m: indici fino a ±100 km dall'origine locale
+  const HC = 2, hkey = (i, j) => (i + 50000) * 100000 + (j + 50000);
+  const makeHash = (n, bb) => {
+    const g = new Map();
+    for (let i = 0; i < n; i++) {
+      const [x0, y0, x1, y1] = bb(i);
+      for (let a = Math.floor(x0 / HC); a <= Math.floor(x1 / HC); a++) for (let b = Math.floor(y0 / HC); b <= Math.floor(y1 / HC); b++) {
+        const k = hkey(a, b); let L = g.get(k); if (!L) g.set(k, (L = [])); L.push(i);
+      }
+    }
+    return g;
+  };
+  const near = (g, bb, x0, y0, x1, y1) => {
+    const s = new Set();
+    for (let a = Math.floor(x0 / HC); a <= Math.floor(x1 / HC); a++) for (let b = Math.floor(y0 / HC); b <= Math.floor(y1 / HC); b++) { const L = g.get(hkey(a, b)); if (L) for (const q of L) s.add(q); }
+    return [...s].filter((q) => { const B = bb(q); return B[0] <= x1 && B[2] >= x0 && B[1] <= y1 && B[3] >= y0; });
+  };
+  const TB = TXY.map(bbox2), gC = makeHash(NC, (i) => TB[i]);
+  const inTri = (p, x, y, e) => { for (let i = 0; i < 3; i++) { const [ax, ay] = p[i], [bx, by] = p[(i + 1) % 3]; if ((bx - ax) * (y - ay) - (by - ay) * (x - ax) < -e * Math.hypot(bx - ax, by - ay)) return false; } return true; };
+  // la quota del velo esatto in un punto (la faccia più alta), NaN fuori
+  const zEnv = (x, y) => {
+    let z = NaN;
+    const L = gC.get(hkey(Math.floor(x / HC), Math.floor(y / HC)));
+    if (L) for (const q of L) { if (!inTri(TXY[q], x, y, 1e-7)) continue; const v = zP(q, x, y); if (!(v <= z)) z = v; }
+    return z;
+  };
+  /* 2. parti visibili: si toglie la zona dove un'altra faccia sta sopra; sulle facce coincidenti vince l'indice più alto */
+  const pieces = [];
+  for (let i = 0; i < NC; i++) {
+    const P = TXY[i], [x0, y0, x1, y1] = TB[i];
+    let regs = [P];
+    for (const q of near(gC, (j) => TB[j], x0, y0, x1, y1)) {
+      if (q === i) continue;
+      const Q = TXY[q], da = PA[q] - PA[i], db = PB[q] - PB[i], dc = PC[q] - PC[i];
+      let dmax = 0;
+      for (const [x, y] of P) dmax = Math.max(dmax, Math.abs(da * x + db * y + dc));
+      for (const [x, y] of Q) dmax = Math.max(dmax, Math.abs(da * x + db * y + dc));
+      let C;
+      if (dmax < TOLZ) { if (q < i) continue; C = Q; } else { C = clipHalf(Q, da, db, dc); if (!C || area2(C) <= AMIN) continue; }
+      const cb = bbox2(C), nx = [];
+      for (const R of regs) { const rb = bbox2(R); if (rb[0] > cb[2] || cb[0] > rb[2] || rb[1] > cb[3] || cb[1] > rb[3]) nx.push(R); else nx.push(...subtractConvex(R, C, AMIN)); }
+      regs = nx;
+      if (!regs.length) break;
+    }
+    for (const r of regs) pieces.push({ poly: r, i });
+  }
+  if (!pieces.length) return null;
+  /* 3. pareti verticali: il lato di un pezzo che appena fuori ha il velo più basso di cliff sta in cima a una parete; la striscia
+        larga delta fuori da quel lato (e un ottagono attorno ai capi) si toglie ai pezzi più bassi */
+  const orig = pieces.map((p) => p.poly), strips = [];
+  const R8 = DELTA / Math.cos(Math.PI / 8), e0 = 0.001;      // la striscia parte 1 mm dentro il pezzo alto
+  for (const p of pieces) {
+    const poly = p.poly, n = poly.length, i = p.i;
+    for (let e = 0; e < n; e++) {
+      const [ax, ay] = poly[e], [bx, by] = poly[(e + 1) % n], L = Math.hypot(bx - ax, by - ay);
+      if (L < 1e-5) continue;
+      const ox = (by - ay) / L, oy = -(bx - ax) / L;          // normale uscente
+      let lo = 0;
+      for (const t of [0.1, 0.5, 0.9]) {
+        const x = ax + t * (bx - ax), y = ay + t * (by - ay), ze = zEnv(x + ox * 0.003, y + oy * 0.003);
+        if (Number.isFinite(ze) && ze < zP(i, x, y) - CLIFF) lo++;
+      }
+      if (!lo) continue;
+      const za = zP(i, ax, ay), zb = zP(i, bx, by);
+      strips.push({ poly: [[ax - ox * e0, ay - oy * e0], [ax + ox * DELTA, ay + oy * DELTA], [bx + ox * DELTA, by + oy * DELTA], [bx - ox * e0, by - oy * e0]],
+        pts: [[ax, ay, za], [bx, by, zb], [(ax + bx) / 2, (ay + by) / 2, (za + zb) / 2]], i });
+      for (const [x, y, z] of [[ax, ay, za], [bx, by, zb]]) strips.push({ poly: Array.from({ length: 8 }, (_, k) => [x + R8 * Math.cos(k * Math.PI / 4 + Math.PI / 8), y + R8 * Math.sin(k * Math.PI / 4 + Math.PI / 8)]), pts: [[x, y, z]], i });
+    }
+  }
+  for (const s of strips) if (area2(s.poly) < 0) s.poly.reverse();
+  const SB = strips.map((s) => bbox2(s.poly)), gS = makeHash(strips.length, (k) => SB[k]);
+  const width = (p) => { let L = 0; for (let i = 0, n = p.length; i < n; i++) L = Math.max(L, Math.hypot(p[(i + 1) % n][0] - p[i][0], p[(i + 1) % n][1] - p[i][1])); return 2 * area2(p) / L; };
+  const live = [];
+  for (const p of pieces) {
+    const [x0, y0, x1, y1] = bbox2(p.poly);
+    let regs = [p.poly];
+    for (const k of near(gS, (j) => SB[j], x0, y0, x1, y1)) {
+      const s = strips[k];
+      if (s.i === p.i || !s.pts.some(([x, y, z]) => zP(p.i, x, y) < z - CLIFF / 2)) continue;
+      const nx = [];
+      for (const R of regs) { const rb = bbox2(R); if (rb[0] > SB[k][2] || SB[k][0] > rb[2] || rb[1] > SB[k][3] || SB[k][1] > rb[3]) nx.push(R); else nx.push(...subtractConvex(R, s.poly, AMIN)); }
+      regs = nx;
+      if (!regs.length) break;
+    }
+    for (const r of regs) if (width(r) >= 0.002) live.push({ poly: r, i: p.i });   // via le schegge (< 2 mm): resti numerici lungo i bordi
+  }
+  /* 4. vertici sulla griglia del millimetro (uno per XY: la quota più alta) e vincoli sui bordi dei pezzi */
+  const VX = [], VY = [], VZ = [], IX = [], IY = [], vmap = new Map();
+  const vid = (x, y, z) => {
+    const ix = Math.round(x / WELD), iy = Math.round(y / WELD), k = ix + "," + iy;
+    let id = vmap.get(k);
+    if (id === undefined) { id = VX.length; vmap.set(k, id); IX.push(ix); IY.push(iy); VX.push(ix * WELD); VY.push(iy * WELD); VZ.push(z); }
+    else if (z > VZ[id]) VZ[id] = z;
+    return id;
+  };
+  const cons = new Map();
+  for (const p of live) {
+    const ids = p.poly.map(([x, y]) => vid(x, y, zP(p.i, x, y)));
+    for (let e = 0; e < ids.length; e++) { const a = ids[e], b = ids[(e + 1) % ids.length]; if (a !== b) cons.set(a < b ? a + "," + b : b + "," + a, [a, b]); }
+  }
+  const NV = VX.length;
+  if (NV < 3) return null;
+  // vincoli spezzati sui vertici che ci cadono sopra (giunti a T), solo se la quota torna: un vertice a un'altra quota è un piede di parete
+  const gV = new Map();
+  for (let v = 0; v < NV; v++) { const k = hkey(Math.floor(VX[v] / HC), Math.floor(VY[v] / HC)); let L = gV.get(k); if (!L) gV.set(k, (L = [])); L.push(v); }
+  const segs = [];
+  for (const [a, b] of cons.values()) {
+    const ax = VX[a], ay = VY[a], bx = VX[b], by = VY[b], L2 = (bx - ax) ** 2 + (by - ay) ** 2, on = [];
+    for (let i = Math.floor(Math.min(ax, bx) / HC); i <= Math.floor(Math.max(ax, bx) / HC); i++) for (let j = Math.floor(Math.min(ay, by) / HC); j <= Math.floor(Math.max(ay, by) / HC); j++) {
+      const Lv = gV.get(hkey(i, j));
+      if (Lv) for (const v of Lv) {
+        if (v === a || v === b) continue;
+        const t = ((VX[v] - ax) * (bx - ax) + (VY[v] - ay) * (by - ay)) / L2;
+        if (t <= 1e-9 || t >= 1 - 1e-9) continue;
+        if (Math.abs((bx - ax) * (VY[v] - ay) - (by - ay) * (VX[v] - ax)) / Math.sqrt(L2) >= WELD) continue;
+        if (Math.abs(VZ[v] - (VZ[a] + t * (VZ[b] - VZ[a]))) > CLIFF) continue;
+        on.push([t, v]);
+      }
+    }
+    on.sort((p, q) => p[0] - q[0]);
+    let prev = a;
+    for (const [, v] of on) { segs.push([prev, v]); prev = v; }
+    segs.push([prev, b]);
+  }
+  /* 5. TIN vincolata: Delaunay sugli interi del millimetro, poi i vincoli per scambio di diagonale */
+  const coords = new Float64Array(NV * 2);
+  for (let v = 0; v < NV; v++) { coords[2 * v] = IX[v]; coords[2 * v + 1] = IY[v]; }
+  const D = new Delaunator(coords), tri = D.triangles, he = D.halfedges;
+  const nxt = (e) => (e % 3 === 2 ? e - 2 : e + 1), prv = (e) => (e % 3 === 0 ? e + 2 : e - 1);
+  const vEdge = new Int32Array(NV).fill(-1);
+  for (let e = 0; e < tri.length; e++) if (vEdge[tri[e]] < 0 || he[e] < 0) vEdge[tri[e]] = e;   // i bordi dell'inviluppo prima: il giro completo
+  const orient = (a, b, c) => (IX[b] - IX[a]) * (IY[c] - IY[a]) - (IY[b] - IY[a]) * (IX[c] - IX[a]);   // esatto: interi sotto 2^53
+  const outEdges = (a) => {
+    const out = [], s = vEdge[a];
+    let e = s;
+    do { out.push(e); const t = he[prv(e)]; if (t < 0) break; e = t; } while (e !== s);
+    if (e !== s || (out.length === 1 && he[prv(s)] < 0)) { let f = he[s]; while (f >= 0) { const g = nxt(f); if (g === s) break; out.push(g); f = he[g]; } }
+    return out;
+  };
+  const findEdge = (a, b) => { for (const e of outEdges(a)) { if (tri[nxt(e)] === b) return e; if (tri[prv(e)] === b) return prv(e); } return -1; };
+  const link = (a, b) => { he[a] = b; if (b >= 0) he[b] = a; };
+  const flip = (a) => {
+    const b = he[a], ar = prv(a), al = nxt(a), bl = prv(b), br = nxt(b);
+    const p0 = tri[ar], pr = tri[a], pl = tri[al], p1 = tri[bl];
+    tri[a] = p1; tri[b] = p0;
+    const hbl = he[bl], har = he[ar];
+    link(a, hbl); link(b, har); link(ar, bl);
+    vEdge[p0] = ar; vEdge[p1] = bl; vEdge[pr] = br; vEdge[pl] = al;
+  };
+  const conKey = (a, b) => (a < b ? a * NV + b : b * NV + a), fixed = new Set();
+  const crosses = (a, b, c, d) => {
+    const o1 = orient(a, b, c), o2 = orient(a, b, d), o3 = orient(c, d, a), o4 = orient(c, d, b);
+    return ((o1 > 0 && o2 < 0) || (o1 < 0 && o2 > 0)) && ((o3 > 0 && o4 < 0) || (o3 < 0 && o4 > 0));
+  };
+  const inCircle = (a, b, c, d) => {
+    const ax = VX[a] - VX[d], ay = VY[a] - VY[d], bx = VX[b] - VX[d], by = VY[b] - VY[d], cx = VX[c] - VX[d], cy = VY[c] - VY[d];
+    const det = (ax * ax + ay * ay) * (bx * cy - cx * by) - (bx * bx + by * by) * (ax * cy - cx * ay) + (cx * cx + cy * cy) * (ax * by - bx * ay);
+    return orient(a, b, c) > 0 ? det > 1e-12 : det < -1e-12;
+  };
+  const ahead = (a, b, q) => (VX[q] - VX[a]) * (VX[b] - VX[a]) + (VY[q] - VY[a]) * (VY[b] - VY[a]) > 0;
+  let lost = 0;
+  const insert = (a, b, depth = 0) => {
+    if (a === b) return;
+    if (findEdge(a, b) >= 0) { fixed.add(conKey(a, b)); return; }
+    if (depth > 40) { lost++; return; }
+    // il primo lato attraversato: il triangolo attorno ad a che contiene la direzione ab (un vertice sulla retta: si spezza lì)
+    let start = -1;
+    for (const e of outEdges(a)) {
+      const q = tri[nxt(e)], r = tri[prv(e)];
+      if (orient(a, b, q) === 0 && ahead(a, b, q)) { insert(a, q, depth + 1); insert(q, b, depth + 1); return; }
+      if (orient(a, b, r) === 0 && ahead(a, b, r)) { insert(a, r, depth + 1); insert(r, b, depth + 1); return; }
+      if (crosses(a, b, q, r)) { start = e; break; }
+    }
+    if (start < 0) { lost++; return; }
+    // si cammina fino a b raccogliendo i lati attraversati
+    const list = [];
+    let e = nxt(start);
+    for (let guard = 0; guard < 100000; guard++) {
+      const u = tri[e], v = tri[nxt(e)];
+      if (fixed.has(conKey(u, v))) { lost++; return; }        // incrocia un vincolo già messo
+      list.push([u, v]);
+      const f = he[e];
+      if (f < 0) { lost++; return; }
+      const s = tri[prv(f)];
+      if (s === b) break;
+      const os = orient(a, b, s);
+      if (os === 0) { insert(a, s, depth + 1); insert(s, b, depth + 1); return; }
+      e = (os > 0) === (orient(a, b, u) > 0) ? prv(f) : nxt(f);   // s dalla parte di u → si esce da (s, v), altrimenti da (u, s)
+    }
+    const fresh = [];
+    let guard = 0;
+    while (list.length) {
+      if (++guard > 1e6) { lost++; return; }
+      const [u, v] = list.shift(), ed = findEdge(u, v);
+      if (ed < 0) continue;
+      const p0 = tri[prv(ed)], p1 = tri[prv(he[ed])], ou = orient(p0, p1, u), ov = orient(p0, p1, v);
+      if (!((ou > 0 && ov < 0) || (ou < 0 && ov > 0))) { list.push([u, v]); continue; }   // quadrilatero concavo: dopo
+      flip(ed);
+      if (p0 !== a && p0 !== b && p1 !== a && p1 !== b && crosses(a, b, p0, p1)) list.push([p0, p1]); else fresh.push([p0, p1]);
+    }
+    fixed.add(conKey(a, b));
+    for (let pass = 0, sw = true; sw && pass < 20; pass++) {   // Delaunay di nuovo sui lati nuovi non vincolati
+      sw = false;
+      for (const [u, v] of fresh) {
+        if (fixed.has(conKey(u, v))) continue;
+        const ed = findEdge(u, v);
+        if (ed < 0 || he[ed] < 0) continue;
+        const p0 = tri[prv(ed)], p1 = tri[prv(he[ed])];
+        if (inCircle(u, v, p0, p1)) { const ou = orient(p0, p1, u), ov = orient(p0, p1, v); if ((ou > 0 && ov < 0) || (ou < 0 && ov > 0)) { flip(ed); sw = true; } }
+      }
+    }
+  };
+  for (const [a, b] of segs) insert(a, b);
+  /* 6. i triangoli dentro l'impronta (baricentro in un pezzo), poi buchi chiusi piccoli e tacche strette */
+  const OB = orig.map(bbox2), gP = makeHash(orig.length, (i) => OB[i]);
+  const inPoly = (p, x, y) => { for (let i = 0, n = p.length; i < n; i++) { const [ax, ay] = p[i], [bx, by] = p[(i + 1) % n]; if ((bx - ax) * (y - ay) - (by - ay) * (x - ax) < -1e-10) return false; } return true; };
+  const NT = tri.length / 3, inside = new Uint8Array(NT);
+  for (let t = 0; t < NT; t++) {
+    const a = tri[3 * t], b = tri[3 * t + 1], c = tri[3 * t + 2];
+    if (!orient(a, b, c)) continue;
+    const x = (VX[a] + VX[b] + VX[c]) / 3, y = (VY[a] + VY[b] + VY[c]) / 3, L = gP.get(hkey(Math.floor(x / HC), Math.floor(y / HC)));
+    if (L && L.some((q) => inPoly(orig[q], x, y))) inside[t] = 1;
+  }
+  const comp = new Int32Array(NT).fill(-1), comps = [];
+  for (let t0 = 0; t0 < NT; t0++) {
+    if (inside[t0] || comp[t0] >= 0) continue;
+    const id = comps.length, st = [t0];
+    comp[t0] = id;
+    let A = 0, hull = false;
+    while (st.length) {
+      const t = st.pop();
+      A += Math.abs(orient(tri[3 * t], tri[3 * t + 1], tri[3 * t + 2])) * WELD * WELD / 2;
+      for (let k = 0; k < 3; k++) {
+        const o = he[3 * t + k];
+        if (o < 0) { hull = true; continue; }
+        const u = Math.floor(o / 3);
+        if (!inside[u] && comp[u] < 0) { comp[u] = id; st.push(u); }
+      }
+    }
+    comps.push({ A, hull });
+  }
+  const fill = new Uint8Array(NT);
+  for (let t = 0; t < NT; t++) if (!inside[t] && comp[t] >= 0 && !comps[comp[t]].hull && comps[comp[t]].A <= HOLE) fill[t] = 1;
+  for (let changed = true, pass = 0; changed && pass < 50; pass++) {
+    changed = false;
+    for (let t = 0; t < NT; t++) {
+      if (inside[t] || fill[t]) continue;
+      const a = tri[3 * t], b = tri[3 * t + 1], c = tri[3 * t + 2];
+      if (Math.max(Math.hypot(VX[b] - VX[a], VY[b] - VY[a]), Math.hypot(VX[c] - VX[b], VY[c] - VY[b]), Math.hypot(VX[a] - VX[c], VY[a] - VY[c])) >= NOTCH) continue;
+      let nb = 0;                                             // almeno due lati verso triangoli tenuti: sta in una fessura, non sporge
+      for (let k = 0; k < 3; k++) { const o = he[3 * t + k]; if (o >= 0) { const u = Math.floor(o / 3); if (inside[u] || fill[u]) nb++; } }
+      if (nb >= 2) { fill[t] = 1; changed = true; }
+    }
+  }
+  const keep = [];
+  let area = 0;
+  for (let t = 0; t < NT; t++) {
+    if (!inside[t] && !fill[t]) continue;
+    const a = tri[3 * t], b = tri[3 * t + 1], c = tri[3 * t + 2], o = orient(a, b, c);
+    if (!o) continue;
+    if (o > 0) keep.push(a, b, c); else keep.push(a, c, b);
+    area += Math.abs(o) * WELD * WELD / 2;
+  }
+  // solo i vertici usati, numerati di seguito
+  const map = new Int32Array(NV).fill(-1), x = [], y = [], z = [];
+  const idx = keep.map((v) => { if (map[v] < 0) { map[v] = x.length; x.push(VX[v]); y.push(VY[v]); z.push(VZ[v]); } return map[v]; });
+  return { x: Float64Array.from(x), y: Float64Array.from(y), z: Float64Array.from(z), tri: Uint32Array.from(idx), area, walls: strips.filter((s) => s.pts.length > 1).length, lost };
+}
+
+/**
+ * Le mesh del velo di un'opera: per tratto la superficie finita (mesh.surface, aperta); nei tratti a ponte, dove le terre non ci
+ * sono, la struttura (rivestimento, U o scatolare, o il tubo) come solido: se ne vedono le facce in su. I tratti tolti dai tagli no.
+ */
+export function veloSets(parts) {
+  const out = [];
+  for (const t of parts || []) {
+    if (!t || t.gone || !t.mesh) continue;
+    if (t.bridge != null) { const m = t.mesh.lining || t.mesh.pipe; if (m && m.index && m.index.length) out.push({ positions: m.positions, index: m.index, solid: true }); }
+    else if (t.mesh.surface && t.mesh.surface.index.length) out.push({ positions: t.mesh.surface.positions, index: t.mesh.surface.index, solid: false });
+  }
+  return out;
+}
+
+/**
+ * La griglia regolare sulla TIN (punti a griglia, .grd): nodi sui multipli esatti di step in coordinate di mappa (O + locali: le
+ * griglie di file diversi combaciano), quota nel triangolo che contiene il nodo, NaN fuori. Ritorna { step, i0, j0 (E del primo
+ * nodo = i0 · step, N = j0 · step), nx, ny, z: Float32Array (righe da sud, ognuna da ovest), n (nodi con quota), zMin, zMax };
+ * un errore con .nodes se i nodi passano maxNodes (il riquadro di un'opera lunga e obliqua a passo fitto).
+ */
+export function veloGrid(tin, O, step, { maxNodes = 150e6 } = {}) {
+  const S = step, X = tin.x, Y = tin.y, Z = tin.z, T = tin.tri;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let v = 0; v < X.length; v++) { x0 = Math.min(x0, X[v]); x1 = Math.max(x1, X[v]); y0 = Math.min(y0, Y[v]); y1 = Math.max(y1, Y[v]); }
+  const i0 = Math.ceil((x0 + O.x) / S - 1e-9), i1 = Math.floor((x1 + O.x) / S + 1e-9), j0 = Math.ceil((y0 + O.y) / S - 1e-9), j1 = Math.floor((y1 + O.y) / S + 1e-9);
+  const nx = i1 - i0 + 1, ny = j1 - j0 + 1;
+  if (!(nx > 0 && ny > 0)) return { step: S, i0, j0, nx: 0, ny: 0, z: new Float32Array(0), n: 0, zMin: NaN, zMax: NaN };
+  if (nx * ny > maxNodes) { const e = new Error(`griglia di ${nx} × ${ny} nodi`); e.nodes = nx * ny; e.nx = nx; e.ny = ny; throw e; }
+  const G = new Float32Array(nx * ny).fill(NaN);
+  let n = 0, zMin = Infinity, zMax = -Infinity;
+  for (let t = 0; t < T.length; t += 3) {
+    const a = T[t], b = T[t + 1], c = T[t + 2], ax = X[a], ay = Y[a], bx = X[b], by = Y[b], cx = X[c], cy = Y[c];
+    const den = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
+    if (Math.abs(den) < 1e-14) continue;
+    const ia = Math.max(i0, Math.ceil((Math.min(ax, bx, cx) + O.x) / S - 1e-9)), ib = Math.min(i1, Math.floor((Math.max(ax, bx, cx) + O.x) / S + 1e-9));
+    const ja = Math.max(j0, Math.ceil((Math.min(ay, by, cy) + O.y) / S - 1e-9)), jb = Math.min(j1, Math.floor((Math.max(ay, by, cy) + O.y) / S + 1e-9));
+    for (let j = ja; j <= jb; j++) for (let i = ia; i <= ib; i++) {
+      const k = (j - j0) * nx + (i - i0);
+      if (G[k] === G[k]) continue;                           // già preso (nodo su un lato comune)
+      const px = i * S - O.x, py = j * S - O.y;
+      const l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / den, l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / den, l3 = 1 - l1 - l2;
+      if (l1 < -1e-9 || l2 < -1e-9 || l3 < -1e-9) continue;
+      const zz = l1 * Z[a] + l2 * Z[b] + l3 * Z[c];
+      G[k] = zz; n++;
+      if (zz < zMin) zMin = zz;
+      if (zz > zMax) zMax = zz;
+    }
+  }
+  return { step: S, i0, j0, nx, ny, z: G, n, zMin, zMax };
 }

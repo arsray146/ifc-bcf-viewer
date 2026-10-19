@@ -2187,3 +2187,86 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
     ss.forEach((x, i) => T(L.sAreas, bx + (i % per) * cw, y - (4 + 4 * Math.floor(i / per)) * mm, text.val, x, { va: 2 }));
   }
 }
+
+/* =========================================================================
+   Velo (0.22): la superficie finita (C.veloTin, C.veloGrid) nei formati
+   dell'idraulico — TIN LandXML, punti a griglia «E N Z», griglia Surfer
+   (.grd). I vertici della TIN stanno sulla griglia del millimetro e
+   l'origine locale su multipli di 10 m: le coordinate al mm sono esatte.
+   ========================================================================= */
+const r4 = (v) => String(+v.toFixed(4));
+/**
+ * Una o più TIN in un LandXML 1.2: surfaces = [{ name, desc, tin, O }] (tin: x, y, z locali attorno a O, tri antiorari).
+ * Punti «N E quota» numerati da 1, facce antiorarie viste dall'alto, area in pianta e quote minima e massima.
+ */
+export function veloLandXML({ surfaces, stamp, app = "viewifc.com — Sviluppo profili" }) {
+  const seen = new Set(), body = [];
+  for (const s of surfaces) {
+    let nm = String(s.name || "Velo"), k = 2;
+    while (seen.has(nm)) nm = `${s.name} (${k++})`;
+    seen.add(nm);
+    const { x, y, z, tri } = s.tin, O = s.O || { x: 0, y: 0 };
+    let zMin = Infinity, zMax = -Infinity;
+    for (const v of z) { if (v < zMin) zMin = v; if (v > zMax) zMax = v; }
+    const pts = new Array(x.length), faces = new Array(tri.length / 3);
+    for (let v = 0; v < x.length; v++) pts[v] = `          <P id="${v + 1}">${(y[v] + O.y).toFixed(3)} ${(x[v] + O.x).toFixed(3)} ${r4(z[v])}</P>`;
+    for (let t = 0; t < tri.length; t += 3) faces[t / 3] = `          <F>${tri[t] + 1} ${tri[t + 1] + 1} ${tri[t + 2] + 1}</F>`;
+    body.push(`    <Surface name="${xmlEsc(nm)}"${s.desc ? ` desc="${xmlEsc(s.desc)}"` : ""}>`,
+      `      <Definition surfType="TIN" area2DSurf="${(s.tin.area || 0).toFixed(3)}" elevMin="${zMin.toFixed(3)}" elevMax="${zMax.toFixed(3)}">`,
+      "        <Pnts>", ...pts, "        </Pnts>", "        <Faces>", ...faces, "        </Faces>", "      </Definition>", "    </Surface>");
+  }
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    `<LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.landxml.org/schema/LandXML-1.2 http://www.landxml.org/schema/LandXML-1.2/LandXML-1.2.xsd" date="${stamp.date}" time="${stamp.time}" version="1.2">`,
+    "  <Units>",
+    '    <Metric areaUnit="squareMeter" linearUnit="meter" volumeUnit="cubicMeter" temperatureUnit="celsius" pressureUnit="HPA" angularUnit="radians" directionUnit="radians"/>',
+    "  </Units>",
+    `  <Application name="${xmlEsc(app)}" manufacturer="viewifc.com"/>`,
+    "  <Surfaces>",
+    ...body,
+    "  </Surfaces>",
+    "</LandXML>",
+    "",
+  ].join("\n");
+}
+
+/** I nodi con quota di una griglia (C.veloGrid) come testo «E N quota» al mm, per est e poi per nord, righe CRLF. */
+export function gridXYZ(g) {
+  const out = [], S = g.step;
+  for (let i = 0; i < g.nx; i++) {
+    const E = ((g.i0 + i) * S).toFixed(3);
+    for (let j = 0; j < g.ny; j++) { const z = g.z[j * g.nx + i]; if (z === z) out.push(`${E} ${((g.j0 + j) * S).toFixed(3)} ${z.toFixed(3)}`); }
+  }
+  return out.length ? out.join("\r\n") + "\r\n" : "";
+}
+
+/** Il nodo vuoto di Surfer (oltre questo valore non c'è quota). */
+export const SURFER_BLANK = 1.70141e38;
+/**
+ * Una griglia (C.veloGrid) come .grd binario di Surfer: il 6 («DSBB»: nx, ny int16, estremi e quote in double, poi float32) se
+ * ogni lato sta in 32 767 nodi, altrimenti il 7 («DSRB»: sezioni con int32 e double). Righe da sud, ognuna da ovest; i nodi senza
+ * quota = SURFER_BLANK. Estremi = i nodi agli angoli (non i bordi delle celle). Ritorna { bytes: Uint8Array, version: 6 | 7 }.
+ */
+export function surferGrid(g) {
+  const S = g.step, N = g.nx * g.ny, at = (i) => +(i * S).toFixed(9), x0 = at(g.i0), y0 = at(g.j0);   // 6463937 · 0,1 = 646393,7000000001
+  const zMin = Number.isFinite(g.zMin) ? g.zMin : 0, zMax = Number.isFinite(g.zMax) ? g.zMax : 0;
+  if (g.nx <= 32767 && g.ny <= 32767) {
+    const buf = new ArrayBuffer(56 + 4 * N), dv = new DataView(buf);
+    [0x44, 0x53, 0x42, 0x42].forEach((c, i) => dv.setUint8(i, c));
+    dv.setInt16(4, g.nx, true); dv.setInt16(6, g.ny, true);
+    [x0, at(g.i0 + g.nx - 1), y0, at(g.j0 + g.ny - 1), zMin, zMax].forEach((v, i) => dv.setFloat64(8 + 8 * i, v, true));
+    const F = new Float32Array(buf, 56, N);
+    for (let k = 0; k < N; k++) { const z = g.z[k]; F[k] = z === z ? z : SURFER_BLANK; }
+    if (new Uint8Array(new Float32Array([1]).buffer)[3] !== 0x3f) for (let k = 0; k < N; k++) dv.setFloat32(56 + 4 * k, F[k], true);   // macchina big-endian
+    return { bytes: new Uint8Array(buf), version: 6 };
+  }
+  const buf = new ArrayBuffer(12 + 8 + 72 + 8 + 8 * N), dv = new DataView(buf);
+  let o = 0;
+  const tag = (s) => { for (let i = 0; i < 4; i++) dv.setUint8(o + i, s.charCodeAt(i)); o += 4; };
+  const i32 = (v) => { dv.setInt32(o, v, true); o += 4; }, f64 = (v) => { dv.setFloat64(o, v, true); o += 8; };
+  tag("DSRB"); i32(4); i32(1);                                // versione 1: vuoti i valori >= BlankValue
+  tag("GRID"); i32(72); i32(g.ny); i32(g.nx); f64(x0); f64(y0); f64(S); f64(S); f64(zMin); f64(zMax); f64(0); f64(SURFER_BLANK);
+  tag("DATA"); i32(8 * N);
+  for (let k = 0; k < N; k++) { const z = g.z[k]; f64(z === z ? z : SURFER_BLANK); }
+  return { bytes: new Uint8Array(buf), version: 7 };
+}
