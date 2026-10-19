@@ -592,7 +592,7 @@ const I18N = {
     "rv.plTitle": "Piazza i sostegni in Revit", "rv.plBody": "{n} sostegni mostrati diventano famiglie del catalogo RFI nel modello «{doc}». Una sola transazione: Ctrl+Z in Revit la annulla tutta. Ripetuto, aggiorna gli stessi elementi.",
     "rv.plSkip": "Non piazzati, manca la famiglia nel catalogo:", "rv.plWarn": "Piazzati con un avviso:", "rv.plGo": "Piazza", "rv.plNone": "Nessun sostegno mostrato da piazzare.",
     "rv.skip.portalLsu": "portali su pali LSU", "rv.skip.double": "pali doppi", "rv.skip.mastSize": "pali LSU24", "rv.skip.geom": "senza geometria",
-    "rv.w.mensType": "mensola non nel catalogo: messa la più corta fra le più lunghe", "rv.w.susp": "più sospensioni: la famiglia ha una mensola sola",
+    "rv.w.mensType": "mensola non nel catalogo: messa la più corta fra le più lunghe", "rv.w.sospType": "tipo di sospensione vuoto o non riconosciuto: resta quello della famiglia", "rv.w.susp": "più sospensioni: la famiglia ha una mensola sola",
     "rv.w.equip": "trasformatore o sezionatore: senza famiglia, non piazzato", "rv.w.tieHeight": "tirante: la famiglia lo tiene a 1,00 sopra la mensola",
     "rv.w.spanRange": "luce fuori dal campo delle travi MEC C19–C21", "rv.w.spanType": "nessun tipo di portale con quella luce (entro 5 cm): il più vicino",
     "rv.plDone": "Revit: {a} piazzati, {b} aggiornati in {s} s.", "rv.plNotPlaced": "In Revit non piazzati {n}: {list}", "rv.plFail": "Piazzamento in Revit non riuscito: {m}",
@@ -807,7 +807,7 @@ const I18N = {
     "rv.plTitle": "Place the supports in Revit", "rv.plBody": "{n} shown supports become RFI catalogue families in the model “{doc}”. One transaction: Ctrl+Z in Revit undoes it all. Run again, it updates the same elements.",
     "rv.plSkip": "Not placed, no family in the catalogue:", "rv.plWarn": "Placed with a warning:", "rv.plGo": "Place", "rv.plNone": "No shown support to place.",
     "rv.skip.portalLsu": "portals on LSU masts", "rv.skip.double": "double masts", "rv.skip.mastSize": "LSU24 masts", "rv.skip.geom": "no geometry",
-    "rv.w.mensType": "cantilever not in the catalogue: the shortest of the longer ones", "rv.w.susp": "more droppers: the family has a single cantilever",
+    "rv.w.mensType": "cantilever not in the catalogue: the shortest of the longer ones", "rv.w.sospType": "suspension type empty or not recognised: the family keeps its own", "rv.w.susp": "more droppers: the family has a single cantilever",
     "rv.w.equip": "transformer or switch: no family, not placed", "rv.w.tieHeight": "tie: the family keeps it 1.00 above the cantilever",
     "rv.w.spanRange": "span outside the MEC C19–C21 beam range", "rv.w.spanType": "no portal type with that span (within 5 cm): the nearest",
     "rv.plDone": "Revit: {a} placed, {b} updated in {s} s.", "rv.plNotPlaced": "Not placed in Revit {n}: {list}", "rv.plFail": "Placing in Revit failed: {m}",
@@ -982,15 +982,15 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./ocs-core.js?v=0.21.0";
-import * as IO from "./ocs-io.js?v=0.21.0";
-import * as K from "./ocs-catalog.js?v=0.21.0";
-import * as AU from "./ocs-stake.js?v=0.21.0";
-import * as RFI from "./ocs-rfi.js?v=0.21.0";
+import * as C from "./ocs-core.js?v=0.22.0";
+import * as IO from "./ocs-io.js?v=0.22.0";
+import * as K from "./ocs-catalog.js?v=0.22.0";
+import * as AU from "./ocs-stake.js?v=0.22.0";
+import * as RFI from "./ocs-rfi.js?v=0.22.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.21.0";
+const TOOL_VERSION = "0.22.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -4382,7 +4382,7 @@ function ifcDialog() {
 async function exportIfc(o, railStep) {
   busy(tr("ix.busy")); await frame();
   try {
-    const X = await import("./ocs-ifc.js?v=0.21.0");
+    const X = await import("./ocs-ifc.js?v=0.22.0");
     const tpl = psetTpl();
     const labels = { site: tr("ifc.site"), railway: tr("ifc.railway"), mast: tr("ifc.mast"), portal: tr("ifc.portal"), stem: tr("ifc.stem"), plate: tr("ifc.plate"),
       mens: tr("ifc.mens"), tie: tr("ifc.tie"), susp: tr("ifc.susp"), pend: tr("ifc.pend"), found: tr("ifc.found"), beam: tr("ifc.beam"), pole: tr("ifc.pole"), trafo: tr("ifc.trafo"),
@@ -4798,7 +4798,7 @@ $("rvPrev").addEventListener("click", revitPreviewToggle);
 const projectUid = () => S.uid || (S.uid = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
 const RV_SKIP = { portalLsu: () => tr("rv.skip.portalLsu"), double: () => tr("rv.skip.double"), mastSize: () => tr("rv.skip.mastSize"), geom: () => tr("rv.skip.geom") };
 const RV_WARN = {
-  mensType: () => tr("rv.w.mensType"), susp: () => tr("rv.w.susp"), equip: () => tr("rv.w.equip"), tieHeight: () => tr("rv.w.tieHeight"),
+  mensType: () => tr("rv.w.mensType"), sospType: () => tr("rv.w.sospType"), susp: () => tr("rv.w.susp"), equip: () => tr("rv.w.equip"), tieHeight: () => tr("rv.w.tieHeight"),
   spanRange: () => tr("rv.w.spanRange"), spanType: () => tr("rv.w.spanType"),
 };
 function revitPlaceItems() {

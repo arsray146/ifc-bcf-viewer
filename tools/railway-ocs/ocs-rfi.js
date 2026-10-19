@@ -32,7 +32,7 @@
    ognuno con sub (sottocategoria della famiglia) e l = [da, a] livelli (0 box, 1 upn,
    2 lattice) in cui c'è.
    ========================================================================= */
-import * as C from "./ocs-core.js?v=0.21.0";
+import * as C from "./ocs-core.js?v=0.22.0";
 
 export const LOD_INDEX = { box: 0, upn: 1, lattice: 2 };
 const ALL = [0, 2], BOX = [0, 0], DET = [1, 2], LAT = [2, 2];

@@ -309,6 +309,9 @@ export function resolvePortal(p, def = TRACK_DEFAULTS, geo = [], lev = null) {
    - pali: RFI_Sostegno_LSU14-16 (LSU14, LSU16) e RFI_Sostegno_LSU18-22 (LSU18…22), tipo = palo; d'istanza Plinto e
      Mensola (tipi delle annidate RFI_Plinto_LSU e RFI_Mensola_D76x5), Quota_mensola (asse della mensola dal
      supercompattato), Attacco_tirante (dall'inizio della mensola); tirante sul palo fisso a 1,00 sopra la mensola;
+     dalle famiglie del 2026-10-18 (0.22.0) anche Distanza_binario (asse del palo → asse del binario, in pianta),
+     Poligonazione (positiva verso il palo, come nel tool) e Sospensione (tipo dell'annidata
+     RFI_Sospensione_PL_Acciaio_440);
    - portali MEC: una famiglia per trave tipo C (C19 / C20 / C21) con Luce d'istanza nel campo della trave;
    - portali coi piloni PO: tralicciati a 1 e 2 binari (6,40 / 10,30) e di ormeggio (14,40 / 15,60 / 20,40), luce di
      tipo → il tipo con la luce più vicina.
@@ -324,7 +327,20 @@ export const REVIT = {
     { family: "RFI_Portale_Ormeggio", type: "T-6", L: 14.4 }, { family: "RFI_Portale_Ormeggio", type: "T-9", L: 15.6 },
     { family: "RFI_Portale_Ormeggio", type: "T-25", L: 20.4 }],
   spanTol: 0.05,
+  // sospensione annidata nel palo (0.22.0, famiglie del 2026-10-18): tipo = braccio BN + tirantini, il primo è quello di partenza
+  sospensione: "RFI_Sospensione_PL_Acciaio_440", sospArms: ["780", "540", "440"], sospTies: ["900", "1100"],
 };
+/* il campo «Tipo di sospensione» (testo libero, proposte SOSP_TYPES) → i tipi della famiglia RFI_Sospensione_PL_Acciaio_440
+   in ordine (l'add-in prende il primo che c'è nel modello): braccio BN780/540/440 e tirantini 2x900/2x1100 dal testo
+   quando ci sono, sennò tutti quelli possibili (prima il braccio e i tirantini di partenza). Testo vuoto o senza
+   nessuno di SN620, BNnnn, 2xnnn che la famiglia conosca → [] (resta il tipo della famiglia) */
+export function revitSospTypes(text) {
+  const t = String(text || "").toUpperCase(), bn = /BN\s*(\d{3})/.exec(t), tz = /2\s*[X×]\s*(\d{3,4})/.exec(t);
+  const arms = bn ? (REVIT.sospArms.includes(bn[1]) ? [bn[1]] : []) : REVIT.sospArms;
+  const ties = tz ? (REVIT.sospTies.includes(tz[1]) ? [tz[1]] : []) : REVIT.sospTies;
+  if (!bn && !tz && !/SN\s*620/.test(t)) return [];
+  return arms.flatMap((a) => ties.map((x) => "SN620_BN" + a + "_2x" + x));
+}
 /* ---- famiglie RFI anche nel sito (0.17.0: vista 3D ed export IFC, ocs-rfi.js; PIANO §23) ------------------------
    Il sostegno ha la geometria delle famiglie del catalogo quando la famiglia c'è (R.rfi), sennò resta la geometria
    semplificata del tool. Scelta dell'utente (2026-10-15): forma dalle famiglie, quote dal tool.
@@ -367,7 +383,8 @@ const revitMensLen = (t) => +((String(t).match(/_L(\d+)$/) || [])[1] || 0) / 100
    { family, types: [candidati in ordine, l'add-in prende il primo che c'è], origin: [E, N, Z], xAxis: [dx, dy],
      params: { nome: { len: m } | { type: { family, types } } }, warn: [codici] }
    oppure { skip: codice } quando il catalogo non ha la famiglia (portalLsu, double, mastSize, geom).
-   warn: mensType (mensola non nel catalogo: la più corta fra le più lunghe), susp (sospensioni in più: la famiglia
+   warn: mensType (mensola non nel catalogo: la più corta fra le più lunghe), sospType (tipo di sospensione vuoto o
+   non riconosciuto: resta quello della famiglia), susp (sospensioni in più: la famiglia
    ha una mensola sola), equip (trasformatore / sezionatore senza famiglia), tieHeight (la famiglia tiene il tirante
    a 1,00 sopra la mensola), spanRange (luce fuori dal campo delle travi MEC), spanType (nessun tipo di portale con
    quella luce entro 5 cm) */
@@ -395,6 +412,8 @@ export function revitItem(R, F) {
   const want = revitMensType(R.mens.code, R.mens.L);
   const longer = REVIT.mensole.filter((t) => t !== want && revitMensLen(t) >= R.mens.L - 1e-9).sort((a, b) => revitMensLen(a) - revitMensLen(b));
   if (!REVIT.mensole.includes(want)) warn.push("mensType");
+  const sosp = revitSospTypes(R.sosp);
+  if (!sosp.length) warn.push("sospType");
   if (R.susp && R.susp.length) warn.push("susp");
   if (R.eq && (R.eq.trafo || R.eq.sez)) warn.push("equip");
   const ties = R.ties && R.ties.length ? R.ties : [R.tir], tie = ties.reduce((a, t) => (t.xt > a.xt ? t : a));   // la famiglia ha un tirante: quello alla punta
@@ -406,6 +425,10 @@ export function revitItem(R, F) {
       Mensola: { type: { family: REVIT.mensola, types: [want, ...longer] } },
       Quota_mensola: { len: R.hm - R.baseDz + R.pilOut },
       Attacco_tirante: { len: tie.xt },
+      // la stessa distanza di revitFrame (asse del palo dall'asse del binario): sospensione e filo sull'asse del binario
+      Distanza_binario: { len: R.dr + HALF_GAUGE + M.w / 2 },
+      Poligonazione: { len: R.stag },
+      ...(sosp.length ? { Sospensione: { type: { family: REVIT.sospensione, types: sosp } } } : {}),
     },
   };
 }
