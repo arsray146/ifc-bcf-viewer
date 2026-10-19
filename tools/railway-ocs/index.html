@@ -737,7 +737,9 @@ const I18N = {
     "tt.cleared": "{n} valori tolti: i pali seguono il tratto.", "tt.cleared0": "Niente da togliere: i pali seguono già il tratto.",
     "im.title": "Importa la tabella di picchettamento", "im.empty": "{f}: nessuna riga utile.", "im.noTrack": "binario «{t}» non trovato", "im.out": "progressiva fuori dal binario {t}",
     "im.L2": "Mensola (2ª sospensione)", "im.sosp": "Tipo di sospensione", "im.sosp2": "Tipo 2ª sospensione", "im.track": "Binario", "im.target": "Binario di arrivo", "im.col": "colonna {n}", "im.sheet": "Foglio", "im.head": "Intestazione", "im.headU": "riga", "im.cols": "Colonne",
-    "im.trackCol": "Con la colonna del binario ogni riga va al binario con quel nome; il binario scelto qui vale per le righe che non lo dicono.",
+    "im.trackCol": "Per ogni binario della tabella scegli su quale binario caricato vanno i suoi pali, o «non importare» per lasciarli fuori. Di partenza: il binario con lo stesso nome (o che finisce così: B1 → PSP_B1), altrimenti non si importa. Con le coordinate i pali si proiettano sul binario scelto; «il più vicino» li manda al binario più vicino.",
+    "im.tracks": "Binari della tabella", "im.ttRow": "{t} · {n} righe", "im.ttRow1": "{t} · 1 riga", "im.ttEmpty": "(senza binario)", "im.ttOff": "— non importare", "im.ttNear": "il più vicino",
+    "im.off": "{n} righe di binari non importati.",
     "im.mode": "Pali già piazzati", "im.add": "si tengono, i nuovi si aggiungono", "im.replace": "si tolgono dai binari della tabella",
     "im.count": "{n} sostegni da importare, {s} righe saltate.", "im.warn": "{n} righe con palo o blocco che il catalogo non conosce: prendono il valore del binario, il testo della tabella resta fra gli attributi.",
     "im.noSta": "Manca la colonna della progressiva (o quelle di Est e Nord).", "im.skipRow": "Riga {r}: {m}.",
@@ -950,7 +952,9 @@ const I18N = {
     "tt.cleared": "{n} values removed: the masts follow the stretch.", "tt.cleared0": "Nothing to remove: the masts already follow the stretch.",
     "im.title": "Import the layout table", "im.empty": "{f}: no usable rows.", "im.noTrack": "track “{t}” not found", "im.out": "chainage outside track {t}",
     "im.L2": "Cantilever (2nd suspension)", "im.sosp": "Suspension type", "im.sosp2": "2nd suspension type", "im.track": "Track", "im.target": "Target track", "im.col": "column {n}", "im.sheet": "Sheet", "im.head": "Header", "im.headU": "row", "im.cols": "Columns",
-    "im.trackCol": "With the track column each row goes to the track of that name; the track picked here applies to the rows that do not say.",
+    "im.trackCol": "For each track in the table pick the loaded track its supports go to, or “do not import” to leave them out. At first: the track with the same name (or ending that way: B1 → PSP_B1), otherwise not imported. With coordinates the supports are projected onto the chosen track; “nearest” sends them to the nearest track.",
+    "im.tracks": "Tracks in the table", "im.ttRow": "{t} · {n} rows", "im.ttRow1": "{t} · 1 row", "im.ttEmpty": "(no track)", "im.ttOff": "— do not import", "im.ttNear": "nearest",
+    "im.off": "{n} rows of tracks not imported.",
     "im.mode": "Masts already placed", "im.add": "are kept, the new ones are added", "im.replace": "are removed from the table's tracks",
     "im.count": "{n} supports to import, {s} rows skipped.", "im.warn": "{n} rows with a mast or block the catalogue does not know: they take the track's value, the table text stays among the attributes.",
     "im.noSta": "The chainage column (or the Easting and Northing ones) is missing.", "im.skipRow": "Row {r}: {m}.",
@@ -978,15 +982,15 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./ocs-core.js?v=0.20.0";
-import * as IO from "./ocs-io.js?v=0.20.0";
-import * as K from "./ocs-catalog.js?v=0.20.0";
-import * as AU from "./ocs-stake.js?v=0.20.0";
-import * as RFI from "./ocs-rfi.js?v=0.20.0";
+import * as C from "./ocs-core.js?v=0.21.0";
+import * as IO from "./ocs-io.js?v=0.21.0";
+import * as K from "./ocs-catalog.js?v=0.21.0";
+import * as AU from "./ocs-stake.js?v=0.21.0";
+import * as RFI from "./ocs-rfi.js?v=0.21.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.20.0";
+const TOOL_VERSION = "0.21.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -3165,7 +3169,7 @@ async function openTable(file) {
   sheets = sheets.filter((x) => x.rows.length > 1);
   if (!sheets.length) { toast(tr("im.empty", { f: file.name }), true); return; }
   if (!S.tracks.length) { toast(tr("prj.empty"), true); return; }
-  const st = { file: file.name, sheets, sheet: 0, track: A ? A.id : S.tracks[0].id, mode: "add", swap: false, swapAuto: false,
+  const st = { file: file.name, sheets, sheet: 0, track: A ? A.id : S.tracks[0].id, mode: "add", swap: false, swapAuto: false, tmap: new Map(),
     maxD: IO.XY_DEFAULTS.maxD, drMin: IO.XY_DEFAULTS.drMin, drMax: IO.XY_DEFAULTS.drMax,
     // i binari in pianta per le righe a coordinate (0.9.0), fatti una volta per il dialogo
     trk: S.tracks.map((t) => ({ name: t.name, s0: t.s0 || 0, length: t.length, ix: C.trackIndex(derivedOf(t).T) })) };
@@ -3201,10 +3205,16 @@ const imPortalW = (rec) => { const p = imPortalUp(rec); return p.mast ? K.mastTy
 /* i sostegni che l'import farebbe: { ok: [{ t, rec, u, side, dr, xy, warn }], skip: [{ rec, why }] } */
 function imPlan(st) {
   const rows = st.sheets[st.sheet].rows, recs = IO.tableRecords(rows, st.head, st.map, { ...imOpt, swap: st.swap });
-  const P = IO.placeRecords(recs, st.trk, { track: S.tracks.findIndex((t) => t.id === st.track), mastW: imMastW, portalW: imPortalW, maxD: st.maxD, drMin: st.drMin, drMax: st.drMax });
+  const track = S.tracks.findIndex((t) => t.id === st.track);
+  // i binari della tabella (0.21.0): per ogni valore della colonna, dove vanno le sue righe (-1 = non importarle);
+  // la prima volta il binario con quel nome (o che finisce così), le righe senza binario come prima
+  const tt = st.map.track != null && st.map.track >= 0 ? IO.tableTracks(recs, st.trk) : [];
+  for (const e of tt) if (!st.tmap.has(e.k)) st.tmap.set(e.k, e.v ? e.i : imXY(st) ? -2 : track);
+  const P = IO.placeRecords(recs, st.trk, { track, mastW: imMastW, portalW: imPortalW, maxD: st.maxD, drMin: st.drMin, drMax: st.drMax, trackMap: tt.length ? st.tmap : null });
   const why = (s) => (s.why === "noTrack" ? tr("im.noTrack", { t: s.t }) : s.why === "out" ? tr("im.out", { t: s.t }) : s.why === "portal" ? tr("im.portal")
     : s.why === "between" ? tr("im.between", { t: s.t }) : s.d != null ? tr("im.far", { d: nf(s.d, 1), t: s.t }) : tr("im.farAll"));
-  return { recs, ok: P.ok.map((o) => ({ ...o, t: S.tracks[o.i] })), skip: P.skip.map((s) => ({ rec: s.rec, why: why(s) })) };
+  return { recs, tt, off: P.skip.filter((s) => s.why === "off").length, ok: P.ok.map((o) => ({ ...o, t: S.tracks[o.i] })),
+    skip: P.skip.filter((s) => s.why !== "off").map((s) => ({ rec: s.rec, why: why(s) })) };
 }
 /* gli avvisi di una riga a coordinate, a parole */
 function imWarnText(o, st) {
@@ -3223,9 +3233,15 @@ function imRender(st) {
   h += `<div class="row"><label for="imHead">${esc(tr("im.head"))}</label><div class="numbox"><input id="imHead" inputmode="numeric" value="${st.head + 1}"><span>${esc(tr("im.headU"))}</span></div></div>`;
   h += `<div class="sub">${esc(tr("im.cols"))}</div>`;
   for (const k of IO.TABLE_FIELDS) h += `<div class="row"><label>${esc(imLabel(k))}</label><select class="sel" data-imk="${k}">${opt(-1, "—", st.map[k] != null ? st.map[k] : -1)}${cols.map(([c, l]) => opt(c, l, st.map[k] != null ? st.map[k] : -1)).join("")}</select></div>`;
-  h += `<div class="row"><label for="imTrack">${esc(tr("im.target"))}</label><select id="imTrack" class="sel">${S.tracks.map((t) => opt(t.id, t.name, st.track)).join("")}</select></div>`;
-  if (st.map.track != null && st.map.track >= 0) h += `<p class="help">${esc(tr("im.trackCol"))}</p>`;
-  const xy = imXY(st);
+  const xy = imXY(st), P = imPlan(st);
+  if (P.tt.length) {                                     // un binario caricato (o nessuno) per ogni binario della tabella (0.21.0)
+    h += `<div class="sub">${esc(tr("im.tracks"))}</div>`;
+    P.tt.forEach((e, j) => {
+      const os = opt(-1, tr("im.ttOff"), st.tmap.get(e.k)) + (xy ? opt(-2, tr("im.ttNear"), st.tmap.get(e.k)) : "") + S.tracks.map((t, i) => opt(i, t.name, st.tmap.get(e.k))).join("");
+      h += `<div class="row"><label for="imTT${j}">${esc(e.n === 1 ? tr("im.ttRow1", { t: e.v || tr("im.ttEmpty") }) : tr("im.ttRow", { t: e.v || tr("im.ttEmpty"), n: e.n }))}</label><select id="imTT${j}" class="sel" data-imtt="${j}">${os}</select></div>`;
+    });
+    h += `<p class="help">${esc(tr("im.trackCol"))}</p>`;
+  } else h += `<div class="row"><label for="imTrack">${esc(tr("im.target"))}</label><select id="imTrack" class="sel">${S.tracks.map((t) => opt(t.id, t.name, st.track)).join("")}</select></div>`;
   if (xy) {                                              // coordinate dell'asse del fusto (0.9.0)
     h += `<div class="sub">${esc(tr("im.xy"))}</div>`;
     h += `<div class="row"><span class="lbl"></span><label class="chk"><input type="checkbox" id="imSwap"${st.swap ? " checked" : ""}> ${esc(tr("im.swap"))}</label></div>`;
@@ -3234,11 +3250,12 @@ function imRender(st) {
     h += `<div class="row"><label for="imDr0">${esc(tr("im.drRange"))}</label><div class="numbox"><input id="imDr0" inputmode="decimal" value="${nf(st.drMin, 2)}"><span>–</span><input id="imDr1" inputmode="decimal" value="${nf(st.drMax, 2)}"><span>m</span></div></div>`;
   }
   h += `<div class="row"><label for="imMode">${esc(tr("im.mode"))}</label><select id="imMode" class="sel">${opt("add", tr("im.add"), st.mode)}${opt("replace", tr("im.replace"), st.mode)}</select></div>`;
-  const P = imPlan(st), bad = P.ok.filter((o) => o.rec.warn.length).length, nxy = P.ok.filter((o) => o.xy), wxy = nxy.filter((o) => o.warn.length);
+  const bad = P.ok.filter((o) => o.rec.warn.length).length, nxy = P.ok.filter((o) => o.xy), wxy = nxy.filter((o) => o.warn.length);
   const per = new Map();                                 // quanti per binario (il nome non sta nella colonna della progressiva)
   for (const o of P.ok) per.set(o.t, (per.get(o.t) || 0) + 1);
   h += `<div class="sub">${esc(tr("dw.preview"))}</div>`;
   h += `<p class="note">${esc(tr("im.count", { n: P.ok.length, s: P.skip.length }))}</p>`;
+  if (P.off) h += `<p class="note">${esc(tr("im.off", { n: P.off }))}</p>`;
   const np = P.ok.filter((o) => o.portal).length;
   if (np) h += `<p class="note">${esc(tr("im.portals", { n: np }))}</p>`;
   if (per.size > 1) h += `<p class="note">${esc(tr("im.perTrack", { l: [...per].map(([t, n]) => t.name + " " + n).join(" · ") }))}</p>`;
@@ -3267,7 +3284,8 @@ function imRender(st) {
   if ($("imSheet")) $("imSheet").addEventListener("change", (e) => { st.sheet = +e.target.value; imHeader(st); imRender(st); });
   $("imHead").addEventListener("change", (e) => { const v = parseInt(e.target.value, 10); if (v >= 1 && v <= sh.rows.length) { st.head = v - 1; const H = IO.tableHeader(sh.rows.slice(st.head, st.head + 1)); st.map = { ...H.map }; imSwapGuess(st); } imRender(st); });
   $("dlgBody").querySelectorAll("[data-imk]").forEach((el) => el.addEventListener("change", () => { const c = +el.value; if (c < 0) delete st.map[el.dataset.imk]; else st.map[el.dataset.imk] = c; if (el.dataset.imk === "E" || el.dataset.imk === "N") imSwapGuess(st); imRender(st); }));
-  $("imTrack").addEventListener("change", (e) => { st.track = +e.target.value; imRender(st); });
+  if ($("imTrack")) $("imTrack").addEventListener("change", (e) => { st.track = +e.target.value; imRender(st); });
+  $("dlgBody").querySelectorAll("[data-imtt]").forEach((el) => el.addEventListener("change", () => { st.tmap.set(P.tt[+el.dataset.imtt].k, +el.value); imRender(st); }));
   $("imMode").addEventListener("change", (e) => { st.mode = e.target.value; });
 }
 function imApply(st) {
@@ -3301,9 +3319,11 @@ function imApply(st) {
       susp: two ? [{ track: nb ? nb.t.id : null, off: null, stag: null, type: rec.sosp2 || null }] : [], attrs: Object.keys(rec.attrs).length ? rec.attrs : undefined };
     S.supports.push(s); last = s;
   }
-  if (last && last.track !== (A && A.id)) { setActive(S.tracks.findIndex((t) => t.id === last.track)); pvFit(); }
+  const moved = last && last.track !== (A && A.id);
+  if (moved) { setActive(S.tracks.findIndex((t) => t.id === last.track)); pvFit(); }
   S.sel = null;
   afterSupports();
+  if (moved) renderPod();                                // la scheda del binario passa a quello attivo (restava sul precedente)
   toast(tr("im.done", { n: P.ok.length, s: P.skip.length, f: st.file }));
 }
 function editSupport(s, k, v) {
@@ -3367,7 +3387,7 @@ function delSusp(s, i) {
    Sculptor, ctxAssemble di profile-core), con in più per ogni elemento nome, tipo, layer e Pset: servono a
    «tutti quelli uguali» (negli IFC Civil 3D del federato BG-PSP il nome è vuoto: decidono i Pset).
    ========================================================================= */
-const TS_IO = new URL("../terrain-sculptor/terrain-io.js?v=1.10.0", location.href).href;
+const TS_IO = new URL("../terrain-sculptor/terrain-io.js?v=1.11.0", location.href).href;
 const CTX_OPEN = 300000, CTX_STALL = 40000, CTX_STALL_SIMPLE = 120000, CTX_REACH = 200;
 function ctxWorkerMain() {   // gira DENTRO il worker (serializzata con toString)
   self.onmessage = async (ev) => {
@@ -4362,7 +4382,7 @@ function ifcDialog() {
 async function exportIfc(o, railStep) {
   busy(tr("ix.busy")); await frame();
   try {
-    const X = await import("./ocs-ifc.js?v=0.20.0");
+    const X = await import("./ocs-ifc.js?v=0.21.0");
     const tpl = psetTpl();
     const labels = { site: tr("ifc.site"), railway: tr("ifc.railway"), mast: tr("ifc.mast"), portal: tr("ifc.portal"), stem: tr("ifc.stem"), plate: tr("ifc.plate"),
       mens: tr("ifc.mens"), tie: tr("ifc.tie"), susp: tr("ifc.susp"), pend: tr("ifc.pend"), found: tr("ifc.found"), beam: tr("ifc.beam"), pole: tr("ifc.pole"), trafo: tr("ifc.trafo"),

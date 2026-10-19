@@ -9,7 +9,7 @@
    Le coppie di coordinate sono «Nord Est» come vuole la specifica; si
    prova anche l'ordine scambiato e si tiene quello che chiude le giunzioni.
    ========================================================================= */
-import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis, trackFrame, GAUGE_HALF } from "./ocs-core.js?v=0.20.0";
+import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis, trackFrame, GAUGE_HALF } from "./ocs-core.js?v=0.21.0";
 
 /* ---- XML minimo: elementi, attributi, testo (niente DTD, niente namespace) ---- */
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
@@ -703,11 +703,36 @@ function placePortal(rec, tracks, ixs, named, o) {
   return { ok: { portal: true, i: ref.i, rec, u, side: 1, fix: { qL: L.q, aL: L.a, qR: R.q, aR: R.a }, span, drL, drR, dr: Math.min(drL, drR),
     served: cand.map((c) => c.i), xy: true, lat: null, warn } };
 }
+/* ---- i binari della tabella (0.21.0) ------------------------------------------------------------------------
+   Richiesta dell'utente (2026-10-19): la tabella ha i pali di più binari, e si sceglie quali importare e su quale
+   binario caricato va ciascuno. I valori della colonna del binario in ordine di comparsa: [{ k (minuscolo), v, n
+   (righe), i (binario proposto o -1) }]; v "" = righe senza binario. Proposto: stesso nome, poi stesso nome senza
+   separatori («PSPB1» = «PSP_B1»), poi l'unico binario il cui nome finisce coi pezzi del valore («B1» → «PSP_B1») */
+const nameToks = (s) => String(s).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+export function trackGuess(v, tracks) {
+  const lv = String(v).trim().toLowerCase(), a = nameToks(v);
+  if (!lv) return -1;
+  let i = tracks.findIndex((t) => t.name.toLowerCase() === lv);
+  if (i < 0 && a.length) i = tracks.findIndex((t) => nameToks(t.name).join("") === a.join(""));
+  if (i >= 0 || !a.length) return i;
+  const hit = tracks.map((t, j) => { const b = nameToks(t.name); return b.length > a.length && a.every((x, k) => b[b.length - a.length + k] === x) ? j : -1; }).filter((j) => j >= 0);
+  return hit.length === 1 ? hit[0] : -1;
+}
+export function tableTracks(recs, tracks) {
+  const by = new Map();
+  for (const r of recs) { const k = String(r.track || "").toLowerCase(), e = by.get(k); if (e) e.n++; else by.set(k, { k, v: r.track || "", n: 1 }); }
+  return [...by.values()].map((e) => ({ ...e, i: trackGuess(e.v, tracks) }));
+}
+/* opt.trackMap = Map(k → scelta) per i valori della colonna del binario: indice del binario, -1 = non importare
+   (why: off), -2 = come senza colonna (il più vicino dalle coordinate, altrimenti opt.track); valori assenti = il
+   binario con quel nome, come prima */
 export function placeRecords(recs, tracks, opt = {}) {
   const o = { ...XY_DEFAULTS, ...opt }, ok = [], skip = [], ixs = tracks.map((t) => t.ix);
   for (const rec of recs) {
-    const named = rec.track ? tracks.findIndex((t) => t.name.toLowerCase() === rec.track.toLowerCase()) : -1;
-    if (rec.track && named < 0) { skip.push({ rec, why: "noTrack", t: rec.track }); continue; }
+    const pick = o.trackMap ? o.trackMap.get(String(rec.track || "").toLowerCase()) : undefined;
+    if (pick === -1) { skip.push({ rec, why: "off", t: rec.track }); continue; }
+    const named = pick >= 0 ? pick : pick === -2 ? -1 : rec.track ? tracks.findIndex((t) => t.name.toLowerCase() === rec.track.toLowerCase()) : -1;
+    if (pick == null && rec.track && named < 0) { skip.push({ rec, why: "noTrack", t: rec.track }); continue; }
     if (rec.portal) {
       if (!rec.xy2) { skip.push({ rec, why: "portal" }); continue; }
       const r = placePortal(rec, tracks, ixs, named, o);

@@ -805,6 +805,15 @@ const I18N = {
     "rp.offZ": "Alcuni punti restano fuori quota fino a {e} cm: vedi il registro dell'add-in.",
     "rp.coordBody": "Il modello non ha coordinate condivise: il terreno cadrebbe a {km} km dall'origine interna. Imposto l'origine interna del modello in E {e}, N {n}, quota {z} (nord di progetto = nord reale)? Si fa una volta sola.",
     "rp.coordGo": "Imposta e porta", "rp.works": "Opere", "rp.subs": "Piattaforme e rampe come sottoregioni della toposolid ({n})", "rp.water": "Acqua come oggetti, Modelli generici ({n})", "rp.noteWorks": "Con la spunta, le opere tolte o spente nella pagina si tolgono anche da Revit; una sottoregione con la stessa impronta resta com'è (anche il materiale cambiato in Revit).", "rp.matPad": "Terrain Sculptor – Piattaforma", "rp.matRamp": "Terrain Sculptor – Rampa", "rp.waterCls": "Terrain Sculptor – Acqua", "rp.doneSubs": "Sottoregioni: {a} fatte, {b} uguali lasciate, {c} tolte.", "rp.doneWater": "Acqua: {a} oggetti, {c} tolti.", "rp.notDone": "{n} non fatte: {list}", "rp.comments": "ViewIFC Terrain Sculptor · {n}",
+    "rv.stTitle": "Terreno salvato nel modello", "rv.stGo": "Apri", "rv.stLater": "Non ora",
+    "rv.stBody": "Il modello «{doc}» contiene il terreno «{name}», portato in Revit il {d} ({n} opere, {mb} MB), diverso da quello aperto qui. Aprirlo?",
+    "rv.stNewer": "Il modello «{doc}» contiene una versione più recente di questo terreno («{name}», portata in Revit il {d}, {n} opere, {mb} MB), forse da un altro PC. Aprirla?",
+    "rv.stOpening": "Apro il terreno dal modello…", "rv.stOpened": "Aperto il terreno «{name}» salvato nel modello «{doc}»: {n} opere.", "rv.stFail": "Terreno dal modello non aperto: {m}",
+    "rp.readTopo": "Leggo le topografie e i livelli di «{d}»…", "rp.targetTopo": "Topografia", "rp.tStartTopo": "Aggiorna «{n}», la topografia di partenza", "rp.tNewTopo": "Nuova topografia",
+    "rp.noteUpdTopo": "Stessa topografia (stesso elemento): i suoi punti si rifanno dal terreno scolpito e Revit li triangola fino all'inviluppo convesso (un contorno rientrante si riempie). Revit 2023 la modifica in una sessione a parte: due Ctrl+Z tornano indietro.",
+    "rp.noteNewTopo": "Revit 2023 non ha le toposolid: una topografia nuova coi punti del terreno scolpito, triangolata da Revit fino all'inviluppo convesso (un contorno rientrante si riempie). Ripetuto, si aggiorna questa. Un Ctrl+Z in Revit la toglie.",
+    "rp.subsTopo": "Piattaforme e rampe come sottoregioni della topografia ({n})", "rp.doneNewTopo": "Topografia nuova in Revit: {p} punti, {s} s.", "rp.doneUpdTopo": "Topografia aggiornata in Revit: {p} punti nuovi o a quota nuova, {s} s.",
+    "rp.filled": "Revit ha riempito {a} m² fuori dal contorno (inviluppo convesso).",
     "drop.veil": "Rilascia per aprire il terreno",
     "privacy": "I file non escono dal browser: niente upload. Il lavoro si salva da solo in questo browser (IndexedDB).",
   },
@@ -1016,6 +1025,15 @@ const I18N = {
     "rp.offZ": "Some points stay off level by up to {e} cm: see the add-in log.",
     "rp.coordBody": "The model has no shared coordinates: the terrain would fall {km} km from the internal origin. Set the model's internal origin at E {e}, N {n}, level {z} (project north = true north)? It is done once.",
     "rp.coordGo": "Set and bring", "rp.works": "Works", "rp.subs": "Pads and ramps as toposolid subdivisions ({n})", "rp.water": "Water as objects, Generic Models ({n})", "rp.noteWorks": "When ticked, works removed or switched off in the page are removed from Revit too; a subdivision with the same footprint stays as it is (also a material changed in Revit).", "rp.matPad": "Terrain Sculptor – Pad", "rp.matRamp": "Terrain Sculptor – Ramp", "rp.waterCls": "Terrain Sculptor – Water", "rp.doneSubs": "Subdivisions: {a} made, {b} unchanged kept, {c} removed.", "rp.doneWater": "Water: {a} objects, {c} removed.", "rp.notDone": "{n} not done: {list}", "rp.comments": "ViewIFC Terrain Sculptor · {n}",
+    "rv.stTitle": "Terrain saved in the model", "rv.stGo": "Open", "rv.stLater": "Not now",
+    "rv.stBody": "The model “{doc}” contains the terrain “{name}”, brought into Revit on {d} ({n} works, {mb} MB), different from the one open here. Open it?",
+    "rv.stNewer": "The model “{doc}” contains a newer version of this terrain (“{name}”, brought into Revit on {d}, {n} works, {mb} MB), maybe from another PC. Open it?",
+    "rv.stOpening": "Opening the terrain from the model…", "rv.stOpened": "Opened the terrain “{name}” saved in the model “{doc}”: {n} works.", "rv.stFail": "Terrain from the model not opened: {m}",
+    "rp.readTopo": "Reading the topographies and levels of “{d}”…", "rp.targetTopo": "Topography", "rp.tStartTopo": "Update “{n}”, the starting topography", "rp.tNewTopo": "New topography",
+    "rp.noteUpdTopo": "Same topography (same element): its points are rebuilt from the sculpted terrain and Revit triangulates them up to the convex hull (a re-entrant outline gets filled). Revit 2023 edits it in a separate session: two Ctrl+Z go back.",
+    "rp.noteNewTopo": "Revit 2023 has no toposolids: a new topography with the points of the sculpted terrain, triangulated by Revit up to the convex hull (a re-entrant outline gets filled). Repeated, this one is updated. One Ctrl+Z in Revit removes it.",
+    "rp.subsTopo": "Pads and ramps as topography subregions ({n})", "rp.doneNewTopo": "New topography in Revit: {p} points, {s} s.", "rp.doneUpdTopo": "Topography updated in Revit: {p} new or re-levelled points, {s} s.",
+    "rp.filled": "Revit filled {a} m² outside the outline (convex hull).",
     "drop.veil": "Drop to open the terrain",
     "privacy": "Files never leave the browser: no upload. Your work saves itself in this browser (IndexedDB).",
   },
@@ -1028,12 +1046,12 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as T from "./terrain-core.js?v=1.10.0";
-import * as IO from "./terrain-io.js?v=1.10.0";
+import * as T from "./terrain-core.js?v=1.11.0";
+import * as IO from "./terrain-io.js?v=1.11.0";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 import Delatin from "./vendor/delatin.js";
 
-const TOOL_VERSION = "1.10.0";
+const TOOL_VERSION = "1.11.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -2223,6 +2241,7 @@ function select(id) {
   renderTool();
   renderOpsList();
   revitPreviewLater();                              // dentro Revit: l'opera scelta in arancio (preview.pick)
+  revitChose(id);                                   // e scelta anche in Revit, con la vista inquadrata
 }
 /* modifica geometrica dal vivo: una voce di storia per trascinamento */
 let drag = null;
@@ -3328,6 +3347,7 @@ function openSheet(panel) {
   document.querySelectorAll("#sheet [data-panel]").forEach((p) => (p.hidden = p.dataset.panel !== panel));
   if (panel === "new") renderNew();
   $("wClose").textContent = tr(hasWork() ? "w.resume" : "w.example");
+  $("iTitle").textContent = tr("i.title"); $("iGo").textContent = tr("i.go"); $("iCancel").textContent = tr("n.cancel");   // la domanda del terreno nel modello li cambia
 }
 function closeSheet() { $("sheet").hidden = true; pendingImport = null; }
 $("btnOpen").addEventListener("click", () => openSheet("welcome"));
@@ -3843,16 +3863,19 @@ const revitPlaceable = () => !!REVIT && RB.can(REVIT, "topo.place");
 const placeKey = () => "terrain-sculptor:" + projectUid();
 const rvErr = (e) => e.code === "noDoc" ? tr("rv.err.noDoc") : e.code === "family" ? tr("rv.err.family") : e.code === "far" ? tr("rv.err.far", { km: nf((e.data && e.data.km) || 0, 1) })
   : e.code === "coordsSet" ? tr("rp.err.coordsSet") : e.code === "version" ? tr("rp.err.version") : tr("rp.fail", { m: e.message || String(e) });
-/* la toposolid di partenza ancora nel modello: terreno aperto da Revit con una sola toposolid */
+/* la toposolid di partenza ancora nel modello: terreno aperto da Revit con una sola toposolid (nella 2023 una topografia) */
 function rpStart() {
-  const rv = S.doc.meta.revit, items = (RPL.list && RPL.list.items) || [];
-  return rv && Array.isArray(rv.ids) && rv.ids.length === 1 ? items.find((c) => c.id === rv.ids[0] && c.kind === "toposolid") || null : null;
+  const rv = S.doc.meta.revit, items = (RPL.list && RPL.list.items) || [], kind = (RPL.list && RPL.list.placeKind) || "toposolid";
+  return rv && Array.isArray(rv.ids) && rv.ids.length === 1 ? items.find((c) => c.id === rv.ids[0] && c.kind === kind) || null : null;
 }
+/* Revit 2023 (passo 7, add-in con topo.list → placeKind «topography»): il terreno diventa una topografia, senza tipo né
+   livello; Revit la triangola fino all'inviluppo convesso, aggiornarla sono due Ctrl+Z */
+const rpTopo = () => !!RPL.list && RPL.list.placeKind === "topography";
 async function openRevitPlace() {
   if (!S.doc || !revitPlaceable() || RPL.busy) return;
   openSheet("revit");
   $("rpGo").disabled = true;
-  $("rpBody").innerHTML = `<p class="note">${esc(tr("rp.read", { d: RB.docLabel(REVIT.doc) || "—" }))}</p>`;
+  $("rpBody").innerHTML = `<p class="note">${esc(tr(rvVersion() && rvVersion() < 2024 ? "rp.readTopo" : "rp.read", { d: RB.docLabel(REVIT.doc) || "—" }))}</p>`;
   try { RPL.list = await RB.call("topo.list", { key: placeKey() }, 60000); }
   catch (e) { $("rpBody").innerHTML = `<p class="note warn">${esc(rvErr(e))}</p>`; return; }
   RPL.target = "";
@@ -3865,11 +3888,11 @@ async function openRevitPlace() {
 const rvVersion = () => +((REVIT && REVIT.revit && REVIT.revit.version) || 0);
 const rpBudgets = () => (rvVersion() >= 2026 ? [10000, 20000] : [10000]);
 function renderRevitPlace(warn) {
-  const L = RPL.list, placed = L.placed, start = rpStart(), dk = rvCoords();
+  const L = RPL.list, placed = L.placed, start = rpStart(), dk = rvCoords(), topo = rpTopo();
   const opts = [];
   if (placed) opts.push(["placed", tr("rp.tPlaced", { n: placed.name || placed.type || "" })]);
-  else if (start) opts.push(["start", tr("rp.tStart", { n: start.name || start.type || "" })]);
-  opts.push(["new", tr("rp.tNew")]);
+  else if (start) opts.push(["start", tr(topo ? "rp.tStartTopo" : "rp.tStart", { n: start.name || start.type || "" })]);
+  opts.push(["new", tr(topo ? "rp.tNewTopo" : "rp.tNew")]);
   if (!opts.some(([v]) => v === RPL.target)) RPL.target = opts[0][0];
   const types = L.types || [], levels = L.levels || [];
   if (!types.includes(RPL.type)) RPL.type = (start && types.includes(start.type) ? start.type : types[0]) || "";
@@ -3878,9 +3901,9 @@ function renderRevitPlace(warn) {
     RPL.level = (start && levels.some((l) => l.name === start.level) ? start.level : below.length ? below[below.length - 1].name : levels[0] && levels[0].name) || "";
   }
   const isNew = RPL.target === "new";
-  let h = `<div class="sub">${esc(tr("rp.target"))}</div>`
+  let h = `<div class="sub">${esc(tr(topo ? "rp.targetTopo" : "rp.target"))}</div>`
     + opts.map(([v, l]) => `<label class="check"><input type="radio" name="rpT" value="${v}" ${v === RPL.target ? "checked" : ""}>${esc(l)}</label>`).join("");
-  if (isNew) h += `<div class="form"><div class="row"><label for="rpType">${esc(tr("rp.type"))}</label><select class="rpsel" id="rpType">${types.map((t) => `<option${t === RPL.type ? " selected" : ""}>${esc(t)}</option>`).join("")}</select><span></span></div>`
+  if (isNew && !topo) h += `<div class="form"><div class="row"><label for="rpType">${esc(tr("rp.type"))}</label><select class="rpsel" id="rpType">${types.map((t) => `<option${t === RPL.type ? " selected" : ""}>${esc(t)}</option>`).join("")}</select><span></span></div>`
     + `<div class="row"><label for="rpLevel">${esc(tr("rp.level"))}</label><select class="rpsel" id="rpLevel">${levels.map((l) => `<option value="${esc(l.name)}"${l.name === RPL.level ? " selected" : ""}>${esc(l.name)} · ${nf(l.z, 2)} m</option>`).join("")}</select><span></span></div></div>`
     + (types.length ? "" : `<p class="note warn">${esc(tr("rp.noTypes"))}</p>`);
   const bs = rpBudgets();
@@ -3890,9 +3913,9 @@ function renderRevitPlace(warn) {
     + `<div class="kv"><span>${esc(tr("exp.coords"))}</span><b>${esc(tr(dk === "internal" ? "rp.cInternal" : "rp.cShared"))}</b></div>`;
   const nSub = S.doc.ops.filter((o) => (o.type === "pad" || o.type === "path") && o.on !== false).length, nWat = S.doc.ops.filter((o) => o.type === "water" && o.on !== false).length;
   h += `<div class="sub">${esc(tr("rp.works"))}</div>`
-    + `<label class="check"><input type="checkbox" id="rpSubs" ${RPL.subs ? "checked" : ""}>${esc(tr("rp.subs", { n: ni(nSub) }))}</label>`
+    + `<label class="check"><input type="checkbox" id="rpSubs" ${RPL.subs ? "checked" : ""}>${esc(tr(topo ? "rp.subsTopo" : "rp.subs", { n: ni(nSub) }))}</label>`
     + `<label class="check"><input type="checkbox" id="rpWater" ${RPL.water ? "checked" : ""}>${esc(tr("rp.water", { n: ni(nWat) }))}</label>`
-    + `<p class="note">${esc(tr(isNew ? "rp.noteNew" : "rp.noteUpd"))} ${esc(tr("rp.noteWorks"))}</p>`
+    + `<p class="note">${esc(tr(isNew ? (topo ? "rp.noteNewTopo" : "rp.noteNew") : (topo ? "rp.noteUpdTopo" : "rp.noteUpd")))} ${esc(tr("rp.noteWorks"))}</p>`
     + (warn || "");
   $("rpBody").innerHTML = h;
   $("rpBody").querySelectorAll('input[name="rpT"]').forEach((r) => r.addEventListener("change", () => { RPL.target = r.value; renderRevitPlace(); }));
@@ -3901,7 +3924,7 @@ function renderRevitPlace(warn) {
   $("rpSubs").addEventListener("change", () => { RPL.subs = $("rpSubs").checked; });
   $("rpWater").addEventListener("change", () => { RPL.water = $("rpWater").checked; });
   if ($("rpBudget")) $("rpBudget").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (!c) return; RPL.budget = +c.dataset.v; renderRevitPlace(); });
-  $("rpGo").disabled = isNew && !types.length;
+  $("rpGo").disabled = isNew && !topo && !types.length;   // la topografia non ha tipi
 }
 /* gli argomenti di topo.place: punti Float32 attorno a un'origine al metro, contorno con le quote, progetto */
 async function revitPlaceArgs() {
@@ -3924,10 +3947,10 @@ async function revitPlaceArgs() {
   const args = {
     key: placeKey(), coords: rvCoords(), points: { origin: [ox, oy, oz], pos: RB.toB64(new Uint8Array(pos.buffer)) },
     outline: rings.map((r) => r.map((p) => p.map(r4))), comments: tr("rp.comments", { n: S.doc.meta.name || "" }),
-    store: { tool: "terrain-sculptor", name: S.doc.meta.name || fileBase(), version: TOOL_VERSION, items: 1, saved, data: RB.toB64(bytes) },
+    store: { tool: "terrain-sculptor", name: S.doc.meta.name || fileBase(), version: TOOL_VERSION, items: S.doc.ops.length, saved, data: RB.toB64(bytes) },   // items = le opere (1.11.0)
   };
   if (RPL.target === "start" && start) args.target = start.id;
-  if (RPL.target === "new") Object.assign(args, { mode: "new", type: RPL.type, level: RPL.level });
+  if (RPL.target === "new") Object.assign(args, rpTopo() ? { mode: "new" } : { mode: "new", type: RPL.type, level: RPL.level });
   if (RPL.subs) args.subdivisions = revitSubdivisions();
   if (RPL.water) args.water = revitWaterItems();
   return { args, tin, rings };
@@ -3944,9 +3967,12 @@ async function revitPlaceSend() {
     const r = await RB.call("topo.place", args, 1800000);
     busy("");
     closeSheet();
+    if (r.stored && REVIT.doc) REVIT.doc.stored = [...(REVIT.doc.stored || []).filter((e) => e.key !== args.key), r.stored];   // il progetto nel modello è questo
     const sb = r.subdivisions, wt = r.water, notDone = [...((sb && sb.failed) || []), ...((wt && wt.failed) || [])];
     const bad = r.rejected > 0 || r.mismatch > 0 || r.maxErr > 0.01 || notDone.length > 0;
-    toast(tr(r.created ? "rp.doneNew" : "rp.doneUpd", { p: ni(r.added), e: nf(r.maxErr * 1000, 0), s: nf(r.ms / 1000, 1) })
+    const topo = r.kind === "topography";
+    toast(tr(r.created ? (topo ? "rp.doneNewTopo" : "rp.doneNew") : (topo ? "rp.doneUpdTopo" : "rp.doneUpd"), { p: ni(r.added), e: nf(r.maxErr * 1000, 0), s: nf(r.ms / 1000, 1) })
+      + (r.filled > 1 ? " " + tr("rp.filled", { a: ni(r.filled) }) : "")
       + (sb ? " " + tr("rp.doneSubs", { a: ni(sb.made), b: ni(sb.kept), c: ni(sb.removed) }) : "")
       + (wt ? " " + tr("rp.doneWater", { a: ni(wt.placed + wt.updated), c: ni(wt.removed || 0) }) : "")
       + (notDone.length ? " " + tr("rp.notDone", { n: ni(notDone.length), list: [...new Set(notDone.map((x) => x.why))].join("; ") }) : "")
@@ -3968,6 +3994,109 @@ async function revitPlaceSend() {
 $("rvPlace").addEventListener("click", openRevitPlace);
 $("rpCancel").addEventListener("click", closeSheet);
 $("rpGo").addEventListener("click", revitPlaceSend);
+
+/* --- selezione nei due sensi (passo 6, PIANO_Revit_ViewIFC.md §19) -------------------------------------------
+   Come Sviluppo profili e la Trazione: l'opera scelta qui (clic nella scena o nell'elenco) si sceglie anche in Revit
+   — gli elementi con la firma del progetto e l'id dell'opera: la sottoregione della piattaforma o della rampa,
+   l'acqua — e Revit inquadra la vista attiva sulla sua scatola, anche se l'opera è solo in anteprima (scarpate,
+   punti quotati e aree bloccate non diventano oggetti). Coordinate come l'anteprima (rvCoords: «internal» per i
+   terreni da Revit o da IFC, add-in 0.9.0). Scelto in Revit → scelto qui e inquadrato; la toposolid («ground») =
+   nessuna opera, tutto il terreno. Niente eco: la scelta che arriva da Revit non torna indietro */
+const RVS = { t: 0, fromRevit: false }, RV_GROUND = "ground";
+const rvKeyNow = () => (S.doc && S.doc.meta.uid ? "terrain-sculptor:" + S.doc.meta.uid : "");   // senza farlo: niente portato finora
+function revitChose(id) {
+  if (!id || !S.doc || !REVIT || !RB.can(REVIT, "select") || RVS.fromRevit) return;
+  const key = rvKeyNow(), box = key || RVP.on ? revitBox(S.doc.getOp(id)) : null;
+  if (!key && !box) return;                                // niente portato né da inquadrare
+  const args = { key, ids: key ? [id] : [], coords: rvCoords() };
+  if (box) args.box = box;
+  clearTimeout(RVS.t);
+  RVS.t = setTimeout(() => RB.call("select", args).catch((e) => console.warn("Revit select:", e.message)), 120);
+}
+/* l'ingombro di un'opera (x, y del terreno, quota min, poi max) sul terreno finale: i vertici, la larghezza della rampa
+   o della faccia della scarpata attorno alla linea, la quota dell'opera */
+function revitBounds(o) {
+  if (!o) return null;
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  const w = o.type === "path" ? (+o.width || 0) / 2 : o.type === "bank" ? ((T.bankGeom(o) || {}).W || 0) : 0;
+  const growZ = (z) => { if (Number.isFinite(z)) { lo[2] = Math.min(lo[2], z); hi[2] = Math.max(hi[2], z); } };
+  for (const [x, y] of o.type === "path" ? pathProfile(o).line : geomOf(o)) {
+    lo[0] = Math.min(lo[0], x - w); lo[1] = Math.min(lo[1], y - w); hi[0] = Math.max(hi[0], x + w); hi[1] = Math.max(hi[1], y + w);
+    growZ(hAt(x, y));
+  }
+  growZ(zRefOf(o));
+  if (o.type === "bank") growZ(+o.zBottom);                // il piede della scarpata
+  if (o.type === "path") growZ(pathProfile(o).zEnd);       // la rampa arriva a un'altra quota
+  return lo[0] <= hi[0] && lo[2] <= hi[2] ? { lo, hi } : null;
+}
+/* la scatola per select: l'ingombro +6 m in pianta, ±1 m in quota, al mm */
+function revitBox(o) {
+  const b = revitBounds(o), r3 = (v) => Math.round(v * 1e3) / 1e3;
+  return b ? [b.lo[0] - 6, b.lo[1] - 6, b.lo[2] - 1, b.hi[0] + 6, b.hi[1] + 6, b.hi[2] + 1].map(r3) : null;
+}
+function revitSelected(items) {
+  if (!S.doc || draft.length) return;                     // mentre si disegna un'opera la scelta in Revit non la interrompe
+  const key = rvKeyNow(), ids = key ? (items || []).filter((i) => i && i.key === key).map((i) => String(i.id)) : [];
+  const o = ids.map((id) => S.doc.getOp(id)).find(Boolean) || null;
+  if (!o && !ids.includes(RV_GROUND)) return;              // altro progetto, altri elementi, opere che qui non ci sono più
+  const id = o ? o.id : null;
+  if (id === S.sel) return;                                // già scelto qui
+  RVS.fromRevit = true;
+  try {
+    if (o && S.mode !== "select" && !(S.mode === "point" && isPoint(o))) setMode("select");   // come un clic nell'elenco
+    select(id);
+  } finally { RVS.fromRevit = false; }
+  if (o) frameOp(o); else frameAll();
+}
+
+/* --- il terreno salvato nel modello (passo 6) -------------------------------------------------------------------
+   «Porta in Revit» mette il .terrain nel .rvt (store, stessa transazione: un Ctrl+Z); l'add-in dice quali progetti
+   ci sono (doc.stored) al saluto e a ogni cambio di modello. Come la Trazione: lo stesso progetto aperto qui →
+   niente; un altro → pagina senza lavoro (l'esempio, un terreno nuovo) lo apre da sé, se no lo si chiede nella scheda
+   d'import (una volta per modello e progetto); lo stesso ma più recente nel modello (portato da un altro PC) → si
+   chiede anche quello. Con un import o «Porta in Revit» a metà nel foglio non si chiede niente */
+const RVST = { ready: false, busy: false, asked: new Set() };
+function revitStoreCheck() {
+  if (!RVST.ready || RVST.busy || !REVIT || !RB.can(REVIT, "store.get") || !S.doc) return;
+  if (!$("sheet").hidden && document.querySelector('#sheet [data-panel="welcome"]').hidden) return;
+  const doc = REVIT.doc, list = ((doc && doc.stored) || []).filter((e) => e && e.tool === "terrain-sculptor" && e.key);
+  if (!list.length) return;
+  const e = list.slice().sort((a, b) => String(b.saved).localeCompare(String(a.saved)))[0];
+  const same = e.key === rvKeyNow(), newer = same && Date.parse(e.saved) > (S.lastSave || 0) + 60000;
+  if (same && !newer) return;
+  if (!hasWork()) { revitStoreOpen(e); return; }
+  const ask = (doc.path || doc.title) + "|" + e.key + "|" + e.saved;
+  if (RVST.asked.has(ask)) return;
+  RVST.asked.add(ask);
+  const d = new Date(e.saved), when = isNaN(d) ? "—" : d.toLocaleString(LANG === "en" ? "en-GB" : "it-IT", { dateStyle: "medium", timeStyle: "short" });
+  const v = { doc: RB.docLabel(doc), name: e.name || "—", d: when, n: ni(e.items || 0), mb: nf((e.bytes || 0) / 1048576, 1) };
+  stopIfcWorker(); ifcInfo = null; rvInfo = null;
+  openSheet("import");
+  pendingImport = { stored: e };
+  $("iTitle").textContent = tr("rv.stTitle"); $("iGo").textContent = tr("rv.stGo"); $("iCancel").textContent = tr("rv.stLater");
+  $("iBody").innerHTML = `<p>${esc(tr(same ? "rv.stNewer" : "rv.stBody", v))}</p><p class="note warn" id="iNote">${esc(tr("n.replace", { ops: workCount() }))}</p>`;
+  $("iGo").disabled = false;
+}
+async function revitStoreOpen(e) {
+  RVST.busy = true;
+  closeSheet();
+  busy(tr("rv.stOpening"));
+  try {
+    const r = await RB.call("store.get", { key: e.key }, 120000);
+    let u8 = RB.fromB64(r.data);
+    if (u8[0] === 0x1f && u8[1] === 0x8b) {
+      if (typeof DecompressionStream !== "function") throw new Error(tr("prj.noGzip"));
+      u8 = await pipeBytes(u8, new DecompressionStream("gzip"));
+    }
+    const doc = T.TerrainDoc.fromSnapshot(T.decodeProject(u8).snapshot);
+    setDoc(doc);
+    await saveNow();
+    toast(tr("rv.stOpened", { name: doc.meta.name || r.name || "—", doc: RB.docLabel(REVIT.doc), n: ni(doc.ops.length) }));
+  } catch (err) {
+    console.error(err);
+    toast(tr("rv.stFail", { m: (err && err.message) || String(err) }), true);
+  } finally { busy(""); RVST.busy = false; }
+}
 
 /* =========================================================================
    Modelli di riferimento (fase 2c): il progetto (edificio, strutture…) nella
@@ -4163,6 +4292,7 @@ $("refIn").addEventListener("change", () => { const fs = [...$("refIn").files]; 
 $("iGo").addEventListener("click", async () => {
   if (!pendingImport) return;
   if (pendingImport.project) return openProjectGo();
+  if (pendingImport.stored) return revitStoreOpen(pendingImport.stored);   // il terreno salvato nel modello Revit
   const { src, info, cell } = pendingImport;
   $("iGo").disabled = true;
   busy(tr("i.reading", { f: info.file }));
@@ -4317,15 +4447,27 @@ function frameAll() {
   if (!S.doc) return;
   frameLater = !innerWidth || !innerHeight;
   if (frameLater) return;
-  /* gli 8 spigoli della scatola (col blocco a plastico: fino al fondo) devono cadere nello spazio libero fra
-     rail, testata e pannello: distanza e centro si aggiustano sulla loro proiezione (pochi giri; la stima
-     dalla diagonale tagliava lo spigolo vicino del blocco, che in prospettiva scende più del centro) */
-  const f = S.doc.final, Lx = (f.nx - 1) * f.cell, Ly = (f.ny - 1) * f.cell, x0 = f.x0 - S.origin.x, y0 = f.y0 - S.origin.y;
-  const zlo = S.look.block ? look.base() : S.range.min, zhi = S.range.max;
+  const f = S.doc.final;
+  frameBox(f.x0 - S.origin.x, f.y0 - S.origin.y, (f.nx - 1) * f.cell, (f.ny - 1) * f.cell, S.look.block ? look.base() : S.range.min, S.range.max);   // col blocco a plastico: fino al fondo
+}
+/* un'opera scelta in Revit (passo 6): la sua scatola sul terreno, guardata dalla direzione di adesso */
+function frameOp(o) {
+  const b = revitBounds(o);
+  if (!b || !innerWidth || !innerHeight) return;
+  const dir = camera.position.clone().sub(controls.target);
+  if (!(dir.lengthSq() > 1e-9)) dir.set(-0.35, -0.8, 0.55);
+  const m = 2 * S.doc.final.cell;                                   // un'opera puntiforme non diventa una scatola nulla
+  frameBox(b.lo[0] - m - S.origin.x, b.lo[1] - m - S.origin.y, b.hi[0] - b.lo[0] + 2 * m, b.hi[1] - b.lo[1] + 2 * m, b.lo[2], b.hi[2], dir.normalize());
+}
+/* inquadra la scatola x0 + Lx, y0 + Ly (coordinate della scena), quote zlo–zhi, guardando lungo dir: gli 8 spigoli
+   devono cadere nello spazio libero fra rail, testata e pannello: distanza e centro si aggiustano sulla loro
+   proiezione (pochi giri; la stima dalla diagonale tagliava lo spigolo vicino del blocco, che in prospettiva scende
+   più del centro) */
+function frameBox(x0, y0, Lx, Ly, zlo, zhi, dir = new THREE.Vector3(-0.35, -0.8, 0.55).normalize()) {
   const pts = [];
   for (const x of [x0, x0 + Lx]) for (const y of [y0, y0 + Ly]) for (const z of [zlo, zhi]) pts.push(new THREE.Vector3(x, y, z));
   const L = RAIL_W + 12, R = Math.max(L + 200, innerWidth - podW() - 12), Tp = 70, B = innerHeight - 54 - podH();
-  const vfov = THREE.MathUtils.degToRad(camera.fov), dir = new THREE.Vector3(-0.35, -0.8, 0.55).normalize();
+  const vfov = THREE.MathUtils.degToRad(camera.fov);
   const tgt = new THREE.Vector3(x0 + Lx / 2, y0 + Ly / 2, (zlo + zhi) / 2), right = new THREE.Vector3(), up = new THREE.Vector3();
   let d = Math.max(20, Math.hypot(Lx, Ly, zhi - zlo));
   for (let it = 0; it < 6; it++) {
@@ -4383,11 +4525,13 @@ async function initRevit() {
   REVIT = await RB.hello();
   if (!REVIT) return;
   RB.onEvent((m) => {
-    if (m.event === "doc") { REVIT.doc = m.doc; renderRevit(); revitPreviewLater(); }   // l'anteprima va sul modello attivo
+    if (m.event === "doc") { REVIT.doc = m.doc; renderRevit(); revitPreviewLater(); revitStoreCheck(); }   // l'anteprima va sul modello attivo; il suo terreno salvato
     if (m.event === "preview" && !m.on) { RVP.on = false; RVP.sent.clear(); RVP.psig = ""; clearTimeout(RVP.t); renderRevit(); }
+    if (m.event === "select") revitSelected(m.items);
   });
   renderRevit();
   renderTerrain();                                  // «Da Revit…» fra i pulsanti del pannello Terreno
+  revitStoreCheck();                                // se l'avvio ha già il terreno della pagina (se no ci pensa lui)
 }
 /* l'id del progetto per Revit: chiave «terrain-sculptor:<uid>» della toposolid e delle opere nel modello. Sta nei
    meta del documento (salvataggio e .terrain), si fa al primo invio; un terreno nuovo o importato non ce l'ha */
@@ -4464,12 +4608,12 @@ document.querySelectorAll(".langsw button").forEach((b) => b.addEventListener("c
   }
   if (restored) toast(tr("t.restored", { d: new Date(saved.t).toLocaleString(LANG === "en" ? "en-GB" : "it-IT", { dateStyle: "medium", timeStyle: "short" }) }));
   else openSheet("welcome");
-})();
+})().finally(() => { RVST.ready = true; revitStoreCheck(); });   // dentro Revit: il terreno salvato nel modello, dopo quello del browser
 /* aggancio per le prove dal browser (come __banco della fase 0): niente dati del progetto, solo stato */
 window.__ts = { T, IO, get S() { return S; }, get REVIT() { return REVIT; }, projectUid, openRevit, get rvInfo() { return rvInfo; }, get RVP() { return RVP; }, revitPreviewToggle, get RPL() { return RPL; }, openRevitPlace, revitPlaceArgs, revitPlaceSend, select, edited, applyMap, get draft() { return draft; }, get handles() { return handleList.map((h) => ({ kind: h.kind, k: h.k, screen: toScreen(h.x, h.y, h.z) })); },
   get refs() { return refs.map((r) => ({ name: r.name, state: r.state, how: r.how, notes: r.notes, elements: r.elements, tris: r.tris, simplified: r.simplified, box: r.meshes.length ? (({ min, max }) => [min.toArray(), max.toArray()])(new THREE.Box3().setFromObject(refGroup)) : null })); },
   get look() { return S.doc ? { block: !!S.look.block, ...lookOf(), baseEff: look.base(), waters: look.wOps.map((o) => ({ id: o.id, level: o.level, n: o.polygon.length })), meshes: look.wMeshes.length } : null; },
-  camera, controls, pick, setMode, frameAll, saveNow, get renderer() { return renderer; }, renderNow: () => renderer.render(scene, camera), get NODE_CAP() { return NODE_CAP; } };
+  camera, controls, pick, setMode, frameAll, saveNow, revitBox, get renderer() { return renderer; }, renderNow: () => renderer.render(scene, camera), get NODE_CAP() { return NODE_CAP; } };
 </script>
 </body>
 </html>
