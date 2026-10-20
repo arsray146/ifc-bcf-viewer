@@ -9,7 +9,7 @@
    Le coppie di coordinate sono «Nord Est» come vuole la specifica; si
    prova anche l'ordine scambiato e si tiene quello che chiude le giunzioni.
    ========================================================================= */
-import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis, trackFrame, GAUGE_HALF } from "./ocs-core.js?v=0.22.0";
+import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis, trackFrame, GAUGE_HALF } from "./ocs-core.js?v=0.22.1";
 
 /* ---- XML minimo: elementi, attributi, testo (niente DTD, niente namespace) ---- */
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
@@ -524,7 +524,8 @@ const hnorm = (h) => String(h == null ? "" : h).trim().toLowerCase().normalize("
    (il portale si chiama «num / num2»), block = nome del blocco («Blocco» quando c'è anche una colonna della
    fondazione), ptype = tipologia («TIPO C 18÷27 - (2+2) x LSU22»), found2 = fondazione del secondo montante,
    Lb = lunghezza della trave scritta (controllo) */
-export const TABLE_FIELDS = ["num", "num2", "sta", "E", "N", "E2", "N2", "side", "dr", "mast", "block", "ptype", "L", "sosp", "L2", "sosp2", "found", "found2", "Lb", "hw", "stag", "track"];
+/* track2 (0.22.1) = binario del SECONDO montante del portale («Binario sotto»; «Binario sopra» è track) */
+export const TABLE_FIELDS = ["num", "num2", "sta", "E", "N", "E2", "N2", "side", "dr", "mast", "block", "ptype", "L", "sosp", "L2", "sosp2", "found", "found2", "Lb", "hw", "stag", "track", "track2"];
 const HDR = [
   ["L2", /^(l mensola 2|lunghezza mensola 2|mensola 2|2a mensola|seconda mensola|cantilever 2)$/],
   ["sosp2", /^(tipo sosp 2|tipo sospensione 2|sospensione 2|seconda sospensione|suspension 2|suspension type 2)$/],
@@ -543,7 +544,8 @@ const HDR = [
   ["found", /^(tipo blocco|blocco fondazione|blocco|fondazione|tipo fondazione|plinto|foundation|blocco di fondazione)$/],
   ["hw", /^(altezza filo|h filo|hfilo|altezza fdc|altezza filo di contatto|contact wire height|wire height)$/],
   ["stag", /^(poligonazione|stagger|poligonazione \(mm\))$/],
-  ["track", /^(binario|track|asse|alignment)$/],
+  ["track2", /^(binario|track|asse|alignment)( montante)? (sotto|2)$/],
+  ["track", /^(binario|track|asse|alignment)(( montante)? (sopra|1))?$/],
   // dopo «num»: una colonna «N» da sola è il numero; accanto a una colonna Est è il Nord (tableHeader)
   ["E2", /^((coord(inata)?\.? ?)?(e|est|x)( (palo|fusto|sostegno|montante))? (sotto|2)( \(m\))?|e2|est2|x2)$/],
   ["N2", /^((coord(inata)?\.? ?)?(nord|y)( (palo|fusto|sostegno|montante))? (sotto|2)( \(m\))?|nord2|y2)$/],
@@ -650,7 +652,7 @@ export function tableRecords(rows, head, map, opt = {}) {
     if (fs && rec.found !== founds.get(fs.toUpperCase())) rec.attrs[hdr[map.found] || "found"] = fs;
     if (fs2 && rec.found !== founds.get(fs2.toUpperCase())) rec.attrs[hdr[map.found2] || "found2"] = fs2;
     rec.hw = meters(cell("hw"), 50); rec.stag = meters(cell("stag"), 5);
-    rec.track = String(cell("track") ?? "").trim();
+    rec.track = String(cell("track") ?? "").trim(); rec.track2 = String(cell("track2") ?? "").trim();
     row.forEach((v, c) => { if (!used.has(c) && String(v).trim() !== "" && String(hdr[c] || "").trim()) rec.attrs[String(hdr[c]).trim()] = String(v).trim(); });
     out.push(rec);
   }
@@ -674,20 +676,24 @@ export function tableRecords(rows, head, map, opt = {}) {
 export const XY_DEFAULTS = { maxD: 15, drMin: 1.5, drMax: 4.5, staTol: 0.5, drTol: 0.05, ambTol: 0.5, skewTol: 0.25, spanTol: 0.05 };
 /* un portale dalle coordinate dei due montanti: binario di riferimento = fra quelli che passano FRA i due montanti,
    il più vicino al punto medio (o quello della colonna); progressiva = proiezione del punto medio; montanti nel
-   riferimento del binario lì (q scostamento, a lungo il binario: la trave può essere obliqua) */
-function placePortal(rec, tracks, ixs, named, o) {
+   riferimento del binario lì (q scostamento, a lungo il binario: la trave può essere obliqua).
+   named = i binari ammessi come riferimento (0.22.1: quelli scelti per i binari scritti dei due montanti), null = tutti;
+   any = uno dei binari scritti va «al più vicino»: se nessuno dei named passa fra i montanti, vanno bene tutti */
+function placePortal(rec, tracks, ixs, named, o, any = false) {
   const A = [rec.E, rec.N], B = [rec.E2, rec.N2], M = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
   const cand = [];
   ixs.forEach((ix, i) => {
     const pa = projectOn(ix, ...A), pb = projectOn(ix, ...B), pm = projectOn(ix, ...M);
     if (Math.abs(pm.along) <= 2 && Math.abs(pa.along) <= 2 && Math.abs(pb.along) <= 2 && Math.sign(pa.lat) !== Math.sign(pb.lat)) cand.push({ i, pm });
   });
-  if (named >= 0 && !cand.some((c) => c.i === named)) return { skip: { rec, why: "out", t: tracks[named].name } };
+  let pool = named ? cand.filter((c) => named.includes(c.i)) : cand;
+  if (named && !pool.length && any) pool = cand;
+  if (named && !any && !pool.length) return { skip: { rec, why: "out", t: tracks[named[0]].name } };
   if (!cand.length) {
     const nt = nearestTracks(ixs, ...M)[0];
     return { skip: nt && Math.abs(nt.lat) <= o.maxD ? { rec, why: "between", t: tracks[nt.i].name } : { rec, why: "far", t: nt ? tracks[nt.i].name : "", d: nt ? Math.abs(nt.lat) : null } };
   }
-  const ref = named >= 0 ? cand.find((c) => c.i === named) : cand.slice().sort((a, b) => Math.abs(a.pm.lat) - Math.abs(b.pm.lat))[0];
+  const ref = pool.slice().sort((a, b) => Math.abs(a.pm.lat) - Math.abs(b.pm.lat))[0];
   const u = ref.pm.u, f = trackFrame(ixs[ref.i].T, u);
   const loc = (p) => ({ a: (p[0] - f.x) * f.tx + (p[1] - f.y) * f.ty, q: (p[0] - f.x) * f.nx + (p[1] - f.y) * f.ny });
   let L = loc(A), R = loc(B);
@@ -718,29 +724,44 @@ export function trackGuess(v, tracks) {
   const hit = tracks.map((t, j) => { const b = nameToks(t.name); return b.length > a.length && a.every((x, k) => b[b.length - a.length + k] === x) ? j : -1; }).filter((j) => j >= 0);
   return hit.length === 1 ? hit[0] : -1;
 }
+/* i binari scritti per la riga (0.22.1): del palo la colonna del binario; del portale anche quella del 2° montante
+   («Binario sopra» / «Binario sotto» dell'estrazione Satferr), senza doppioni; [""] = nessuno */
+export function recTracks(rec) {
+  const a = String(rec.track || "").trim(), b = rec.portal ? String(rec.track2 || "").trim() : "";
+  return !b || b.toLowerCase() === a.toLowerCase() ? [a] : a ? [a, b] : [b];
+}
+/* una riga conta in ogni binario che ha scritto (il portale su due binari in tutti e due) */
 export function tableTracks(recs, tracks) {
   const by = new Map();
-  for (const r of recs) { const k = String(r.track || "").toLowerCase(), e = by.get(k); if (e) e.n++; else by.set(k, { k, v: r.track || "", n: 1 }); }
+  for (const r of recs) for (const v of recTracks(r)) { const k = v.toLowerCase(), e = by.get(k); if (e) e.n++; else by.set(k, { k, v, n: 1 }); }
   return [...by.values()].map((e) => ({ ...e, i: trackGuess(e.v, tracks) }));
 }
 /* opt.trackMap = Map(k → scelta) per i valori della colonna del binario: indice del binario, -1 = non importare
    (why: off), -2 = come senza colonna (il più vicino dalle coordinate, altrimenti opt.track); valori assenti = il
-   binario con quel nome, come prima */
+   binario con quel nome, come prima. Portale coi binari di due montanti (0.22.1): fuori solo se tutti e due sono
+   «non importare»; di riferimento uno di quelli scelti che passi fra i montanti (il più vicino al punto medio), e se
+   nessuno ci passa e l'altro è «il più vicino», il più vicino fra tutti */
 export function placeRecords(recs, tracks, opt = {}) {
   const o = { ...XY_DEFAULTS, ...opt }, ok = [], skip = [], ixs = tracks.map((t) => t.ix);
+  const byName = (v) => tracks.findIndex((t) => t.name.toLowerCase() === v.toLowerCase());
   for (const rec of recs) {
-    const pick = o.trackMap ? o.trackMap.get(String(rec.track || "").toLowerCase()) : undefined;
-    if (pick === -1) { skip.push({ rec, why: "off", t: rec.track }); continue; }
-    const named = pick >= 0 ? pick : pick === -2 ? -1 : rec.track ? tracks.findIndex((t) => t.name.toLowerCase() === rec.track.toLowerCase()) : -1;
-    if (pick == null && rec.track && named < 0) { skip.push({ rec, why: "noTrack", t: rec.track }); continue; }
+    // per ogni binario scritto: indice, -1 non importare, -2 qualunque (il più vicino / opt.track), -3 sconosciuto
+    const names = recTracks(rec), picks = names.map((v) => {
+      const p = o.trackMap ? o.trackMap.get(v.toLowerCase()) : undefined;
+      return p != null ? p : !v ? -2 : byName(v) >= 0 ? byName(v) : -3;
+    });
+    if (picks.every((p) => p === -1)) { skip.push({ rec, why: "off", t: names[0] }); continue; }
+    const named = picks.filter((p) => p >= 0), any = picks.includes(-2);
+    if (!named.length && !any) { skip.push({ rec, why: "noTrack", t: names[picks.indexOf(-3)] }); continue; }
     if (rec.portal) {
       if (!rec.xy2) { skip.push({ rec, why: "portal" }); continue; }
-      const r = placePortal(rec, tracks, ixs, named, o);
+      const r = placePortal(rec, tracks, ixs, named.length ? named : null, o, any);
       if (r.skip) skip.push(r.skip); else ok.push(r.ok);
       continue;
     }
+    const one = named.length ? named[0] : -1;             // il palo ha un binario solo
     if (!rec.xy) {
-      const i = named >= 0 ? named : o.track, t = tracks[i];
+      const i = one >= 0 ? one : o.track, t = tracks[i];
       if (!t) { skip.push({ rec, why: "noTrack", t: rec.track || "" }); continue; }
       const u = rec.sta - t.s0;
       if (u < -0.01 || u > t.length + 0.01) { skip.push({ rec, why: "out", t: t.name }); continue; }
@@ -748,9 +769,9 @@ export function placeRecords(recs, tracks, opt = {}) {
       continue;
     }
     let near = null, p;
-    if (named >= 0) { const q = projectOn(ixs[named], rec.E, rec.N); p = Math.abs(q.along) <= 2 ? { i: named, ...q } : null; }
+    if (one >= 0) { const q = projectOn(ixs[one], rec.E, rec.N); p = Math.abs(q.along) <= 2 ? { i: one, ...q } : null; }
     else { near = nearestTracks(ixs, rec.E, rec.N); p = near[0] || null; }
-    if (!p) { skip.push(named >= 0 ? { rec, why: "out", t: tracks[named].name } : { rec, why: "far", t: "", d: null }); continue; }
+    if (!p) { skip.push(one >= 0 ? { rec, why: "out", t: tracks[one].name } : { rec, why: "far", t: "", d: null }); continue; }
     const t = tracks[p.i], a = Math.abs(p.lat);
     if (a > o.maxD) { skip.push({ rec, why: "far", t: t.name, d: a }); continue; }
     const side = p.lat >= 0 ? 1 : -1, dr = drFromAxis(p.lat, o.mastW ? o.mastW(p.i, p.u, rec) : 0.4), warn = [];

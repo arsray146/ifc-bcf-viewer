@@ -736,8 +736,9 @@ const I18N = {
     "tt.help": "Da una progressiva a un'altra i valori scritti valgono per tutti i pali del tratto, anche per quelli piazzati o trascinati dentro dopo; i campi vuoti restano quelli del binario. Il valore scritto su un palo vince sempre; fra tratti sovrapposti vince quello più in basso.",
     "tt.cleared": "{n} valori tolti: i pali seguono il tratto.", "tt.cleared0": "Niente da togliere: i pali seguono già il tratto.",
     "im.title": "Importa la tabella di picchettamento", "im.empty": "{f}: nessuna riga utile.", "im.noTrack": "binario «{t}» non trovato", "im.out": "progressiva fuori dal binario {t}",
-    "im.L2": "Mensola (2ª sospensione)", "im.sosp": "Tipo di sospensione", "im.sosp2": "Tipo 2ª sospensione", "im.track": "Binario", "im.target": "Binario di arrivo", "im.col": "colonna {n}", "im.sheet": "Foglio", "im.head": "Intestazione", "im.headU": "riga", "im.cols": "Colonne",
-    "im.trackCol": "Per ogni binario della tabella scegli su quale binario caricato vanno i suoi pali, o «non importare» per lasciarli fuori. Di partenza: il binario con lo stesso nome (o che finisce così: B1 → PSP_B1), altrimenti non si importa. Con le coordinate i pali si proiettano sul binario scelto; «il più vicino» li manda al binario più vicino.",
+    "im.L2": "Mensola (2ª sospensione)", "im.sosp": "Tipo di sospensione", "im.sosp2": "Tipo 2ª sospensione", "im.track": "Binario (palo / 1° montante)", "im.track2": "Binario 2° montante (portali)", "im.target": "Binario di arrivo", "im.col": "colonna {n}", "im.sheet": "Foglio", "im.head": "Intestazione", "im.headU": "riga", "im.cols": "Colonne",
+    "im.trackCol": "Per ogni binario della tabella scegli su quale binario caricato vanno i suoi pali, o «non importare» per lasciarli fuori. Di partenza: il binario con lo stesso nome (o che finisce così: B1 → PSP_B1), altrimenti non si importa. Con le coordinate i pali si proiettano sul binario scelto; «il più vicino» li manda al binario più vicino. Un portale conta nei binari dei suoi due montanti: entra se almeno uno dei due è importato e passa fra i montanti (lì si appoggia).",
+    "im.nearT": "Binari più vicini", "im.nearHelp": "La tabella non ha la colonna del binario: le righe sono raggruppate per binario più vicino alle coordinate. Per ogni gruppo scegli «il più vicino» (di partenza), un binario caricato su cui proiettarle, o «non importare» per lasciarle fuori. Se c'è una colonna col nome del binario, sceglila sopra in «Binario (palo / 1° montante)».",
     "im.tracks": "Binari della tabella", "im.ttRow": "{t} · {n} righe", "im.ttRow1": "{t} · 1 riga", "im.ttEmpty": "(senza binario)", "im.ttOff": "— non importare", "im.ttNear": "il più vicino",
     "im.off": "{n} righe di binari non importati.",
     "im.mode": "Pali già piazzati", "im.add": "si tengono, i nuovi si aggiungono", "im.replace": "si tolgono dai binari della tabella",
@@ -951,8 +952,9 @@ const I18N = {
     "tt.help": "From one chainage to another the values written apply to every mast of the stretch, also to those placed or dragged inside later; empty fields stay the track's. A value typed on a mast always wins; among overlapping stretches the lower one wins.",
     "tt.cleared": "{n} values removed: the masts follow the stretch.", "tt.cleared0": "Nothing to remove: the masts already follow the stretch.",
     "im.title": "Import the layout table", "im.empty": "{f}: no usable rows.", "im.noTrack": "track “{t}” not found", "im.out": "chainage outside track {t}",
-    "im.L2": "Cantilever (2nd suspension)", "im.sosp": "Suspension type", "im.sosp2": "2nd suspension type", "im.track": "Track", "im.target": "Target track", "im.col": "column {n}", "im.sheet": "Sheet", "im.head": "Header", "im.headU": "row", "im.cols": "Columns",
-    "im.trackCol": "For each track in the table pick the loaded track its supports go to, or “do not import” to leave them out. At first: the track with the same name (or ending that way: B1 → PSP_B1), otherwise not imported. With coordinates the supports are projected onto the chosen track; “nearest” sends them to the nearest track.",
+    "im.L2": "Cantilever (2nd suspension)", "im.sosp": "Suspension type", "im.sosp2": "2nd suspension type", "im.track": "Track (mast / 1st upright)", "im.track2": "Track 2nd upright (portals)", "im.target": "Target track", "im.col": "column {n}", "im.sheet": "Sheet", "im.head": "Header", "im.headU": "row", "im.cols": "Columns",
+    "im.trackCol": "For each track in the table pick the loaded track its supports go to, or “do not import” to leave them out. At first: the track with the same name (or ending that way: B1 → PSP_B1), otherwise not imported. With coordinates the supports are projected onto the chosen track; “nearest” sends them to the nearest track. A portal counts in the tracks of both its uprights: it comes in when at least one of them is imported and runs between the uprights (it is placed on that one).",
+    "im.nearT": "Nearest tracks", "im.nearHelp": "The table has no track column: the rows are grouped by the track nearest to their coordinates. For each group pick “nearest” (the default), a loaded track to project them onto, or “do not import” to leave them out. If a column holds the track name, pick it above in “Track (mast / 1st upright)”.",
     "im.tracks": "Tracks in the table", "im.ttRow": "{t} · {n} rows", "im.ttRow1": "{t} · 1 row", "im.ttEmpty": "(no track)", "im.ttOff": "— do not import", "im.ttNear": "nearest",
     "im.off": "{n} rows of tracks not imported.",
     "im.mode": "Masts already placed", "im.add": "are kept, the new ones are added", "im.replace": "are removed from the table's tracks",
@@ -982,15 +984,15 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./ocs-core.js?v=0.22.0";
-import * as IO from "./ocs-io.js?v=0.22.0";
-import * as K from "./ocs-catalog.js?v=0.22.0";
-import * as AU from "./ocs-stake.js?v=0.22.0";
-import * as RFI from "./ocs-rfi.js?v=0.22.0";
+import * as C from "./ocs-core.js?v=0.22.1";
+import * as IO from "./ocs-io.js?v=0.22.1";
+import * as K from "./ocs-catalog.js?v=0.22.1";
+import * as AU from "./ocs-stake.js?v=0.22.1";
+import * as RFI from "./ocs-rfi.js?v=0.22.1";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.22.0";
+const TOOL_VERSION = "0.22.1";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -3169,7 +3171,7 @@ async function openTable(file) {
   sheets = sheets.filter((x) => x.rows.length > 1);
   if (!sheets.length) { toast(tr("im.empty", { f: file.name }), true); return; }
   if (!S.tracks.length) { toast(tr("prj.empty"), true); return; }
-  const st = { file: file.name, sheets, sheet: 0, track: A ? A.id : S.tracks[0].id, mode: "add", swap: false, swapAuto: false, tmap: new Map(),
+  const st = { file: file.name, sheets, sheet: 0, track: A ? A.id : S.tracks[0].id, mode: "add", swap: false, swapAuto: false, tmap: new Map(), nmap: new Map(),
     maxD: IO.XY_DEFAULTS.maxD, drMin: IO.XY_DEFAULTS.drMin, drMax: IO.XY_DEFAULTS.drMax,
     // i binari in pianta per le righe a coordinate (0.9.0), fatti una volta per il dialogo
     trk: S.tracks.map((t) => ({ name: t.name, s0: t.s0 || 0, length: t.length, ix: C.trackIndex(derivedOf(t).T) })) };
@@ -3182,6 +3184,7 @@ async function openTable(file) {
 }
 function imHeader(st) { const H = IO.tableHeader(st.sheets[st.sheet].rows); st.head = H.row; st.map = { ...H.map }; imSwapGuess(st); }
 const imXY = (st) => st.map.E != null && st.map.E >= 0 && st.map.N != null && st.map.N >= 0;
+const imCol = (st) => (st.map.track != null && st.map.track >= 0) || (st.map.track2 != null && st.map.track2 >= 0);   // colonna del binario (del palo o di un montante)
 /* E e N scambiate? se lette al contrario cadono sui binari più righe, si propone lo scambio (0.9.0) */
 function imSwapGuess(st) {
   st.swap = st.swapAuto = false;
@@ -3207,13 +3210,19 @@ function imPlan(st) {
   const rows = st.sheets[st.sheet].rows, recs = IO.tableRecords(rows, st.head, st.map, { ...imOpt, swap: st.swap });
   const track = S.tracks.findIndex((t) => t.id === st.track);
   // i binari della tabella (0.21.0): per ogni valore della colonna, dove vanno le sue righe (-1 = non importarle);
-  // la prima volta il binario con quel nome (o che finisce così), le righe senza binario come prima
-  const tt = st.map.track != null && st.map.track >= 0 ? IO.tableTracks(recs, st.trk) : [];
-  for (const e of tt) if (!st.tmap.has(e.k)) st.tmap.set(e.k, e.v ? e.i : imXY(st) ? -2 : track);
-  const P = IO.placeRecords(recs, st.trk, { track, mastW: imMastW, portalW: imPortalW, maxD: st.maxD, drMin: st.drMin, drMax: st.drMax, trackMap: tt.length ? st.tmap : null });
+  // la prima volta il binario con quel nome (o che finisce così), le righe senza binario come prima. Il portale
+  // conta coi binari dei due montanti («Binario sopra» / «Binario sotto», 0.22.1)
+  const col = imCol(st), xy = imXY(st), near = !col && xy;
+  // senza colonna del binario ma con le coordinate (0.22.1): righe raggruppate per binario più vicino, una scelta per
+  // gruppo; di partenza «il più vicino», cioè come prima (con l'avviso fra due binari). Le righe lontane da tutti
+  // restano senza gruppo e si saltano come prima
+  if (near) for (const o of IO.placeRecords(recs, st.trk, { track, mastW: imMastW, portalW: imPortalW, maxD: st.maxD }).ok) o.rec.track = st.trk[o.i].name;
+  const tm = near ? st.nmap : st.tmap, tt = col || near ? IO.tableTracks(recs, st.trk).filter((e) => col || e.v) : [];
+  for (const e of tt) if (!tm.has(e.k)) tm.set(e.k, near ? -2 : e.v ? e.i : xy ? -2 : track);
+  const P = IO.placeRecords(recs, st.trk, { track, mastW: imMastW, portalW: imPortalW, maxD: st.maxD, drMin: st.drMin, drMax: st.drMax, trackMap: tt.length ? tm : null });
   const why = (s) => (s.why === "noTrack" ? tr("im.noTrack", { t: s.t }) : s.why === "out" ? tr("im.out", { t: s.t }) : s.why === "portal" ? tr("im.portal")
     : s.why === "between" ? tr("im.between", { t: s.t }) : s.d != null ? tr("im.far", { d: nf(s.d, 1), t: s.t }) : tr("im.farAll"));
-  return { recs, tt, off: P.skip.filter((s) => s.why === "off").length, ok: P.ok.map((o) => ({ ...o, t: S.tracks[o.i] })),
+  return { recs, tt, tm, near, off: P.skip.filter((s) => s.why === "off").length, ok: P.ok.map((o) => ({ ...o, t: S.tracks[o.i] })),
     skip: P.skip.filter((s) => s.why !== "off").map((s) => ({ rec: s.rec, why: why(s) })) };
 }
 /* gli avvisi di una riga a coordinate, a parole */
@@ -3224,7 +3233,7 @@ function imWarnText(o, st) {
     : w === "skew" ? tr("im.wSkew", { a: nf(Math.abs(o.fix.aL - o.fix.aR), 2) }) : w === "spanDiff" ? tr("im.wSpan", { a: nf(r.Lb, 3), b: nf(o.span, 3) })
     : o.portal ? tr("im.wRangeP", { v: nf(o.dr, 3), a: nf(st.drMin, 2) }) : tr("im.wRange", { v: nf(o.dr, 3), a: nf(st.drMin, 2), b: nf(st.drMax, 2) })).join("; ");
 }
-const imLabel = (k) => ({ num: tr("su.num"), num2: tr("im.num2"), sta: tr("su.at"), E: tr("im.E"), N: tr("im.N"), E2: tr("im.E2"), N2: tr("im.N2"), side: tr("su.side"), dr: tr("su.dr"), mast: tr("su.mast"), block: tr("im.block"), ptype: tr("im.ptype"), L: tr("su.mens"), sosp: tr("im.sosp"), L2: tr("im.L2"), sosp2: tr("im.sosp2"), found: tr("su.found"), found2: tr("im.found2"), Lb: tr("im.Lb"), hw: tr("su.hw"), stag: tr("su.stag"), track: tr("im.track") })[k];
+const imLabel = (k) => ({ num: tr("su.num"), num2: tr("im.num2"), sta: tr("su.at"), E: tr("im.E"), N: tr("im.N"), E2: tr("im.E2"), N2: tr("im.N2"), side: tr("su.side"), dr: tr("su.dr"), mast: tr("su.mast"), block: tr("im.block"), ptype: tr("im.ptype"), L: tr("su.mens"), sosp: tr("im.sosp"), L2: tr("im.L2"), sosp2: tr("im.sosp2"), found: tr("su.found"), found2: tr("im.found2"), Lb: tr("im.Lb"), hw: tr("su.hw"), stag: tr("su.stag"), track: tr("im.track"), track2: tr("im.track2") })[k];
 function imRender(st) {
   const sh = st.sheets[st.sheet], hdr = sh.rows[st.head] || [];
   const cols = hdr.map((h, c) => [c, String(h || "").trim() || tr("im.col", { n: c + 1 })]);
@@ -3235,12 +3244,12 @@ function imRender(st) {
   for (const k of IO.TABLE_FIELDS) h += `<div class="row"><label>${esc(imLabel(k))}</label><select class="sel" data-imk="${k}">${opt(-1, "—", st.map[k] != null ? st.map[k] : -1)}${cols.map(([c, l]) => opt(c, l, st.map[k] != null ? st.map[k] : -1)).join("")}</select></div>`;
   const xy = imXY(st), P = imPlan(st);
   if (P.tt.length) {                                     // un binario caricato (o nessuno) per ogni binario della tabella (0.21.0)
-    h += `<div class="sub">${esc(tr("im.tracks"))}</div>`;
+    h += `<div class="sub">${esc(P.near ? tr("im.nearT") : tr("im.tracks"))}</div>`;   // o per binario più vicino (0.22.1)
     P.tt.forEach((e, j) => {
-      const os = opt(-1, tr("im.ttOff"), st.tmap.get(e.k)) + (xy ? opt(-2, tr("im.ttNear"), st.tmap.get(e.k)) : "") + S.tracks.map((t, i) => opt(i, t.name, st.tmap.get(e.k))).join("");
+      const os = opt(-1, tr("im.ttOff"), P.tm.get(e.k)) + (xy ? opt(-2, tr("im.ttNear"), P.tm.get(e.k)) : "") + S.tracks.map((t, i) => opt(i, t.name, P.tm.get(e.k))).join("");
       h += `<div class="row"><label for="imTT${j}">${esc(e.n === 1 ? tr("im.ttRow1", { t: e.v || tr("im.ttEmpty") }) : tr("im.ttRow", { t: e.v || tr("im.ttEmpty"), n: e.n }))}</label><select id="imTT${j}" class="sel" data-imtt="${j}">${os}</select></div>`;
     });
-    h += `<p class="help">${esc(tr("im.trackCol"))}</p>`;
+    h += `<p class="help">${esc(P.near ? tr("im.nearHelp") : tr("im.trackCol"))}</p>`;
   } else h += `<div class="row"><label for="imTrack">${esc(tr("im.target"))}</label><select id="imTrack" class="sel">${S.tracks.map((t) => opt(t.id, t.name, st.track)).join("")}</select></div>`;
   if (xy) {                                              // coordinate dell'asse del fusto (0.9.0)
     h += `<div class="sub">${esc(tr("im.xy"))}</div>`;
@@ -3285,7 +3294,7 @@ function imRender(st) {
   $("imHead").addEventListener("change", (e) => { const v = parseInt(e.target.value, 10); if (v >= 1 && v <= sh.rows.length) { st.head = v - 1; const H = IO.tableHeader(sh.rows.slice(st.head, st.head + 1)); st.map = { ...H.map }; imSwapGuess(st); } imRender(st); });
   $("dlgBody").querySelectorAll("[data-imk]").forEach((el) => el.addEventListener("change", () => { const c = +el.value; if (c < 0) delete st.map[el.dataset.imk]; else st.map[el.dataset.imk] = c; if (el.dataset.imk === "E" || el.dataset.imk === "N") imSwapGuess(st); imRender(st); }));
   if ($("imTrack")) $("imTrack").addEventListener("change", (e) => { st.track = +e.target.value; imRender(st); });
-  $("dlgBody").querySelectorAll("[data-imtt]").forEach((el) => el.addEventListener("change", () => { st.tmap.set(P.tt[+el.dataset.imtt].k, +el.value); imRender(st); }));
+  $("dlgBody").querySelectorAll("[data-imtt]").forEach((el) => el.addEventListener("change", () => { P.tm.set(P.tt[+el.dataset.imtt].k, +el.value); imRender(st); }));
   $("imMode").addEventListener("change", (e) => { st.mode = e.target.value; });
 }
 function imApply(st) {
@@ -4382,7 +4391,7 @@ function ifcDialog() {
 async function exportIfc(o, railStep) {
   busy(tr("ix.busy")); await frame();
   try {
-    const X = await import("./ocs-ifc.js?v=0.22.0");
+    const X = await import("./ocs-ifc.js?v=0.22.1");
     const tpl = psetTpl();
     const labels = { site: tr("ifc.site"), railway: tr("ifc.railway"), mast: tr("ifc.mast"), portal: tr("ifc.portal"), stem: tr("ifc.stem"), plate: tr("ifc.plate"),
       mens: tr("ifc.mens"), tie: tr("ifc.tie"), susp: tr("ifc.susp"), pend: tr("ifc.pend"), found: tr("ifc.found"), beam: tr("ifc.beam"), pole: tr("ifc.pole"), trafo: tr("ifc.trafo"),
