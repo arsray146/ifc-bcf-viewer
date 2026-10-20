@@ -718,6 +718,13 @@ main.tb-docked .tb-sep{height:16px}
 main.detail-collapsed #btnDetailReopen{display:inline-flex}
 #navHelp{position:absolute;bottom:44px;left:50%;transform:translateX(-50%);z-index:4;font-family:var(--mono);font-size:10.5px;color:var(--faint);background:none;border:none;padding:0;white-space:nowrap}
 main:has(#profilePanel:not([hidden])) #navHelp{display:none}
+/* piano di sezione: dicitura fissa sotto la toolbar finché la modalità è accesa (v2.10.4).
+   Prima della posa dice come posarlo, dopo come spostarlo / riposizionarlo / annullare. */
+#secHint{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:8px;width:max-content;max-width:min(92vw,720px);text-align:center;pointer-events:none;font-size:11.5px;line-height:1.7;color:var(--muted);background:var(--panel);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--line);border-radius:999px;padding:4px 14px;box-shadow:var(--shadow)}
+#secHint[hidden]{display:none}
+#secHint kbd{font-family:var(--mono);font-size:10.5px;color:var(--text);background:var(--panel-2);border:1px solid var(--line-2);border-radius:4px;padding:0 4px}
+#secHint .sh-move,#secHint.placed .sh-pick{display:none}
+#secHint.placed .sh-move{display:inline}
 #dropHint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--faint);pointer-events:none;z-index:2;text-align:center;padding:20px}
 #dropHint .frame{border:2px dashed var(--line-2);border-radius:12px;padding:40px 56px;background:var(--glass)}
 #dropHint .big{font-family:var(--disp);font-weight:700;font-size:23px;letter-spacing:.05em;color:var(--muted)}
@@ -1671,6 +1678,7 @@ body.diff-embed #railDiff{display:flex}
       <label class="tgl"><input type="checkbox" id="tglIsolate"> <span data-i18n="tgl.isolate">Isola selezione</span></label>
       <label class="tgl" id="tglSnapWrap" style="display:none"><input type="checkbox" id="tglSnap" disabled> <span data-i18n="tgl.snap">Snapshot in sovrapposizione</span></label>
       </div>
+      <div id="secHint" hidden><span class="sh-pick" data-i18n-html="secHint.pick"><kbd>Alt</kbd>+clic su una faccia: posiziona il piano</span><span class="sh-move" data-i18n-html="secHint.move"><kbd>Shift</kbd>+trascina: sposta il piano &nbsp;·&nbsp; <kbd>Alt</kbd>+clic: riposiziona &nbsp;·&nbsp; <kbd>Ctrl</kbd>+<kbd>Z</kbd>: annulla &nbsp;·&nbsp; <kbd>Esc</kbd>: togli</span></div>
     </div>
     <div id="alignMenu" class="align-menu" hidden></div>
     <div id="sectionMenu" class="align-menu" hidden>
@@ -1862,16 +1870,16 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
    bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
    ogni release il .js vecchio in cache non viene più usato. vendor/ resta
    senza versione: cambia solo quando si aggiornano three o web-ifc. */
-import { readLASHeader, parseLAS } from "./las.js?v=2.10.3";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
-import { parseE57, e57PointCount } from "./e57.js?v=2.10.3";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js?v=2.10.3";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.3";  // feature QTO (v2.5.0)
+import { readLASHeader, parseLAS } from "./las.js?v=2.10.4";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.10.4";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.10.4";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.4";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.3";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.4";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.3";  // studio verifica nuvola ↔ modello
-import * as SRCH from "./search.js?v=2.10.3";                          // feature Cerca (v2.10.0): confronti, regole, CSV
-import * as CAPS from "./caps.js?v=2.10.3";                            // tappi pieni delle sezioni (v2.10.2)
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.4";  // studio verifica nuvola ↔ modello
+import * as SRCH from "./search.js?v=2.10.4";                          // feature Cerca (v2.10.0): confronti, regole, CSV
+import * as CAPS from "./caps.js?v=2.10.4";                            // tappi pieni delle sezioni (v2.10.2)
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -1940,7 +1948,9 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
                                     classica attorno al target corrente
    · tasto centrale ×2              reset vista (sez. navigazione tastiera & walk)
    · walk mode (btn 0)              look-around quando walkMode è attivo
-   · picking (btn 0, ≤ soglia px)   selezione elemento al pointerup se non era drag
+   · picking (btn 0, ≤ soglia px)   selezione elemento al pointerup se non era drag;
+                                    col piano di sezione acceso Alt+clic = posa il
+                                    piano (Ctrl+clic resta la selezione multipla)
    · menu contestuale (btn 2, ≤4px) apertura menu al pointerup se non era pan
    · section box                    hover+drag degli handle (stopPropagation verso
                                     OrbitControls; cede a walk)
@@ -1954,10 +1964,13 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
       (document keydown)             (stopImmediatePropagation → la globale non scatta)
    3. overlay conferma LandXML       chiude l'overlay (listener transiente)
    4. menu contestuale               chiude il menu (window keydown)
-   5. globale (window keydown)       walk → esci; modalità sezione → esci;
-                                     poi clearHighlight; poi closeDetail se
-                                     nessun topic aperto
+   5. globale (window keydown)       walk → esci; senza selezione: modalità
+                                     sezione → esci; poi clearHighlight; poi
+                                     closeDetail se nessun topic aperto
    Canc: esce dalle modalità sezione (solo handler globale).
+   Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z): annulla / ripete sul piano di sezione
+   (handler globale); con la sezione 2D aperta Ctrl+Z annulla la misura
+   (document keydown, ferma la propagazione) e la globale lascia stare.
    NB: document keydown scatta PRIMA di window (bubbling document → window):
    è questo che dà alla misura 2D la precedenza sulla catena globale.
    ============================================================================ */
@@ -1965,7 +1978,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.10.3";
+const APP_VERSION = "2.10.4";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2241,8 +2254,9 @@ const STRINGS = {
     "btn.sectionBox": "Box di sezione",
     "title.sectionBox": "Attiva / disattiva section box 3D — ritaglia la vista con un box regolabile e ruotabile (stile Revit)",
     "btn.secPlane": "Piano",
-    "title.secPlane": "Piano di sezione parallelo a una faccia: clicca una faccia per posizionarlo, Shift+trascina per spostarlo avanti/indietro",
-    "toast.secPlanePick": "Clicca una faccia per posizionare il piano di sezione.",
+    "title.secPlane": "Piano di sezione parallelo a una faccia: Alt+clic su una faccia per posizionarlo, Shift+trascina per spostarlo avanti/indietro, Ctrl+Z / Ctrl+Y per annullare / ripetere. Clic e Ctrl+clic selezionano gli elementi.",
+    "secHint.pick": "<kbd>Alt</kbd>+clic su una faccia: posiziona il piano",
+    "secHint.move": "<kbd>Shift</kbd>+trascina: sposta il piano &nbsp;·&nbsp; <kbd>Alt</kbd>+clic: riposiziona &nbsp;·&nbsp; <kbd>Ctrl</kbd>+<kbd>Z</kbd>: annulla &nbsp;·&nbsp; <kbd>Esc</kbd>: togli",
     "btn.align": "Asse",
     "title.align": "Scegli l'asse (alignment) da mostrare in rosso e apri il profilo",
     "align.menuHd": "Assi", "align.all": "tutti", "align.none": "nessuno",
@@ -2801,8 +2815,9 @@ const STRINGS = {
     "btn.sectionBox": "Section box",
     "title.sectionBox": "Toggle 3D section box — crop the view with an adjustable, rotatable box (Revit-style)",
     "btn.secPlane": "Plane",
-    "title.secPlane": "Section plane parallel to a face: click a face to place it, Shift+drag to move it back/forth",
-    "toast.secPlanePick": "Click a face to place the section plane.",
+    "title.secPlane": "Section plane parallel to a face: Alt+click a face to place it, Shift+drag to move it back/forth, Ctrl+Z / Ctrl+Y to undo / redo. Click and Ctrl+click select elements.",
+    "secHint.pick": "<kbd>Alt</kbd>+click a face: place the plane",
+    "secHint.move": "<kbd>Shift</kbd>+drag: move the plane &nbsp;·&nbsp; <kbd>Alt</kbd>+click: reposition &nbsp;·&nbsp; <kbd>Ctrl</kbd>+<kbd>Z</kbd>: undo &nbsp;·&nbsp; <kbd>Esc</kbd>: remove",
     "btn.align": "Alignment",
     "title.align": "Pick the alignment (axis) to show in red and open its profile",
     "align.menuHd": "Alignments", "align.all": "all", "align.none": "none",
@@ -5466,7 +5481,9 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   if (moved > 4 || e.button !== 0) return;
   setNdcFromClient(mouseNdc, e.clientX, e.clientY);
   raycaster.setFromCamera(mouseNdc, camera);
-  if (typeof SECPL !== "undefined" && SECPL.on && !e.shiftKey) { _spPickFaceFromRay(); return; }   // modalità piano: il clic posiziona il piano sulla faccia
+  /* modalità piano: Alt+clic posiziona il piano sulla faccia; clic e Ctrl+clic selezionano come
+     sempre (v2.10.4: prima ogni clic spostava il piano e col piano acceso non si selezionava) */
+  if (typeof SECPL !== "undefined" && SECPL.on && e.altKey) { _spPickFaceFromRay(); return; }
   const visible = allBaseMeshes().filter(m => m.visible);
   const hit = firstUnclippedHit(raycaster.intersectObjects(visible, false));
   if (!hit) {
@@ -5496,7 +5513,7 @@ renderer.domElement.addEventListener("pointerup", (e) => {
    Ritorna true se ha chiuso almeno una modalità → il chiamante può fermarsi. */
 function _exitSectionModes() {
   let closed = false;
-  if (typeof SECPL !== "undefined" && SECPL.on) { setSectionPlane(false); SECPL.P = null; closed = true; }  // cancella il piano di sezione applicato
+  if (typeof SECPL !== "undefined" && SECPL.on) { _spPush(); setSectionPlane(false); SECPL.P = null; closed = true; }  // cancella il piano di sezione applicato (Ctrl+Z lo riporta)
   if (sectionBoxOn) { setSectionBox(false); closed = true; }
   return closed;
 }
@@ -5505,7 +5522,10 @@ window.addEventListener("keydown", (e) => {
   if (isTyping(e)) return;
   if (e.key === "Escape") {
     if (walkMode) { setWalkMode(false); return; }
-    if (_exitSectionModes()) return;   // Esc: esci dalle modalità sezione (piano / box)
+    /* Esc: con una selezione toglie PRIMA la selezione, poi esce dalle modalità sezione
+       (piano / box). Da quando il clic seleziona anche col piano acceso (v2.10.4), un Esc
+       per deselezionare non deve buttare via il piano appena sistemato. */
+    if (!hlGroup.children.length && _exitSectionModes()) return;
     clearHighlight();
     if (activeTopic === null) {
       if (CLASH.results) _drawShowTab("clash");   // i risultati clash restano raggiungibili
@@ -5516,14 +5536,34 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Delete") {            // Canc: esci dalle modalità sezione (piano / box)
     if (_exitSectionModes()) { e.preventDefault(); return; }
   }
+  /* Ctrl+Z annulla, Ctrl+Y o Ctrl+Shift+Z ripete: posa, spostamenti, accensione e rimozione
+     del piano di sezione (v2.10.4). Con la sezione 2D aperta Ctrl+Z annulla la misura: lo
+     prende prima l'handler su document; qui si lascia stare anche il Ctrl+Y per coerenza. */
+  if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+    const k = e.key.toLowerCase();
+    if (k === "z" || k === "y") {
+      if (typeof DRAW !== "undefined" && DRAW.on && !$("sectionBody").hidden) return;
+      if ((k === "y" || e.shiftKey) ? spRedo() : spUndo()) e.preventDefault();
+      return;
+    }
+  }
+  if (_spAltGuard(e)) return;
   if (MOVE_CODES.has(e.code)) {
     keysDown.add(e.code);
     e.preventDefault();
   }
 });
+/* Alt da solo, rilasciato, in Edge/Chrome su Windows porta il fuoco al menu del browser (in
+   Firefox apre la barra dei menu): dopo un Alt+clic di posa del piano il Ctrl+Z successivo
+   andrebbe al browser invece che alla pagina. Col piano acceso l'Alt da solo non fa nulla. */
+function _spAltGuard(e) {
+  if (e.key !== "Alt" || typeof SECPL === "undefined" || !SECPL.on) return false;
+  e.preventDefault(); return true;
+}
 window.addEventListener("keyup", (e) => {
   shiftDown = e.shiftKey;
   keysDown.delete(e.code);
+  _spAltGuard(e);
 });
 window.addEventListener("blur", () => { keysDown.clear(); looking = false; _pvCancel(); });
 
@@ -11491,9 +11531,10 @@ function toggleSectionBox() {
 }
 
 /* ============================ Section plane (piano di sezione su faccia) ============================
-   Un singolo clipping plane PARALLELO alla faccia cliccata. Click sinistro su una faccia → posiziona
-   il piano (passante per il punto, normale = normale della faccia). Shift + trascina sinistro → sposta
-   il piano avanti/indietro lungo la sua normale. Riusa _applyClipping (coesiste in AND con section box
+   Un singolo clipping plane PARALLELO alla faccia cliccata. Alt+clic su una faccia → posiziona
+   il piano (passante per il punto, normale = normale della faccia); clic e Ctrl+clic selezionano.
+   Shift + trascina sinistro → sposta il piano avanti/indietro lungo la sua normale. Ctrl+Z / Ctrl+Y
+   annullano / ripetono le modifiche al piano. Riusa _applyClipping (coesiste in AND con section box
    e sezione asse) e l'infrastruttura del draw 2D (computeSection2D, generalizzato a un piano qualsiasi). */
 const SECPL = { on: false, P: null, N: new THREE.Vector3(0, 1, 0), U: new THREE.Vector3(1, 0, 0), V: new THREE.Vector3(0, 0, 1), side: 1, plane: new THREE.Plane(), group: null, pickMesh: null };
 const _spLineMat = new THREE.LineBasicMaterial({ color: 0xa3d840, depthTest: false, transparent: true, opacity: 0.95 });
@@ -11554,24 +11595,75 @@ function setSectionPlaneAt(P, N) {
   const camDir = camera.getWorldDirection(new THREE.Vector3());
   if (SECPL.N.dot(camDir) < 0) SECPL.U.negate();
   _spVisual(); _spApply();
-  _secDrawSync();
+  _secDrawSync(); _secHintSync();
 }
 
-function setSectionPlane(on) {
+/* quiet = niente toast (ripristino da Ctrl+Z / Ctrl+Y). Come posarlo lo dice la dicitura
+   #secHint sotto la toolbar: il toast «clicca una faccia» non c'è più (v2.10.4). */
+function setSectionPlane(on, quiet) {
   SECPL.on = on;
   _secSyncMenu();
   if (on) {
-    if (!models.length) { toast(tr("toast.loadModelFirst")); }
-    else toast(tr("toast.secPlanePick"));
+    if (!quiet && !models.length) toast(tr("toast.loadModelFirst"));
     _spEnsureGroup(); if (SECPL.group) SECPL.group.visible = true;
-    if (SECPL.P) _spApply();
+    /* senza piano posato svuota il quad: dopo Esc (P = null) il gruppo teneva il quadro del
+       piano tolto e alla riaccensione dal menu riappariva un piano lime che non tagliava nulla */
+    if (SECPL.P) _spApply(); else _spVisual();
   } else {
     if (typeof DRAW !== "undefined" && DRAW.on) setDrawMode(false);
     if (SECPL.group) SECPL.group.visible = false;
     _applyClipping();
   }
-  _secDrawSync();
+  _secDrawSync(); _secHintSync();
 }
+
+/* dicitura sotto la toolbar: visibile a modalità accesa; «placed» = piano già posato */
+function _secHintSync() {
+  const h = $("secHint"); if (!h) return;
+  h.hidden = !SECPL.on;
+  h.classList.toggle("placed", !!(SECPL.on && SECPL.P));
+}
+
+/* ---- Ctrl+Z / Ctrl+Y sul piano (v2.10.4) ----
+   Pila di istantanee {on, P, N, U, V} prese PRIMA di ogni modifica: posa (Alt+clic), spostamento
+   (Shift+trascina, una voce per trascinamento), accensione/spegnimento dal menu, rimozione con
+   Esc/Canc. Annullare ripristina l'istantanea e mette lo stato corrente nella pila opposta; una
+   modifica nuova svuota il «ripeti». U va salvata: dipende dalla camera al momento della posa
+   (anti-mirror di setSectionPlaneAt), non si ricava da N. */
+const SP_HIST = { undo: [], redo: [] }, SP_HIST_MAX = 50;
+function _spSnap() {
+  return { on: SECPL.on, P: SECPL.P ? SECPL.P.clone() : null, N: SECPL.N.clone(), U: SECPL.U.clone(), V: SECPL.V.clone() };
+}
+function _spPush(snap) {
+  SP_HIST.undo.push(snap || _spSnap());
+  if (SP_HIST.undo.length > SP_HIST_MAX) SP_HIST.undo.shift();
+  SP_HIST.redo.length = 0;
+}
+function _spRestore(s) {
+  SECPL.P = s.P ? s.P.clone() : null;
+  SECPL.N = s.N.clone(); SECPL.U = s.U.clone(); SECPL.V = s.V.clone();
+  if (s.on !== SECPL.on) setSectionPlane(s.on, true);
+  _spVisual();                                                    // ricostruisce il quad (o lo svuota se P = null)…
+  if (!SECPL.on && SECPL.group) SECPL.group.visible = false;      // …ma _spEnsureGroup lo riaccende: a modalità spenta resta nascosto
+  if (SECPL.P) _spApply();
+  else { _applyClipping(); if (typeof DRAW !== "undefined" && DRAW.on) _drawScheduleRecompute(); }
+  _secDrawSync(); _secHintSync();
+}
+function _spHistStep(from, to) {
+  const s = from.pop(); if (!s) return false;
+  to.push(_spSnap());
+  _spRestore(s);
+  return true;
+}
+function spUndo() { return _spHistStep(SP_HIST.undo, SP_HIST.redo); }
+function spRedo() { return _spHistStep(SP_HIST.redo, SP_HIST.undo); }
+/* QA: lo stato del modulo non si raggiunge da console (come __apeCapsQA) */
+window.__apeSecPlaneQA = {
+  state: () => ({ on: SECPL.on, P: SECPL.P && SECPL.P.toArray(), N: SECPL.N.toArray(), undo: SP_HIST.undo.length, redo: SP_HIST.redo.length, planes: _activeClipPlanes().length,
+                  quad: SECPL.group && SECPL.group.visible ? SECPL.group.children.length : 0 }),   // pezzi del quad lime a schermo
+  /* punto di schermo (client) di un punto mondo, per i clic/trascinamenti di prova */
+  screen: (p) => { const v = new THREE.Vector3(...p).project(camera), r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; }
+};
 
 /* sincronizza il pulsante "Disegno" in alto (visibile solo in modalità piano) */
 function _secDrawSync() {
@@ -11586,6 +11678,7 @@ function _spPickFaceFromRay() {
   if (!hit) return;
   const nrm = (hit.face ? hit.face.normal.clone() : new THREE.Vector3(0, 1, 0));
   nrm.applyMatrix3(new THREE.Matrix3().getNormalMatrix(hit.object.matrixWorld)).normalize();
+  _spPush();
   setSectionPlaneAt(hit.point, nrm);
 }
 
@@ -11600,7 +11693,7 @@ renderer.domElement.addEventListener("pointerdown", (e) => {
   setNdcFromClient(_spNdc, e.clientX, e.clientY);
   _spRay.setFromCamera(_spNdc, camera);
   const startPt = new THREE.Vector3(); _spRay.ray.intersectPlane(dragPlane, startPt);
-  _spDrag = { plane: dragPlane, startPt, startP: SECPL.P.clone() };
+  _spDrag = { plane: dragPlane, startPt, startP: SECPL.P.clone(), snap: _spSnap() };
   renderer.domElement.style.cursor = "grabbing";
   try { renderer.domElement.setPointerCapture(e.pointerId); } catch (_) {}
 }, { capture: true });
@@ -11616,6 +11709,7 @@ renderer.domElement.addEventListener("pointermove", (e) => {
 });
 renderer.domElement.addEventListener("pointerup", (e) => {
   if (!_spDrag) return;
+  if (SECPL.P && !SECPL.P.equals(_spDrag.startP)) _spPush(_spDrag.snap);   // un trascinamento = una voce di Ctrl+Z (Shift+clic fermo: nessuna)
   _spDrag = null; controls.enabled = !walkMode; renderer.domElement.style.cursor = "";
   try { renderer.domElement.releasePointerCapture(e.pointerId); } catch (_) {}
   if (typeof DRAW !== "undefined" && DRAW.on) _drawForceRecompute();
@@ -11640,7 +11734,7 @@ function openSectionMenu() {
 function closeSectionMenu() { const m = $("sectionMenu"); if (m) m.hidden = true; const b = $("btnSection"); if (b) b.setAttribute("aria-expanded", "false"); }
 function toggleSectionMenu() { const m = $("sectionMenu"); if (m.hidden) openSectionMenu(); else closeSectionMenu(); }
 $("btnSection").addEventListener("click", e => { e.stopPropagation(); toggleSectionMenu(); });
-$("secOptPlane").addEventListener("click", () => { setSectionPlane(!SECPL.on); _secSyncMenu(); closeSectionMenu(); });
+$("secOptPlane").addEventListener("click", () => { _spPush(); setSectionPlane(!SECPL.on); _secSyncMenu(); closeSectionMenu(); });
 $("secOptBox").addEventListener("click", () => { toggleSectionBox(); _secSyncMenu(); closeSectionMenu(); });
 document.addEventListener("click", e => { if (!e.target.closest("#sectionMenu") && !e.target.closest("#btnSection")) closeSectionMenu(); });
 

@@ -729,11 +729,13 @@ it:{
     ["h","Section box"],
     ["p","La scatola di sezione ritaglia un volume del modello e nasconde tutto il resto: la sposti e la ridimensioni dalle sue maniglie, come in Revit. Dal menu contestuale di un elemento puoi far nascere la scatola già stretta attorno a quell'elemento — è il modo più rapido per andare al punto."],
     ["h","Piano di sezione su faccia"],
-    ["p","Clicca una faccia e il piano di sezione si posiziona parallelo a lei. Da quel momento <b>Maiusc+trascina</b> lo fa avanzare e arretrare: è un taglio che segue la geometria reale, non gli assi globali, quindi funziona anche su pareti oblique e opere d'arte."],
+    ["p","<b>Alt+clic</b> su una faccia e il piano di sezione si posiziona parallelo a lei; clic e Ctrl+clic continuano a selezionare gli elementi, così ispezioni il modello tagliato senza spostare il piano. <b>Maiusc+trascina</b> lo fa avanzare e arretrare: è un taglio che segue la geometria reale, non gli assi globali, quindi funziona anche su pareti oblique e opere d'arte. Finché il piano è acceso, una riga sotto la barra ricorda i comandi."],
     ["keys",[
-      [["Clic su faccia"],"Posiziona il piano parallelo a quella faccia"],
+      [["Alt+clic su faccia"],"Posiziona (o riposiziona) il piano parallelo a quella faccia"],
       [["Maiusc+trascina"],"Sposta il piano avanti e indietro"],
-      [["Esc","o","Canc"],"Esci dalla sezione e torna al modello intero"]
+      [["Ctrl+Z"],"Annulla l'ultima posa o l'ultimo spostamento del piano"],
+      [["Ctrl+Y"],"Ripete quello che hai annullato"],
+      [["Esc","o","Canc"],"Esci dalla sezione e torna al modello intero (Esc toglie prima la selezione, se c'è)"]
     ]],
     ["tip","Section box e piano convivono: usa la scatola per ritagliare la zona e il piano per il taglio fine dentro quella zona."]
   ]},
@@ -960,11 +962,13 @@ en:{
     ["h","Section box"],
     ["p","The section box carves out a volume of the model and hides everything else: move and resize it from its handles, like in Revit. From an element's context menu you can spawn the box already tight around that element — the fastest way to get to the point."],
     ["h","Section plane on a face"],
-    ["p","Click a face and the section plane places itself parallel to it. From then on <b>Shift+drag</b> moves it back and forth: it is a cut that follows the real geometry, not the global axes, so it works on slanted walls and civil structures too."],
+    ["p","<b>Alt+click</b> a face and the section plane places itself parallel to it; click and Ctrl+click keep selecting elements, so you can inspect the cut model without moving the plane. <b>Shift+drag</b> moves it back and forth: it is a cut that follows the real geometry, not the global axes, so it works on slanted walls and civil structures too. While the plane is on, a line under the toolbar recalls the commands."],
     ["keys",[
-      [["Click a face"],"Places the plane parallel to that face"],
+      [["Alt+click a face"],"Places (or re-places) the plane parallel to that face"],
       [["Shift+drag"],"Move the plane back and forth"],
-      [["Esc","or","Del"],"Leave the section and go back to the whole model"]
+      [["Ctrl+Z"],"Undo the last placement or move of the plane"],
+      [["Ctrl+Y"],"Redo what you undid"],
+      [["Esc","or","Del"],"Leave the section and go back to the whole model (Esc clears the selection first, if any)"]
     ]],
     ["tip","Box and plane coexist: use the box to carve out the area and the plane for the fine cut inside it."]
   ]},
