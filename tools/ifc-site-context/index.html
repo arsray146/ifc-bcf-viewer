@@ -458,7 +458,7 @@ html[data-theme="light"] .seg button.on{background:#fff}
       <p class="lead" data-i18n="head.lead">Disegna un'area o un tracciato sulla mappa, o parti dall'IFC del tuo progetto: terreno (il DTM nazionale, dove c'è), edifici, strade e acqua da fonti aperte diventano un IFC di contesto georeferenziato che si sovrappone al progetto. Ogni elemento dice da dove viene.</p>
     </div>
     <div class="spec">
-      <div class="spec-row"><span class="spec-k" data-i18n="spec.in">Ingresso</span><span class="spec-v" data-i18n="spec.inV">area, tracciato o IFC · 10 km²</span></div>
+      <div class="spec-row"><span class="spec-k" data-i18n="spec.in">Ingresso</span><span class="spec-v" data-i18n="spec.inV">area, tracciato o IFC · 25 km²</span></div>
       <div class="spec-row"><span class="spec-k" data-i18n="spec.out">Uscita</span><span class="spec-v" data-i18n="spec.outV">1 .ifc georeferenziato + LandXML</span></div>
       <div class="spec-row"><span class="spec-k" data-i18n="spec.data">Dati</span><span class="spec-v" data-i18n="spec.dataV">Overture · OpenStreetMap · DTM nazionali · Terrain Tiles</span></div>
     </div>
@@ -757,11 +757,11 @@ html[data-theme="light"] .seg button.on{background:#fff}
    (ctxEngine): NON rinominarlo.
    ========================================================================= */
 
-const CTX_APP = { name: "viewifc.com IFC Site Context", id: "VIEWIFC_SITE_CONTEXT", version: "1.0.0", dev: "viewifc.com" };
-const CTX_LIMIT_M2 = 10e6;         // limite d'area (area reale nel CRS, non il rettangolo che la contiene)
-const CTX_TIN_BUDGET = 250000;     // triangoli massimi del terreno: oltre, la tolleranza sale da sola
-const CTX_GRID_MAX = 2.5e6;        // campioni VALIDI massimi della griglia del terreno (dentro l'area): 10 km² al pixel nativo fino a ~60° di latitudine
-const CTX_CELLS_MAX = 6e6;         // celle massime della griglia intera (il bbox): tetto di memoria per le aree allungate in diagonale
+const CTX_APP = { name: "viewifc.com IFC Site Context", id: "VIEWIFC_SITE_CONTEXT", version: "1.1.0", dev: "viewifc.com" };
+const CTX_LIMIT_M2 = 25e6;         // limite d'area (area reale nel CRS, non il rettangolo che la contiene)
+const CTX_TIN_BUDGET = 1000000;    // triangoli massimi del terreno: oltre, la tolleranza sale da sola
+const CTX_GRID_MAX = 6.25e6;       // campioni VALIDI massimi della griglia del terreno (dentro l'area): 25 km² al pixel nativo fino a ~60° di latitudine
+const CTX_CELLS_MAX = 15e6;        // celle massime della griglia intera (il bbox): tetto di memoria per le aree allungate in diagonale
 const CTX_MARGIN = 60;             // m di terreno scaricati attorno all'area (bilineare, edifici a cavallo del bordo)
 const CTX_Z = 15;                  // zoom Terrarium: z16 non esiste (404)
 const CTX_STAC = "https://stac.overturemaps.org";
@@ -3900,7 +3900,7 @@ const I18N = {
     "nav.home": "Vai a viewifc.com", "nav.tools": "Strumenti", "nav.here": "Contesto 3D", "cta.open": "Apri il viewer",
     "head.kicker": "Strumento 15", "head.tag": "Client-side", "head.beta": "Prima versione",
     "head.lead": "Disegna un'area o un tracciato sulla mappa, o parti dall'IFC del tuo progetto: terreno (il DTM nazionale, dove c'è), edifici, strade e acqua da fonti aperte diventano un IFC di contesto georeferenziato che si sovrappone al progetto. Ogni elemento dice da dove viene.",
-    "spec.in": "Ingresso", "spec.inV": "area, tracciato o IFC · 10 km²", "spec.out": "Uscita", "spec.outV": "1 .ifc georeferenziato + LandXML", "spec.data": "Dati", "spec.dataV": "Overture · OpenStreetMap · DTM nazionali · Terrain Tiles",
+    "spec.in": "Ingresso", "spec.inV": "area, tracciato o IFC · 25 km²", "spec.out": "Uscita", "spec.outV": "1 .ifc georeferenziato + LandXML", "spec.data": "Dati", "spec.dataV": "Overture · OpenStreetMap · DTM nazionali · Terrain Tiles",
     "left.t": "L'area", "tab.map": "Sulla mappa", "tab.coords": "Da coordinate",
     "map.failT": "La mappa non si è caricata", "map.failS": "Puoi definire l'area anche dalla scheda «Da coordinate».",
     "map.failGl": "Il browser non ha WebGL: la mappa non può partire. Puoi definire l'area dalla scheda «Da coordinate».",
@@ -4033,7 +4033,7 @@ const I18N = {
     "nav.home": "Go to viewifc.com", "nav.tools": "Tools", "nav.here": "3D context", "cta.open": "Open the viewer",
     "head.kicker": "Tool 15", "head.tag": "Client-side", "head.beta": "First release",
     "head.lead": "Draw an area or a route on the map, or start from your project IFC: terrain (the national DTM, where there is one), buildings, roads and water from open data become a georeferenced IFC context model that overlaps your project. Every element says where it comes from.",
-    "spec.in": "Input", "spec.inV": "area, route or IFC · 10 km²", "spec.out": "Output", "spec.outV": "1 georeferenced .ifc + LandXML", "spec.data": "Data", "spec.dataV": "Overture · OpenStreetMap · national DTMs · Terrain Tiles",
+    "spec.in": "Input", "spec.inV": "area, route or IFC · 25 km²", "spec.out": "Output", "spec.outV": "1 georeferenced .ifc + LandXML", "spec.data": "Data", "spec.dataV": "Overture · OpenStreetMap · national DTMs · Terrain Tiles",
     "left.t": "The area", "tab.map": "On the map", "tab.coords": "From coordinates",
     "map.failT": "The map did not load", "map.failS": "You can still define the area from the «From coordinates» tab.",
     "map.failGl": "This browser has no WebGL, so the map cannot start. You can define the area from the «From coordinates» tab.",
@@ -4458,7 +4458,7 @@ $("cGo").addEventListener("click", () => {
   const lat = num($("cLat").value), lon = num($("cLon").value), side = num($("cSide").value);
   const res = $("cRes"); res.classList.remove("bad");
   if (!(Math.abs(lat) <= 84) || !(Math.abs(lon) <= 180)) { res.textContent = tr("c.err"); res.classList.add("bad"); return; }
-  /* il quadrato più grande che sta nel limite: con 10 km² il lato arriva a 3162 m */
+  /* il quadrato più grande che sta nel limite: con 25 km² il lato arriva a 5000 m */
   const sideMax = Math.floor(Math.sqrt(CTX_LIMIT_M2));
   if (!(side >= 50 && side <= sideMax)) { res.textContent = tr("c.errSide", { min: nf(50), max: nf(sideMax) }); res.classList.add("bad"); return; }
   const crs = ctxUtmFor(lon, lat), c = proj4(CTX_WGS84, crs.proj4), [E, N] = c.forward([lon, lat]), h = side / 2;
