@@ -409,7 +409,8 @@ export function crossTracks(T, u, others, reach = 40) {
 }
 /* le parti del portale P (risolto R = ocs-catalog resolvePortal): montanti (pilone PO «pole» o palo LSU «mast»)
    con piastra e fondazione, trave «beam» orizzontale e perpendicolare al binario di riferimento, per ogni binario
-   servito un pendolo verticale dall'intradosso al filo («arm», «wire», «trk» con suffisso 2, 3… dal secondo).
+   servito un pendolo verticale dall'intradosso (con la famiglia RFI: dalla mensola) al filo («arm», «wire», «trk» con
+   suffisso 2, 3… dal secondo).
    Quote sul piano del ferro del binario di riferimento; i montanti sulla piastra al piano del ferro del binario
    estremo dalla loro parte */
 /* Riferimento della trave (0.11.0): centro fra i due montanti, x' = larghezza della trave, y' = dal montante destro
@@ -449,10 +450,12 @@ export function portalParts(T, P, R) {
     }
   }
   box("beam", 0, 0, zb + B.h / 2, B.w || BEAM_WIDTH_CORE, B.L, B.h, { beam: B.id });
-  // pendoli dove la trave passa sopra il filo di ogni binario servito (con la trave obliqua più avanti o indietro)
+  // pendoli dove la trave passa sopra il filo di ogni binario servito (con la trave obliqua più avanti o indietro);
+  // con la famiglia RFI (0.23.0, R.sospRfi) dalla mensola della sospensione sotto la trave, come nei pali
+  const za = R.sospRfi ? z0 + R.sospRfi.hm : zb;
   R.susp.forEach((x, i) => {
     const sfx = i ? String(i + 1) : "", yw = W.yOfQ(x.q + x.stag), zw = z0 + x.dz + R.hw;
-    out.push({ k: "arm" + sfx, a: at(0, yw, zb), b: at(0, yw, zw) });
+    out.push({ k: "arm" + sfx, a: at(0, yw, za), b: at(0, yw, zw) });
     out.push({ k: "wire" + sfx, c: at(0, yw, zw) });
     out.push({ k: "trk" + sfx, c: at(0, W.yOfQ(x.q), z0 + x.dz) });
   });

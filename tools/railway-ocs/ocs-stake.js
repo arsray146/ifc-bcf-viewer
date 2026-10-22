@@ -23,7 +23,7 @@
      alternata (anche rispetto ai pali fissi vicini);
    - pali appaiati: le stesse sezioni sul binario parallelo (projectStations).
    ========================================================================= */
-import { trackFrame, crossOffset } from "./ocs-core.js?v=0.22.1";
+import { trackFrame, crossOffset } from "./ocs-core.js?v=0.23.0";
 
 /* E 65061 a, fogli 3–6: raggio di curva (m) → campata massima (m); da 1400 in su 60 (= Lmax) */
 export const RFI_SPANS = [[250, 26], [300, 30], [400, 34], [500, 39], [600, 43.5], [700, 47], [800, 50], [900, 52], [1000, 53.5], [1100, 55.5], [1200, 57], [1300, 58.5], [1400, 60]].map(([R, L]) => ({ R, L }));

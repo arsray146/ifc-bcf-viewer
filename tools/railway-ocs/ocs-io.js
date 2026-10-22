@@ -9,7 +9,7 @@
    Le coppie di coordinate sono «Nord Est» come vuole la specifica; si
    prova anche l'ordine scambiato e si tiene quello che chiude le giunzioni.
    ========================================================================= */
-import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis, trackFrame, GAUGE_HALF } from "./ocs-core.js?v=0.22.1";
+import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis, trackFrame, GAUGE_HALF } from "./ocs-core.js?v=0.23.0";
 
 /* ---- XML minimo: elementi, attributi, testo (niente DTD, niente namespace) ---- */
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };

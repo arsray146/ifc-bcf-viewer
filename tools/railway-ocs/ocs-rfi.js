@@ -19,7 +19,10 @@
      MEC tipo C = CL2 + CCn + CL2, fondazioni P2MEC), RFI_Portale_Tralicciato
      (piloni E 65018 H9586, trave tralicciata 1BIN / 2BIN, fondazioni POT) e
      RFI_Portale_Ormeggio (stessi piloni, trave E 65109 = nL + nC + nL): la famiglia
-     e il tipo che sceglie il catalogo (ocs-catalog rfiPortalOf, come l'add-in).
+     e il tipo che sceglie il catalogo (ocs-catalog rfiPortalOf, come l'add-in);
+     dalle famiglie del 2026-10-22 (0.23.0) travi con l'intradosso a +6820 e sotto
+     la trave le sospensioni SEGNAPOSTO (genera_portali.py): tubo, mensola, tirante,
+     staffaggio, una per binario servito alla quota della mensola dal filo del tool.
    Tre livelli di dettaglio come il fusto del tool: «box» (fusti e travi pieni),
    «upn» (profili senza traliccio, controventi, tirafondi) e «lattice» (tutto).
    Niente DOM; importa solo il motore. Misure dei generatori in mm (come nei .py,
@@ -32,7 +35,7 @@
    ognuno con sub (sottocategoria della famiglia) e l = [da, a] livelli (0 box, 1 upn,
    2 lattice) in cui c'è.
    ========================================================================= */
-import * as C from "./ocs-core.js?v=0.22.1";
+import * as C from "./ocs-core.js?v=0.23.0";
 
 export const LOD_INDEX = { box: 0, upn: 1, lattice: 2 };
 const ALL = [0, 2], BOX = [0, 0], DET = [1, 2], LAT = [2, 2];
@@ -234,7 +237,7 @@ function tiranteSolids(w2, zm, zt, xt) {
    verso il pilone 2, Z in alto (come le famiglie) */
 const MEC = { Z_FOND: 100, Z_PIASTRA0: 106, Z_COL0: 156, H_COL: 9500, X_COL: 680, H_TRAVE: 1000, B_TRAVE: 750 };
 MEC.Z_COL1 = MEC.Z_COL0 + MEC.H_COL;
-MEC.Z_TRAVE = MEC.Z_COL0 + (MEC.H_COL - 1340) + 200;          // ASSUNTO: 200 sopra l'ultimo traverso del pilone
+MEC.Z_TRAVE = 6020 + 800;              // Z_TRAVE_PORTALE (genera_parametrico.py, 2026-10-22): 0,80 sopra la mensola della sospensione
 const FOND_MEC = { A: 2100, B: 4000, C: 2500, A1: 1000, B1: 2360, C1: 250 };
 const IPE = [400, 180, 8.6, 13.5];
 /* elementi della trave MEC tipo C (E 64923): lunghezza, campi della fiancata, zona d'appoggio */
@@ -328,7 +331,8 @@ function traveMecSolids(key) {
 /* ---- portali coi piloni E 65018 (portali_ormeggio/genera.py, portali_tralicciati/genera.py) ------------------ */
 const POT = { Z_FOND: 350, H_PIL: 9586, H_TRAVE: 800, B_TRAVE: 1280 };
 POT.Z_COL0 = POT.Z_FOND + 50; POT.Z_COL1 = POT.Z_FOND + POT.H_PIL; POT.Z_RASTR = POT.Z_COL0 + 6556;
-POT.Z_TRAVE = POT.Z_COL1 - 150 - POT.H_TRAVE;                // ASSUNTO: filo superiore 150 sotto la testa del pilone
+POT.Z_TRAVE_PIL = POT.Z_COL1 - 150 - POT.H_TRAVE;            // controventi del pilone fino a 100 sotto (la trave di prima)
+POT.Z_TRAVE = 6020 + 800;                                     // trave come le MEC (genera.py, 2026-10-22)
 const HEA = [310, 300, 9, 15.5], X_BASE = 1927.5 / 2 - 150, X_TOP = 1327.5 / 2 - 150;
 /* travi E 65109 (luce asse-asse dei piloni): elemento laterale nL e centrale nC; nel catalogo dell'add-in T-6, T-9, T-25 */
 export const ORM_TRAVI = { "T-6": [14400, 1, 5], "T-7": [14400, 2, 3], "T-8": [14400, 3, 1], "T-9": [15600, 1, 6], "T-10": [15600, 2, 4], "T-11": [15600, 3, 2], "T-25": [20400, 1, 10], "T-26": [20400, 2, 8], "T-27": [20400, 3, 6], "T-28": [20400, 4, 4], "T-29": [20400, 5, 2] };
@@ -354,7 +358,7 @@ function column(B, a, b) {
   B.ext(a, [d[2], 0, -d[0]], d, heaPts(), norm(sub(b, a)));
 }
 function pilonePotSolids() {
-  const B = builder(), { Z_FOND, Z_COL0, Z_COL1, Z_RASTR, Z_TRAVE } = POT;
+  const B = builder(), { Z_FOND, Z_COL0, Z_COL1, Z_RASTR, Z_TRAVE_PIL } = POT;
   for (const s of [-1, 1]) {
     B.set("Piastre base").prism(rect(s * X_BASE - 300, s * X_BASE + 300, -400, 400), Z_FOND, Z_COL0);
     B.set("Colonne HEA");
@@ -371,8 +375,8 @@ function pilonePotSolids() {
       B.angle([-xc(z0), y, z0], [xc(z1), y, z1], 90, 90, 10, out);
       B.angle([xc(z0), y, z0], [-xc(z1), y, z1], 90, 90, 10, out);
     }
-    for (const z of [...nodi, Z_TRAVE - 100]) { const x = z <= Z_RASTR ? xc(z) : X_TOP; B.angle([-x, y, z], [x, y, z], 90, 90, 10, out); }
-    B.angle([-X_TOP, y, Z_RASTR], [X_TOP, y, Z_TRAVE - 100], 90, 90, 10, out);
+    for (const z of [...nodi, Z_TRAVE_PIL - 100]) { const x = z <= Z_RASTR ? xc(z) : X_TOP; B.angle([-x, y, z], [x, y, z], 90, 90, 10, out); }
+    B.angle([-X_TOP, y, Z_RASTR], [X_TOP, y, Z_TRAVE_PIL - 100], 90, 90, 10, out);
   }
   return B.out;
 }
@@ -434,6 +438,143 @@ function traveTralSolids(luce, campi) {
   return B.out;
 }
 
+/* ---- sospensioni sotto la trave dei portali (sospensione_contatto/genera_portali.py, 2026-10-22, SEGNAPOSTO) --------
+   Tipologico Satferr PT20-21: tubo Ø133 a 1500 dall'asse del binario fissato alla trave con 2 piatti verticali e 2
+   piastre forate, mensola Ø76,1 L 2000 con tirante Ø24 L 1400, sospensione SN620_BN780_2x1100 (sospensioneSolids,
+   un pezzo a parte come nei pali). Riferimento dell'assieme: X lungo il binario, Y = 0 sull'asse del binario
+   col tubo verso +Y, Z sul supercompattato; nel portale ruotato di 180° (tubo verso il pilone 1) sulla faccia X
+   negativa della trave. zm = asse della mensola (Quota_mensola), qt / ht = intradosso e altezza della trave */
+const SP = { Y_TUBO: 1500, R_TUBO: 66.5, TUBO_SOTTO: 150, TUBO_SOPRA: 300, L_MENS: 2000, L_TIR: 1400, H_TIR: 800, R_TIR: 12, PIATTO: [100, 20, 10], OLTRE: 150, PIASTRA: [20, 20], CORRENTE: 150 };
+export const PORTAL_BEAMS = { MEC: { qt: MEC.Z_TRAVE, ht: MEC.H_TRAVE, bt: MEC.B_TRAVE }, PO: { qt: POT.Z_TRAVE, ht: POT.H_TRAVE, bt: POT.B_TRAVE } };
+const cerchio = (xc, yc, r, n = 24) => Array.from({ length: n }, (_, i) => [xc + r * Math.cos((2 * PI * i) / n), yc + r * Math.sin((2 * PI * i) / n)]);
+/* RFI_SospensionePortale_SEGNAPOSTO: tubo da 150 sotto la mensola a 300 sopra la trave, piatti da 150 sotto
+   l'intradosso a 150 sopra l'estradosso contro la faccia della trave */
+function sospPortaleSolids(qt, ht, zm) {
+  const { Y_TUBO, R_TUBO, PIATTO: [w, t, gap], OLTRE } = SP, B = builder().set("Mensola portale");
+  B.prism(cerchio(0, Y_TUBO, R_TUBO), zm - SP.TUBO_SOTTO, qt + ht + SP.TUBO_SOPRA);
+  B.set("Staffaggio tubo", DET);
+  for (const s of [-1, 1]) { const y0 = Y_TUBO + s * (R_TUBO + gap); B.prism(rect(-R_TUBO, -R_TUBO + t, Math.min(y0, y0 + s * w), Math.max(y0, y0 + s * w)), qt - OLTRE, qt + ht + OLTRE); }
+  return B.out;
+}
+/* RFI_MensolaPortale_SEGNAPOSTO: mensola 2000 dalla faccia del tubo, tirante 1400 dal tubo 800 sopra la mensola, 2 collari */
+function mensPortaleSolids(zm) {
+  const { Y_TUBO, R_TUBO, L_MENS, L_TIR, H_TIR } = SP, yf = Y_TUBO - R_TUBO, B = builder().set("Mensola portale");
+  B.bar([0, yf, zm], [0, yf - L_MENS, zm], MENS_R[0], MENS_R[1]);
+  B.bar([0, yf, zm + H_TIR], [0, yf - Math.sqrt(L_TIR ** 2 - H_TIR ** 2), zm + MENS_R[0]], SP.R_TIR);
+  B.set("Mensola portale", LAT);
+  for (const z of [zm, zm + H_TIR]) B.prism(cerchio(0, Y_TUBO, R_TUBO + 12), z - 40, z + 40, [[0, Y_TUBO, R_TUBO]]);
+  return B.out;
+}
+/* RFI_PiastraTuboPortale_SEGNAPOSTO: piastra forata sp. 20 da Z = 0, larga quanto i 2 piatti */
+function piastraPortaleSolids() {
+  const { Y_TUBO, R_TUBO, PIATTO: [w, , gap], PIASTRA: [t, x] } = SP, yp = R_TUBO + gap + w;
+  return builder().set("Staffaggio tubo").prism(rect(-R_TUBO - x, R_TUBO + x, Y_TUBO - yp, Y_TUBO + yp), 0, t, [[0, Y_TUBO, R_TUBO]]).out;
+}
+
+/* ---- sospensione di piena linea con gli isolatori (sospensione_contatto/genera.py, 2026-10-18; 0.23.0) -------------
+   RFI_Sospensione_PL_Acciaio_440 (E 56000/1s d, catenaria 440 mm² F.R.), annidata nei pali LSU e nelle sospensioni dei
+   portali: staffa sulla mensola, isolatore portante verticale E 64447 e morsetto delle 2 corde portanti, braccio di
+   poligonazione ribassato (profilo U 65 × 42) con l'isolatore inclinato e il raccordo, 2 tirantini E 61133 coi morsetti
+   del filo. Riferimento della famiglia: X lungo il binario, Y = 0 sull'asse del binario (corde portanti) e il palo (il
+   tubo del portale) verso +Y, quote dal supercompattato con l'asse della mensola a Z_MENS (nei sostegni l'assieme si
+   sposta di Quota_mensola − Z_MENS). Tipi SN620_BN<h>_2x<L>: braccio h = 780 / 540 / 440, tirantini L = 900 / 1100;
+   Poligonazione = filo dall'asse del binario verso +Y. Isolatori: i profili di rivoluzione della famiglia come tondi
+   a gradini (terminali, corpo, 3 alette) */
+const SO = { Z_MENS: 6885, ISO_L: 329, ISO_F: 341, SN: 620, PERNO: 17, COLL: 80, RACC: 40, PIN_FILO: 30, X_TIR: 50, W_TIR: 10 };
+SO.ZB = SO.Z_MENS - MENS_R[0];                       // bordo inferiore della mensola: riferimento di h (E 56000/1s nota 1)
+SO.Z_PORT = SO.ZB + SO.SN;                           // asse delle corde portanti (SN620 dal bordo inferiore, ASSUNTO)
+SO.Z_ISO = SO.Z_PORT - (SO.ISO_F + 25);              // base dell'isolatore verticale
+export const SOSP_Z_MENS = SO.Z_MENS / 1000;
+/* bracci ribassati (E 52188 / E 49997 / E 52201 f.3): tratto L1, curva R1 di a1°, tratto L2, curva R2 di a2° */
+const BRACCI = {
+  780: { L1: 355, R1: 520, a1: 20, L2: 676, R2: 200, a2: 58 }, 540: { L1: 400, R1: 440, a1: 27, L2: 252, R2: 78, a2: 52 },
+  440: { L1: 590, R1: 82, a1: 16, L2: 70, R2: 80, a2: 60 },
+};
+const U65 = [[-32.5, 0], [32.5, 0], [32.5, 42], [25, 42], [25, 5.5], [-25, 5.5], [-25, 42], [-32.5, 42]];
+/* linea superiore del braccio (y avanti, z in alto, origine all'inizio), asse dell'isolatore inclinato e attacco R dei
+   tirantini (geo_braccio) */
+function geoBraccio(b, step = 5) {
+  const pts = [[0, 0]];
+  let phi = 0;
+  for (const [kind, a, b2] of [["L", b.L1, 0], ["R", b.R1, b.a1], ["L", b.L2, 0], ["R", b.R2, b.a2]]) {
+    const [y, z] = pts[pts.length - 1];
+    if (kind === "L") { pts.push([y + a * Math.cos(phi), z - a * Math.sin(phi)]); continue; }
+    const cy = y - a * Math.sin(phi), cz = z - a * Math.cos(phi), n = Math.max(2, Math.ceil(b2 / step));
+    for (let i = 1; i <= n; i++) { const p2 = phi + (b2 * PI / 180 * i) / n; pts.push([cy + a * Math.sin(p2), cz + a * Math.cos(p2)]); }
+    phi += b2 * PI / 180;
+  }
+  const E = pts[pts.length - 1], t = [Math.cos(phi), -Math.sin(phi)], d = [-Math.sin(phi), -Math.cos(phi)];
+  const mv = (p, v, k) => [p[0] + v[0] * k, p[1] + v[1] * k];
+  const A0 = mv(E, t, SO.COLL), P0 = mv(A0, d, -45), F = mv(P0, d, SO.ISO_F), R = mv(F, d, SO.RACC);
+  return { pts, E, t, d, A0, P0, F, R };
+}
+/* il tipo della sospensione → braccio, tirantini, quota dell'attacco dei tirantini e dislivello fino al perno sul filo */
+export function sospGeom(type) {
+  const m = /BN(\d{3})_2x(\d{3,4})/.exec(String(type || "")), h = m && BRACCI[m[1]] ? +m[1] : 780, lt = m ? +m[2] : 900;
+  const g = geoBraccio(BRACCI[h]), zr = SO.ZB + g.R[1];
+  return { h, lt, g, zr, dis: zr - (SO.ZB - h + SO.PIN_FILO) };
+}
+/* isolatore E 64447 b dalla base del terminale femmina (o) lungo d: tondi a gradini */
+function isolatore(B, o, d) {
+  const seg = (r, z0, z1, sub) => B.set(sub).bar(add(o, mul(d, z0)), add(o, mul(d, z1)), r);
+  seg(26, 0, 90, "Terminali isolatore"); seg(30, 90, 100, "Terminali isolatore");
+  seg(23.5, 100, 230, "Isolatore");
+  for (const zc of [115, 165, 215]) { seg(60, zc - 14, zc - 8, "Isolatore"); seg(42, zc - 8, zc + 4, "Isolatore"); }
+  for (const [r, z0, z1] of [[30, 230, 240], [26, 240, 301], [18, 301, 310], [11.5, 310, 320], [18, 320, SO.ISO_L]]) seg(r, z0, z1, "Terminali isolatore");
+}
+/* l'assieme (iso = solo i 2 isolatori, sennò tutto il resto) del tipo type con la poligonazione pol (mm) */
+function sospensioneSolids(type, pol, iso) {
+  const { g, h, lt, zr, dis } = sospGeom(type), B = builder(), pa = pol + Math.sqrt(lt * lt - dis * dis);
+  const W = (p) => [0, p[0] - g.R[0] + pa, SO.ZB + p[1]], D = [0, g.d[0], g.d[1]];
+  if (iso) { isolatore(B, [0, 0, SO.Z_ISO], Z); isolatore(B, W(g.P0), D); return B.out; }
+  const { Z_MENS, ZB, Z_PORT, Z_ISO } = SO, zt = Z_MENS + MENS_R[0], zp = Z_ISO + SO.PERNO;
+  // staffa normale (E 49983, ASSUNTA): sella, 2 guance col perno nel terminale femmina, cavallotti
+  B.set("Staffa portante").prism(rect(-40, 40, -60, 60), zt, zt + 8);
+  for (const s of [-1, 1]) { const x0 = Math.min(s * 29, s * 37); B.ext([x0, 0, 0], Y, X, [[-60, zt + 8], [60, zt + 8], [30, zp + 23], [-30, zp + 23]], 8); }
+  B.bar([-45, 0, zp], [45, 0, zp], 7);
+  B.set("Staffa portante", LAT);
+  for (const y of [-45, 45]) {
+    for (const x of [-44, 44]) B.bar([x, y, ZB - 6], [x, y, zt + 14], 6);
+    B.bar([-50, y, ZB - 6], [50, y, ZB - 6], 6);
+  }
+  // morsetto portante per 2 corde (E 70302 d)
+  B.set("Morsetti").bar([0, 0, Z_ISO + 300], [0, 0, Z_PORT - 20], 22.5).prism(rect(-80, 80, -35, 35), Z_PORT - 20, Z_PORT - 7);
+  B.set("Morsetti", DET);
+  for (const y of [-22, 22]) B.prism(rect(-35, 35, y - 12, y + 12), Z_PORT + 7, Z_PORT + 15).prism(rect(-35, 35, y - 12, y + 12), Z_PORT - 7, Z_PORT - 5);
+  B.set("Morsetti", LAT);
+  for (const x of [-50, 50]) B.bar([x, 0, Z_PORT - 20], [x, 0, Z_PORT + 25], 6);
+  // braccio di poligonazione: profilo U lungo la linea superiore, collare sul terminale, piastra, raccordo, attacchi
+  B.set("Braccio poligonazione");
+  const P = g.pts.map(W);
+  for (let i = 0; i + 1 < P.length; i++) {
+    const [, y0, z0] = P[i], [, y1, z1] = P[i + 1], Ls = Math.hypot(y1 - y0, z1 - z0), sy = (y1 - y0) / Ls, sz = (z1 - z0) / Ls;
+    const e0 = i > 0 ? 1.5 : 0, e1 = i < P.length - 2 ? 1.5 : 0;
+    B.ext([0, y0 - sy * e0, z0 - sz * e0], X, [0, sy, sz], U65, Ls + e0 + e1);
+  }
+  const a0 = W(g.A0), e = W(g.E);
+  B.bar(sub(a0, mul(D, 22)), add(a0, mul(D, 22)), 32.5, 26.5);
+  B.ext(e, X, [0, g.t[0], g.t[1]], rect(-30, 30, -6, 6), SO.COLL - 30);
+  const F = add(W(g.P0), mul(D, SO.ISO_F));
+  B.set("Raccordo tirantini").ext(sub(F, mul(D, 20)), X, D, rect(-20, 20, -20, 20), SO.RACC + 32);
+  B.bar(add(F, add(mul(D, SO.RACC), [-SO.X_TIR - 15, 0, 0])), add(F, add(mul(D, SO.RACC), [SO.X_TIR + 15, 0, 0])), 10);
+  B.set("Attacco braccio", DET);
+  for (const s of [80, BRACCI[h].L1 - 80]) {
+    const y = W([s, 0])[1], zb = ZB - 42;
+    B.prism(rect(-50, 50, y - 20, y + 20), zb - 8, zb);
+    for (const x of [-44, 44]) B.bar([x, y, zb - 14], [x, y, zt + 6], 6);
+    B.bar([-44, y, zt + 6], [44, y, zt + 6], 6);
+  }
+  // 2 tirantini (barra 20 × 20) dall'attacco R al morsetto del filo, a Proiezione verso il binario e Dislivello sotto
+  const pr = Math.sqrt(lt * lt - dis * dis), w = SO.W_TIR;
+  for (const x of [-SO.X_TIR, SO.X_TIR]) {
+    B.set("Tirantino").ext([x - w, pa, zr], Y, X, [[0, w], [0, -w], [-15, -w], [-pr + 15, -dis - w], [-pr, -dis - w], [-pr, -dis + w]], 2 * w);
+    const zf = zr - dis - SO.PIN_FILO, y = pa - pr;             // morsetto del filo E 64467: ganasce, occhio, bottone
+    B.set("Morsetti").prism(rect(x - 29.5, x + 29.5, y - 16, y + 16), zf - 8, zf + 14);
+    B.set("Morsetti", DET).prism(rect(x - 12, x + 12, y - 8, y + 8), zf + 14, zr - dis + 12).bar([x - 12, y, zr - dis], [x + 12, y, zr - dis], 9);
+  }
+  return B.out;
+}
+
 /* ---- pezzi condivisi (una geometria per chiave) -------------------------------------------------------------- */
 const MAKERS = {
   palo: (id) => { const m = /^LSU(\d\d)([abc])$/.exec(id); return paloSolids("LSU" + m[1], PALI_L[m[2]]); },
@@ -444,6 +585,8 @@ const MAKERS = {
   fondPOT: () => fondPotSolids(), pilPOT: () => pilonePotSolids(),
   trORM: (k) => { const lat = k[0] === "L", n = +k.slice(1); return traveOrmSolids(lat ? lenL(n) : lenC(n), lat); },
   trTRAL: (k) => { const [, luce, campi] = TRAL_TRAVI[k]; return traveTralSolids(luce, campi); },
+  sospP: (a) => sospPortaleSolids(...a.split(",").map(Number)), mensP: (zm) => mensPortaleSolids(+zm), piastraP: () => piastraPortaleSolids(),
+  sospR: (a) => { const [t, p] = a.split(","); return sospensioneSolids(t, +p, false); }, isoR: (a) => { const [t, p] = a.split(","); return sospensioneSolids(t, +p, true); },
 };
 const CACHE = new Map();
 /* i solidi (metri) del pezzo condiviso key = «tipo|argomento» (plinto: «plinto|id|c1» con la fondazione passata),
@@ -460,7 +603,8 @@ export function pieceSolids(key, lod = "lattice", Fd = null) {
 export const atLod = (solids, lod = "lattice") => { const i = LOD_INDEX[lod] != null ? LOD_INDEX[lod] : 2; return solids.filter((s) => s.l[0] <= i && i <= s.l[1]); };
 
 /* ---- sostegni → pezzi nel riferimento della famiglia ------------------------------------------------------------
-   Un pezzo: { k (parte del tool: plinto, palo, att, staffa, mens, tir, fond, pilone, attTrave, trave), key (geometria
+   Un pezzo: { k (parte del tool: plinto, palo, att, staffa, mens, tir, fond, pilone, attTrave, trave; sospensioni dei
+   portali sospP, mensP, piastraP), key (geometria
    condivisa) o own (solidi suoi, metri), fam (famiglia Revit), type (tipo), o: [x, y, z] (m), rot (0 | π attorno a Z),
    ifc: [classe, tipo predefinito] }.
    R = sostegno risolto dal catalogo con R.rfi (ocs-catalog: resolveSupport / resolvePortal); null se la famiglia non
@@ -469,7 +613,7 @@ const PI = Math.PI;
 const SE_OF = (M) => "LSU" + M.size;
 export function rfiPieces(R) {
   if (!R || !R.rfi) return null;
-  if (R.kind === "portal") return portalPieces(R);
+  if (R.kind === "portal") return [...portalPieces(R), ...portalSospPieces(R)];
   const M = R.mast, se = SE_OF(M);
   if (!SERIE[se]) return null;
   const w2 = SERIE[se].w2, zm = R.hm - R.baseDz, mens = R.mens.L;
@@ -483,7 +627,18 @@ export function rfiPieces(R) {
     { k: "mens", key: "mens|" + Math.round(mens * 1000), fam: "RFI_Mensola_D76x5", type: R.rfi.mens || "", o: [0, -(w2 + SBALZO) / 1000, zm], rot: 0, ifc: ["IFCMEMBER", "MEMBER"] },
   ];
   ties.forEach((t, i) => out.push({ k: "tir" + (i ? String(i + 1) : ""), own: tiranteSolids(w2, zm * 1000, (zm + t.dh) * 1000, t.xt * 1000).map(toM), fam: "RFI_Tirante_D24", type: "", o: [0, 0, 0], rot: 0, ifc: ["IFCMEMBER", "TIEBAR"] }));
+  // sospensione annidata (0.23.0): sull'asse del binario (Distanza_binario), alla quota della mensola, la prima del tool
+  out.push(...sospPieces(R.rfi.sosp, R.stag, [0, -(R.dr + C.GAUGE_HALF + M.w / 2), zm - SOSP_Z_MENS], 0));
   return out;
+}
+/* la sospensione RFI_Sospensione_PL_Acciaio_440 del tipo type con poligonazione pol (m) in o, ruotata di rot: due pezzi,
+   gli isolatori a parte (IfcDiscreteAccessory .INSULATOR.) */
+function sospPieces(type, pol, o, rot) {
+  const a = type + "," + Math.round(pol * 1000);
+  return [
+    { k: "sospR", key: "sospR|" + a, fam: "RFI_Sospensione_PL_Acciaio_440", type, pol, o, rot, ifc: ["IFCDISCRETEACCESSORY", "NOTDEFINED"] },
+    { k: "isoR", key: "isoR|" + a, fam: "RFI_IsolatorePortante_E64447", type: "", pol, o, rot, ifc: ["IFCDISCRETEACCESSORY", "INSULATOR"] },
+  ];
 }
 function portalPieces(R) {
   const rf = R.rfi, out = [];
@@ -513,9 +668,33 @@ function portalPieces(R) {
   P("trave", "trORM|L" + nl, "RFI_TraveOrmeggio_" + nl + "L", "", luce, PI, BM);
   return out;
 }
-/* le parti del tool (supportParts / portalParts) che la famiglia sostituisce: le altre (sospensioni, pendoli, filo,
-   assi dei binari, trasformatore, sezionatore) restano */
-export const replaces = (k) => /^(pil|block|plate|mast|pole|mens|att|beam|tir\d*)$/.test(k);
+/* le sospensioni del portale (0.23.0): per ogni posizione visibile (binario servito, ocs-catalog portalSuspSlots) tubo
+   con i piatti, mensola col tirante e 2 piastre, l'assieme ruotato di 180° col tubo verso il pilone 1 sulla faccia −X
+   della trave */
+function portalSospPieces(R) {
+  const S = R.sospRfi, out = [];
+  if (!S) return out;
+  const TB = PORTAL_BEAMS[R.rfi.kind === "MEC" ? "MEC" : "PO"], zm = Math.round(S.zm * 1000), x0 = -(TB.bt / 2 + SP.R_TUBO) / 1000;
+  for (const sl of S.slots.filter((x) => x.vis)) {
+    const P = (k, key, fam, z, ifc) => out.push({ k, key, fam, type: "", o: [x0, sl.y, z / 1000], rot: PI, ifc });
+    P("sospP", "sospP|" + [TB.qt, TB.ht, zm].join(","), "RFI_SospensionePortale_SEGNAPOSTO", 0, ["IFCMEMBER", "MEMBER"]);
+    P("mensP", "mensP|" + zm, "RFI_MensolaPortale_SEGNAPOSTO", 0, ["IFCMEMBER", "MEMBER"]);
+    for (const z of [TB.qt + SP.CORRENTE, TB.qt + TB.ht]) P("piastraP", "piastraP", "RFI_PiastraTuboPortale_SEGNAPOSTO", z, ["IFCPLATE", "NOTDEFINED"]);
+    out.push(...sospPieces(S.type, sl.pol, [x0, sl.y, zm / 1000 - SOSP_Z_MENS], PI));   // annidata nell'assieme, sull'asse del binario
+  }
+  return out;
+}
+/* le parti del tool (supportParts / portalParts) che la famiglia sostituisce: le altre (filo, assi dei binari,
+   trasformatore, sezionatore) restano. Pendoli: col sostegno risolto R (0.23.0) anche quello della sospensione della
+   famiglia — nel palo il primo («arm»: le sospensioni in più restano del tool), nel portale quelli dei binari con una
+   posizione visibile */
+export function replaces(k, R) {
+  if (/^(pil|block|plate|mast|pole|mens|att|beam|tir\d*)$/.test(k)) return true;
+  if (!R || !/^arm\d*$/.test(k)) return false;
+  if (R.kind !== "portal") return k === "arm";
+  const x = R.susp[k === "arm" ? 0 : +k.slice(3) - 1];
+  return !!(x && R.sospRfi && R.sospRfi.slots.some((sl) => sl.vis && sl.track === x.track));
+}
 
 /* riferimento della famiglia nel mondo (coordinate dei binari) → { o: {x, y, z}, X: [x, y], Y: [x, y], th (angolo di X) }
    palo: asse del palo alla testa del pilastrino, X = s·tangente, Y via dal binario (come revitFrame, ma alla testa del

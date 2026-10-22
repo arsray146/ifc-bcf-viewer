@@ -191,7 +191,7 @@ export function resolveSupport(sup, def = TRACK_DEFAULTS, geo = null, lev = null
   const c1 = Math.max(f.C1min, Math.min(f.C1max, +pick("c1")));
   const pilOut = +pick("pilOut"), B = baseFrom(lev, pilOut, +pick("baseDz"));
   return {
-    rfi: rfiMastOf(m, !!sup.dbl, mens),
+    rfi: rfiMastOf(m, !!sup.dbl, mens, sup.sosp),
     mast: m, dbl: !!sup.dbl, dr, stag, hm: +pick("hm"), hw: +pick("hw"), baseDz: B.baseDz, pilOut, fromSc: B.fromSc, sc: B.sc, scOut: B.scOut,
     drop: -B.baseDz, dropOver: -B.baseDz > DROP_MAX + 1e-9,
     mens, Lauto: sup.L == null || sup.L === "", Lshort: L < auto.L - 1e-9, tir: tiranteFor(L),
@@ -290,6 +290,7 @@ export function resolvePortal(p, def = TRACK_DEFAULTS, geo = [], lev = null) {
   else { hb = RP ? sc1 + RP.hb : filled(p.hb) ? +p.hb : PORTAL_DEFAULTS.hb; H = null; }
   const stag0 = +pick("stag"), pend = p.pend || {};
   const susp = trk.map((t) => { const x = pend[t.id] || {}; return { track: t.id, q: t.q, dz: t.dz, stag: filled(x.stag) ? +x.stag : stag0, type: x.type || "" }; });
+  const sospRfi = RP ? portalSuspSlots(rfi.kind, susp, hw, { qL, qR, aL, aR }, sc1) : null;
   let f = RP ? RP.found : foundation(pick("found"));
   if (!f) f = foundation(TRACK_DEFAULTS.found);
   const c1 = Math.max(f.C1min, Math.min(f.C1max, +pick("c1")));
@@ -297,7 +298,7 @@ export function resolvePortal(p, def = TRACK_DEFAULTS, geo = [], lev = null) {
     kind: "portal", rfi, up, mast: M, dbl: !!(M && p.dbl), pole, w, beam, Bauto: !filled(p.beam), short: beam.L < span - 1e-9, span,
     fixed: !!fx, qL, qR, aL, aR, phi: Math.atan2(aR - aL, qL - qR),
     drL: qL - w / 2 - HALF_GAUGE - top.q, drR: bot.q - HALF_GAUGE - (qR + w / 2), drLmin: drL, drRmin: drR,
-    zBaseL, zBaseR, hb, H, hw, baseDz, susp, found: f, c1, vol: 2 * foundationVolume(f, c1),
+    zBaseL, zBaseR, hb, H, hw, baseDz, susp, sospRfi, found: f, c1, vol: 2 * foundationVolume(f, c1),
     pilOut, fromSc: bL.fromSc || bR.fromSc, scL: bL, scR: bR, dropL, dropR, dropOver: Math.max(dropL, dropR) > DROP_MAX + 1e-9,
     fits: M ? foundationFits(f, M) : true,
   };
@@ -314,7 +315,12 @@ export function resolvePortal(p, def = TRACK_DEFAULTS, geo = [], lev = null) {
      RFI_Sospensione_PL_Acciaio_440);
    - portali MEC: una famiglia per trave tipo C (C19 / C20 / C21) con Luce d'istanza nel campo della trave;
    - portali coi piloni PO: tralicciati a 1 e 2 binari (6,40 / 10,30) e di ormeggio (14,40 / 15,60 / 20,40), luce di
-     tipo → il tipo con la luce più vicina.
+     tipo → il tipo con la luce più vicina;
+   - dalle famiglie del 2026-10-22 (0.23.0) i portali hanno sotto la trave le sospensioni SEGNAPOSTO (Satferr PT20-21:
+     tubo Ø133 a 1,50 dal binario verso il pilone 1, mensola 2,00, sospensione SN620_BN780_2x1100 fissa): d'istanza
+     Quota_mensola (una per portale, dal supercompattato del pilone 1) e per ogni posizione k Binario_k (dall'asse
+     del pilone 1 lungo la trave), Sospensione_k (sì/no) e Poligonazione_k (+ verso il tubo, cioè verso il pilone 1);
+     4 posizioni nei MEC e di ormeggio, 2 nei tralicciati.
    Senza famiglia (saltati con il motivo): LSU24, pali doppi, portali su pali LSU. */
 export const REVIT = {
   mastFamily: { 14: "RFI_Sostegno_LSU14-16", 16: "RFI_Sostegno_LSU14-16", 18: "RFI_Sostegno_LSU18-22", 20: "RFI_Sostegno_LSU18-22", 22: "RFI_Sostegno_LSU18-22" },
@@ -328,8 +334,29 @@ export const REVIT = {
     { family: "RFI_Portale_Ormeggio", type: "T-25", L: 20.4 }],
   spanTol: 0.05,
   // sospensione annidata nel palo (0.22.0, famiglie del 2026-10-18): tipo = braccio BN + tirantini, il primo è quello di partenza
-  sospensione: "RFI_Sospensione_PL_Acciaio_440", sospArms: ["780", "540", "440"], sospTies: ["900", "1100"],
+  sospensione: "RFI_Sospensione_PL_Acciaio_440", sospArms: ["780", "540", "440"], sospTies: ["900", "1100"], sospDefault: "SN620_BN780_2x900",
+  portalSospType: "SN620_BN780_2x1100",                  // la sospensione nei portali: tipo fisso (Satferr PT20-21)
+  // sospensioni dei portali (0.23.0): posizioni per famiglia, asse della mensola sopra il filo (38 + braccio BN780),
+  // posizioni nascoste 1,00 oltre una visibile (istanze coincidenti: avviso di doppio conteggio in Revit)
+  portalSusp: { MEC: 4, ORM: 4, TRAL: 2 }, portalWire: 0.818, portalHidden: 1.0,
 };
+/* le sospensioni della famiglia di un portale (kind MEC | ORM | TRAL): i binari serviti (susp di resolvePortal) in
+   ordine dal pilone 1 (montante destro), i primi REVIT.portalSusp[kind]; mensola unica alla media dei fili + portalWire.
+   m = { qL, qR, aL, aR } assi dei montanti, sc = supercompattato del pilone 1 (origine della famiglia) sul piano del
+   ferro del binario di riferimento. → { hm (asse della mensola sul piano del ferro), zm (sull'origine della famiglia),
+   slots: [{ y (dal pilone 1 lungo la trave), pol (+ verso il pilone 1), vis, track }] lunghe quante le posizioni,
+   over (binari in più delle posizioni) } */
+export function portalSuspSlots(kind, susp, hw, m, sc) {
+  const n = REVIT.portalSusp[kind] || 0, c = Math.cos(Math.atan2(m.aR - m.aL, m.qL - m.qR));
+  const qm = (m.qL + m.qR) / 2, half = Math.hypot(m.qL - m.qR, m.aL - m.aR) / 2;
+  const vis = susp.map((x) => ({ y: (x.q - qm) / c + half, pol: -x.stag / c, vis: true, track: x.track, dz: x.dz }))
+    .sort((a, b) => a.y - b.y).slice(0, n);
+  const hm = vis.reduce((a, x) => a + x.dz + hw, 0) / Math.max(1, vis.length) + REVIT.portalWire;
+  const slots = vis.map(({ dz, ...x }) => x);
+  for (let j = 0; vis.length && slots.length < n; j++)
+    slots.push({ y: vis[j % vis.length].y + REVIT.portalHidden * (1 + Math.floor(j / vis.length)), pol: 0, vis: false, track: null });
+  return { hm, zm: hm - sc, slots, over: susp.length > n, type: REVIT.portalSospType };
+}
 /* il campo «Tipo di sospensione» (testo libero, proposte SOSP_TYPES) → i tipi della famiglia RFI_Sospensione_PL_Acciaio_440
    in ordine (l'add-in prende il primo che c'è nel modello): braccio BN780/540/440 e tirantini 2x900/2x1100 dal testo
    quando ci sono, sennò tutti quelli possibili (prima il braccio e i tirantini di partenza). Testo vuoto o senza
@@ -348,14 +375,17 @@ export function revitSospTypes(text) {
      famiglia lungo quanto la mensola del tool) e i tiranti del tool;
    - portali: la famiglia e il tipo che piazza l'add-in (REVIT.mec, REVIT.po), solo se la distanza fra i montanti sta
      nel campo della trave MEC tipo C o entro REVIT.spanTol dalla luce del tipo PO; la famiglia è rigida e piana come
-     in Revit: fondazioni (P2MEC, POT), piloni e trave alle quote della famiglia sul supercompattato del pilone 1. */
+     in Revit: fondazioni (P2MEC, POT), piloni e trave alle quote della famiglia sul supercompattato del pilone 1;
+     sotto la trave tubi, mensole e staffaggi delle sospensioni (0.23.0, portalSuspSlots) alla quota della mensola
+     dal filo del tool. */
 export const RFI_PORTALS = {
   // E 65042 a: blocco 4000 (lungo il binario) × 2100 × 2500, pilastrino 2360 × 1000 × 250, filo superiore +100; trave
-  // MEC tipo C 750 × 1000 col filo inferiore a +8516 (ASSUNTO nella sessione 18: 200 sopra l'ultimo traverso del pilone)
-  MEC: { found: { id: "P2MEC", A: 2.1, B: 4.0, C: 2.5, A1: 1.0, B1: 2.36, A2: null, C1min: 0.25, C1max: 0.25, vs: null, vmin: 21.59, vmax: 21.59, bolts: null, bolts24: null }, out: 0.1, hb: 8.516, h: 1.0, w: 0.75 },
-  // E 65020 a: blocco 6000 × 2500 × 2200 senza pilastrino, filo superiore +350; trave 1280 × 800 col filo superiore
-  // 150 sotto la testa del pilone E 65018 H9586 → filo inferiore a +8986
-  PO: { found: { id: "POT", A: 2.5, B: 6.0, C: 2.2, A1: 0, B1: 0, A2: null, C1min: 0, C1max: 0, vs: null, vmin: 33, vmax: 33, bolts: null, bolts24: null }, out: 0.35, hb: 8.986, h: 0.8, w: 1.28 },
+  // MEC tipo C 750 × 1000 col filo inferiore a +6820 (famiglie del 2026-10-22: 0,80 sopra la mensola della sospensione
+  // a +6020, Satferr PT20-21; prima +8516)
+  MEC: { found: { id: "P2MEC", A: 2.1, B: 4.0, C: 2.5, A1: 1.0, B1: 2.36, A2: null, C1min: 0.25, C1max: 0.25, vs: null, vmin: 21.59, vmax: 21.59, bolts: null, bolts24: null }, out: 0.1, hb: 6.82, h: 1.0, w: 0.75 },
+  // E 65020 a: blocco 6000 × 2500 × 2200 senza pilastrino, filo superiore +350; trave 1280 × 800 col filo inferiore
+  // a +6820 come le MEC (prima 150 sotto la testa del pilone E 65018 H9586, a +8986)
+  PO: { found: { id: "POT", A: 2.5, B: 6.0, C: 2.2, A1: 0, B1: 0, A2: null, C1min: 0, C1max: 0, vs: null, vmin: 33, vmax: 33, bolts: null, bolts24: null }, out: 0.35, hb: 6.82, h: 0.8, w: 1.28 },
 };
 /* la famiglia di un portale coi piloni (up «MEC» o «PO») lungo span fra gli assi dei montanti, o null:
    { kind: "MEC" | "TRAL" | "ORM", family, type, luce (m: quella del portale per le MEC, quella del tipo per le PO) } */
@@ -370,12 +400,14 @@ export function rfiPortalOf(up, span) {
   if (Math.abs(span - p.L) > REVIT.spanTol + 1e-9) return null;
   return { kind: p.family === "RFI_Portale_Tralicciato" ? "TRAL" : "ORM", family: p.family, type: p.type, luce: p.L };
 }
-/* la famiglia di un palo (tipo M, doppio?, mensola) o null: { family, type, mens (tipo della mensola nel catalogo, o «») } */
-export function rfiMastOf(M, dbl, mens) {
+/* la famiglia di un palo (tipo M, doppio?, mensola, testo del tipo di sospensione) o null: { family, type, mens (tipo
+   della mensola nel catalogo, o «»), sosp (tipo della sospensione annidata che piazza l'add-in: il primo candidato, sennò
+   quello di partenza della famiglia) } */
+export function rfiMastOf(M, dbl, mens, sosp = "") {
   const family = M && !dbl ? REVIT.mastFamily[M.size] : null;
   if (!family) return null;
   const t = mens ? revitMensType(mens.code, mens.L) : "";
-  return { family, type: M.id, mens: REVIT.mensole.includes(t) ? t : "" };
+  return { family, type: M.id, mens: REVIT.mensole.includes(t) ? t : "", sosp: revitSospTypes(sosp)[0] || REVIT.sospDefault };
 }
 export const revitMensType = (code, L) => String(code).replace("/", "-") + "_L" + Math.round(L * 1000);
 const revitMensLen = (t) => +((String(t).match(/_L(\d+)$/) || [])[1] || 0) / 1000;
@@ -387,22 +419,30 @@ const revitMensLen = (t) => +((String(t).match(/_L(\d+)$/) || [])[1] || 0) / 100
    non riconosciuto: resta quello della famiglia), susp (sospensioni in più: la famiglia
    ha una mensola sola), equip (trasformatore / sezionatore senza famiglia), tieHeight (la famiglia tiene il tirante
    a 1,00 sopra la mensola), spanRange (luce fuori dal campo delle travi MEC), spanType (nessun tipo di portale con
-   quella luce entro 5 cm) */
+   quella luce entro 5 cm), portalSusp (più binari serviti delle sospensioni della famiglia: vanno i primi dal pilone 1) */
 export function revitItem(R, F) {
   if (!R || !F) return { skip: "geom" };
   const origin = [F.origin.x, F.origin.y, F.origin.z], xAxis = F.xAxis, warn = [];
   if (R.kind === "portal") {
     if (R.up === "LSU") return { skip: "portalLsu" };
     const L = F.span;
+    // sospensioni sotto la trave (0.23.0): le stesse del sito (R.sospRfi); con la luce fuori dai tipi il sito non ha la
+    // famiglia, le posizioni si contano su quella che si piazza (origine = revitFrame)
+    const susp = (kind) => {
+      const S = R.sospRfi || portalSuspSlots(kind, R.susp, R.hw, R, R.zBaseR - R.pilOut), sp = { Quota_mensola: { len: S.zm } };
+      S.slots.forEach((x, i) => Object.assign(sp, { ["Binario_" + (i + 1)]: { len: x.y }, ["Sospensione_" + (i + 1)]: { num: x.vis ? 1 : 0 }, ["Poligonazione_" + (i + 1)]: { len: x.pol } }));
+      if (S.over) warn.push("portalSusp");
+      return sp;
+    };
     if (R.up === "MEC") {
       const gap = (t) => (L < t.min ? t.min - L : L > t.max ? L - t.max : 0);
       const m = REVIT.mec.reduce((a, t) => (gap(t) < gap(a) ? t : a));
       if (gap(m) > 1e-9) warn.push("spanRange");
-      return { family: m.family, types: [m.type], origin, xAxis, params: { Luce: { len: L } }, warn };
+      return { family: m.family, types: [m.type], origin, xAxis, params: { Luce: { len: L }, ...susp("MEC") }, warn };
     }
     const p = REVIT.po.reduce((a, t) => (Math.abs(L - t.L) < Math.abs(L - a.L) ? t : a));
     if (Math.abs(L - p.L) > REVIT.spanTol) warn.push("spanType");
-    return { family: p.family, types: [p.type], origin, xAxis, params: {}, warn, typeSpan: p.L };
+    return { family: p.family, types: [p.type], origin, xAxis, params: susp(p.family === "RFI_Portale_Tralicciato" ? "TRAL" : "ORM"), warn, typeSpan: p.L };
   }
   const M = R.mast;
   if (!M) return { skip: "geom" };

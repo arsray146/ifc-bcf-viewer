@@ -35,7 +35,8 @@
      fusto, traliccio, tirafondi), attacchi IfcDiscreteAccessory .BRACKET.,
      mensola IfcMember, tiranti 24 × 24 IfcMember .TIEBAR., plinti e
      fondazioni dei portali IfcFooting, piloni IfcColumn, travi IfcBeam (un
-     elemento per tratto). Solidi: estrusi di contorni qualsiasi (anche coi
+     elemento per tratto); sotto la trave dei portali (0.23.0) tubo e mensola
+     delle sospensioni IfcMember, piastre del tubo IfcPlate. Solidi: estrusi di contorni qualsiasi (anche coi
      fori), tondi e tubi, tondi piegati IfcSweptDiskSolid;
    - assi: logica di progetto (pianta LINE / CIRCULARARC / CLOTHOID, profilo
      CONSTANTGRADIENT / CIRCULARARC / PARABOLICARC, sopraelevazione
@@ -45,8 +46,8 @@
      RICEVUTO (l'offset sta nella descrizione); i sostegni e le rotaie
      stanno sul binario vero.
    ========================================================================= */
-import * as C from "./ocs-core.js?v=0.22.1";
-import * as RFI from "./ocs-rfi.js?v=0.22.1";
+import * as C from "./ocs-core.js?v=0.23.0";
+import * as RFI from "./ocs-rfi.js?v=0.23.0";
 import { writeStep } from "../common/pset-core.js?v=1.1.0";
 import { ifcGuid, stepStr, stepReal, chainage } from "../profile-sweep/profile-io.js?v=0.22.0";
 
@@ -54,7 +55,7 @@ import { ifcGuid, stepStr, stepReal, chainage } from "../profile-sweep/profile-i
 export const IFC_LABELS = {
   site: "Sito", railway: "Trazione elettrica", mast: "Palo", portal: "Portale", stem: "Fusto", plate: "Piastra", mens: "Mensola",
   tie: "Tirante", susp: "Sospensione", pend: "Pendolo", found: "Fondazione", beam: "Trave", pole: "Pilone", trafo: "Trasformatore",
-  sez: "Sezionatore", att: "Attacco mensola", attTie: "Attacco tirante", attBeam: "Attacco trave", railL: "Rotaia sinistra", railR: "Rotaia destra", steel: "Acciaio", concrete: "Calcestruzzo", offset: "Offset dall'asse ricevuto",
+  sez: "Sezionatore", att: "Attacco mensola", attTie: "Attacco tirante", attBeam: "Attacco trave", iso: "Isolatori", tubeP: "Tubo della sospensione", mensP: "Mensola da portale", plateP: "Piastra del tubo", railL: "Rotaia sinistra", railR: "Rotaia destra", steel: "Acciaio", concrete: "Calcestruzzo", offset: "Offset dall'asse ricevuto",
 };
 export const LODS = ["box", "upn", "lattice"];
 /* rotaia semplice (rettangolo sotto il piano del ferro, fuori dal bordo interno) e aste dei tiranti/pendoli */
@@ -114,7 +115,7 @@ export function ocsIfc(job) {
   // --- stili
   const style = (rgb, name) => e(`IFCSURFACESTYLE(${S(name)},.BOTH.,(${e(`IFCSURFACESTYLESHADING(${e(`IFCCOLOURRGB($,${R(rgb[0], 3)},${R(rgb[1], 3)},${R(rgb[2], 3)})`)},0.)`)}))`);
   const ST = {}, st = (k) => ST[k] || (ST[k] = style(
-    { steel: [0.6, 0.64, 0.67], dark: [0.42, 0.46, 0.5], conc: [0.66, 0.64, 0.58], equip: [0.88, 0.65, 0.23], rail: [0.33, 0.33, 0.35] }[k], k));
+    { steel: [0.6, 0.64, 0.67], dark: [0.42, 0.46, 0.5], iso: [0.35, 0.35, 0.39], conc: [0.66, 0.64, 0.58], equip: [0.88, 0.65, 0.23], rail: [0.33, 0.33, 0.35] }[k], k));
   const styled = (items, k) => { const s = st(k); for (const it of items) e(`IFCSTYLEDITEM(${it},(${s}),$)`); return items; };
 
   // --- solidi (coordinate del sistema dell'oggetto)
@@ -308,7 +309,7 @@ export function ocsIfc(job) {
     const RP = RFI.rfiPlaced(T, s, Rs);                    // famiglia RFI (0.17.0): i suoi pezzi al posto delle parti semplificate
     for (const p of P) {
       const k = p.k;
-      if (RP && RFI.replaces(k)) continue;
+      if (RP && RFI.replaces(k, Rs)) continue;
       if (p.sz) {
         const c = loc(p.c), [sl, stv, sv] = p.sz;
         if (k === "mast") { const Tm = mastType(Rs.mast); add(occ(Tm, elem("IFCCOLUMN", lb.stem + " " + Rs.mast.id, Rs.mast.id, childPl([c[0], c[1], c[2] - sv / 2]), mapped(Tm), num, "STANDCOLUMN"))); }
@@ -350,14 +351,20 @@ export function ocsIfc(job) {
       if (pc.k.startsWith("tir")) return lb.tie;
       if (pc.k === "pilone") return lb.pole + " " + short("RFI_Pilone_");
       if (pc.k === "attTrave") return lb.attBeam || "Attacco trave";
+      if (pc.k === "sospP") return lb.tubeP || "Tubo della sospensione";
+      if (pc.k === "mensP") return lb.mensP || "Mensola da portale";
+      if (pc.k === "piastraP") return lb.plateP || "Piastra del tubo";
+      if (pc.k === "sospR") return lb.susp + " " + pc.type;
+      if (pc.k === "isoR") return lb.iso || "Isolatori";
       return lb.beam + " " + short(/^RFI_Trave(MEC_C_|Ormeggio_|Tralicciata_)/);
     };
     const rfiTypeName = (pc) => (pc.k === "plinto" ? pc.fam + " " + pc.type + (Math.abs(Rs.c1 - 0.25) > 1e-9 ? " C1 " + R(Rs.c1, 3) : "")
-      : pc.k === "mens" ? pc.fam + " " + (pc.type || "L " + R(Rs.mens.L, 3)) : pc.fam + (pc.type ? " " + pc.type : ""));
+      : pc.k === "mens" ? pc.fam + " " + (pc.type || "L " + R(Rs.mens.L, 3))
+      : pc.fam + (pc.type ? " " + pc.type : "") + (pc.pol != null ? " Pol " + R(pc.pol, 3) : ""));   // sospensione: geometria per poligonazione
     const rfiFeet = [];
     if (RP) for (const pc of RP.pieces) {
       if (pc.k === "plinto" || pc.k === "fond") { rfiFeet.push(pc); continue; }   // fondazioni: sotto, come le altre
-      const [cls, predef] = pc.ifc, tname = rfiTypeName(pc), sk = pc.k === "mens" || pc.k.startsWith("tir") ? "dark" : "steel";
+      const [cls, predef] = pc.ifc, tname = rfiTypeName(pc), sk = pc.k === "isoR" ? "iso" : pc.k === "mens" || pc.k === "mensP" || pc.k.startsWith("tir") ? "dark" : "steel";
       const sh = rfiShape(pc, cls, predef, tname, sk);
       if (!sh) continue;
       const el = elem(cls, rfiName(pc), tname, childPl(loc(pc.w), D3(...dirOf(pc.th), 0)), sh.pds, num, predef);

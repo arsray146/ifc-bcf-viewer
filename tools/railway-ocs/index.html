@@ -594,7 +594,7 @@ const I18N = {
     "rv.skip.portalLsu": "portali su pali LSU", "rv.skip.double": "pali doppi", "rv.skip.mastSize": "pali LSU24", "rv.skip.geom": "senza geometria",
     "rv.w.mensType": "mensola non nel catalogo: messa la più corta fra le più lunghe", "rv.w.sospType": "tipo di sospensione vuoto o non riconosciuto: resta quello della famiglia", "rv.w.susp": "più sospensioni: la famiglia ha una mensola sola",
     "rv.w.equip": "trasformatore o sezionatore: senza famiglia, non piazzato", "rv.w.tieHeight": "tirante: la famiglia lo tiene a 1,00 sopra la mensola",
-    "rv.w.spanRange": "luce fuori dal campo delle travi MEC C19–C21", "rv.w.spanType": "nessun tipo di portale con quella luce (entro 5 cm): il più vicino",
+    "rv.w.portalSusp": "più binari delle sospensioni della famiglia: vanno i primi dal pilone 1", "rv.w.spanRange": "luce fuori dal campo delle travi MEC C19–C21", "rv.w.spanType": "nessun tipo di portale con quella luce (entro 5 cm): il più vicino",
     "rv.plDone": "Revit: {a} piazzati, {b} aggiornati in {s} s.", "rv.plNotPlaced": "In Revit non piazzati {n}: {list}", "rv.plFail": "Piazzamento in Revit non riuscito: {m}",
     "rv.coordTitle": "Coordinate condivise del modello", "rv.coordBody": "Il modello non ha coordinate condivise: i sostegni cadrebbero a {km} km dall'origine interna. Imposto l'origine interna del modello in E {e}, N {n}, quota {z} (nord di progetto = nord reale)? Si fa una volta sola; poi il modello si linka nel federato «da coordinate condivise».",
     "rv.coordGo": "Imposta e piazza", "rv.err.coordsSet": "Le coordinate condivise del modello sono già impostate: non le cambio.",
@@ -619,7 +619,7 @@ const I18N = {
     "ix.fastTitle": "Modalità fast accesa", "ix.fastBody": "Le rotaie si disegnano con una sezione ogni 10 m: in curva sarebbero spezzate. Le esporto al passo pieno? Assi, sostegni e fondazioni non cambiano col passo.",
     "ix.fastFull": "Passo pieno ed esporta", "ix.fastAsIs": "Esporta così (10 m)",
     "ifc.site": "Sito", "ifc.railway": "Trazione elettrica", "ifc.mast": "Palo", "ifc.portal": "Portale", "ifc.stem": "Fusto", "ifc.plate": "Piastra", "ifc.mens": "Mensola", "ifc.tie": "Tirante",
-    "ifc.susp": "Sospensione", "ifc.pend": "Pendolo", "ifc.found": "Fondazione", "ifc.beam": "Trave", "ifc.pole": "Pilone", "ifc.trafo": "Trasformatore", "ifc.sez": "Sezionatore", "ifc.att": "Attacco mensola", "ifc.attTie": "Attacco tirante", "ifc.attBeam": "Attacco trave",
+    "ifc.susp": "Sospensione", "ifc.pend": "Pendolo", "ifc.found": "Fondazione", "ifc.beam": "Trave", "ifc.pole": "Pilone", "ifc.trafo": "Trasformatore", "ifc.sez": "Sezionatore", "ifc.att": "Attacco mensola", "ifc.attTie": "Attacco tirante", "ifc.attBeam": "Attacco trave", "ifc.iso": "Isolatori", "ifc.tubeP": "Tubo della sospensione", "ifc.mensP": "Mensola da portale", "ifc.plateP": "Piastra del tubo",
     "ifc.railL": "Rotaia sinistra", "ifc.railR": "Rotaia destra", "ifc.steel": "Acciaio", "ifc.concrete": "Calcestruzzo", "ifc.offset": "Offset dall'asse ricevuto",
     "prj.saveTitle": "Salva progetto", "prj.file": "File", "prj.cancel": "Annulla", "prj.save": "Salva", "prj.open": "Apri", "prj.saveFirst": "Salva prima l'attuale",
     "prj.saveHelp": "Il file contiene binari (anche le polilinee e la taratura dei disegni), profili scelti, offset, sostegni e occhi accesi; si riapre trascinandolo qui o da «Apri un progetto salvato», anche su un altro PC.",
@@ -810,7 +810,7 @@ const I18N = {
     "rv.skip.portalLsu": "portals on LSU masts", "rv.skip.double": "double masts", "rv.skip.mastSize": "LSU24 masts", "rv.skip.geom": "no geometry",
     "rv.w.mensType": "cantilever not in the catalogue: the shortest of the longer ones", "rv.w.sospType": "suspension type empty or not recognised: the family keeps its own", "rv.w.susp": "more droppers: the family has a single cantilever",
     "rv.w.equip": "transformer or switch: no family, not placed", "rv.w.tieHeight": "tie: the family keeps it 1.00 above the cantilever",
-    "rv.w.spanRange": "span outside the MEC C19–C21 beam range", "rv.w.spanType": "no portal type with that span (within 5 cm): the nearest",
+    "rv.w.portalSusp": "more tracks than the family's droppers: the first ones from pole 1", "rv.w.spanRange": "span outside the MEC C19–C21 beam range", "rv.w.spanType": "no portal type with that span (within 5 cm): the nearest",
     "rv.plDone": "Revit: {a} placed, {b} updated in {s} s.", "rv.plNotPlaced": "Not placed in Revit {n}: {list}", "rv.plFail": "Placing in Revit failed: {m}",
     "rv.coordTitle": "Model shared coordinates", "rv.coordBody": "The model has no shared coordinates: the supports would fall {km} km from the internal origin. Set the model's internal origin at E {e}, N {n}, level {z} (project north = true north)? It is done once; then the model links into the federation “by shared coordinates”.",
     "rv.coordGo": "Set and place", "rv.err.coordsSet": "The model's shared coordinates are already set: I am not changing them.",
@@ -835,7 +835,7 @@ const I18N = {
     "ix.fastTitle": "Fast mode is on", "ix.fastBody": "Rails are drawn with a section every 10 m: in curves they would be broken. Export them at the full step? Alignments, supports and foundations do not depend on the step.",
     "ix.fastFull": "Full step and export", "ix.fastAsIs": "Export as is (10 m)",
     "ifc.site": "Site", "ifc.railway": "Overhead contact line", "ifc.mast": "Mast", "ifc.portal": "Portal", "ifc.stem": "Shaft", "ifc.plate": "Base plate", "ifc.mens": "Cantilever", "ifc.tie": "Tie",
-    "ifc.susp": "Suspension", "ifc.pend": "Dropper", "ifc.found": "Foundation", "ifc.beam": "Beam", "ifc.pole": "Pole", "ifc.trafo": "Transformer", "ifc.sez": "Disconnector", "ifc.att": "Cantilever bracket", "ifc.attTie": "Stay bracket", "ifc.attBeam": "Beam bracket",
+    "ifc.susp": "Suspension", "ifc.pend": "Dropper", "ifc.found": "Foundation", "ifc.beam": "Beam", "ifc.pole": "Pole", "ifc.trafo": "Transformer", "ifc.sez": "Disconnector", "ifc.att": "Cantilever bracket", "ifc.attTie": "Stay bracket", "ifc.attBeam": "Beam bracket", "ifc.iso": "Insulators", "ifc.tubeP": "Dropper tube", "ifc.mensP": "Portal cantilever", "ifc.plateP": "Tube plate",
     "ifc.railL": "Left rail", "ifc.railR": "Right rail", "ifc.steel": "Steel", "ifc.concrete": "Concrete", "ifc.offset": "Offset from the received alignment",
     "prj.saveTitle": "Save project", "prj.file": "File", "prj.cancel": "Cancel", "prj.save": "Save", "prj.open": "Open", "prj.saveFirst": "Save the current one first",
     "prj.saveHelp": "The file holds tracks (drawing polylines and calibration included), chosen profiles, offsets, supports and visibility; reopen it by dropping it here or from “Open a saved project”, also on another PC.",
@@ -984,15 +984,15 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./ocs-core.js?v=0.22.1";
-import * as IO from "./ocs-io.js?v=0.22.1";
-import * as K from "./ocs-catalog.js?v=0.22.1";
-import * as AU from "./ocs-stake.js?v=0.22.1";
-import * as RFI from "./ocs-rfi.js?v=0.22.1";
+import * as C from "./ocs-core.js?v=0.23.0";
+import * as IO from "./ocs-io.js?v=0.23.0";
+import * as K from "./ocs-catalog.js?v=0.23.0";
+import * as AU from "./ocs-stake.js?v=0.23.0";
+import * as RFI from "./ocs-rfi.js?v=0.23.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.22.1";
+const TOOL_VERSION = "0.23.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -1420,6 +1420,7 @@ function themeColors() {
   mats.prop = mats.prop || new THREE.LineBasicMaterial({ transparent: true, opacity: 0.95 }); mats.prop.color.set(light ? 0xc07a00 : 0xffb020);
   mats.conc = mats.conc || new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.85 }); mats.conc.color.set(light ? 0xb8b4a8 : 0x8d8a80);
   mats.equip = mats.equip || new THREE.MeshLambertMaterial(); mats.equip.color.set(light ? 0xc98a16 : 0xe0a63a);
+  mats.iso = mats.iso || new THREE.MeshLambertMaterial(); mats.iso.color.set(light ? 0x9a9aac : 0x7c7c8e);   // isolatori in silicone (0.23.0)
   mats.supSel = mats.supSel || new THREE.MeshLambertMaterial({ emissive: 0x2a3300 }); mats.supSel.color.set(light ? 0x8aa310 : 0xbfd730);
   mats.supLine = mats.supLine || new THREE.LineBasicMaterial(); mats.supLine.color.set(light ? 0x4a5158 : 0xc4ccd2);
   mats.supSelLine = mats.supSelLine || new THREE.LineBasicMaterial(); mats.supSelLine.color.set(light ? 0x6f8a00 : 0xbfd730);
@@ -1820,19 +1821,20 @@ function buildSupport(s) {
   g.userData.sup = s.id; g.userData.key = "t" + t.id + ":sup";
   const at = (p) => [p.x - G.O.x, p.y - G.O.y, Zs(p.z)];
   const lod = (S.view.lod || "lattice") !== "box";
-  // famiglia RFI del catalogo (0.17.0): i suoi pezzi al posto delle parti semplificate; restano sospensioni, pendoli,
+  // famiglia RFI del catalogo (0.17.0): i suoi pezzi al posto delle parti semplificate (0.23.0: anche i pendoli delle
+  // sospensioni della famiglia, con gli isolatori); restano le sospensioni in più,
   // filo e apparecchiature
   const RP = RFI.rfiPlaced(T, s, R);
   if (RP) for (const pc of RP.pieces) {
     const geo = rfiGeometry(pc);
     if (!geo) continue;
-    const conc = pc.k === "plinto" || pc.k === "fond", light = pc.k === "palo" || pc.k === "pilone";
-    const m = new THREE.Mesh(geo, conc ? mats.conc : sel ? mats.supSel : light ? mats.mast : mats.mens);
+    const conc = pc.k === "plinto" || pc.k === "fond", light = pc.k === "palo" || pc.k === "pilone", iso = pc.k === "isoR";
+    const m = new THREE.Mesh(geo, conc ? mats.conc : sel ? mats.supSel : iso ? mats.iso : light ? mats.mast : mats.mens);
     m.position.set(...at(pc.w)); m.rotation.z = pc.th;
     m.userData.sup = s.id; g.add(m);
   }
   for (const p of P) {
-    if (RP && RFI.replaces(p.k)) continue;
+    if (RP && RFI.replaces(p.k, R)) continue;
     if (p.sz) {
       const steel = p.k === "mast" || p.k === "pole" || p.k === "plate" || p.k === "beam" || p.k === "att" || p.k.startsWith("mens");
       const mat = steel ? (sel ? mats.supSel : p.k.startsWith("mens") || p.k === "att" || p.k === "beam" ? mats.mens : mats.mast) : p.k === "trafo" || p.k === "sez" ? mats.equip : mats.conc;
@@ -4391,11 +4393,11 @@ function ifcDialog() {
 async function exportIfc(o, railStep) {
   busy(tr("ix.busy")); await frame();
   try {
-    const X = await import("./ocs-ifc.js?v=0.22.1");
+    const X = await import("./ocs-ifc.js?v=0.23.0");
     const tpl = psetTpl();
     const labels = { site: tr("ifc.site"), railway: tr("ifc.railway"), mast: tr("ifc.mast"), portal: tr("ifc.portal"), stem: tr("ifc.stem"), plate: tr("ifc.plate"),
       mens: tr("ifc.mens"), tie: tr("ifc.tie"), susp: tr("ifc.susp"), pend: tr("ifc.pend"), found: tr("ifc.found"), beam: tr("ifc.beam"), pole: tr("ifc.pole"), trafo: tr("ifc.trafo"),
-      sez: tr("ifc.sez"), att: tr("ifc.att"), attTie: tr("ifc.attTie"), attBeam: tr("ifc.attBeam"), railL: tr("ifc.railL"), railR: tr("ifc.railR"), steel: tr("ifc.steel"), concrete: tr("ifc.concrete"), offset: tr("ifc.offset") };
+      sez: tr("ifc.sez"), att: tr("ifc.att"), attTie: tr("ifc.attTie"), attBeam: tr("ifc.attBeam"), iso: tr("ifc.iso"), tubeP: tr("ifc.tubeP"), mensP: tr("ifc.mensP"), plateP: tr("ifc.plateP"), railL: tr("ifc.railL"), railR: tr("ifc.railR"), steel: tr("ifc.steel"), concrete: tr("ifc.concrete"), offset: tr("ifc.offset") };
     const tracks = S.tracks.filter((t) => o.ids.includes(t.id)).map((t) => ({
       name: t.name, T: derivedOf(t).T, gauge: (t.cant && t.cant.gauge) || 1.5, align: o.align, rails: o.rails,
       sups: supsOf(t).slice().sort((a, b) => a.u - b.u).map((s) => {
@@ -4662,7 +4664,7 @@ const RVP = { on: false, t: 0, busy: false, again: false, ctxSig: null, shapes: 
    opacità delle facce per gruppo, l'add-in fa gli spigoli più scuri e pieni */
 const RV_STYLE = {
   steel: { color: "#bfd730", opacity: 0.6 }, mens: { color: "#a8c320", opacity: 0.7 }, conc: { color: "#bfd730", opacity: 0.28 },
-  equip: { color: "#e0a63a", opacity: 0.7 }, line: { color: "#8aa310", opacity: 1 }, sel: { color: "#ff6a2b", opacity: 0.8 },
+  equip: { color: "#e0a63a", opacity: 0.7 }, line: { color: "#8aa310", opacity: 1 }, sel: { color: "#ff6a2b", opacity: 0.8 }, iso: { color: "#6e6e80", opacity: 0.8 },
 };
 const rvClass = (k) => (k === "pil" || k === "block" ? "conc" : k === "trafo" || k === "sez" ? "equip" : k.startsWith("mens") || k === "att" || k === "beam" ? "mens" : "steel");
 /* famiglie RFI in Revit (0.20.0, add-in 0.7.0 «preview.shapes»; prova dell'utente: «la shadow mostrata in Revit è
@@ -4671,7 +4673,7 @@ const rvClass = (k) => (k === "pil" || k === "block" ? "conc" : k === "trafo" ||
    mensola, pilone, trave…; i tiranti d'istanza per forma) e poi solo dove sta ogni istanza (punto e rotazione):
    scegliere un sostegno non rimanda geometria. Le altre parti (sospensioni, pendoli, apparecchiature) e i sostegni
    senza famiglia restano scatole e segmenti. Con un add-in senza preview.shapes: tutto scatole come prima */
-const rvPieceClass = (k) => (k === "plinto" || k === "fond" ? "conc" : k === "palo" || k === "pilone" ? "steel" : "mens");
+const rvPieceClass = (k) => (k === "plinto" || k === "fond" ? "conc" : k === "palo" || k === "pilone" ? "steel" : k === "isoR" ? "iso" : "mens");
 function rvHash(s) { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(36); }
 const rvShapeKey = (pc, lod) => (pc.own ? pc.k + "#" + rvHash(JSON.stringify(pc.own)) : pc.key) + "|" + lod;
 function revitPreviewData() {
@@ -4687,7 +4689,7 @@ function revitPreviewData() {
       (at[key] = at[key] || []).push(r4(pc.w.x), r4(pc.w.y), r4(pc.w.z), r7(pc.th));
       if (!need.has(key)) need.set(key, pc);
     }
-    const pv = C.previewSolids(supParts(T, s, R).filter((p) => !(RP && RFI.replaces(p.k))), R, "upn");
+    const pv = C.previewSolids(supParts(T, s, R).filter((p) => !(RP && RFI.replaces(p.k, R))), R, "upn");
     for (const b of pv.boxes) grp(sel ? "sel" : rvClass(b.k)).boxes.push(...b.box.map(r4));
     for (const g of pv.segs) grp(sel ? "sel" : "line").lines.push(...g.seg.map(r4));
     n++;
@@ -4808,7 +4810,7 @@ const projectUid = () => S.uid || (S.uid = "p" + Date.now().toString(36) + Math.
 const RV_SKIP = { portalLsu: () => tr("rv.skip.portalLsu"), double: () => tr("rv.skip.double"), mastSize: () => tr("rv.skip.mastSize"), geom: () => tr("rv.skip.geom") };
 const RV_WARN = {
   mensType: () => tr("rv.w.mensType"), sospType: () => tr("rv.w.sospType"), susp: () => tr("rv.w.susp"), equip: () => tr("rv.w.equip"), tieHeight: () => tr("rv.w.tieHeight"),
-  spanRange: () => tr("rv.w.spanRange"), spanType: () => tr("rv.w.spanType"),
+  portalSusp: () => tr("rv.w.portalSusp"), spanRange: () => tr("rv.w.spanRange"), spanType: () => tr("rv.w.spanType"),
 };
 function revitPlaceItems() {
   const items = [], skips = {}, warns = {}, r4 = (v) => Math.round(v * 1e4) / 1e4, r9 = (v) => Math.round(v * 1e9) / 1e9;
