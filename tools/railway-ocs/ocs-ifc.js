@@ -49,7 +49,7 @@
 import * as C from "./ocs-core.js?v=0.23.0";
 import * as RFI from "./ocs-rfi.js?v=0.23.0";
 import { writeStep } from "../common/pset-core.js?v=1.1.0";
-import { ifcGuid, stepStr, stepReal, chainage } from "../profile-sweep/profile-io.js?v=0.22.0";
+import { ifcGuid, stepStr, stepReal, chainage } from "../profile-sweep/profile-io.js?v=0.23.0";
 
 /* nomi di partenza (la pagina li passa nella sua lingua) */
 export const IFC_LABELS = {

@@ -811,6 +811,8 @@ const I18N = {
     "sx.b": "Fondo", "sx.h": "Altezza", "sx.m": "Sponde", "sx.t": "Spessore cls", "sx.berm": "Banchina", "sx.cut": "Scarpa sterro", "sx.fill": "Scarpa riporto", "sx.step": "Passo sezioni",
     "sx.ref": "La linea di progetto del profilo è lo scorrimento (fondo interno del fosso).",
     "sx.slopeHelp": "Sponde e scarpe come orizzontale/verticale (3/2 = 1,5). La banchina parte dal bordo esterno del rivestimento.",
+    "sx.hwD": "Muretto ai salti",
+    "sx.ditchDrop": "Ai salti il tratto finisce sul salto e sul lato alto c'è un muretto di chiusura: spesso come «Muretto ai salti», largo fino ai bordi esterni del rivestimento, scende fino al fondo del rivestimento basso (0 = niente muretto).",
     "sx.typical": "Sezione tipo", "sx.at": "Sezione a {p}", "sx.hover": "Passa sul profilo: qui compare la sezione vera a quella progressiva.",
     "cm.title": "Computo", "cm.none": "Il computo nasce con asse e sezione.", "cm.noDtm": "Senza DTM: solo il rivestimento, niente scavo né riporto.",
     "cm.part": "Tratto", "cm.from": "Da", "cm.to": "A", "cm.len": "Lunghezza", "cm.lining": "Cls", "cm.cut": "Scavo", "cm.fill": "Riporto", "cm.total": "Totale",
@@ -1113,6 +1115,8 @@ const I18N = {
     "sx.b": "Bottom", "sx.h": "Depth", "sx.m": "Side slopes", "sx.t": "Lining", "sx.berm": "Berm", "sx.cut": "Cut slope", "sx.fill": "Fill slope", "sx.step": "Spacing",
     "sx.ref": "The design line of the profile is the invert (inner bottom of the ditch).",
     "sx.slopeHelp": "Side and earth slopes as horizontal/vertical (3/2 = 1.5). The berm starts at the outer edge of the lining.",
+    "sx.hwD": "Drop wall",
+    "sx.ditchDrop": "At drops the reach ends on the drop and a closing wall sits on the upper side: as thick as «Drop wall», as wide as the outer edges of the lining, reaching down to the bottom of the lower lining (0 = no wall).",
     "sx.typical": "Typical section", "sx.at": "Section at {p}", "sx.hover": "Hover the profile: the actual section at that chainage shows up here.",
     "cm.title": "Quantities", "cm.none": "Quantities appear with axis and section.", "cm.noDtm": "Without a DTM: lining only, no cut or fill.",
     "cm.part": "Stretch", "cm.from": "From", "cm.to": "To", "cm.len": "Length", "cm.lining": "Concrete", "cm.cut": "Cut", "cm.fill": "Fill", "cm.total": "Total",
@@ -1267,12 +1271,12 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.22.0";
-import * as IO from "./profile-io.js?v=0.22.0";
+import * as C from "./profile-core.js?v=0.23.0";
+import * as IO from "./profile-io.js?v=0.23.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.22.0";
+const TOOL_VERSION = "0.23.0";
 /* il triangolatore dei tappi dei tagli (0.18): earcut di three.js, passato al motore (che resta senza import) */
 const TRI = (c, h) => THREE.ShapeUtils.triangulateShape(c.map(([x, y]) => new THREE.Vector2(x, y)), h.map((r) => r.map(([x, y]) => new THREE.Vector2(x, y))));
 const $ = (id) => document.getElementById(id);
@@ -1487,7 +1491,7 @@ function rebuildProfile() {
       D.prof = C.profileFromPoints(D.prEx.pts);
       D.edPts = ctl;
     } else { const ps = polysOn(W.prof, W.prof.design); if (ps.length) D.prof = C.profileLine(ps, cal); if (D.prof) D.edPts = C.editPoints(D.prof); }
-    if (D.prof && hasType(W, "channel", "box")) { D.prof = C.squareDrops(D.prof); D.squared = D.prof.squared; }
+    if (D.prof && hasType(W, "channel", "box", "ditch")) { D.prof = C.squareDrops(D.prof); D.squared = D.prof.squared; }
   } catch (e) { D.prof = null; D.edPts = null; }
   try { const pg = polysOn(W.prof, W.prof.ground); if (pg.length) D.ground = C.profileLine(pg, cal); } catch (e) { D.ground = null; }
 }
@@ -5116,6 +5120,12 @@ function renderSection() {
     h += `<div class="pgrid">` + fld("b", tr("sx.b"), "m", 0.01) + fld("h", tr("sx.h"), "m", 0.01) + fld("m", tr("sx.m"), "o/v", 0) + fld("t", tr("sx.t"), "m", 0.001)
       + fld("berm", tr("sx.berm"), "m", 0) + fld("step", tr("sx.step"), "m", 0.1) + fld("cut", tr("sx.cut"), "o/v", 0.01) + fld("fill", tr("sx.fill"), "o/v", 0.01) + `</div>`;
     h += `<p class="help">${esc(tr("sx.slopeHelp"))} ${esc(tr("sx.ref"))}</p>`;
+    // salti (0.23): il muretto di chiusura sul lato alto
+    h += `<div class="sub">${esc(tr("sx.subDrop"))}</div><div class="pgrid">` + fld("hw", tr("sx.hwD"), "m", 0) + `</div>`;
+    const dz = D.drops.map((x) => x.dz);
+    h += kv(tr("sx.drops"), dz.length ? esc(tr("sx.dropsV", { n: dz.length, a: nf(Math.min(...dz)), b: nf(Math.max(...dz)) })) : esc(tr("sx.noDrops")));
+    if (D.squared) h += `<p class="note">${esc(tr("sx.squared", { n: D.squared }))}</p>`;
+    h += `<p class="help">${esc(tr("sx.ditchDrop"))}</p>`;
   } else {
     const ref = (v, label) => `<button class="chip${d.ref === v ? " on" : ""}" data-ref="${v}">${esc(label)}</button>`;
     h += `<div class="row"><span class="lbl">${esc(tr("sx.refL"))}</span><div class="chips">${ref("invert", tr("sx.refInvert"))}${ref("top", box ? tr("sx.refTopB") : tr("sx.refTop"))}${ref("base", tr("sx.refBase"))}</div></div>`;
@@ -5865,7 +5875,7 @@ function exportSheets() {
   const z3 = TIN ? TIN.z : () => NaN;
   const sheets = exported().map((w) => ({ w, d: derivedOf(w) })).filter(({ d }) => d.ax3 && d.ax3.pts.length > 1 && d.prof && d.map && d.edPts)
     .map(({ w, d }) => {
-      const args = { axis: d.axis, prof: d.prof, map: d.map, ctl: d.edPts, zAt3: z3, lo: d.ax3.pts[0].p, hi: d.ax3.pts[d.ax3.pts.length - 1].p, square: hasType(w, "channel", "box"),
+      const args = { axis: d.axis, prof: d.prof, map: d.map, ctl: d.edPts, zAt3: z3, lo: d.ax3.pts[0].p, hi: d.ax3.pts[d.ax3.pts.length - 1].p, square: hasType(w, "channel", "box", "ditch"),
         sweep: { runs: d.runs, drops: d.drops, bridges: d.bridges, specAt: d.specAt, parts: d.parts, joins: d.joins, trims: d.trims, excluded: d.excluded, O: d.O } };
       const sections = T.sec && d.specAt ? C.crossSheets({ ...args, step: T.step }) : [];
       // tabulato (0.17): sezioni ragguagliate fra le sezioni correnti, più le righe ai capi di ponti, cambi netti e zone dei salti;

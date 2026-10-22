@@ -1167,11 +1167,39 @@ export function sweepStations(axis, prof, anchors, { step = 1, extra = [], p0 = 
     q.nx = nx; q.ny = ny;
     q.k = Math.min(4, 1 / Math.max(0.25, nx * no[0] + ny * no[1]));
   }
+  // 0.23: vicino a uno spigolo della pianta la sezione ⟂ sul lato interno scavalca il piano della bisettrice
+  // (dove sta la sezione del vertice) e la mesh si ripiega (inalveazione PR3: 33,5° con un trapezio largo
+  // 10 m = 1,56 m di sovrapposizione). q.cl = gli spigoli vicini: un punto della sezione oltre la bisettrice
+  // scivola lungo il suo lato fino al piano della bisettrice, cioè sul punto con la stessa u della sezione
+  // del vertice (stessa topologia, i triangoli fra punti uguali spariscono). Le sezioni del computo restano intere
+  // solo i due vertici che chiudono il lato della stazione: la bisettrice di uno spigolo lontano non c'entra
+  const VX = axis.vtx.map((v, i) => {
+    if (i === 0 || i === axis.vtx.length - 1) return null;
+    const a = planAt(axis, Math.max(0, v.s - 1e-6)), b = planAt(axis, Math.min(axis.length, v.s + 1e-6));
+    const cr = a.tx * b.ty - a.ty * b.tx, t = Math.tan(Math.atan2(Math.abs(cr), a.tx * b.tx + a.ty * b.ty) / 2);
+    const mx = a.tx + b.tx, my = a.ty + b.ty, ml = Math.hypot(mx, my);
+    return t > 1e-4 && ml > 1e-6 ? { s: v.s, x: v.x, y: v.y, mx: mx / ml, my: my / ml } : null;
+  });
+  let i = 0;
+  for (const q of out) {
+    while (i + 2 < axis.vtx.length && axis.vtx[i + 1].s <= q.p + 1e-6) i++;
+    if (axis.vtx.some((v) => Math.abs(q.p - v.s) < 1e-6)) continue;     // la sezione del vertice sta già sulla bisettrice
+    const w = planAt(axis, q.p);
+    for (const [v, sg] of [[VX[i], -1], [VX[i + 1], 1]]) if (v) (q.cl ||= []).push({ x: v.x, y: v.y, mx: v.mx, my: v.my, sg, tx: w.tx, ty: w.ty });
+  }
   return out;
 }
+/** Punto (x, y) di una sezione oltre la bisettrice di uno spigolo vicino (q.cl di sweepStations): lungo il lato fino al piano. */
+function toBisector(s, x, y) {
+  for (const c of s.cl) {
+    const e = (x - c.x) * c.mx + (y - c.y) * c.my, tm = c.tx * c.mx + c.ty * c.my;
+    if (e * c.sg > 0 && Math.abs(tm) > 1e-9) { const l = -e / tm; x += l * c.tx; y += l * c.ty; }
+  }
+  return [x, y];
+}
 
-/** Fosso trapezio: valori dell'utente (VI02). */
-export const DITCH = Object.freeze({ b: 0.5, h: 0.5, m: 1, t: 0.15, berm: 0.5, cut: 1.5, fill: 1.5 });
+/** Fosso trapezio: valori dell'utente (VI02). hw (0.23): spessore del muretto di chiusura ai salti (0 = niente). */
+export const DITCH = Object.freeze({ b: 0.5, h: 0.5, m: 1, t: 0.15, berm: 0.5, cut: 1.5, fill: 1.5, hw: 0.3 });
 
 const shoelace = (P) => { let a = 0; for (let i = 0; i < P.length; i++) { const p = P[i], q = P[(i + 1) % P.length]; a += p[0] * q[1] - q[0] * p[1]; } return a / 2; };
 
@@ -1239,14 +1267,20 @@ function meet(T, sgn, u0, v0, up, down, du, reach) {
  * bisezione. D = fondo scavo / piano di posa: scarpata, banchina, esterno del
  * rivestimento. Aree fra terreno e D: sterro dove il terreno sta sopra,
  * riporto dove sta sotto.
+ * dz > 0 (0.23): la sezione sta sul muretto di chiusura di un salto alto dz → fra
+ * le facce esterne del rivestimento D scende di dz (il muretto arriva al fondo del
+ * rivestimento basso): due vertici di D a ±uo, prima e dopo lo scalino.
  * Ritorna { L, R: { u, v, kind: "cut"|"fill"|null, ok }, D, cut, fill, ok }.
  */
-export function ditchCross(sh, T, { du = 0.1, reach = 50 } = {}) {
+export function ditchCross(sh, T, { du = 0.1, reach = 50, dz = 0 } = {}) {
   const { d, ue, uo, ub, h } = sh;
   const L = meet(T, -1, ue, h, d.cut, d.fill, du, reach), R = meet(T, 1, ue, h, d.cut, d.fill, du, reach);
-  const D = [[L.u, L.v], [-ue, h], [-uo, h], [-ub, -sh.tf], [ub, -sh.tf], [uo, h], [ue, h], [R.u, R.v]];
-  // aree: campioni ogni du più i vertici di D, (T − D) lineare fra due campioni
+  const D = dz > 0
+    ? [[L.u, L.v], [-ue, h], [-uo, h], [-uo, h - dz], [-ub, -sh.tf - dz], [ub, -sh.tf - dz], [uo, h - dz], [uo, h], [ue, h], [R.u, R.v]]
+    : [[L.u, L.v], [-ue, h], [-uo, h], [-ub, -sh.tf], [ub, -sh.tf], [uo, h], [ue, h], [R.u, R.v]];
+  // aree: campioni ogni du più i vertici di D, (T − D) lineare fra due campioni; allo scalino un campione per lato
   const us = D.map((q) => q[0]);
+  if (dz > 0) us.push(-uo - 1e-7, -uo + 1e-7, uo - 1e-7, uo + 1e-7);
   for (let u = Math.ceil(L.u / du) * du; u < R.u; u += du) us.push(u);
   us.sort((a, b) => a - b);
   let cut = 0, fill = 0, g0 = NaN, u0 = NaN;
@@ -1286,14 +1320,25 @@ function snapAt(us, fixed, x) {
   if (k >= 0) us[k] = x;
 }
 
-/** u lungo D a passi fissi per tratto (stessa topologia a ogni stazione): scarpata nS, banchina nB, parete nL, fondo nM. */
+/**
+ * u lungo D a passi fissi per tratto (stessa topologia a ogni stazione): scarpata nS, banchina nB, parete nL, fondo nM.
+ * A ±uo due campioni alla stessa u (0.23): lo scalino di D sul muretto di un salto (fuori dal muretto coincidono).
+ */
 function ringU(c, sh, { nS = 10, nB = 2, nL = 3, nM = 2 } = {}) {
   const out = [], fixed = [];
   const seg = (a, b, n) => { for (let i = 0; i < n; i++) { out.push(a + (b - a) * i / n); fixed.push(i === 0); } };
-  seg(c.L.u, -sh.ue, nS); seg(-sh.ue, -sh.uo, nB); seg(-sh.uo, -sh.ub, nL); seg(-sh.ub, sh.ub, nM);
-  seg(sh.ub, sh.uo, nL); seg(sh.uo, sh.ue, nB); seg(sh.ue, c.R.u, nS); out.push(c.R.u); fixed.push(true);
+  seg(c.L.u, -sh.ue, nS); seg(-sh.ue, -sh.uo, nB); out.push(-sh.uo); fixed.push(true); seg(-sh.uo, -sh.ub, nL); seg(-sh.ub, sh.ub, nM);
+  seg(sh.ub, sh.uo, nL); out.push(sh.uo); fixed.push(true); seg(sh.uo, sh.ue, nB); seg(sh.ue, c.R.u, nS); out.push(c.R.u); fixed.push(true);
   return { us: out, fixed };
 }
+/**
+ * D ai campioni: dei due campioni alla stessa u il primo prende il primo vertice di D lì, il secondo l'ultimo
+ * (lo scalino del muretto); senza scalino sono lo stesso punto e i loro triangoli nulli si tolgono.
+ */
+const dAtSamples = (D, us) => us.map((u, j) => {
+  const first = j + 1 < us.length && us[j + 1] === u, last = j > 0 && us[j - 1] === u, at = first || last ? D.filter((q) => q[0] === u) : [];
+  return at.length ? at[first ? 0 : at.length - 1][1] : polyV(D, u);
+});
 
 /**
  * Loft di anelli (stessa lunghezza) con i tappi: ogni anello è un poligono
@@ -1367,19 +1412,23 @@ function loftOpen(rings) {
  * entro `reach` si contano in `miss` (lì la scarpata si ferma).
  * shapeAt(p) (facoltativo, 0.9): la sezione a ogni progressiva — nei raccordi
  * le misure variano lungo il tratto (stessa topologia degli anelli).
+ * st.dz > 0 (0.23): la stazione sta sul muretto di chiusura di un salto alto dz (sulla faccia del
+ * muretto due stazioni alla stessa progressiva, una per lato): il muretto va nel rivestimento.
  * Ritorna { sections, length, vol: { lining, cut, fill }, mesh: { lining, cut, fill, surface }, miss }.
  */
 export function ditchSweep(stations, sh, zAt3, { O = { x: 0, y: 0 }, du = 0.1, reach = 50, ring = {}, shapeAt = null } = {}) {
   const sections = stations.map((st) => {
-    const S = shapeAt ? shapeAt(st.p) : sh;
+    const S = shapeAt ? shapeAt(st.p) : sh, dz = st.dz > 0 ? st.dz : 0;
     const T = (u) => zAt3(st.x + st.nx * u * st.k, st.y + st.ny * u * st.k) - st.z;
-    const c = ditchCross(S, T, { du, reach });
+    const c = ditchCross(S, T, { du, reach, dz });
     const { us, fixed } = ringU(c, S, ring);
     // dove terreno e fondo scavo si incrociano fra due campioni, il campione libero più vicino va
     // sull'incrocio: la mesh ritrova il volume delle sezioni anche al passaggio sterro/riporto
     snapCross(us, fixed, (u) => T(u) - polyV(c.D, u));
-    const Tu = us.map((u) => T(u)), Du = us.map((u) => polyV(c.D, u));
-    return { p: st.p, x: st.x, y: st.y, z: st.z, nx: st.nx, ny: st.ny, k: st.k, sh: S, L: c.L, R: c.R, cut: c.cut, fill: c.fill, ok: c.ok, us, Tu, Du };
+    const Tu = us.map((u) => T(u)), Du = dAtSamples(c.D, us);
+    // il muretto: fra la faccia esterna del rivestimento e la stessa abbassata di dz, largo fino a ±uo
+    const wall = dz > 0 ? 2 * S.uo * dz : 0;
+    return { p: st.p, x: st.x, y: st.y, z: st.z, nx: st.nx, ny: st.ny, k: st.k, cl: st.cl, sh: S, dz, wall, L: c.L, R: c.R, cut: c.cut, fill: c.fill, ok: c.ok, us, Tu, Du };
   });
   const vol = { lining: 0, cut: 0, fill: 0 };
   let length = 0;
@@ -1387,17 +1436,26 @@ export function ditchSweep(stations, sh, zAt3, { O = { x: 0, y: 0 }, du = 0.1, r
     const a = sections[i - 1], b = sections[i], dp = b.p - a.p;
     length += dp;
     vol.cut += (a.cut + b.cut) / 2 * dp; vol.fill += (a.fill + b.fill) / 2 * dp;
-    vol.lining += (a.sh.liningArea + b.sh.liningArea) / 2 * dp;
+    vol.lining += (a.sh.liningArea + a.wall + b.sh.liningArea + b.wall) / 2 * dp;
   }
-  const P3 = (s, u, v) => [s.x + s.nx * u * s.k - O.x, s.y + s.ny * u * s.k - O.y, s.z + v];
+  const P3 = (s, u, v) => { let x = s.x + s.nx * u * s.k, y = s.y + s.ny * u * s.k; if (s.cl) [x, y] = toBisector(s, x, y); return [x - O.x, y - O.y, s.z + v]; };   // mai oltre la bisettrice degli spigoli
   let mesh = null, bands = null;
-  if (sections.length >= 2) {
+  // le stazioni doppie (faccia del muretto) servono allo scalino di scavo e riporto, non al rivestimento
+  const uniq = sections.filter((s, j) => !j || s.p - sections[j - 1].p > 1e-9);
+  if (uniq.length >= 2) {
     // il rivestimento è un solido vero: il suo verso si decide dal volume; il suo anello gira al
     // contrario di quelli di scavo e riporto (interno sopra, esterno sotto) → verso opposto.
     // Le sue sezioni anche a parte (0.21, «Porta in Revit»: Revit lo rifà raccordandole, come il canale)
-    const liningRings = sections.map((s) => [...s.sh.inner.map(([u, v]) => P3(s, u, v)), ...s.sh.outer.slice().reverse().map(([u, v]) => P3(s, u, v))]);
-    const lining = loftBand(liningRings);
+    const liningRings = uniq.map((s) => [...s.sh.inner.map(([u, v]) => P3(s, u, v)), ...s.sh.outer.slice().reverse().map(([u, v]) => P3(s, u, v))]);
+    const lining0 = loftBand(liningRings);
     bands = { lining: [liningRings] };
+    // muretti (0.23): solidi a sé dentro il rivestimento, fra la faccia esterna abbassata (sotto) e quella vera (sopra)
+    const walls = runsOf(sections, (s) => s.dz > 0).filter((r) => r.length >= 2).map((r) => {
+      const rings = r.map((s) => [...s.sh.outer.map(([u, v]) => P3(s, u, v - s.dz)), ...s.sh.outer.slice().reverse().map(([u, v]) => P3(s, u, v))]);
+      bands.lining.push(rings);
+      return loftBand(rings);
+    });
+    const lining = walls.length ? Object.assign(mergeMeshes([lining0, ...walls]), { flipped: lining0.flipped }) : lining0;
     const band = (pick) => {
       const zero = [];
       const rings = sections.map((s) => {
@@ -1412,7 +1470,7 @@ export function ditchSweep(stations, sh, zAt3, { O = { x: 0, y: 0 }, du = 0.1, r
       lining,
       cut: band((D, T) => [D, Math.max(D, T)]),
       fill: band((D, T) => [Math.min(D, T), D]),
-      surface: loftOpen(sections.map((s) => {
+      surface: loftOpen(uniq.map((s) => {
         const S = s.sh, F = [[s.L.u, s.L.v], [-S.ue, S.h], [-S.uo, S.h], ...S.inner, [S.uo, S.h], [S.ue, S.h], [s.R.u, s.R.v]];
         return F.map(([u, v]) => P3(s, u, v));
       })),
@@ -1423,19 +1481,61 @@ export function ditchSweep(stations, sh, zAt3, { O = { x: 0, y: 0 }, du = 0.1, r
 
 /**
  * Il fosso in tratti fra p0 e p1 (le divisioni dell'utente in cuts), come gli
- * altri tipi: { parts: [{ k (da k0 + 1), p0, p1, length, vol, mesh, miss, n }] }.
+ * altri tipi: { parts: [{ k (da k0 + 1), p0, p1, length, vol, mesh, miss, n, drops }], drops }.
+ * SALTI (0.23, chiesto dall'utente: «almeno il muretto di chiusura, non un foglio»; com'era nel suo
+ * modello Grasshopper dell'inalveazione PR3): i tratti finiscono sui salti come nel canale; sul lato
+ * alto, sotto gli ultimi hw metri del rivestimento, un muretto largo fino ai bordi esterni del
+ * rivestimento (±uo) che scende di dz, fino al fondo del rivestimento basso. Niente dente né magrone.
+ * Il muretto sta nel cls del tratto alto; lo scavo scende sotto di lui.
  */
 export function ditchPartsSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, step = 1, cuts = [], p0 = -Infinity, p1 = Infinity, k0 = 0, shapeAt = null, extra = [], du = 0.1, reach = 50 } = {}) {
-  const ax3 = buildAxis3D(axis, prof, anchors), res = { parts: [] };
+  const ax3 = buildAxis3D(axis, prof, anchors), res = { parts: [], drops: [] };
   if (ax3.pts.length < 2) return res;
+  const shOf = shapeAt || (() => sh), map = anchorMap(anchors);
   const lo = Math.max(p0, ax3.pts[0].p), hi = Math.min(p1, ax3.pts[ax3.pts.length - 1].p);
-  const B = [lo, ...cuts.filter((c) => c > lo + 0.5 && c < hi - 0.5).sort((a, b) => a - b), hi];
-  for (let i = 0; i + 1 < B.length; i++) {
-    const st = sweepStations(axis, prof, anchors, { step, p0: B[i], p1: B[i + 1], extra });
-    if (st.length < 2) continue;
-    const sw = ditchSweep(st, sh, zAt3, { O, du, reach, shapeAt });
-    res.parts.push({ k: k0 + res.parts.length + 1, p0: B[i], p1: B[i + 1], length: sw.length, vol: sw.vol, mesh: sw.mesh, bands: sw.bands, miss: sw.miss, n: st.length });
+  if (!(hi > lo)) return res;
+  const ends = [];                                       // salti sui capi del pezzo: solo per il muretto
+  for (const d of profileDrops(prof)) {
+    const p = map.toP(d.q);
+    if (p < lo - 1e-6 || p > hi + 1e-6 || p <= ax3.pts[0].p + 1e-6 || p >= ax3.pts[ax3.pts.length - 1].p - 1e-6) continue;
+    const dr = { p, q: d.q, dir: d.zA < d.zB ? 1 : -1, dz: Math.abs(d.zB - d.zA) };
+    if (p > lo + 1e-6 && p < hi - 1e-6) res.drops.push(dr); else ends.push(dr);
   }
+  const B = [lo, hi, ...res.drops.map((d) => d.p)];
+  for (const x of cuts) if (x > lo + 0.5 && x < hi - 0.5 && !res.drops.some((d) => Math.abs(d.p - x) < 0.5)) B.push(x);
+  B.sort((a, b) => a - b);
+  const bounds = B.filter((x, i) => !i || x - B[i - 1] > 1e-6);
+  for (let i = 0; i + 1 < bounds.length; i++) {
+    const a = bounds[i], b = bounds[i + 1];
+    // muretti: salto alla fine col lato alto prima (sgn +1) o all'inizio col lato alto dopo (sgn −1)
+    const walls = [];
+    for (const d of [...res.drops, ...ends]) {
+      const sgn = Math.abs(d.p - b) < 1e-6 && d.dir > 0 ? 1 : Math.abs(d.p - a) < 1e-6 && d.dir < 0 ? -1 : 0;
+      const hw = shOf(d.p).d.hw;
+      if (!sgn || !(hw > 0)) continue;
+      const face = sgn > 0 ? Math.max(a, b - hw) : Math.min(b, a + hw);
+      walls.push({ d, sgn, a: sgn > 0 ? face : a, b: sgn > 0 ? b : face, face });
+    }
+    // sul capo che cade su un salto, la stazione di questo tratto (la prima a monte, l'ultima a valle)
+    const raw = sweepStations(axis, prof, anchors, { step, p0: a, p1: b, extra: [...extra, ...walls.map((w) => w.face)] });
+    const st0 = raw.filter((s, k) => !(Math.abs(s.p - a) < 1e-9 && k + 1 < raw.length && Math.abs(raw[k + 1].p - a) < 1e-9)
+      && !(Math.abs(s.p - b) < 1e-9 && k > 0 && Math.abs(raw[k - 1].p - b) < 1e-9));
+    if (st0.length < 2) continue;
+    // sulla faccia del muretto due stazioni: senza muretto dalla parte del tratto, col muretto dalla parte del salto
+    const st = [];
+    for (const s of st0) {
+      const w = walls.find((x) => s.p >= x.a - 1e-9 && s.p <= x.b + 1e-9);
+      if (!w) { st.push(s); continue; }
+      const on = { ...s, dz: w.d.dz };
+      if (Math.abs(s.p - w.face) < 1e-9 && w.b - w.a > 1e-6) st.push(...(w.sgn > 0 ? [s, on] : [on, s]));
+      else st.push(on);
+    }
+    const sw = ditchSweep(st, sh, zAt3, { O, du, reach, shapeAt });
+    res.parts.push({ k: k0 + res.parts.length + 1, p0: a, p1: b, length: sw.length, vol: sw.vol, mesh: sw.mesh, bands: sw.bands, miss: sw.miss, n: st0.length,
+      drops: walls.map((w) => ({ p: w.d.p, dz: w.d.dz, face: w.face })) });
+  }
+  res.drops.push(...ends);
+  res.drops.sort((x, y) => x.p - y.p);
   return res;
 }
 
@@ -1769,7 +1869,7 @@ export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }
   for (const x of cuts) if (x > lo + 0.5 && x < hi - 0.5 && !res.drops.some((d) => Math.abs(d.p - x) < 0.5)) B.push(x);
   B.sort((a, b) => a - b);
   const bounds = B.filter((x, i) => !i || x - B[i - 1] > 1e-6);
-  const P3 = (s, u, v) => [s.x + s.nx * u * s.k - O.x, s.y + s.ny * u * s.k - O.y, s.z + v];
+  const P3 = (s, u, v) => { let x = s.x + s.nx * u * s.k, y = s.y + s.ny * u * s.k; if (s.cl) [x, y] = toBisector(s, x, y); return [x - O.x, y - O.y, s.z + v]; };   // mai oltre la bisettrice degli spigoli
   for (let i = 0; i + 1 < bounds.length; i++) {
     const p0 = bounds[i], p1 = bounds[i + 1];
     const zIn = (p) => zAt(prof, map.toQ(p), p >= p1 - 1e-9 ? -1 : 1) + shOf(p).lift;   // sui capi che cadono su un salto, la quota di questo tratto
@@ -1817,7 +1917,7 @@ export function channelSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }
       const T = (u) => zAt3(s.x + s.nx * u * s.k, s.y + s.ny * u * s.k) - zf;
       for (const zone of zonesAt(s, zf, S)) {
         const cr = channelCross(S, T, zone, { du, reach });
-        secs.push({ p: s.p, x: s.x, y: s.y, z: zf, nx: s.nx, ny: s.ny, k: s.k, sh: S, zone, cr, T,
+        secs.push({ p: s.p, x: s.x, y: s.y, z: zf, nx: s.nx, ny: s.ny, k: s.k, cl: s.cl, sh: S, zone, cr, T,
           a: { lining: S.areaC + zone.wall, lean: S.areaLean, mix: zone.mix, cut: cr.cut, fill: cr.fill } });
       }
     }
@@ -2230,7 +2330,7 @@ export function pipeSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, s
   for (const x of cuts) if (x > lo + 0.5 && x < hi - 0.5 && !res.drops.some((d) => Math.abs(d.p - x) < 0.5)) B.push(x);
   B.sort((a, b) => a - b);
   const bounds = B.filter((x, i) => !i || x - B[i - 1] > 1e-6);
-  const P3 = (s, u, v) => [s.x + s.nx * u * s.k - O.x, s.y + s.ny * u * s.k - O.y, s.z + v];
+  const P3 = (s, u, v) => { let x = s.x + s.nx * u * s.k, y = s.y + s.ny * u * s.k; if (s.cl) [x, y] = toBisector(s, x, y); return [x - O.x, y - O.y, s.z + v]; };   // mai oltre la bisettrice degli spigoli
   for (let i = 0; i + 1 < bounds.length; i++) {
     const p0 = bounds[i], p1 = bounds[i + 1], k = k0 + res.parts.length + 1;
     const mode = partWalls[k] || p.walls, mS = Math.max(0.01, p.slope);
@@ -2245,7 +2345,7 @@ export function pipeSweep(axis, prof, anchors, sh, zAt3, { O = { x: 0, y: 0 }, s
         const T = (u) => zAt3(s.x + s.nx * u * s.k, s.y + s.ny * u * s.k) - zf;
         const depth = T(0) - S.vF;
         const vert = mode === "v" || (mode !== "s" && !(depth > p.deep));
-        return { p: s.p, x: s.x, y: s.y, z: zf, nx: s.nx, ny: s.ny, k: s.k, sh: S, T, depth, m: vert ? 0 : mS };
+        return { p: s.p, x: s.x, y: s.y, z: zf, nx: s.nx, ny: s.ny, k: s.k, cl: s.cl, sh: S, T, depth, m: vert ? 0 : mS };
       });
     };
     let secs = stationsOf([]);
