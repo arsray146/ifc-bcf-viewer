@@ -957,7 +957,34 @@ function hcArgs(text){
   return out;
 }
 function hcStmt(model,k){ return model.dec.decode(model.bytes.subarray(model.starts[k],model.ends[k])); }
-function hcName(a){ return (a&&a[0]==="'") ? a.slice(1,-1).replace(/''/g,"'") : null; }
+/* stringhe STEP: \X2\00E0\X0\ (UTF-16), \X4\…\X0\, \X\hh, \S\c, \\ — Revit
+   scrive «Identità» come 'Identit\X2\00E0\X0\': senza decodifica il rapporto
+   mostra «Identit\X2\00E0\X0\» e i controlli sui nomi non combaciano */
+function hcDec(s){
+  if(s.indexOf("\\")<0) return s;
+  let out="",i=0;
+  while(i<s.length){
+    const c=s[i];
+    if(c!=="\\"){ out+=c; i++; continue; }
+    if(s.startsWith("\\\\",i)){ out+="\\"; i+=2; continue; }
+    if(s.startsWith("\\X2\\",i)||s.startsWith("\\X4\\",i)){
+      const w=s[i+2]==="2"?4:8, e=s.indexOf("\\X0\\",i+4);
+      if(e<0){ out+=s.slice(i); break; }
+      const hex=s.slice(i+4,e);
+      for(let j=0;j+w<=hex.length;j+=w){
+        const cp=parseInt(hex.slice(j,j+w),16);
+        out+=w===4?String.fromCharCode(cp):String.fromCodePoint(cp);
+      }
+      i=e+4; continue;
+    }
+    if(s.startsWith("\\X\\",i)&&/^[0-9A-Fa-f]{2}$/.test(s.slice(i+3,i+5))){ out+=String.fromCharCode(parseInt(s.slice(i+3,i+5),16)); i+=5; continue; }
+    if(s.startsWith("\\S\\",i)&&i+3<s.length){ out+=String.fromCharCode(s.charCodeAt(i+3)+128); i+=4; continue; }
+    if(/^\\P[A-I]\\/.test(s.slice(i,i+4))){ i+=4; continue; }
+    out+=c; i++;
+  }
+  return out;
+}
+function hcName(a){ return (a&&a[0]==="'") ? hcDec(a.slice(1,-1).replace(/''/g,"'")) : null; }
 function hcRef(a,model){ if(!a||a[0]!=="#") return -1; const id=parseInt(a.slice(1),10); const k=model.idMap.get(id); return k===undefined?-1:k; }
 function hcList(a){ if(!a||a[0]!=="(") return []; return hcArgs("x"+a); }
 function hcEnum(a){ const m=(a||"").match(/^\.([A-Z0-9_]+)\.$/); return m?m[1]:null; }
@@ -972,7 +999,7 @@ function hcVal(raw){
   const mm=s.match(/^[A-Z0-9_]+\((.*)\)$/s);
   if(mm) s=mm[1].trim();
   if(!s||s==="$") return null;
-  if(s[0]==="'") return { v:s.slice(1,-1).replace(/''/g,"'"), num:false };
+  if(s[0]==="'") return { v:hcDec(s.slice(1,-1).replace(/''/g,"'")), num:false };
   if(s===".T.") return { v:"TRUE", num:false };
   if(s===".F.") return { v:"FALSE", num:false };
   if(s===".U.") return null;

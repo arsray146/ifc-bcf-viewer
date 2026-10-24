@@ -823,7 +823,46 @@ function geoArgs(text){
   return out;
 }
 function stmtOf(model,k){ return model.dec.decode(model.bytes.subarray(model.starts[k],model.ends[k])); }
-function argStr(a){ return (a&&a[0]==="'") ? a.slice(1,-1).replace(/''/g,"'") : null; }
+/* stringhe STEP: \X2\00E0\X0\ (UTF-16), \X4\…\X0\, \X\hh, \S\c, \\ — Revit
+   scrive «Identità» come 'Identit\X2\00E0\X0\': senza decodifica il nome
+   del sito e la descrizione del CRS si leggono con le sequenze */
+function stepDec(s){
+  if(s.indexOf("\\")<0) return s;
+  let out="",i=0;
+  while(i<s.length){
+    const c=s[i];
+    if(c!=="\\"){ out+=c; i++; continue; }
+    if(s.startsWith("\\\\",i)){ out+="\\"; i+=2; continue; }
+    if(s.startsWith("\\X2\\",i)||s.startsWith("\\X4\\",i)){
+      const w=s[i+2]==="2"?4:8, e=s.indexOf("\\X0\\",i+4);
+      if(e<0){ out+=s.slice(i); break; }
+      const hex=s.slice(i+4,e);
+      for(let j=0;j+w<=hex.length;j+=w){
+        const cp=parseInt(hex.slice(j,j+w),16);
+        out+=w===4?String.fromCharCode(cp):String.fromCodePoint(cp);
+      }
+      i=e+4; continue;
+    }
+    if(s.startsWith("\\X\\",i)&&/^[0-9A-Fa-f]{2}$/.test(s.slice(i+3,i+5))){ out+=String.fromCharCode(parseInt(s.slice(i+3,i+5),16)); i+=5; continue; }
+    if(s.startsWith("\\S\\",i)&&i+3<s.length){ out+=String.fromCharCode(s.charCodeAt(i+3)+128); i+=4; continue; }
+    if(/^\\P[A-I]\\/.test(s.slice(i,i+4))){ i+=4; continue; }
+    out+=c; i++;
+  }
+  return out;
+}
+function argStr(a){ return (a&&a[0]==="'") ? stepDec(a.slice(1,-1).replace(/''/g,"'")) : null; }
+/* il rovescio, per i testi che si scrivono: fuori dall'ASCII \X2\hhhh\X0\ */
+function stepEsc(s){
+  let out="";
+  for(const ch of String(s)){
+    const c=ch.codePointAt(0);
+    if(ch==="'") out+="''";
+    else if(ch==="\\") out+="\\\\";
+    else if(c>=32&&c<=126) out+=ch;
+    else { let h=""; for(let j=0;j<ch.length;j++) h+=ch.charCodeAt(j).toString(16).toUpperCase().padStart(4,"0"); out+="\\X2\\"+h+"\\X0\\"; }
+  }
+  return out;
+}
 function refIdx(model,a){ if(!a||a[0]!=="#") return -1; const id=parseInt(a.slice(1),10); const k=model.idMap.get(id); return k===undefined?-1:k; }
 function listOf(a){ if(!a||a[0]!=="(") return []; return geoArgs("x"+a); }
 function numOf(a,def){ if(a==null||a==="$"||a==="*"||a==="") return def; const v=parseFloat(a); return isFinite(v)?v:def; }
@@ -1137,7 +1176,7 @@ function geoApply(model,geo,dec,dryRun){
   const T=model.typeNames, TI=model.typeIdx;
   const rewrites=new Map(), adds=[];
   let nextId=model.maxId+1;
-  const esc=s=>String(s).replace(/'/g,"''");
+  const esc=stepEsc;
   const out={ map:"skip", crs:"skip", site:"none", north:"same", unit:null, northCount:0 };
   const wantDeg=isFinite(dec.deg)?dec.deg:0;
 

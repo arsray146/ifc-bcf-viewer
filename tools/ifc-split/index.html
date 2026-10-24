@@ -758,7 +758,34 @@ function splitArgs(text){
   return out;
 }
 function stmtText(model,k){ return model.dec.decode(model.bytes.subarray(model.starts[k],model.ends[k])); }
-function argName(a){ return (a&&a[0]==="'") ? a.slice(1,-1).replace(/''/g,"'") : null; }
+/* stringhe STEP: \X2\00E0\X0\ (UTF-16), \X4\…\X0\, \X\hh, \S\c, \\ — Revit
+   scrive «Identità» come 'Identit\X2\00E0\X0\': senza decodifica l'albero
+   e i gruppi per Pset mostrano «Identit\X2\00E0\X0\» */
+function stepDec(s){
+  if(s.indexOf("\\")<0) return s;
+  let out="",i=0;
+  while(i<s.length){
+    const c=s[i];
+    if(c!=="\\"){ out+=c; i++; continue; }
+    if(s.startsWith("\\\\",i)){ out+="\\"; i+=2; continue; }
+    if(s.startsWith("\\X2\\",i)||s.startsWith("\\X4\\",i)){
+      const w=s[i+2]==="2"?4:8, e=s.indexOf("\\X0\\",i+4);
+      if(e<0){ out+=s.slice(i); break; }
+      const hex=s.slice(i+4,e);
+      for(let j=0;j+w<=hex.length;j+=w){
+        const cp=parseInt(hex.slice(j,j+w),16);
+        out+=w===4?String.fromCharCode(cp):String.fromCodePoint(cp);
+      }
+      i=e+4; continue;
+    }
+    if(s.startsWith("\\X\\",i)&&/^[0-9A-Fa-f]{2}$/.test(s.slice(i+3,i+5))){ out+=String.fromCharCode(parseInt(s.slice(i+3,i+5),16)); i+=5; continue; }
+    if(s.startsWith("\\S\\",i)&&i+3<s.length){ out+=String.fromCharCode(s.charCodeAt(i+3)+128); i+=4; continue; }
+    if(/^\\P[A-I]\\/.test(s.slice(i,i+4))){ i+=4; continue; }
+    out+=c; i++;
+  }
+  return out;
+}
+function argName(a){ return (a&&a[0]==="'") ? stepDec(a.slice(1,-1).replace(/''/g,"'")) : null; }
 function refArg(a,model){ if(!a||a[0]!=="#") return -1; const id=parseInt(a.slice(1),10); const k=model.idMap.get(id); return k===undefined?-1:k; }
 function listArgs(a){ if(!a||a[0]!=="(") return []; return splitArgs("x"+a); }
 
@@ -999,7 +1026,7 @@ function scanPsets(model, elements){
       let val=a[2]||"$";
       const mm=val.match(/^[A-Z0-9_]+\((.*)\)$/);        // IFCLABEL('X') → 'X'
       if(mm) val=mm[1];
-      if(val[0]==="'") val=val.slice(1,-1).replace(/''/g,"'");
+      if(val[0]==="'") val=stepDec(val.slice(1,-1).replace(/''/g,"'"));
       psv.set(k,{name,val});
     }else if(t==="IFCPROPERTYSET"){
       const a=splitArgs(stmtText(model,k));

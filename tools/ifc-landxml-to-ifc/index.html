@@ -1762,7 +1762,19 @@ function lxGuid(rnd){
   b[6]=(b[6]&0x0f)|0x40; b[8]=(b[8]&0x3f)|0x80;
   return lxGuidFrom(b);
 }
-function lxEsc(s){ return String(s).replace(/\\/g,"\\\\").replace(/'/g,"''"); }
+/* stringa STEP: apici e barre raddoppiati, fuori dall'ASCII stampabile
+   \X2\hhhh\X0\ (ISO 10303-21) — un asse «Viabilità» del LandXML usciva in UTF-8 crudo */
+function lxEsc(s){
+  let out="";
+  for(const ch of String(s)){
+    const c=ch.codePointAt(0);
+    if(ch==="'") out+="''";
+    else if(ch==="\\") out+="\\\\";
+    else if(c>=32&&c<=126) out+=ch;
+    else { let h=""; for(let j=0;j<ch.length;j++) h+=ch.charCodeAt(j).toString(16).toUpperCase().padStart(4,"0"); out+="\\X2\\"+h+"\\X0\\"; }
+  }
+  return out;
+}
 
 /* trasformazione mappa → sistema locale del file di destinazione:
    local = Rᵀ·(map − EN)/scale  (IfcMapConversion: map = EN + scale·R·local) */

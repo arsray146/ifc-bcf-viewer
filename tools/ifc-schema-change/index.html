@@ -1070,8 +1070,47 @@ function scMeasure(a,def){
 }
 function scList(a){ if(!a||a[0]!=="(") return null; return scArgs("x"+a); }
 function scFirst(model,type){ const a=model.byType.get(type); return a&&a.length?a[0]:-1; }
-function scUnq(a){ if(!a||a[0]!=="'") return ""; return a.slice(1,-1).replace(/''/g,"'"); }
-function scEsc(s){ return String(s).replace(/\\/g,"\\\\").replace(/'/g,"''"); }
+/* stringhe STEP: \X2\00E0\X0\ (UTF-16), \X4\…\X0\, \X\hh, \S\c, \\ — Revit
+   scrive «Identità» come 'Identit\X2\00E0\X0\': senza decodifica i nomi del
+   registro e dei campioni escono con le sequenze */
+function scDec(s){
+  if(s.indexOf("\\")<0) return s;
+  let out="",i=0;
+  while(i<s.length){
+    const c=s[i];
+    if(c!=="\\"){ out+=c; i++; continue; }
+    if(s.startsWith("\\\\",i)){ out+="\\"; i+=2; continue; }
+    if(s.startsWith("\\X2\\",i)||s.startsWith("\\X4\\",i)){
+      const w=s[i+2]==="2"?4:8, e=s.indexOf("\\X0\\",i+4);
+      if(e<0){ out+=s.slice(i); break; }
+      const hex=s.slice(i+4,e);
+      for(let j=0;j+w<=hex.length;j+=w){
+        const cp=parseInt(hex.slice(j,j+w),16);
+        out+=w===4?String.fromCharCode(cp):String.fromCodePoint(cp);
+      }
+      i=e+4; continue;
+    }
+    if(s.startsWith("\\X\\",i)&&/^[0-9A-Fa-f]{2}$/.test(s.slice(i+3,i+5))){ out+=String.fromCharCode(parseInt(s.slice(i+3,i+5),16)); i+=5; continue; }
+    if(s.startsWith("\\S\\",i)&&i+3<s.length){ out+=String.fromCharCode(s.charCodeAt(i+3)+128); i+=4; continue; }
+    if(/^\\P[A-I]\\/.test(s.slice(i,i+4))){ i+=4; continue; }
+    out+=c; i++;
+  }
+  return out;
+}
+function scUnq(a){ if(!a||a[0]!=="'") return ""; return scDec(a.slice(1,-1).replace(/''/g,"'")); }
+/* il rovescio: apici e barre raddoppiati, fuori dall'ASCII \X2\hhhh\X0\
+   (il «—» di Pset_Conversione.Strumento usciva in UTF-8 crudo) */
+function scEsc(s){
+  let out="";
+  for(const ch of String(s)){
+    const c=ch.codePointAt(0);
+    if(ch==="'") out+="''";
+    else if(ch==="\\") out+="\\\\";
+    else if(c>=32&&c<=126) out+=ch;
+    else { let h=""; for(let j=0;j<ch.length;j++) h+=ch.charCodeAt(j).toString(16).toUpperCase().padStart(4,"0"); out+="\\X2\\"+h+"\\X0\\"; }
+  }
+  return out;
+}
 function scStepReal(x,dec){
   if(!isFinite(x)||Object.is(x,-0)) x=Math.abs(x)===Infinity?0:(x||0);
   let s=x.toFixed(dec==null?6:dec);
@@ -1140,8 +1179,10 @@ function scInfo(bytes){
   const hd=model.headText;
   const md=hd.match(/FILE_DESCRIPTION\s*\(\s*\(\s*'([^']*)'/);
   const mn=hd.match(/FILE_NAME\s*\(\s*'([^']*)'/);
-  info.headDesc=md?md[1]:"";
-  info.headName=mn?mn[1]:"";
+  /* decodificati: il nome torna nel FILE_NAME dell'uscita passando da scEsc,
+     e crudo le sue barre si raddoppiavano («Viabilit\\X2\\00E0\\X0\\.ifc») */
+  info.headDesc=md?scDec(md[1]):"";
+  info.headName=mn?scDec(mn[1]):"";
   /* conteggi utili */
   let rooted=0, products=0;
   const T=model.typeNames, TI=model.typeIdx;

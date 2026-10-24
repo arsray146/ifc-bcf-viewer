@@ -850,6 +850,52 @@ function applyLang(lang){
    ========================================================================= */
 function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
+/* stringhe STEP: \X2\00E0\X0\ (UTF-16), \X4\…\X0\, \X\hh, \S\c, \\ — Revit
+   scrive «Città» come 'Citt\X2\00E0\X0\', la tabella Excel in chiaro: senza
+   questo la regola non trovava gli elementi e i suggerimenti erano illeggibili */
+function stepDec(s){
+  if(s.indexOf("\\")<0) return s;
+  let out="",i=0;
+  while(i<s.length){
+    const c=s[i];
+    if(c!=="\\"){ out+=c; i++; continue; }
+    if(s.startsWith("\\\\",i)){ out+="\\"; i+=2; continue; }
+    if(s.startsWith("\\X2\\",i)||s.startsWith("\\X4\\",i)){
+      const w=s[i+2]==="2"?4:8, e=s.indexOf("\\X0\\",i+4);
+      if(e<0){ out+=s.slice(i); break; }
+      const hex=s.slice(i+4,e);
+      for(let j=0;j+w<=hex.length;j+=w){
+        const cp=parseInt(hex.slice(j,j+w),16);
+        out+=w===4?String.fromCharCode(cp):String.fromCodePoint(cp);
+      }
+      i=e+4; continue;
+    }
+    if(s.startsWith("\\X\\",i)&&/^[0-9A-Fa-f]{2}$/.test(s.slice(i+3,i+5))){ out+=String.fromCharCode(parseInt(s.slice(i+3,i+5),16)); i+=5; continue; }
+    if(s.startsWith("\\S\\",i)&&i+3<s.length){ out+=String.fromCharCode(s.charCodeAt(i+3)+128); i+=4; continue; }
+    if(/^\\P[A-I]\\/.test(s.slice(i,i+4))){ i+=4; continue; }
+    out+=c; i++;
+  }
+  return out;
+}
+/* il rovescio: com'è scritto il testo dentro gli apici di una stringa STEP */
+function stepEsc(s){
+  let out="";
+  for(const ch of String(s)){
+    const c=ch.codePointAt(0);
+    if(ch==="'") out+="''";
+    else if(ch==="\\") out+="\\\\";
+    else if(c>=32&&c<=126) out+=ch;
+    else { let h=""; for(let j=0;j<ch.length;j++) h+=ch.charCodeAt(j).toString(16).toUpperCase().padStart(4,"0"); out+="\\X2\\"+h+"\\X0\\"; }
+  }
+  return out;
+}
+/* un testo della tabella si cerca nel file in tutte e due le forme: UTF-8
+   diretto (come lo scrivono alcuni exporter) e codificato STEP (Revit) */
+function stepAlt(s){
+  const a=escapeRegExp(s), b=escapeRegExp(stepEsc(s));
+  return a===b ? a : "(?:"+a+"|"+b+")";
+}
+
 /* Costruisce le regole {classe, entity, type} dalle colonne scelte dall'utente.
    startRow = prima riga di dati; ci/ei/ti = indici colonna (ti=-1 → ENUMTYPE assente → NOTDEFINED). */
 function buildRules(startRow, ci, ei, ti){
@@ -908,7 +954,7 @@ function guessColumns(header){
 function scanIfcProps(content){
   const set = new Set();
   const pat = /IFCPROPERTYSINGLEVALUE\('([^']*)'/g; let m;
-  while((m = pat.exec(content)) !== null){ if(m[1]) set.add(m[1]); }
+  while((m = pat.exec(content)) !== null){ if(m[1]) set.add(stepDec(m[1])); }
   return Array.from(set).sort((a,b)=> a.localeCompare(b));
 }
 
@@ -922,8 +968,8 @@ function readSchema(content){
    propName = proprietà di riferimento scelta dall'utente (default "Classe"). */
 function findEntitiesByClasse(content, classeValue, propName){
   const ids = new Set();
-  const esc  = escapeRegExp(classeValue);
-  const prop = escapeRegExp((propName || "Classe").trim());
+  const esc  = stepAlt(classeValue);
+  const prop = stepAlt((propName || "Classe").trim());
   // Description: $ o stringa · NominalValue: qualsiasi tipo nominale stringa · Unit: $ o #ref
   const propPat = new RegExp("#(\\d+)=IFCPROPERTYSINGLEVALUE\\('"+prop+"',(?:\\$|'[^']*'),IFC\\w+\\('"+esc+"'\\),(?:\\$|#\\d+)\\);","g");
   let pm;

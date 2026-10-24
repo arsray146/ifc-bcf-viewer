@@ -1070,10 +1070,49 @@ function psArgs(text){
   return out;
 }
 function psStmt(model,k){ return model.dec.decode(model.bytes.subarray(model.starts[k],model.ends[k])); }
-function psName(a){ return (a&&a[0]==="'")?a.slice(1,-1).replace(/''/g,"'"):null; }
+/* stringhe STEP: \X2\00E0\X0\ (UTF-16), \X4\…\X0\, \X\hh, \S\c, \\ — Revit
+   scrive «Identità» come 'Identit\X2\00E0\X0\': senza decodifica il Pset non
+   combacia con una regola su «Identità», e scrivendolo ne nasce un doppione */
+function psDecStep(s){
+  if(s.indexOf("\\")<0) return s;
+  let out="",i=0;
+  while(i<s.length){
+    const c=s[i];
+    if(c!=="\\"){ out+=c; i++; continue; }
+    if(s.startsWith("\\\\",i)){ out+="\\"; i+=2; continue; }
+    if(s.startsWith("\\X2\\",i)||s.startsWith("\\X4\\",i)){
+      const w=s[i+2]==="2"?4:8, e=s.indexOf("\\X0\\",i+4);
+      if(e<0){ out+=s.slice(i); break; }
+      const hex=s.slice(i+4,e);
+      for(let j=0;j+w<=hex.length;j+=w){
+        const cp=parseInt(hex.slice(j,j+w),16);
+        out+=w===4?String.fromCharCode(cp):String.fromCodePoint(cp);
+      }
+      i=e+4; continue;
+    }
+    if(s.startsWith("\\X\\",i)&&/^[0-9A-Fa-f]{2}$/.test(s.slice(i+3,i+5))){ out+=String.fromCharCode(parseInt(s.slice(i+3,i+5),16)); i+=5; continue; }
+    if(s.startsWith("\\S\\",i)&&i+3<s.length){ out+=String.fromCharCode(s.charCodeAt(i+3)+128); i+=4; continue; }
+    if(/^\\P[A-I]\\/.test(s.slice(i,i+4))){ i+=4; continue; }
+    out+=c; i++;
+  }
+  return out;
+}
+function psName(a){ return (a&&a[0]==="'")?psDecStep(a.slice(1,-1).replace(/''/g,"'")):null; }
 function psRef(a,model){ if(!a||a[0]!=="#") return -1; const id=parseInt(a.slice(1),10); const k=model.idMap.get(id); return k===undefined?-1:k; }
 function psList(a){ if(!a||a[0]!=="(") return []; return psArgs("x"+a); }
-function psEsc(s){ return String(s).replace(/\\/g,"\\\\").replace(/'/g,"''"); }
+/* in scrittura il rovescio: apici e barre raddoppiati, fuori dall'ASCII
+   stampabile \X2\hhhh\X0\ (ISO 10303-21) — com'è scritto il Pset esistente */
+function psEsc(s){
+  let out="";
+  for(const ch of String(s)){
+    const c=ch.codePointAt(0);
+    if(ch==="'") out+="''";
+    else if(ch==="\\") out+="\\\\";
+    else if(c>=32&&c<=126) out+=ch;
+    else { let h=""; for(let j=0;j<ch.length;j++) h+=ch.charCodeAt(j).toString(16).toUpperCase().padStart(4,"0"); out+="\\X2\\"+h+"\\X0\\"; }
+  }
+  return out;
+}
 function psStr(s){ return "'"+psEsc(s)+"'"; }
 function psClass(t){
   const MAP={IFCWALL:"IfcWall",IFCWALLSTANDARDCASE:"IfcWallStandardCase",IFCWALLELEMENTEDCASE:"IfcWallElementedCase",
@@ -1121,7 +1160,7 @@ function psVal(raw){
   const mm=s.match(/^([A-Z0-9_]+)\((.*)\)$/s);
   if(mm){ typ=mm[1]; s=mm[2].trim(); }
   if(!s||s==="$") return null;
-  if(s[0]==="'") return { v:s.slice(1,-1).replace(/''/g,"'"), num:false, typ };
+  if(s[0]==="'") return { v:psDecStep(s.slice(1,-1).replace(/''/g,"'")), num:false, typ };
   if(s===".T.") return { v:"TRUE", num:false, typ:typ||"IFCBOOLEAN" };
   if(s===".F.") return { v:"FALSE", num:false, typ:typ||"IFCBOOLEAN" };
   if(s===".U.") return { v:"UNKNOWN", num:false, typ:typ||"IFCLOGICAL" };
@@ -1955,6 +1994,12 @@ function psNotebookOut(rules,meta){
     }))
   };
 }
+/* i quaderni salvati prima della decodifica portano i nomi com'erano nel
+   file ('Identit\X2\00E0\X0\'): riletti così, la regola non troverebbe più
+   il Pset e ne scriverebbe uno nuovo col nome illeggibile. Si decodifica
+   solo dove c'è davvero una sequenza STEP, una barra scritta a mano resta. */
+var PS_STEP_SEQ=/\\X[24]\\[0-9A-Fa-f]*\\X0\\|\\X\\[0-9A-Fa-f]{2}|\\S\\./;
+function psNbText(v){ const s=v==null?"":String(v); return PS_STEP_SEQ.test(s)?psDecStep(s):s; }
 function psNotebookIn(json){
   const out={rules:[],needSheet:0,err:null};
   let j=json;
@@ -1969,17 +2014,17 @@ function psNotebookIn(json){
     /* v2: writes[]. v1: una proprietà sola sui campi pset/prop/typ/value */
     let writes=[];
     if(Array.isArray(r.writes)) writes=r.writes.filter(w=>w&&typeof w==="object").map(w=>({
-      pset:String(w.pset||""), prop:String(w.prop||""), typ:w.typ?String(w.typ):null,
-      value:w.value==null?"":String(w.value), col:w.col==null?1:w.col|0 }));
-    else if(r.pset||r.prop) writes=[{pset:String(r.pset||""),prop:String(r.prop||""),
-      typ:r.typ?String(r.typ):null, value:r.value==null?"":String(r.value),
+      pset:psNbText(w.pset), prop:psNbText(w.prop), typ:w.typ?String(w.typ):null,
+      value:psNbText(w.value), col:w.col==null?1:w.col|0 }));
+    else if(r.pset||r.prop) writes=[{pset:psNbText(r.pset),prop:psNbText(r.prop),
+      typ:r.typ?String(r.typ):null, value:psNbText(r.value),
       col:(r.sheet&&r.sheet.col!=null)?r.sheet.col|0:1 }];
     if(!writes.length) writes=[{pset:"",prop:"",typ:null,value:"",col:1}];
     out.rules.push({
       id:String(r.id||("R-"+(++n))), name:String(r.name||""), on:r.on!==false,
       cls:String(r.cls||""),
       conds:Array.isArray(r.conds)?r.conds.filter(c=>c&&c.t).map(c=>({
-        t:String(c.t),key:String(c.key||""),op:String(c.op||"eq"),v:c.v==null?"":String(c.v)})):[],
+        t:String(c.t),key:psNbText(c.key),op:String(c.op||"eq"),v:psNbText(c.v)})):[],
       writes,
       src, sheet:src==="sheet"?{file:String((r.sheet&&r.sheet.file)||""),
         sheet:(r.sheet&&r.sheet.sheet)|0, keyCol:(r.sheet&&r.sheet.keyCol)|0,

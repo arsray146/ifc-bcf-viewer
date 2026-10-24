@@ -832,8 +832,10 @@ function stepStr(s){
       if(ch === "'") out += "''";
       else if(ch === "\\") out += "\\\\";
       else out += ch;
-    }else if(cp > 126){
-      uni += cp.toString(16).toUpperCase().padStart(4, "0");
+    }else{
+      /* \X2\ è UTF-16: fuori dal BMP le due metà della coppia, non 5 cifre;
+         i caratteri di controllo (a capo, tab) prima sparivano, ora restano */
+      for(let j = 0; j < ch.length; j++) uni += ch.charCodeAt(j).toString(16).toUpperCase().padStart(4, "0");
     }
   }
   flush();
