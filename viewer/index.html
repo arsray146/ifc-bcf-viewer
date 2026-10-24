@@ -1870,16 +1870,16 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
    bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
    ogni release il .js vecchio in cache non viene più usato. vendor/ resta
    senza versione: cambia solo quando si aggiornano three o web-ifc. */
-import { readLASHeader, parseLAS } from "./las.js?v=2.10.4";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
-import { parseE57, e57PointCount } from "./e57.js?v=2.10.4";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js?v=2.10.4";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.4";  // feature QTO (v2.5.0)
+import { readLASHeader, parseLAS } from "./las.js?v=2.10.5";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.10.5";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.10.5";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.5";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.4";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.5";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.4";  // studio verifica nuvola ↔ modello
-import * as SRCH from "./search.js?v=2.10.4";                          // feature Cerca (v2.10.0): confronti, regole, CSV
-import * as CAPS from "./caps.js?v=2.10.4";                            // tappi pieni delle sezioni (v2.10.2)
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.5";  // studio verifica nuvola ↔ modello
+import * as SRCH from "./search.js?v=2.10.5";                          // feature Cerca (v2.10.0): confronti, regole, CSV
+import * as CAPS from "./caps.js?v=2.10.5";                            // tappi pieni delle sezioni (v2.10.2)
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -1946,6 +1946,10 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
                                     (stopPropagation verso OrbitControls); cede a
                                     walk e ai drag di sezione; nel vuoto → orbita
                                     classica attorno al target corrente
+   · rotella (wheel)                zoom verso il punto sotto il cursore, a passo
+                                    proporzionato alla sua profondità (capture +
+                                    stopImmediatePropagation verso OrbitControls);
+                                    in walk = velocità; ferma con i drag di sezione
    · tasto centrale ×2              reset vista (sez. navigazione tastiera & walk)
    · walk mode (btn 0)              look-around quando walkMode è attivo
    · picking (btn 0, ≤ soglia px)   selezione elemento al pointerup se non era drag;
@@ -1978,7 +1982,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.10.4";
+const APP_VERSION = "2.10.5";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -3541,7 +3545,12 @@ function _perfEnd(final) {
 
 async function loadIfcFiles(files) {
   await ifcReady;
-  const wasEmpty = models.length === 0;
+  /* v2.10.5 — la camera si inquadra solo se la scena era vuota (niente modelli né
+     nuvole, come per le nuvole in _pcBuild): prima ogni file aggiunto a una
+     federazione la faceva volare sulla scatola di tutto, uno zoom out a ogni
+     caricamento. Il nuovo modello si inquadra col doppio clic sul suo nome
+     nell'elenco, tutto col doppio clic della rotella. */
+  const wasEmpty = models.length === 0 && !(typeof PCLOUD !== "undefined" && PCLOUD.sources.length);
   const list = Array.from(files);
   /* v2.8.4 — pipeline I/O: mentre un modello è in elaborazione (CPU), i byte del
      file SUCCESSIVO si leggono in parallelo — sui dischi di rete e i client di
@@ -3587,8 +3596,8 @@ async function loadIfcFiles(files) {
   renderIssueList(); /* il filtro "solo nei modelli caricati" dipende dai modelli presenti */
   if (models.length) {
     const box = computeGlobalBox();
-    updateClipping(box);
-    fitBox(box, wasEmpty ? 0 : 750); /* al primo caricamento: inquadratura immediata */
+    updateClipping(box);             /* il far segue comunque la scena cresciuta */
+    if (wasEmpty) fitBox(box, 0);    /* al primo caricamento: inquadratura immediata */
   }
   if (activeTopic) applyTopicSelection(activeTopic);
   /* i materiali dei modelli appena creati nascono senza clippingPlanes:
@@ -14070,6 +14079,129 @@ window.__apePivotQA = {
     else { _pvApply(now); controls.update(); }
     camera.updateMatrixWorld(true);
     scene.updateMatrixWorld(true);   /* nel loop vero lo fa renderer.render() */
+  }
+};
+
+/* ============ rotella: zoom verso il punto sotto il cursore ============ *
+ * v2.10.5 — OrbitControls (zoomToCursor) avanza a ogni scatto del 5 % della
+ * distanza camera→target, non di quella dal punto sotto il cursore: la corsa
+ * in avanti è una serie geometrica che non supera mai quella distanza, e
+ * puntando qualcosa più lontano del target la rotella «si piantava» finché uno
+ * zoom elemento non rimetteva il target sull'oggetto.
+ * Qui (come nello Sviluppo profili, tool 17): all'inizio di una raffica (ferma
+ * da 250 ms o cursore spostato di 8 px) si misura la profondità d, lungo la
+ * vista, di ciò che sta sotto il cursore — raycast sui modelli che rispetta le
+ * sezioni, poi un campione delle nuvole di punti. La camera avanza lungo il
+ * raggio del cursore (il punto resta sotto il cursore, la direzione di vista
+ * non cambia) di 1 − 0,95 di d a scatto come OrbitControls, ma mai meno di
+ * ZOOM_STEP_MIN: vicino a una superficie la si attraversa invece di fermarsi
+ * («dolly through»: il piano di riferimento avanza con la camera). Il target va
+ * sull'asse di vista alla profondità d, così orbita nel vuoto, pan e frecce
+ * sono in scala con quel punto. All'indietro d non scende sotto la profondità
+ * del target. Nel vuoto d è quella del target, ma almeno ZOOM_VOID_SCENE della
+ * diagonale della scena: raffica dopo raffica il passo non scende sotto 1/400
+ * della scena invece di spegnersi.
+ * Il pizzico sul touch resta di OrbitControls (zoomToCursor).               */
+const ZOOM_STEP_MIN = 0.05;       /* m a scatto (metà del near): sotto 1 m dalla superficie il passo resta questo */
+const ZOOM_VOID_MIN = 1;          /* m: profondità minima di riferimento quando sotto il cursore non c'è nulla */
+const ZOOM_VOID_SCENE = 0.05;     /* × diagonale della scena: idem, in scala con la scena */
+const ZOOM_PC_SAMPLE = 250000;    /* punti esaminati per nuvola nella misura della profondità */
+const ZOOM_PC_TOL_PX = 8;         /* un punto della nuvola «è sotto il cursore» entro questi px dal raggio */
+const _zm = { t: 0, x: NaN, y: NaN, d: NaN, void: false, ms: 0 };
+const _zmV1 = new THREE.Vector3(), _zmV2 = new THREE.Vector3();
+
+/* profondità lungo dir del primo oggetto visibile sul raggio di `raycaster`
+   (NaN = vuoto). Le nuvole restano fuori dal raycast (milioni di punti): se ne
+   guarda un campione — i primi slot sono già un campione uniforme (_pcShuffle),
+   sotto PC_MOTION_BUDGET si prende un punto ogni stride — e vince il punto più
+   vicino entro ZOOM_PC_TOL_PX dal raggio. rootGroup è identità: le posizioni
+   delle nuvole sono già coordinate mondo. */
+function _zmCursorDepth(dir) {
+  const ray = raycaster.ray, o = ray.origin, u = ray.direction;
+  const hit = firstUnclippedHit(raycaster.intersectObjects(allBaseMeshes().filter(m => m.visible), false));
+  let best = hit ? hit.distance : Infinity;
+  const tan = 2 * Math.tan(camera.fov * Math.PI / 360) * ZOOM_PC_TOL_PX / (renderer.domElement.clientHeight || 1);
+  const tol2 = tan * tan, planes = _activeClipPlanes();
+  for (const src of PCLOUD.sources) {
+    if (!src.visible) continue;
+    const a = src.points.geometry.getAttribute("position").array;
+    const n = Math.min(src.c2dLimit || src.count, PC_MOTION_BUDGET);
+    const stride = Math.max(1, Math.ceil(n / ZOOM_PC_SAMPLE));
+    for (let i = 0; i < n; i += stride) {
+      const k = 3 * i, vx = a[k] - o.x, vy = a[k + 1] - o.y, vz = a[k + 2] - o.z;
+      const t = vx * u.x + vy * u.y + vz * u.z;
+      if (!(t > camera.near) || t >= best) continue;
+      if (vx * vx + vy * vy + vz * vz - t * t > tol2 * t * t) continue;
+      if (planes.length) {
+        _zmV2.set(a[k], a[k + 1], a[k + 2]);
+        if (planes.some(pl => pl.distanceToPoint(_zmV2) < -1e-6)) continue;   /* ritagliato dalle sezioni */
+      }
+      best = t;
+    }
+  }
+  return best < Infinity ? best * u.dot(dir) : NaN;
+}
+
+function _zmWheel(e) {
+  const dir = camera.getWorldDirection(_zmV1);
+  setNdcFromClient(mouseNdc, e.clientX, e.clientY);
+  raycaster.setFromCamera(mouseNdc, camera);
+  const c = raycaster.ray.direction.dot(dir);          /* coseno fra raggio del cursore e vista (> 0) */
+  if (!(c > 1e-3)) return;
+  const now = performance.now();
+  if (now - _zm.t > 250 || !(Math.hypot(e.clientX - _zm.x, e.clientY - _zm.y) <= 8)) {
+    const d = _zmCursorDepth(dir);
+    _zm.ms = performance.now() - now;
+    _zm.void = !(d > 1e-3);
+    const tgtDepth = _zmV2.subVectors(controls.target, camera.position).dot(dir);
+    if (_zm.void) {
+      const box = computeGlobalBox();
+      const diag = box.isEmpty() ? 0 : box.getSize(_zmV2).length();
+      _zm.d = Math.max(ZOOM_VOID_MIN, diag * ZOOM_VOID_SCENE, tgtDepth);
+    } else if (e.deltaY > 0) {
+      /* indietro: almeno la profondità del target (la scala a cui si stava
+         lavorando). Uscendo da una stanza la parete appena riattraversata
+         finisce davanti alla camera a pochi cm: col solo raycast, dopo una pausa
+         lo zoom out ripartiva da lì, lentissimo, mentre senza pausa continuava */
+      _zm.d = Math.max(d, tgtDepth);
+    } else _zm.d = d;
+    _zm.x = e.clientX; _zm.y = e.clientY;
+  }
+  _zm.t = now;
+  /* scatti come OrbitControls (100 px = uno scatto), le righe di Firefox come 33 px; al più 10 scatti per evento */
+  const px = Math.abs(e.deltaY) * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 800 : 1);
+  const n = Math.min(10, px / (100 * ((window.devicePixelRatio | 0) || 1)));
+  const s = Math.pow(0.95, controls.zoomSpeed * n);
+  let d = _zm.d, step;                                  /* step: avanzamento della camera lungo la vista */
+  if (e.deltaY < 0) { step = Math.max(d * (1 - s), ZOOM_STEP_MIN * n); d = Math.max(d - step, ZOOM_STEP_MIN); }
+  else { step = -Math.max(d * (1 / s - 1), ZOOM_STEP_MIN * n); d -= step; }
+  if (!(d < 1e7)) return;
+  camera.position.addScaledVector(raycaster.ray.direction, step / c);
+  controls.target.copy(camera.position).addScaledVector(dir, d);
+  _zm.d = d;
+  controls.update();
+  camera.updateMatrixWorld();                           /* più eventi nello stesso fotogramma: il raggio del prossimo parte da qui */
+}
+/* capture + stopImmediatePropagation: la rotella di OrbitControls (bubble, stesso
+   nodo) non parte. In walk la rotella è la velocità (handler in navigazione) */
+renderer.domElement.addEventListener("wheel", (e) => {
+  if (walkMode || !controls.enabled || !controls.enableZoom) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (!e.deltaY) return;
+  if (flyAnim) flyAnim = null;                          /* la rotella ferma un volo in corso: la vista è dell'utente */
+  _zmWheel(e);
+}, { capture: true, passive: false });
+
+/* Hook per la QA della rotella (come __apePivotQA): NON è API pubblica, può
+   cambiare senza preavviso. view() mette la camera in una posa di prova. */
+window.__apeZoomQA = {
+  last: () => ({ d: _zm.d, void: _zm.void, ms: _zm.ms }),
+  cam: () => ({ pos: camera.position.toArray(), tgt: controls.target.toArray(), dir: camera.getWorldDirection(new THREE.Vector3()).toArray() }),
+  box: () => { const b = computeGlobalBox(); return b.isEmpty() ? null : { min: b.min.toArray(), max: b.max.toArray() }; },
+  view: (pos, tgt) => {
+    flyAnim = null; _pvCancel();
+    camera.position.fromArray(pos); controls.target.fromArray(tgt); camera.up.set(0, 1, 0);
+    controls.update(); camera.updateMatrixWorld(true); scene.updateMatrixWorld(true);
   }
 };
 

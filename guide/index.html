@@ -682,7 +682,7 @@ it:{
     ["keys",[
       [["Tasto sinistro"],"Orbita attorno al punto di interesse"],
       [["Rotella premuta","o","Destro"],"Pan — trascina la vista sul piano dello schermo"],
-      [["Scroll"],"Zoom verso il puntatore, non verso il centro"],
+      [["Scroll"],"Zoom verso il punto sotto il puntatore, a passo proporzionato alla sua distanza: non si blocca e attraversa le superfici"],
       [["2× clic rotella"],"Zoom esteso: inquadra tutti i modelli aperti"],
       [["2× clic elemento"],"Esamina qui — zoom proporzionato all'ingombro dell'elemento"]
     ]],
@@ -742,7 +742,7 @@ it:{
 
   federated:{t:"Modelli federati", d:"Più IFC aperti insieme, ciascuno con il suo colore e la sua visibilità. La federazione avviene sul primo modello caricato.", b:[
     ["h","Come si federa"],
-    ["p","Il primo file che apri stabilisce il sistema di riferimento; gli altri si posizionano rispetto a lui usando la loro georeferenziazione. Nell'elenco modelli ogni file ha una spunta di visibilità e un colore, e un doppio clic sul suo nome lo inquadra da solo."],
+    ["p","Il primo file che apri stabilisce il sistema di riferimento; gli altri si posizionano rispetto a lui usando la loro georeferenziazione. Nell'elenco modelli ogni file ha una spunta di visibilità e un colore, e un doppio clic sul suo nome lo inquadra da solo. Aprire un file in più non sposta la vista: per andarlo a vedere, doppio clic sul suo nome."],
     ["h","Quando un modello finisce lontano"],
     ["p","Se un IFC atterra a chilometri dagli altri, quasi sempre la causa è la sua georeferenziazione: una <b>IfcMapConversion</b> vuota o degenere, tipica di file riesportati da alcuni strumenti, sposta il modello sull'origine invece che al suo posto. Il viewer segnala il caso e continua a caricare gli altri modelli."],
     ["p","È un problema del file, non della vista: la strada giusta è correggere la georeferenziazione a monte, nello strumento di authoring. Nel frattempo puoi lavorare disattivando il modello anomalo dall'elenco."],
@@ -915,7 +915,7 @@ en:{
     ["keys",[
       [["Left button"],"Orbit around the point of interest"],
       [["Press wheel","or","Right"],"Pan — drag the view on the screen plane"],
-      [["Scroll"],"Zoom towards the pointer, not the centre"],
+      [["Scroll"],"Zoom towards the point under the pointer, in steps scaled to its distance: it never stalls and goes through surfaces"],
       [["Wheel double-click"],"Fit all: frames every open model"],
       [["Double-click element"],"Examine here — zoom scaled to the element's size"]
     ]],
@@ -975,7 +975,7 @@ en:{
 
   federated:{t:"Federated models", d:"Several IFCs open together, each with its own colour and visibility. Federation happens on the first model loaded.", b:[
     ["h","How federation works"],
-    ["p","The first file you open sets the reference system; the others place themselves relative to it using their own georeferencing. In the model list every file has a visibility checkbox and a colour, and a double-click on its name frames it alone."],
+    ["p","The first file you open sets the reference system; the others place themselves relative to it using their own georeferencing. In the model list every file has a visibility checkbox and a colour, and a double-click on its name frames it alone. Opening one more file does not move the view: to go and see it, double-click its name."],
     ["h","When a model lands far away"],
     ["p","If an IFC lands kilometres away from the others, the cause is almost always its georeferencing: an empty or degenerate <b>IfcMapConversion</b>, typical of files re-exported by some tools, drops the model on the origin instead of in its place. The viewer flags the case and carries on loading the others."],
     ["p","It is a problem in the file, not in the view: the right fix is to correct the georeferencing upstream, in the authoring tool. In the meantime you can keep working with the odd model switched off in the list."],
