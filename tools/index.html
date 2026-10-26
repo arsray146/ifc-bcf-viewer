@@ -376,13 +376,13 @@ html:not([data-theme="light"]) .thm .sun{display:none}
   <!-- ================= FILTRI + RICERCA + DENSITÀ ================= -->
   <div class="toolbar">
     <div class="chips" role="group" aria-label="Filtri per materia">
-      <button class="chip on" data-cat="all"><span data-i18n="flt.all">Tutti</span><i>18</i></button>
+      <button class="chip on" data-cat="all"><span data-i18n="flt.all">Tutti</span><i>19</i></button>
       <button class="chip" data-cat="struct"><span data-i18n="cat.struct">Struttura del file</span><i>4</i></button>
       <button class="chip" data-cat="data"><span data-i18n="cat.data">Dati e tabelle</span><i>3</i></button>
       <button class="chip" data-cat="infra"><span data-i18n="cat.infra">Infrastrutture</span><i>6</i></button>
       <button class="chip" data-cat="georef"><span data-i18n="cat.georef">Georeferenziazione</span><i>2</i></button>
       <button class="chip" data-cat="diag"><span data-i18n="cat.diag">Diagnostica</span><i>2</i></button>
-      <button class="chip" data-cat="coord"><span data-i18n="cat.coord">Coordinamento</span><i>1</i></button>
+      <button class="chip" data-cat="coord"><span data-i18n="cat.coord">Coordinamento</span><i>2</i></button>
     </div>
     <span class="tb-sp"></span>
     <label class="search">
@@ -407,7 +407,7 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <div class="band-h">
         <span class="dot" style="background:var(--lime)"></span>
         <span class="t" data-i18n="band.ready">Pronti all'uso</span>
-        <span class="n" data-i18n="band.readyN">17 · online adesso</span>
+        <span class="n" data-i18n="band.readyN">18 · online adesso</span>
         <span class="ln"></span>
       </div>
       <div class="cards">
@@ -579,6 +579,16 @@ html:not([data-theme="light"]) .thm .sun{display:none}
           <p class="card-d" data-i18n="t18.d">La trazione elettrica lungo il tracciato ferroviario: assi dei binari da LandXML, IFC 4x3 o DWG con clotoidi, raccordi e sopraelevazione, poi pali LSU con mensola, portali e fondazioni E 64865 sul supercompattato, a mano, col picchettamento automatico o da una tabella di pali a coordinate. Esce un IFC 4x3 con IfcAlignment, sostegni a tipi condivisi e Pset.</p>
           <div class="card-f">
             <span class="card-cat" data-i18n="catS.infra">Infrastrutture</span>
+            <span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
+          </div>
+        </a>
+
+        <a class="card live" data-cat="coord" data-tool="19" href="sequence-4d/">
+          <div class="card-top"><span class="badge">MPP · XML · IFC → .4d.json · .csv</span><span class="card-num">19</span></div>
+          <h3 class="card-t">4D Sequence</h3>
+          <p class="card-d" data-i18n="t19.d">Il cronoprogramma di Microsoft Project (.mpp o XML) a tutto schermo come in Project, collegato ai modelli IFC per regola sul codice o a mano: il lotto si costruisce nel 3D alla data, coi colori per stato o scostamento. Costi di Project con curva S e SAL alla data, e una schermata di statistiche con la qualità del programma secondo la DCMA.</p>
+          <div class="card-f">
+            <span class="card-cat" data-i18n="catS.coord">Coordinamento</span>
             <span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span>
           </div>
         </a>
@@ -763,6 +773,14 @@ html:not([data-theme="light"]) .thm .sun{display:none}
       <span class="c-c" data-i18n="catS.infra">Infrastrutture</span>
       <span class="c-s"><span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></span>
     </a>
+    <a class="lrow" data-cat="coord" data-tool="19" href="sequence-4d/">
+      <span class="c-n">19</span>
+      <span class="c-t">4D Sequence</span>
+      <span class="c-d" data-i18n="t19.s">Il programma di Project collegato ai modelli IFC: sequenza 4D nel 3D, curva S, SAL e statistiche</span>
+      <span class="c-io">MPP · XML · IFC → .4d.json · .csv</span>
+      <span class="c-c" data-i18n="catS.coord">Coordinamento</span>
+      <span class="c-s"><span class="card-go"><span data-i18n="act.open">Apri</span><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></span></span>
+    </a>
 
     <div class="ldiv" id="listDiv">
       <span class="dot"></span>
@@ -836,7 +854,7 @@ const I18N = {
     "catS.georef":"Georef","catS.diag":"Diagnostica","catS.coord":"Coordinamento",
     "search.ph":"Filtra per nome o formato",
     "view.grid":"Griglia","view.list":"Elenco",
-    "band.ready":"Pronti all'uso","band.readyN":"17 · online adesso",
+    "band.ready":"Pronti all'uso","band.readyN":"18 · online adesso",
     "band.wip":"In lavorazione","band.wipN":"1 · nell'ordine in cui li chiedete",
     "act.open":"Apri",
     "list.tool":"Strumento","list.what":"Cosa fa","list.io":"In → out","list.cat":"Materia","list.state":"Stato",
@@ -876,6 +894,8 @@ const I18N = {
     "t17.s":"Pianta e profilo DWG diventano asse 3D, fossi e canali a U con scavi e rinterri sul DTM, poi IFC 4x3 e computo",
     "t18.d":"La trazione elettrica lungo il tracciato ferroviario: assi dei binari da LandXML, IFC 4x3 o DWG con clotoidi, raccordi e sopraelevazione, poi pali LSU con mensola, portali e fondazioni E 64865 sul supercompattato, a mano, col picchettamento automatico o da una tabella di pali a coordinate. Esce un IFC 4x3 con IfcAlignment, sostegni a tipi condivisi e Pset.",
     "t18.s":"Binari da LandXML, IFC o DWG, pali, mensole, portali e fondazioni lungo il tracciato, poi IFC 4x3 con assi e sostegni",
+    "t19.d":"Il cronoprogramma di Microsoft Project (.mpp o XML) a tutto schermo come in Project, collegato ai modelli IFC per regola sul codice o a mano: il lotto si costruisce nel 3D alla data, coi colori per stato o scostamento. Costi di Project con curva S e SAL alla data, e una schermata di statistiche con la qualità del programma secondo la DCMA.",
+    "t19.s":"Il programma di Project collegato ai modelli IFC: sequenza 4D nel 3D, curva S, SAL e statistiche",
     "t14.d":"Il registro issue in tabella: titolo, stato, autore, commenti e snapshot. Quello che i coordinatori rifanno a mano ogni settimana.",
     "t14.s":"Il registro issue in tabella: titolo, stato, autore, commenti, snapshot",
     "empty.none":"Nessuno strumento corrisponde al filtro.",
@@ -902,7 +922,7 @@ const I18N = {
     "catS.georef":"Georef","catS.diag":"Diagnostics","catS.coord":"Coordination",
     "search.ph":"Filter by name or format",
     "view.grid":"Grid","view.list":"List",
-    "band.ready":"Ready to use","band.readyN":"17 · online now",
+    "band.ready":"Ready to use","band.readyN":"18 · online now",
     "band.wip":"In the works","band.wipN":"1 · in the order you ask for them",
     "act.open":"Open",
     "list.tool":"Tool","list.what":"What it does","list.io":"In → out","list.cat":"Topic","list.state":"State",
@@ -941,6 +961,8 @@ const I18N = {
     "t17.s":"Plan and profile DWG become a 3D axis, ditches and U channels with cut and backfill on the DTM, then IFC 4x3 and quantities",
     "t18.d":"Overhead line equipment along the railway: track alignments from LandXML, IFC 4x3 or DWG with clothoids, vertical curves and cant, then LSU masts with cantilevers, portals and E 64865 foundations on the formation layer, by hand, with the automatic layout or from a table of masts by coordinates. Out comes an IFC 4x3 with IfcAlignment, supports with shared types and Psets.",
     "t18.s":"Tracks from LandXML, IFC or DWG, masts, cantilevers, portals and foundations along the line, then IFC 4x3 with alignments and supports",
+    "t19.d":"The Microsoft Project schedule (.mpp or XML) full screen as in Project, linked to the IFC models by a code rule or by hand: the job builds up in 3D at the chosen date, coloured by status or variance. Project costs with S-curve and progress valuation at the status date, plus a statistics screen with the schedule quality per DCMA.",
+    "t19.s":"The Project schedule linked to the IFC models: 4D sequence in 3D, S-curve, valuation and statistics",
     "t14.d":"The issue register as a table: title, status, author, comments and snapshots. What coordinators redo by hand every week.",
     "t14.s":"The issue register as a table: title, status, author, comments, snapshots",
     "empty.none":"No tool matches the filter.",

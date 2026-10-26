@@ -129,6 +129,12 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://viewifc.com/tools/sequence-4d/</loc>
+    <lastmod>2026-10-24</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>https://viewifc.com/revit/</loc>
     <lastmod>2026-10-18</lastmod>
     <changefreq>monthly</changefreq>
