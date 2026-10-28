@@ -22,7 +22,11 @@
      e il tipo che sceglie il catalogo (ocs-catalog rfiPortalOf, come l'add-in);
      dalle famiglie del 2026-10-22 (0.23.0) travi con l'intradosso a +6820 e sotto
      la trave le sospensioni SEGNAPOSTO (genera_portali.py): tubo, mensola, tirante,
-     staffaggio, una per binario servito alla quota della mensola dal filo del tool.
+     staffaggio, una per binario servito alla quota della mensola dal filo del tool;
+   - dal catalogo del 2026-10-27 (0.24.0): serie LSU24 (piastra 680 × 730), le varianti dei sostegni con due mensole
+     sulla staffa doppia (_2M), senza mensola (_SM) e la sola mensola su un sostegno esistente (RFI_SoloMensola_*), i pali
+     doppi senza mensola RFI_PaloDoppio_2xLSU24 (P24D, calastrelli) e _2xLSU22 (P8D), i portali MEC tipo C su 2 × LSU22
+     RFI_Portale_MEC_C_2xLSU22 (travi C15 … C27, attacco E 64906 c, trave a +7100).
    Tre livelli di dettaglio come il fusto del tool: «box» (fusti e travi pieni),
    «upn» (profili senza traliccio, controventi, tirafondi) e «lattice» (tutto).
    Niente DOM; importa solo il motore. Misure dei generatori in mm (come nei .py,
@@ -35,7 +39,7 @@
    ognuno con sub (sottocategoria della famiglia) e l = [da, a] livelli (0 box, 1 upn,
    2 lattice) in cui c'è.
    ========================================================================= */
-import * as C from "./ocs-core.js?v=0.23.0";
+import * as C from "./ocs-core.js?v=0.24.0";
 
 export const LOD_INDEX = { box: 0, upn: 1, lattice: 2 };
 const ALL = [0, 2], BOX = [0, 0], DET = [1, 2], LAT = [2, 2];
@@ -100,7 +104,12 @@ export const SERIE = {
   LSU18: { w2: 200, upn: [180, 70, 8, 11], piastra: 35, foro: 32, gx: [-84, 0, 84], gw: 80, r_tondo: 11, r_piega: 75, r_tf: 22.5, dima: [150, 15] },
   LSU20: { w2: 200, upn: [200, 75, 8.5, 11.5], piastra: 40, foro: 35, gx: [-94, 0, 94], gw: 80, r_tondo: 11, r_piega: 85, r_tf: 26, dima: [150, 15] },
   LSU22: { w2: 200, upn: [220, 80, 9, 12.5], piastra: 40, foro: 35, gx: [-104, 0, 104], gw: 80, r_tondo: 12, r_piega: 90, r_tf: 26, dima: [150, 15] },
+  // 0.24.0 (catalogo del 2026-10-27, E 66013 c f.23, f.25): piastra 680 (X) × 730 (Y), fori e tirafondi Ø52 su 500 × 550,
+  // fazzoletti 150 × 300 × 15
+  LSU24: { w2: 200, upn: [240, 85, 9.5, 13], piastra: 45, foro: 35, gx: [-100, 100], gw: 150, gh: 300, gt: 15, r_tondo: 12, r_piega: 95, r_tf: 26, dima: [150, 15], lastra: [340, 365], fori: [250, 275] },
 };
+// le serie senza lastra / fori / gh / gt (genera.py): piastra 580 × 580, fori e tirafondi su 400 × 400, fazzoletti alti 200 × 12
+for (const sr of Object.values(SERIE)) Object.assign(sr, { lastra: [290, 290], fori: [200, 200], gh: 200, gt: 12, ...sr });
 export const PALI_L = { a: 8200, b: 9600, c: 12000 };
 /* attacchi per mensola in acciaio (E 66013 c f.68-78): px, H, X max dei bulloni, a, b, c (pos. 13 di LSU22 ASSUNTA) */
 export const ATTACCHI = {
@@ -109,6 +118,7 @@ export const ATTACCHI = {
   LSU18: { px: 220, H: 129, xmax: 100, a: 214, b: 125, c: 198 },
   LSU20: { px: 220, H: 129, xmax: 100, a: 234, b: 130, c: 218 },
   LSU22: { px: 240, H: 129, xmax: 118, a: 254, b: 135, c: 238 },
+  LSU24: { px: 260, H: 129, xmax: 128, a: 274, b: 140, c: 258 },   // pos. 13 allargata all'UPN 240, staffa +20 (ASSUNTO)
 };
 export const MENS_R = [38.05, 33.05];         // tubo 76,1 × 5 (E 13619 o)
 export const TIE_SIDE = 24;                    // tirante: barra 24 × 24
@@ -151,31 +161,31 @@ function waveBar(B, xs, phase, z0, n, yp, r, rp) {
 function paloSolids(se, Lp) {
   const sr = SERIE[se], B = builder(), upn = sr.upn, w2 = sr.w2, r = sr.r_tondo;
   const z_f0 = Z_PIASTRA + sr.piastra, z_f1 = z_f0 + Lp;
-  const luce = w2 - upn[1], y_piega = luce - r, x_tondi = upn[0] / 2 - r;
-  B.set("Piastra base").prism(rect(-290, 290, -290, 290), Z_PIASTRA, z_f0, [-200, 200].flatMap((x) => [-200, 200].map((y) => [x, y, sr.foro])));
+  const luce = w2 - upn[1], y_piega = luce - r, x_tondi = upn[0] / 2 - r, [lx, ly] = sr.lastra, [fx, fy] = sr.fori;
+  B.set("Piastra base").prism(rect(-lx, lx, -ly, ly), Z_PIASTRA, z_f0, [-fx, fx].flatMap((x) => [-fy, fy].map((y) => [x, y, sr.foro])));
   B.set("Fusto UPN", BOX).prism(rect(-upn[0] / 2, upn[0] / 2, -w2, w2), z_f0, z_f1);
   B.set("Fusto UPN", DET);
   for (const s of [-1, 1]) B.prism(upnPts(s, upn, w2), z_f0, z_f1);
-  const gw = sr.gw, gusset = [[0, 30], [30, 0], [gw, 0], [gw, 50], [30, 200], [0, 200]];
+  const gw = sr.gw, gh = sr.gh, gt = sr.gt, gusset = [[0, 30], [30, 0], [gw, 0], [gw, 50], [30, gh], [0, gh]];
   B.set("Piastra base", LAT);
-  for (const s of [-1, 1]) for (const xc of sr.gx) B.ext([xc - 6 * s, s * w2, z_f0], [0, s, 0], [s, 0, 0], gusset, 12);
+  for (const s of [-1, 1]) for (const xc of sr.gx) B.ext([xc - (gt / 2) * s, s * w2, z_f0], [0, s, 0], [s, 0, 0], gusset, gt);
   const z0 = z_f0 + 40, nseg = Math.floor((z_f1 - 21 - 40 - z0) / PASSO);
   B.set("Traliccio", LAT);
   for (const xs of [-x_tondi, x_tondi]) {
     for (const phase of [-1, 1]) waveBar(B, xs, phase, z0, nseg, y_piega, r, sr.r_piega);
     B.bar([xs, -luce, z_f1 - 21], [xs, luce, z_f1 - 21], r);
   }
-  // ancoraggio: 4 tirafondi L 1200 su 400 × 400 (290 sopra il pilastrino, 910 sotto) e dima di 4 profili L
+  // ancoraggio: 4 tirafondi L 1200 su 400 × 400 (LSU24: 500 × 550; 290 sopra il pilastrino, 910 sotto) e dima di 4 profili L
   const z_tf0 = -910, z_tf1 = 290;
   B.set("Tirafondi", LAT);
-  for (const x of [-200, 200]) for (const y of [-200, 200]) B.bar([x, y, z_tf0], [x, y, z_tf1], sr.r_tf);
+  for (const x of [-fx, fx]) for (const y of [-fy, fy]) B.bar([x, y, z_tf0], [x, y, z_tf1], sr.r_tf);
   const [la, ta] = sr.dima, zc = z_tf0 + 150;
   for (const s of [-1, 1]) {
-    const yi = s * (200 - la / 2), ye = s * (200 + la / 2);
-    B.prism(rect(-290, 290, Math.min(yi, ye), Math.max(yi, ye)), zc, zc + ta);
-    B.prism(rect(-290, 290, Math.min(ye, ye - s * ta), Math.max(ye, ye - s * ta)), zc + ta, zc + la);
-    B.prism(rect(Math.min(yi, ye), Math.max(yi, ye), -290, 290), zc - ta, zc);
-    B.prism(rect(Math.min(ye, ye - s * ta), Math.max(ye, ye - s * ta), -290, 290), zc - la, zc - ta);
+    const yi = s * (fy - la / 2), ye = s * (fy + la / 2), xi = s * (fx - la / 2), xe = s * (fx + la / 2);
+    B.prism(rect(-lx, lx, Math.min(yi, ye), Math.max(yi, ye)), zc, zc + ta);
+    B.prism(rect(-lx, lx, Math.min(ye, ye - s * ta), Math.max(ye, ye - s * ta)), zc + ta, zc + la);
+    B.prism(rect(Math.min(xi, xe), Math.max(xi, xe), -ly, ly), zc - ta, zc);
+    B.prism(rect(Math.min(xe, xe - s * ta), Math.max(xe, xe - s * ta), -ly, ly), zc - la, zc - ta);
   }
   return B.out;
 }
@@ -216,12 +226,12 @@ function staffaSolids(se) {
 }
 /* mensola 76,1 × 5 lunga L mm, dall'inizio (origine, perno dell'attacco) verso il binario (−Y) */
 const mensolaSolids = (L) => builder().set("Mensola").bar([0, 0, 0], [0, -L, 0], MENS_R[0], MENS_R[1]).out;
-/* plinto (E 64865 f, RFI_Plinto_LSU): pilastrino B1 × A1 alto c1 sotto l'origine, blocco B × A × C sotto; i B
-   eccentrici: A2 dall'asse al bordo verso il binario (−Y) */
+/* plinto (E 64865 f, RFI_Plinto_LSU): pilastrino B1 × A1 alto c1 sotto l'origine (due a ±I/2 lungo X col Plinto_I dei
+   pali doppi, P8D: 0.24.0), blocco B × A × C sotto; i B eccentrici: A2 dall'asse al bordo verso il binario (−Y) */
 function plintoSolids(Fd, c1) {
-  const mm = (v) => v * 1000, A = mm(Fd.A), Bb = mm(Fd.B), C1 = mm(c1), A2 = Fd.A2 != null ? mm(Fd.A2) : A / 2;
+  const mm = (v) => v * 1000, A = mm(Fd.A), Bb = mm(Fd.B), C1 = mm(c1), A2 = Fd.A2 != null ? mm(Fd.A2) : A / 2, I = mm(Fd.I || 0);
   const B = builder().set("Plinto");
-  B.prism(rect(-mm(Fd.B1) / 2, mm(Fd.B1) / 2, -mm(Fd.A1) / 2, mm(Fd.A1) / 2), -C1, 0);
+  for (const x of I ? [-I / 2, I / 2] : [0]) B.prism(rect(x - mm(Fd.B1) / 2, x + mm(Fd.B1) / 2, -mm(Fd.A1) / 2, mm(Fd.A1) / 2), -C1, 0);
   B.prism(rect(-Bb / 2, Bb / 2, -A2, A - A2), -C1 - mm(Fd.C), -C1);
   return B.out;
 }
@@ -230,6 +240,48 @@ function plintoSolids(Fd, c1) {
 function tiranteSolids(w2, zm, zt, xt) {
   const y_fa = -(w2 + SPORGENZA_STAFFA), y_att = -(w2 + SBALZO + xt), h = TIE_SIDE / 2;
   return builder().set("Tirante").ext([-h, 0, 0], Y, X, [[y_fa, zt + h], [y_fa, zt - h], [y_att, zm - h], [y_att, zm + h]], TIE_SIDE).out;
+}
+/* ---- varianti dei sostegni e pali doppi (0.24.0: catalogo del 2026-10-27) ------------------------------------------
+   Due mensole (RFI_Sostegno_<gruppo>_2M, SEGNAPOSTO, deriva_due_mensole): al posto degli attacchi singoli la staffa
+   doppia RFI_StaffaDoppia_<gruppo> (piastra anteriore 600 × 260 × 15, contropiastra, 4 tirafondini Ø20) alla quota
+   della mensola e a quella del tirante, e per ogni mensola RFI_SnodiStaffaDoppia_<gruppo> (corpo, forcella e perno a
+   SBALZO dalla faccia; 2 orecchie col bullone M16 alla quota del tirante); mensole a ±INTERASSE_2M / 2 lungo X */
+const DOPPIA = { larg: 600, alt: 260, sp: 15, r_tf: 10, x_tf: 270, z_tf: 100 };
+export const INTERASSE_2M = 280;
+/* staffa doppia (build_doppia): z = 0 sull'asse della mensola, la seconda dh più su (attacco del tirante) */
+function staffaDoppiaSolids(w2, dh) {
+  const d = DOPPIA, hx = d.larg / 2, hz = d.alt / 2, t = d.sp, B = builder().set("Staffa doppia");
+  for (const zc of [0, dh]) {
+    B.prism(rect(-hx, hx, -w2 - t, -w2), zc - hz, zc + hz);
+    B.prism(rect(-hx, hx, w2, w2 + t), zc - hz, zc + hz);
+    B.set("Staffa doppia", DET);
+    for (const x of [-d.x_tf, d.x_tf]) for (const dz of [-d.z_tf, d.z_tf]) B.bar([x, -w2 - t - 25, zc + dz], [x, w2 + t + 25, zc + dz], d.r_tf);
+    B.set("Staffa doppia");
+  }
+  return B.out;
+}
+/* snodi di una mensola sulla staffa doppia (build_snodi): z = 0 sull'asse della mensola, orecchie dh più su */
+function snodiSolids(w2, dh) {
+  const B = builder().set("Staffa doppia"), yp = -w2 - DOPPIA.sp, y_p = -w2 - SBALZO;
+  B.ext([0, yp, 0], X, [0, -1, 0], rect(-25, 25, -40, 40), yp - (y_p + 46));
+  for (const s of [-1, 1]) { const z0 = s * 62.5; B.prism(rect(-20, 20, y_p - 15, y_p + 46), Math.min(z0, z0 - s * 15), Math.max(z0, z0 - s * 15)); }
+  B.bar([0, y_p, -72], [0, y_p, 72], 7);
+  for (const xs of [-17.5, 17.5]) B.prism(rect(xs - 5, xs + 5, -w2 - SPORGENZA_STAFFA - 25, yp), dh - 35, dh + 35);
+  B.bar([-30, -w2 - SPORGENZA_STAFFA, dh], [30, -w2 - SPORGENZA_STAFFA, dh], 8);
+  return B.out;
+}
+/* pali doppi senza mensola: RFI_PaloDoppio_2xLSU24 (genera_doppio.py, SEGNAPOSTO: 2 LSU24 a 800 lungo X, calastrelli
+   RFI_Calastrelli_2xLSU24 1040 × 300 × 10 sulle facce delle anime a +1500 / 3500 / 5500 / 7500 sopra la piastra, plinto
+   P24D) e RFI_PaloDoppio_2xLSU22 (il sostegno dei portali MEC 2xLSU22 senza l'attacco della trave: 2 LSU22 a ±550 sui
+   due pilastrini del P8D, niente calastrelli) */
+export const DOPPI = { 24: { x: 400, cal: [1500, 3500, 5500, 7500] }, 22: { x: 550, cal: [] } };
+function calastrelliSolids() {
+  const sr = SERIE.LSU24, w2 = sr.w2, hx = DOPPI[24].x + sr.upn[0] / 2, z0 = Z_PIASTRA + sr.piastra, B = builder().set("Calastrelli");
+  for (const dz of DOPPI[24].cal) for (const s of [-1, 1]) {
+    const [y0, y1] = [s * w2, s * (w2 + 10)].sort((a, b) => a - b);
+    B.prism(rect(-hx, hx, y0, y1), z0 + dz - 150, z0 + dz + 150);
+  }
+  return B.out;
 }
 
 /* ---- portali MEC tipo C (portali_MEC_C/genera.py e genera_parametrico.py) ---------------------------------- */
@@ -241,8 +293,49 @@ MEC.Z_TRAVE = 6020 + 800;              // Z_TRAVE_PORTALE (genera_parametrico.py
 const FOND_MEC = { A: 2100, B: 4000, C: 2500, A1: 1000, B1: 2360, C1: 250 };
 const IPE = [400, 180, 8.6, 13.5];
 /* elementi della trave MEC tipo C (E 64923): lunghezza, campi della fiancata, zona d'appoggio */
-export const MEC_ELEMENTI = { CL2: { L: 7290, campi: 8, appoggio: 1000 }, CC3: { L: 6990, campi: 7, appoggio: 0 }, CC4: { L: 5990, campi: 6, appoggio: 0 }, CC5: { L: 4990, campi: 5, appoggio: 0 } };
+export const MEC_ELEMENTI = { CL2: { L: 7290, campi: 8, appoggio: 1000 }, CC3: { L: 6990, campi: 7, appoggio: 0 }, CC4: { L: 5990, campi: 6, appoggio: 0 }, CC5: { L: 4990, campi: 5, appoggio: 0 },
+  // 0.24.0 (genera.py, travi dei portali su 2 × LSU22): dai pesi di tabella, stessa sezione del CL2
+  CL1: { L: 9290, campi: 10, appoggio: 1000 }, CL3: { L: 5290, campi: 6, appoggio: 1000 }, CC2: { L: 7990, campi: 8, appoggio: 0 }, CC1: { L: 8990, campi: 9, appoggio: 0 } };
 export const MEC_CENTRALE = { C21: "CC3", C20: "CC4", C19: "CC5" };
+/* travi tipo C dei portali su 2 × LSU22 (genera_2xLSU22.py TRAVI_C, E 64923 f.3): elemento laterale e centrale */
+export const MEC2_TRAVI = { C15: ["CL3", "CC5"], C16: ["CL3", "CC4"], C17: ["CL3", "CC3"], C18: ["CL3", "CC2"], C19: ["CL2", "CC5"], C20: ["CL2", "CC4"],
+  C21: ["CL2", "CC3"], C22: ["CL2", "CC2"], C23: ["CL1", "CC5"], C24: ["CL1", "CC4"], C25: ["CL1", "CC3"], C26: ["CL1", "CC2"], C27: ["CL1", "CC1"] };
+/* portali su 2 × LSU22: filo inferiore della trave a +7100 (ASSUNTO, filo di contatto 5200 + 1900), elementi annidati
+   con l'offset Z_T2 − Z_TRAVE; pali a ±550 lungo X (E 64906 c f.3) sul P8D con la testa dei pilastrini a +250 */
+export const MEC2 = { Z_T2: 7100, X_PALI: 550, Z_PIL: 250, PALO: "LSU22b" };
+/* attacco della trave ai 2 pali LSU22 (E 64906 c f.2-4, build_attacco2): 4 angolari L 150 × 150 × 15 L 1460 sulle facce
+   Y = ±200 della coppia di pali sotto e sopra la trave con 6 fazzoletti, 24 tiranti Ø16, 16 bulloni a gancio e il
+   dispositivo anticaduta (semplificati); Z sul supercompattato */
+function att2Solids() {
+  const B = builder().set("Attacco trave"), W2 = SERIE.LSU22.w2, ZT = MEC2.Z_T2, HT = MEC.H_TRAVE;
+  const x_fz = [-640, -460, -90, 90, 460, 640], x_tr = [-680, -420, -130, 130, 420, 680];
+  for (const [z_h, sv] of [[ZT, -1], [ZT + HT, 1]]) {
+    for (const s of [-1, 1]) {
+      let a = [-730, s * W2, z_h], b = [730, s * W2, z_h];
+      if (dot(cross(X, [0, s, 0]), [0, 0, sv]) < 0) [a, b] = [b, a];
+      B.set("Attacco trave").angle(a, b, 150, 150, 15, [0, s, 0]);
+      B.set("Attacco trave", LAT);
+      for (const xc of x_fz) {
+        const y0 = s * (W2 + 15), z0 = z_h + sv * 15;
+        B.ext([xc - 5, 0, 0], Y, X, [[y0, z0], [y0 + s * 105, z0], [y0, z0 + sv * 105]], 10);
+      }
+    }
+    B.set("Attacco trave", LAT);
+    for (const xc of x_tr) for (const dz of [54, 109]) { const z = z_h + sv * dz; B.bar([xc, -265, z], [xc, 265, z], 8); }
+    for (const sx of [-1, 1]) for (const s of [-1, 1]) for (const dy of [260, 320]) {
+      const x = sx * (MEC.B_TRAVE / 2 + 20), [za, zb] = sv < 0 ? [z_h - 15 - 30, z_h + 100] : [z_h - 100, z_h + 15 + 30];
+      B.bar([x, s * dy, za], [x, s * dy, zb], 8);
+    }
+  }
+  const z_ac = ZT - 150 - 120;
+  B.set("Attacco trave", LAT);
+  for (const sx of [-1, 1]) {
+    const xp = sx * (MEC2.X_PALI + 110);
+    B.prism(rect(Math.min(xp, xp + sx * 15), Math.max(xp, xp + sx * 15), -152, 152), z_ac - 40, z_ac + 40);
+    for (const dy of [-127, 127]) B.bar([xp + sx * 15, dy, z_ac], [sx * (MEC2.X_PALI - 110 - 8), dy, z_ac], 8);
+  }
+  return B.out;
+}
 const plateHoles = (cx) => [-250, 0, 250].flatMap((dx) => [-330, 0, 330].filter((dy) => dx || dy).map((dy) => [cx + dx, dy]));
 function fondMecSolids() {
   const d = FOND_MEC, B = builder().set("Fondazione"), z_bl = MEC.Z_FOND - d.C1;
@@ -445,7 +538,8 @@ function traveTralSolids(luce, campi) {
    col tubo verso +Y, Z sul supercompattato; nel portale ruotato di 180° (tubo verso il pilone 1) sulla faccia X
    negativa della trave. zm = asse della mensola (Quota_mensola), qt / ht = intradosso e altezza della trave */
 const SP = { Y_TUBO: 1500, R_TUBO: 66.5, TUBO_SOTTO: 150, TUBO_SOPRA: 300, L_MENS: 2000, L_TIR: 1400, H_TIR: 800, R_TIR: 12, PIATTO: [100, 20, 10], OLTRE: 150, PIASTRA: [20, 20], CORRENTE: 150 };
-export const PORTAL_BEAMS = { MEC: { qt: MEC.Z_TRAVE, ht: MEC.H_TRAVE, bt: MEC.B_TRAVE }, PO: { qt: POT.Z_TRAVE, ht: POT.H_TRAVE, bt: POT.B_TRAVE } };
+export const PORTAL_BEAMS = { MEC: { qt: MEC.Z_TRAVE, ht: MEC.H_TRAVE, bt: MEC.B_TRAVE }, MEC2: { qt: MEC2.Z_T2, ht: MEC.H_TRAVE, bt: MEC.B_TRAVE }, PO: { qt: POT.Z_TRAVE, ht: POT.H_TRAVE, bt: POT.B_TRAVE } };
+const beamKind = (kind) => (kind === "MEC" || kind === "MEC2" ? kind : "PO");
 const cerchio = (xc, yc, r, n = 24) => Array.from({ length: n }, (_, i) => [xc + r * Math.cos((2 * PI * i) / n), yc + r * Math.sin((2 * PI * i) / n)]);
 /* RFI_SospensionePortale_SEGNAPOSTO: tubo da 150 sotto la mensola a 300 sopra la trave, piatti da 150 sotto
    l'intradosso a 150 sopra l'estradosso contro la faccia della trave */
@@ -580,6 +674,9 @@ const MAKERS = {
   palo: (id) => { const m = /^LSU(\d\d)([abc])$/.exec(id); return paloSolids("LSU" + m[1], PALI_L[m[2]]); },
   att: (se) => attaccoSolids(se),
   staffa: (se) => staffaSolids(se),
+  doppia: (a) => { const [se, dh] = a.split(","); return staffaDoppiaSolids(SERIE[se].w2, +dh); },
+  snodi: (a) => { const [se, dh] = a.split(","); return snodiSolids(SERIE[se].w2, +dh); },
+  cal: () => calastrelliSolids(), att2: () => att2Solids(),
   mens: (L) => mensolaSolids(+L),
   fondMEC: () => fondMecSolids(), pilMEC: () => piloneMecSolids(), attMEC: () => attMecSolids(), trMEC: (k) => traveMecSolids(k),
   fondPOT: () => fondPotSolids(), pilPOT: () => pilonePotSolids(),
@@ -608,7 +705,8 @@ export const atLod = (solids, lod = "lattice") => { const i = LOD_INDEX[lod] != 
    condivisa) o own (solidi suoi, metri), fam (famiglia Revit), type (tipo), o: [x, y, z] (m), rot (0 | π attorno a Z),
    ifc: [classe, tipo predefinito] }.
    R = sostegno risolto dal catalogo con R.rfi (ocs-catalog: resolveSupport / resolvePortal); null se la famiglia non
-   c'è (LSU24, pali doppi, portali su pali LSU, luci fuori dai tipi) → il chiamante disegna la geometria semplificata */
+   c'è (LSU24 singolo, pali doppi con la mensola, portali su pali LSU singoli, luci fuori dai tipi) → il chiamante
+   disegna la geometria semplificata */
 const PI = Math.PI;
 const SE_OF = (M) => "LSU" + M.size;
 export function rfiPieces(R) {
@@ -616,19 +714,32 @@ export function rfiPieces(R) {
   if (R.kind === "portal") return [...portalPieces(R), ...portalSospPieces(R)];
   const M = R.mast, se = SE_OF(M);
   if (!SERIE[se]) return null;
-  const w2 = SERIE[se].w2, zm = R.hm - R.baseDz, mens = R.mens.L;
+  const w2 = SERIE[se].w2, zm = R.hm - R.baseDz, mens = R.mens.L, cfg = R.rfi.cfg || "";
   const ties = R.ties && R.ties.length ? R.ties : [R.tir];
-  const fid = R.found.id, c1 = Math.round(R.c1 * 1000) / 1000;
-  const out = [
-    { k: "plinto", key: "plinto|" + fid + "|" + c1, Fd: R.found, fam: "RFI_Plinto_LSU", type: fid, o: [0, 0, 0], rot: 0, ifc: ["IFCFOOTING", "PAD_FOOTING"] },
-    { k: "palo", key: "palo|" + M.id, fam: "RFI_Palo_" + M.id, type: "", o: [0, 0, 0], rot: 0, ifc: ["IFCCOLUMN", "STANDCOLUMN"] },
-    { k: "att", key: "att|" + se, fam: "RFI_AttaccoMensola_E66013_" + se, type: "", o: [0, 0, zm], rot: 0, ifc: ["IFCDISCRETEACCESSORY", "BRACKET"] },
-    { k: "staffa", key: "staffa|" + se, fam: "RFI_AttaccoTirante_E66013_" + se, type: "", o: [0, 0, zm + ties[0].dh], rot: 0, ifc: ["IFCDISCRETEACCESSORY", "BRACKET"] },
-    { k: "mens", key: "mens|" + Math.round(mens * 1000), fam: "RFI_Mensola_D76x5", type: R.rfi.mens || "", o: [0, -(w2 + SBALZO) / 1000, zm], rot: 0, ifc: ["IFCMEMBER", "MEMBER"] },
-  ];
-  ties.forEach((t, i) => out.push({ k: "tir" + (i ? String(i + 1) : ""), own: tiranteSolids(w2, zm * 1000, (zm + t.dh) * 1000, t.xt * 1000).map(toM), fam: "RFI_Tirante_D24", type: "", o: [0, 0, 0], rot: 0, ifc: ["IFCMEMBER", "TIEBAR"] }));
-  // sospensione annidata (0.23.0): sull'asse del binario (Distanza_binario), alla quota della mensola, la prima del tool
-  out.push(...sospPieces(R.rfi.sosp, R.stag, [0, -(R.dr + C.GAUGE_HALF + M.w / 2), zm - SOSP_Z_MENS], 0));
+  const fid = R.found.id, c1 = Math.round(R.c1 * 1000) / 1000, COL = ["IFCCOLUMN", "STANDCOLUMN"], BR = ["IFCDISCRETEACCESSORY", "BRACKET"];
+  const out = [];
+  // palo e plinto (0.24.0: niente con la sola mensola; due pali, e i calastrelli della coppia di LSU24, nei pali doppi)
+  if (cfg !== "SOLO") {
+    out.push({ k: "plinto", key: "plinto|" + fid + "|" + c1, Fd: R.found, fam: "RFI_Plinto_LSU", type: fid, o: [0, 0, 0], rot: 0, ifc: ["IFCFOOTING", "PAD_FOOTING"] });
+    const D = R.rfi.dbl ? DOPPI[M.size] : null;
+    for (const x of D ? [-D.x, D.x] : [0]) out.push({ k: "palo", key: "palo|" + M.id, fam: "RFI_Palo_" + M.id, type: "", o: [x / 1000, 0, 0], rot: 0, ifc: COL });
+    if (D && D.cal.length) out.push({ k: "cal", key: "cal", fam: "RFI_Calastrelli_2xLSU24", type: "", o: [0, 0, 0], rot: 0, ifc: ["IFCPLATE", "NOTDEFINED"] });
+  }
+  if (cfg === "SM") return out;
+  // una mensola sugli attacchi singoli, o due («2M») sulla staffa doppia con gli snodi, a ±INTERASSE_2M / 2 lungo X
+  const two = cfg === "2M", xs = two ? [-INTERASSE_2M / 2, INTERASSE_2M / 2] : [0], grp = M.size <= 16 ? "LSU14-16" : "LSU18-22", dh = Math.round(ties[0].dh * 1000);
+  if (two) out.push({ k: "staffa2", key: "doppia|" + se + "," + dh, fam: "RFI_StaffaDoppia_" + grp, type: "", o: [0, 0, zm], rot: 0, ifc: BR });
+  for (const xm of xs) {
+    const x = xm / 1000;
+    if (two) out.push({ k: "att", key: "snodi|" + se + "," + dh, fam: "RFI_SnodiStaffaDoppia_" + grp, type: "", o: [x, 0, zm], rot: 0, ifc: BR });
+    else out.push(
+      { k: "att", key: "att|" + se, fam: "RFI_AttaccoMensola_E66013_" + se, type: "", o: [0, 0, zm], rot: 0, ifc: BR },
+      { k: "staffa", key: "staffa|" + se, fam: "RFI_AttaccoTirante_E66013_" + se, type: "", o: [0, 0, zm + ties[0].dh], rot: 0, ifc: BR });
+    out.push({ k: "mens", key: "mens|" + Math.round(mens * 1000), fam: "RFI_Mensola_D76x5", type: R.rfi.mens || "", o: [x, -(w2 + SBALZO) / 1000, zm], rot: 0, ifc: ["IFCMEMBER", "MEMBER"] });
+    ties.forEach((t, i) => out.push({ k: "tir" + (i ? String(i + 1) : ""), own: tiranteSolids(w2, zm * 1000, (zm + t.dh) * 1000, t.xt * 1000).map(toM), fam: "RFI_Tirante_D24", type: "", o: [x, 0, 0], rot: 0, ifc: ["IFCMEMBER", "TIEBAR"] }));
+    // sospensione annidata (0.23.0): sull'asse del binario (Distanza_binario), alla quota della mensola, la prima del tool
+    out.push(...sospPieces(R.rfi.sosp, R.stag, [x, -(R.dr + C.GAUGE_HALF + M.w / 2), zm - SOSP_Z_MENS], 0));
+  }
   return out;
 }
 /* la sospensione RFI_Sospensione_PL_Acciaio_440 del tipo type con poligonazione pol (m) in o, ruotata di rot: due pezzi,
@@ -645,6 +756,22 @@ function portalPieces(R) {
   const P = (k, key, fam, type, y, rot, ifc) => out.push({ k, key, fam, type, o: [0, y / 1000, 0], rot, ifc });
   const F = ["IFCFOOTING", "PAD_FOOTING"], COL = ["IFCCOLUMN", "STANDCOLUMN"], BR = ["IFCDISCRETEACCESSORY", "BRACKET"], BM = ["IFCBEAM", "BEAM"];
   const luce = Math.round(rf.luce * 1000);
+  /* MEC tipo C su 2 × LSU22 (0.24.0): per parte il sostegno RFI_Sostegno_2xLSU22_MEC (plinto P8D, 2 pali, attacco
+     E 64906), il secondo ruotato di 180°; trave CLn + CCn + CLn centrata, annidata Z_T2 − Z_TRAVE più su */
+  if (rf.kind === "MEC2") {
+    const M = R.mast, Fd = R.found, c1 = Math.round(R.c1 * 1000) / 1000, zp = MEC2.Z_PIL / 1000;
+    for (const [y, rot] of [[0, 0], [luce, PI]]) {
+      out.push({ k: "plinto", key: "plinto|" + Fd.id + "|" + c1, Fd, fam: "RFI_Plinto_LSU", type: Fd.id, o: [0, y / 1000, zp], rot, ifc: F });
+      for (const x of [-MEC2.X_PALI, MEC2.X_PALI]) out.push({ k: "palo", key: "palo|" + M.id, fam: "RFI_Palo_" + M.id, type: "", o: [x / 1000, y / 1000, zp], rot, ifc: COL });
+      P("attTrave", "att2", "RFI_AttaccoTraveMEC_E64906_2xLSU22", "", y, rot, BR);
+    }
+    const [lat, cc] = MEC2_TRAVI[rf.type], Lcl = MEC_ELEMENTI[lat].L, Ltot = 2 * Lcl + MEC_ELEMENTI[cc].L, y0 = luce / 2 - Ltot / 2, dz = (MEC2.Z_T2 - MEC.Z_TRAVE) / 1000;
+    const T = (key, fam, y, rot) => out.push({ k: "trave", key, fam, type: "", o: [0, y / 1000, dz], rot, ifc: BM });
+    T("trMEC|" + lat, "RFI_TraveMEC_C_" + lat, y0, 0);
+    T("trMEC|" + cc, "RFI_TraveMEC_C_" + cc, y0 + Lcl, 0);
+    T("trMEC|" + lat, "RFI_TraveMEC_C_" + lat, luce / 2 + Ltot / 2, PI);
+    return out;
+  }
   if (rf.kind === "MEC") {
     for (const y of [0, luce]) {
       P("fond", "fondMEC", "RFI_Fondazione_P2MEC", "", y, 0, F);
@@ -674,7 +801,7 @@ function portalPieces(R) {
 function portalSospPieces(R) {
   const S = R.sospRfi, out = [];
   if (!S) return out;
-  const TB = PORTAL_BEAMS[R.rfi.kind === "MEC" ? "MEC" : "PO"], zm = Math.round(S.zm * 1000), x0 = -(TB.bt / 2 + SP.R_TUBO) / 1000;
+  const TB = PORTAL_BEAMS[beamKind(R.rfi.kind)], zm = Math.round(S.zm * 1000), x0 = -(TB.bt / 2 + SP.R_TUBO) / 1000;
   for (const sl of S.slots.filter((x) => x.vis)) {
     const P = (k, key, fam, z, ifc) => out.push({ k, key, fam, type: "", o: [x0, sl.y, z / 1000], rot: PI, ifc });
     P("sospP", "sospP|" + [TB.qt, TB.ht, zm].join(","), "RFI_SospensionePortale_SEGNAPOSTO", 0, ["IFCMEMBER", "MEMBER"]);

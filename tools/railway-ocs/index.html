@@ -591,10 +591,10 @@ const I18N = {
     "rv.place": "Piazza in Revit", "rv.placeT": "Piazza i sostegni mostrati nel modello Revit con le famiglie del catalogo RFI; ripetuto, aggiorna quelli già piazzati",
     "rv.plTitle": "Piazza i sostegni in Revit", "rv.plBody": "{n} sostegni mostrati diventano famiglie del catalogo RFI nel modello «{doc}». Una sola transazione: Ctrl+Z in Revit la annulla tutta. Ripetuto, aggiorna gli stessi elementi.",
     "rv.plSkip": "Non piazzati, manca la famiglia nel catalogo:", "rv.plWarn": "Piazzati con un avviso:", "rv.plGo": "Piazza", "rv.plNone": "Nessun sostegno mostrato da piazzare.",
-    "rv.skip.portalLsu": "portali su pali LSU", "rv.skip.double": "pali doppi", "rv.skip.mastSize": "pali LSU24", "rv.skip.geom": "senza geometria",
+    "rv.skip.portalLsu": "portali su pali LSU singoli", "rv.skip.double": "pali doppi con la mensola o non LSU22/24", "rv.skip.mastSize": "pali LSU24 singoli", "rv.skip.geom": "senza geometria",
     "rv.w.mensType": "mensola non nel catalogo: messa la più corta fra le più lunghe", "rv.w.sospType": "tipo di sospensione vuoto o non riconosciuto: resta quello della famiglia", "rv.w.susp": "più sospensioni: la famiglia ha una mensola sola",
     "rv.w.equip": "trasformatore o sezionatore: senza famiglia, non piazzato", "rv.w.tieHeight": "tirante: la famiglia lo tiene a 1,00 sopra la mensola",
-    "rv.w.portalSusp": "più binari delle sospensioni della famiglia: vanno i primi dal pilone 1", "rv.w.spanRange": "luce fuori dal campo delle travi MEC C19–C21", "rv.w.spanType": "nessun tipo di portale con quella luce (entro 5 cm): il più vicino",
+    "rv.w.portalSusp": "più binari delle sospensioni della famiglia: vanno i primi dal pilone 1", "rv.w.spanRange": "luce fuori dal campo delle travi MEC (C19–C21, su 2 × LSU22 C15–C27)", "rv.w.portalMast": "su 2 × LSU22 la famiglia ha i pali LSU22b", "rv.w.spanType": "nessun tipo di portale con quella luce (entro 5 cm): il più vicino",
     "rv.plDone": "Revit: {a} piazzati, {b} aggiornati in {s} s.", "rv.plNotPlaced": "In Revit non piazzati {n}: {list}", "rv.plFail": "Piazzamento in Revit non riuscito: {m}",
     "rv.coordTitle": "Coordinate condivise del modello", "rv.coordBody": "Il modello non ha coordinate condivise: i sostegni cadrebbero a {km} km dall'origine interna. Imposto l'origine interna del modello in E {e}, N {n}, quota {z} (nord di progetto = nord reale)? Si fa una volta sola; poi il modello si linka nel federato «da coordinate condivise».",
     "rv.coordGo": "Imposta e piazza", "rv.err.coordsSet": "Le coordinate condivise del modello sono già impostate: non le cambio.",
@@ -619,7 +619,7 @@ const I18N = {
     "ix.fastTitle": "Modalità fast accesa", "ix.fastBody": "Le rotaie si disegnano con una sezione ogni 10 m: in curva sarebbero spezzate. Le esporto al passo pieno? Assi, sostegni e fondazioni non cambiano col passo.",
     "ix.fastFull": "Passo pieno ed esporta", "ix.fastAsIs": "Esporta così (10 m)",
     "ifc.site": "Sito", "ifc.railway": "Trazione elettrica", "ifc.mast": "Palo", "ifc.portal": "Portale", "ifc.stem": "Fusto", "ifc.plate": "Piastra", "ifc.mens": "Mensola", "ifc.tie": "Tirante",
-    "ifc.susp": "Sospensione", "ifc.pend": "Pendolo", "ifc.found": "Fondazione", "ifc.beam": "Trave", "ifc.pole": "Pilone", "ifc.trafo": "Trasformatore", "ifc.sez": "Sezionatore", "ifc.att": "Attacco mensola", "ifc.attTie": "Attacco tirante", "ifc.attBeam": "Attacco trave", "ifc.iso": "Isolatori", "ifc.tubeP": "Tubo della sospensione", "ifc.mensP": "Mensola da portale", "ifc.plateP": "Piastra del tubo",
+    "ifc.susp": "Sospensione", "ifc.pend": "Pendolo", "ifc.found": "Fondazione", "ifc.beam": "Trave", "ifc.pole": "Pilone", "ifc.trafo": "Trasformatore", "ifc.sez": "Sezionatore", "ifc.att": "Attacco mensola", "ifc.attTie": "Attacco tirante", "ifc.attDouble": "Staffa doppia", "ifc.cal": "Calastrelli", "ifc.attBeam": "Attacco trave", "ifc.iso": "Isolatori", "ifc.tubeP": "Tubo della sospensione", "ifc.mensP": "Mensola da portale", "ifc.plateP": "Piastra del tubo",
     "ifc.railL": "Rotaia sinistra", "ifc.railR": "Rotaia destra", "ifc.steel": "Acciaio", "ifc.concrete": "Calcestruzzo", "ifc.offset": "Offset dall'asse ricevuto",
     "prj.saveTitle": "Salva progetto", "prj.file": "File", "prj.cancel": "Annulla", "prj.save": "Salva", "prj.open": "Apri", "prj.saveFirst": "Salva prima l'attuale",
     "prj.saveHelp": "Il file contiene binari (anche le polilinee e la taratura dei disegni), profili scelti, offset, sostegni e occhi accesi; si riapre trascinandolo qui o da «Apri un progetto salvato», anche su un altro PC.",
@@ -637,7 +637,7 @@ const I18N = {
     "su.sel": "Sostegno {n}", "su.num": "Numero", "su.side": "Lato", "su.dr": "DR", "su.mast": "Palo", "su.ofTrack": "del binario ({v})",
     "su.mens": "Mensola", "su.auto": "automatica ({v})", "su.hm": "Quota mensola", "su.hw": "Altezza filo", "su.stag": "Poligonazione", "su.stagU": "m (+ al palo)",
     "su.found": "Fondazione", "su.c1": "Pilastrino C1", "su.eq": "Apparecchiature", "su.trafo": "Trasformatore su palo", "su.sez": "Sezionatore su palo",
-    "su.eqHelp": "Misure di partenza, da verificare: manca ancora un tipologico.", "su.dbl": "palo doppio (due fusti lungo il binario, assi a 0,40 m da verificare)",
+    "su.eqHelp": "Misure di partenza, da verificare: manca ancora un tipologico.", "su.dbl": "palo doppio (due fusti lungo il binario, assi a 1,10; LSU24 a 0,80)", "su.dblHelp": "Nel catalogo RFI i pali doppi sono senza mensola: 2 × LSU22 su P8D, 2 × LSU24 su P24D (altezza del blocco stimata).", "su.cfg": "Configurazione", "su.cfg1": "palo con mensola", "su.cfg2M": "palo con due mensole", "su.cfgSM": "palo senza mensola", "su.cfgSOLO": "solo mensola, su un sostegno esistente", "su.cfg2MHelp": "Due mensole uguali, affiancate a 0,28 m lungo il binario (una per catenaria nella tratta di sovrapposizione), sulla staffa doppia: segnaposto del catalogo, da verificare.", "su.cfgSOLOHelp": "Niente palo né fondazione: il palo scelto dice solo su cosa si monta la mensola (larghezza, attacchi).", "su.mastOn": "Palo esistente",
     "su.noFit": "I tirafondi della fondazione non vanno per il {m}: servono {d}×{e} mm.",
     "su.pos": "E / N", "su.posV": "{e} / {n}", "su.top": "Testa del palo", "su.vol": "Calcestruzzo", "su.volV": "{v} m³ · {f}, C1 {c} m",
     "su.secCap": "Sezione al palo {n}, guardando avanti · scala vera", "su.lTop": "testa +{v}", "su.lMens": "mensola +{v}", "su.lWire": "filo {v}",
@@ -726,7 +726,7 @@ const I18N = {
     "pw.noName": "Pset senza nome: non si scrive.", "pw.stdPrefix": "I nomi Pset_ e Qto_ sono dei Pset standard di buildingSMART: per un Pset proprio usa un altro prefisso.", "pw.noKinds": "Non si applica a nessun oggetto.",
     "pw.dupSet": "Un altro Pset con lo stesso nome sugli stessi oggetti.", "pw.dupProp": "Proprietà con lo stesso nome di un'altra.", "pw.noKey": "Scegli il campo o la colonna.", "pw.badConst": "Il valore fisso non è del tipo IFC scelto.",
     "pk.mast": "palo", "pk.portal": "portale", "pk.foundation": "fondazione",
-    "pf.num": "Numero", "pf.track": "Binario", "pf.sta": "Progressiva", "pf.side": "Lato", "pf.dr": "DR", "pf.drL": "DR sinistra", "pf.drR": "DR destra", "pf.mast": "Sostegno", "pf.mens": "Mensola", "pf.mensCode": "Codice mensola",
+    "pf.num": "Numero", "pf.track": "Binario", "pf.sta": "Progressiva", "pf.side": "Lato", "pf.dr": "DR", "pf.drL": "DR sinistra", "pf.drR": "DR destra", "pf.mast": "Sostegno", "pf.cfg": "Configurazione", "pf.mens": "Mensola", "pf.mensCode": "Codice mensola",
     "pf.beam": "Trave", "pf.beamL": "Lunghezza trave", "pf.hm": "Quota mensola", "pf.hb": "Intradosso trave", "pf.hw": "Altezza filo", "pf.stag": "Poligonazione", "pf.sosp": "Sospensioni", "pf.served": "Binari serviti",
     "pf.nSusp": "Numero di sospensioni", "pf.kg": "Peso pali (kg)", "pf.found": "Fondazione", "pf.c1": "C1", "pf.vol": "Calcestruzzo", "pf.E": "Est", "pf.N": "Nord", "pf.top": "Quota testa",
     "su.sNoTrack": "Il binario {t} non passa davanti al palo: vale l'interasse scritto.", "su.Lshort": "La mensola di {L} m non arriva all'ultima sospensione: serve almeno la {a} m.", "su.attrs": "Dalla tabella",
@@ -807,10 +807,10 @@ const I18N = {
     "rv.place": "Place in Revit", "rv.placeT": "Place the shown supports in the Revit model with the RFI catalogue families; run again, it updates those already placed",
     "rv.plTitle": "Place the supports in Revit", "rv.plBody": "{n} shown supports become RFI catalogue families in the model “{doc}”. One transaction: Ctrl+Z in Revit undoes it all. Run again, it updates the same elements.",
     "rv.plSkip": "Not placed, no family in the catalogue:", "rv.plWarn": "Placed with a warning:", "rv.plGo": "Place", "rv.plNone": "No shown support to place.",
-    "rv.skip.portalLsu": "portals on LSU masts", "rv.skip.double": "double masts", "rv.skip.mastSize": "LSU24 masts", "rv.skip.geom": "no geometry",
+    "rv.skip.portalLsu": "portals on single LSU masts", "rv.skip.double": "double masts with a cantilever or not LSU22/24", "rv.skip.mastSize": "single LSU24 masts", "rv.skip.geom": "no geometry",
     "rv.w.mensType": "cantilever not in the catalogue: the shortest of the longer ones", "rv.w.sospType": "suspension type empty or not recognised: the family keeps its own", "rv.w.susp": "more droppers: the family has a single cantilever",
     "rv.w.equip": "transformer or switch: no family, not placed", "rv.w.tieHeight": "tie: the family keeps it 1.00 above the cantilever",
-    "rv.w.portalSusp": "more tracks than the family's droppers: the first ones from pole 1", "rv.w.spanRange": "span outside the MEC C19–C21 beam range", "rv.w.spanType": "no portal type with that span (within 5 cm): the nearest",
+    "rv.w.portalSusp": "more tracks than the family's droppers: the first ones from pole 1", "rv.w.spanRange": "span outside the MEC beam range (C19–C21, on 2 × LSU22 C15–C27)", "rv.w.portalMast": "on 2 × LSU22 the family has LSU22b masts", "rv.w.spanType": "no portal type with that span (within 5 cm): the nearest",
     "rv.plDone": "Revit: {a} placed, {b} updated in {s} s.", "rv.plNotPlaced": "Not placed in Revit {n}: {list}", "rv.plFail": "Placing in Revit failed: {m}",
     "rv.coordTitle": "Model shared coordinates", "rv.coordBody": "The model has no shared coordinates: the supports would fall {km} km from the internal origin. Set the model's internal origin at E {e}, N {n}, level {z} (project north = true north)? It is done once; then the model links into the federation “by shared coordinates”.",
     "rv.coordGo": "Set and place", "rv.err.coordsSet": "The model's shared coordinates are already set: I am not changing them.",
@@ -835,7 +835,7 @@ const I18N = {
     "ix.fastTitle": "Fast mode is on", "ix.fastBody": "Rails are drawn with a section every 10 m: in curves they would be broken. Export them at the full step? Alignments, supports and foundations do not depend on the step.",
     "ix.fastFull": "Full step and export", "ix.fastAsIs": "Export as is (10 m)",
     "ifc.site": "Site", "ifc.railway": "Overhead contact line", "ifc.mast": "Mast", "ifc.portal": "Portal", "ifc.stem": "Shaft", "ifc.plate": "Base plate", "ifc.mens": "Cantilever", "ifc.tie": "Tie",
-    "ifc.susp": "Suspension", "ifc.pend": "Dropper", "ifc.found": "Foundation", "ifc.beam": "Beam", "ifc.pole": "Pole", "ifc.trafo": "Transformer", "ifc.sez": "Disconnector", "ifc.att": "Cantilever bracket", "ifc.attTie": "Stay bracket", "ifc.attBeam": "Beam bracket", "ifc.iso": "Insulators", "ifc.tubeP": "Dropper tube", "ifc.mensP": "Portal cantilever", "ifc.plateP": "Tube plate",
+    "ifc.susp": "Suspension", "ifc.pend": "Dropper", "ifc.found": "Foundation", "ifc.beam": "Beam", "ifc.pole": "Pole", "ifc.trafo": "Transformer", "ifc.sez": "Disconnector", "ifc.att": "Cantilever bracket", "ifc.attTie": "Stay bracket", "ifc.attDouble": "Double bracket", "ifc.cal": "Batten plates", "ifc.attBeam": "Beam bracket", "ifc.iso": "Insulators", "ifc.tubeP": "Dropper tube", "ifc.mensP": "Portal cantilever", "ifc.plateP": "Tube plate",
     "ifc.railL": "Left rail", "ifc.railR": "Right rail", "ifc.steel": "Steel", "ifc.concrete": "Concrete", "ifc.offset": "Offset from the received alignment",
     "prj.saveTitle": "Save project", "prj.file": "File", "prj.cancel": "Cancel", "prj.save": "Save", "prj.open": "Open", "prj.saveFirst": "Save the current one first",
     "prj.saveHelp": "The file holds tracks (drawing polylines and calibration included), chosen profiles, offsets, supports and visibility; reopen it by dropping it here or from “Open a saved project”, also on another PC.",
@@ -853,7 +853,7 @@ const I18N = {
     "su.sel": "Support {n}", "su.num": "Number", "su.side": "Side", "su.dr": "DR", "su.mast": "Mast", "su.ofTrack": "track's ({v})",
     "su.mens": "Cantilever", "su.auto": "automatic ({v})", "su.hm": "Cantilever height", "su.hw": "Wire height", "su.stag": "Stagger", "su.stagU": "m (+ to mast)",
     "su.found": "Foundation", "su.c1": "Plinth C1", "su.eq": "Equipment", "su.trafo": "Pole-mounted transformer", "su.sez": "Pole-mounted switch",
-    "su.eqHelp": "Starting dimensions, to be checked: no standard drawing yet.", "su.dbl": "double mast (two shafts along the track, axes 0.40 m apart, to be checked)",
+    "su.eqHelp": "Starting dimensions, to be checked: no standard drawing yet.", "su.dbl": "double mast (two shafts along the track, axes 1.10 apart; LSU24 0.80)", "su.dblHelp": "In the RFI catalogue double masts have no cantilever: 2 × LSU22 on P8D, 2 × LSU24 on P24D (block height estimated).", "su.cfg": "Configuration", "su.cfg1": "mast with cantilever", "su.cfg2M": "mast with two cantilevers", "su.cfgSM": "mast without cantilever", "su.cfgSOLO": "cantilever only, on an existing support", "su.cfg2MHelp": "Two equal cantilevers, 0.28 m apart along the track (one per catenary in the overlap), on the double bracket: catalogue placeholder, to be checked.", "su.cfgSOLOHelp": "No mast and no foundation: the chosen mast only says what the cantilever is mounted on (width, brackets).", "su.mastOn": "Existing mast",
     "su.noFit": "The foundation's anchor bolts do not suit the {m}: it needs {d}×{e} mm.",
     "su.pos": "E / N", "su.posV": "{e} / {n}", "su.top": "Mast top", "su.vol": "Concrete", "su.volV": "{v} m³ · {f}, C1 {c} m",
     "su.secCap": "Section at mast {n}, looking ahead · true scale", "su.lTop": "top +{v}", "su.lMens": "cantilever +{v}", "su.lWire": "wire {v}",
@@ -942,7 +942,7 @@ const I18N = {
     "pw.noName": "Pset without a name: not written.", "pw.stdPrefix": "Pset_ and Qto_ names belong to the buildingSMART standard sets: use another prefix for your own Pset.", "pw.noKinds": "It applies to no object.",
     "pw.dupSet": "Another Pset with the same name on the same objects.", "pw.dupProp": "Property with the same name as another.", "pw.noKey": "Choose the field or the column.", "pw.badConst": "The fixed value is not of the chosen IFC type.",
     "pk.mast": "mast", "pk.portal": "portal", "pk.foundation": "foundation",
-    "pf.num": "Number", "pf.track": "Track", "pf.sta": "Chainage", "pf.side": "Side", "pf.dr": "DR", "pf.drL": "DR left", "pf.drR": "DR right", "pf.mast": "Support", "pf.mens": "Cantilever", "pf.mensCode": "Cantilever code",
+    "pf.num": "Number", "pf.track": "Track", "pf.sta": "Chainage", "pf.side": "Side", "pf.dr": "DR", "pf.drL": "DR left", "pf.drR": "DR right", "pf.mast": "Support", "pf.cfg": "Configuration", "pf.mens": "Cantilever", "pf.mensCode": "Cantilever code",
     "pf.beam": "Beam", "pf.beamL": "Beam length", "pf.hm": "Cantilever height", "pf.hb": "Beam soffit", "pf.hw": "Wire height", "pf.stag": "Stagger", "pf.sosp": "Suspensions", "pf.served": "Tracks served",
     "pf.nSusp": "Number of suspensions", "pf.kg": "Masts weight (kg)", "pf.found": "Foundation", "pf.c1": "C1", "pf.vol": "Concrete", "pf.E": "East", "pf.N": "North", "pf.top": "Top level",
     "su.sNoTrack": "Track {t} does not pass in front of the mast: the written spacing applies.", "su.Lshort": "The {L} m cantilever does not reach the last suspension: at least the {a} m is needed.", "su.attrs": "From the table",
@@ -984,15 +984,15 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./ocs-core.js?v=0.23.0";
-import * as IO from "./ocs-io.js?v=0.23.0";
-import * as K from "./ocs-catalog.js?v=0.23.0";
-import * as AU from "./ocs-stake.js?v=0.23.0";
-import * as RFI from "./ocs-rfi.js?v=0.23.0";
+import * as C from "./ocs-core.js?v=0.24.0";
+import * as IO from "./ocs-io.js?v=0.24.0";
+import * as K from "./ocs-catalog.js?v=0.24.0";
+import * as AU from "./ocs-stake.js?v=0.24.0";
+import * as RFI from "./ocs-rfi.js?v=0.24.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.23.0";
+const TOOL_VERSION = "0.24.0";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -2831,7 +2831,7 @@ function renderSup() {
       const R = supResolved(x), fw = !R.fits || footWarn(R);
       h += isPortal(x)
         ? `<div class="sr${x.id === S.sel ? " on" : ""}" data-sid="${x.id}"><span>${esc(x.num)}</span><span>${esc(prog(A.s0 + x.u))}</span><span title="${esc(tr("po.kind"))}">P</span><span>${nf(Math.min(R.drL, R.drR), 2)}</span><span>${esc(K.mastLabel(R))}</span><span${R.short ? ' class="warn"' : ""}>${esc(R.beam.id.replace(/^(PO|MEC) /, ""))}</span><span${fw ? ` class="warn" title="${esc(tr("su.fWarn"))}"` : ""}>${esc(R.found.id)}</span></div>`
-        : `<div class="sr${x.id === S.sel ? " on" : ""}" data-sid="${x.id}"><span>${esc(x.num)}</span><span>${esc(prog(A.s0 + x.u))}</span><span>${x.side > 0 ? "S" : "D"}</span><span>${nf(R.dr, 2)}</span><span>${esc(K.mastLabel(R))}</span><span>${nf(R.mens.L, 2)}</span><span${fw ? ` class="warn" title="${esc(tr("su.fWarn"))}"` : ""}>${esc(R.found.id)}</span></div>`;
+        : `<div class="sr${x.id === S.sel ? " on" : ""}" data-sid="${x.id}"><span>${esc(x.num)}</span><span>${esc(prog(A.s0 + x.u))}</span><span>${x.side > 0 ? "S" : "D"}</span><span>${nf(R.dr, 2)}</span><span>${esc(K.mastLabel(R))}</span><span>${R.nMens ? (R.nMens > 1 ? "2×" : "") + nf(R.mens.L, 2) : "—"}</span><span${fw ? ` class="warn" title="${esc(tr("su.fWarn"))}"` : ""}>${R.hasMast ? esc(R.found.id) : "—"}</span></div>`;
     }
     h += `</div><div class="btns"><button class="btn-sm" id="suRenum" title="${esc(tr("su.renumT"))}">${esc(tr("su.renum"))}</button></div>`;
   } else h += `<p class="empty">${esc(tr("su.none"))}</p>`;
@@ -2863,28 +2863,40 @@ function supEditor(s, def) {
   h += `<div class="row"><label for="seSide">${esc(tr("su.side"))}</label><select id="seSide" class="sel" data-f="side">${opt(1, tr("su.left"), s.side)}${opt(-1, tr("su.right"), s.side)}</select></div>`;
   h += `<div class="row"><span class="lbl">${esc(tr("au.flag"))}</span><label class="chk"><input type="checkbox" data-f="auto"${s.auto ? " checked" : ""}> ${esc(tr("au.flagOn"))}</label></div>`;
   h += `<div class="row"><label for="seDr">${esc(tr("su.dr"))}${src("dr")}</label>${numIn("seDr", s.dr != null ? nf(s.dr, 3) : "", "m", `data-f="dr" placeholder="${esc(nf(def.dr, 3))}"`)}</div>`;
-  h += `<div class="row"><label for="seMast">${esc(tr("su.mast"))}${src("mast")}</label><select id="seMast" class="sel" data-f="mast">${opt("", ofLbl("mast"), s.mast || "")}${K.MASTS.map((m) => opt(m.id, m.id, s.mast || "")).join("")}</select></div>`;
-  h += `<div class="row"><span class="lbl"></span><label class="chk"><input type="checkbox" data-f="dbl"${R.dbl ? " checked" : ""}> ${esc(tr("su.dbl"))}</label></div>`;
-  const auto = K.mensolaFor(R.dr, R.stag, R.susp);
-  h += `<div class="row"><label for="seL">${esc(tr("su.mens"))}</label><select id="seL" class="sel" data-f="L">${opt("", tr("su.auto", { v: nf(auto.L, 2) + " m" }), s.L != null ? s.L : "")}${K.MENSOLE.map((m) => opt(m.L, nf(m.L, 2) + " m · " + m.code, s.L != null ? s.L : "")).join("")}</select></div>`;
-  h += `<div class="row"><label for="seHm">${esc(tr("su.hm"))}${src("hm")}</label>${numIn("seHm", s.hm != null ? nf(s.hm, 2) : "", "m", `data-f="hm" placeholder="${esc(nf(def.hm, 2))}"`)}</div>`;
-  h += `<div class="row"><label for="seHw">${esc(tr("su.hw"))}${src("hw")}</label>${numIn("seHw", s.hw != null ? nf(s.hw, 2) : "", "m", `data-f="hw" placeholder="${esc(nf(def.hw, 2))}"`)}</div>`;
-  h += `<div class="row"><label for="seStag">${esc(tr("su.stag"))}</label>${numIn("seStag", nf(R.stag, 2), tr("su.stagU"), 'data-f="stag"')}</div>`;
-  h += `<div class="row"><label for="seFound">${esc(tr("su.found"))}${src("found")}</label><select id="seFound" class="sel" data-f="found">${opt("", ofLbl("found"), s.found || "")}${K.FOUNDATIONS.map((f) => opt(f.id, f.id, s.found || "")).join("")}</select></div>`;
-  h += `<div class="row"><label for="seC1">${esc(tr("su.c1"))}${src("c1")}</label>${numIn("seC1", s.c1 != null ? nf(s.c1, 2) : "", "m (" + nf(0.25, 2) + "–" + nf(0.5, 2) + ")", `data-f="c1" placeholder="${esc(nf(def.c1, 2))}"`)}</div>`;
-  h += `<div class="row"><label for="sePil">${esc(tr("su.pilOut"))}${src("pilOut")}</label>${numIn("sePil", s.pilOut != null ? nf(s.pilOut, 2) : "", "m", `data-f="pilOut" placeholder="${esc(nf(def.pilOut, 2))}"`)}</div>`;
-  if (!R.fits) h += `<p class="note warn">${esc(tr("su.noFit", { m: R.mast.id, d: ni(R.mast.bolts.D * 1000), e: ni(R.mast.bolts.E * 1000) }))}</p>`;
+  // configurazione (0.24.0): con due mensole, senza mensola, la sola mensola su un sostegno esistente
+  h += `<div class="row"><label for="seCfg">${esc(tr("su.cfg"))}</label><select id="seCfg" class="sel" data-f="cfg">${opt("", tr("su.cfg1"), R.cfg)}${opt("2M", tr("su.cfg2M"), R.cfg)}${opt("SM", tr("su.cfgSM"), R.cfg)}${opt("SOLO", tr("su.cfgSOLO"), R.cfg)}</select></div>`;
+  if (R.cfg === "2M") h += `<p class="help">${esc(tr("su.cfg2MHelp"))}</p>`;
+  if (R.cfg === "SOLO") h += `<p class="help">${esc(tr("su.cfgSOLOHelp"))}</p>`;
+  const mast = R.hasMast, mens = R.nMens > 0;
+  h += `<div class="row"><label for="seMast">${esc(mast ? tr("su.mast") : tr("su.mastOn"))}${src("mast")}</label><select id="seMast" class="sel" data-f="mast">${opt("", ofLbl("mast"), s.mast || "")}${K.MASTS.map((m) => opt(m.id, m.id, s.mast || "")).join("")}</select></div>`;
+  if (mast) h += `<div class="row"><span class="lbl"></span><label class="chk"><input type="checkbox" data-f="dbl"${R.dbl ? " checked" : ""}> ${esc(tr("su.dbl"))}</label></div>`;
+  if (R.dbl) h += `<p class="help">${esc(tr("su.dblHelp"))}</p>`;
+  if (mens) {
+    const auto = K.mensolaFor(R.dr, R.stag, R.susp);
+    h += `<div class="row"><label for="seL">${esc(tr("su.mens"))}</label><select id="seL" class="sel" data-f="L">${opt("", tr("su.auto", { v: nf(auto.L, 2) + " m" }), s.L != null ? s.L : "")}${K.MENSOLE.map((m) => opt(m.L, nf(m.L, 2) + " m · " + m.code, s.L != null ? s.L : "")).join("")}</select></div>`;
+    h += `<div class="row"><label for="seHm">${esc(tr("su.hm"))}${src("hm")}</label>${numIn("seHm", s.hm != null ? nf(s.hm, 2) : "", "m", `data-f="hm" placeholder="${esc(nf(def.hm, 2))}"`)}</div>`;
+    h += `<div class="row"><label for="seHw">${esc(tr("su.hw"))}${src("hw")}</label>${numIn("seHw", s.hw != null ? nf(s.hw, 2) : "", "m", `data-f="hw" placeholder="${esc(nf(def.hw, 2))}"`)}</div>`;
+    h += `<div class="row"><label for="seStag">${esc(tr("su.stag"))}</label>${numIn("seStag", nf(R.stag, 2), tr("su.stagU"), 'data-f="stag"')}</div>`;
+  }
+  if (mast) {
+    h += `<div class="row"><label for="seFound">${esc(tr("su.found"))}${src("found")}</label><select id="seFound" class="sel" data-f="found">${opt("", ofLbl("found"), s.found || "")}${K.FOUNDATIONS.map((f) => opt(f.id, f.id, s.found || "")).join("")}</select></div>`;
+    h += `<div class="row"><label for="seC1">${esc(tr("su.c1"))}${src("c1")}</label>${numIn("seC1", s.c1 != null ? nf(s.c1, 2) : "", "m (" + nf(0.25, 2) + "–" + nf(0.5, 2) + ")", `data-f="c1" placeholder="${esc(nf(def.c1, 2))}"`)}</div>`;
+    h += `<div class="row"><label for="sePil">${esc(tr("su.pilOut"))}${src("pilOut")}</label>${numIn("sePil", s.pilOut != null ? nf(s.pilOut, 2) : "", "m", `data-f="pilOut" placeholder="${esc(nf(def.pilOut, 2))}"`)}</div>`;
+    if (!R.fits) h += `<p class="note warn">${esc(tr("su.noFit", { m: R.mast.id, d: ni(R.mast.bolts.D * 1000), e: ni(R.mast.bolts.E * 1000) }))}</p>`;
+  }
   h += `<div class="row"><span class="lbl">${esc(tr("su.eq"))}</span><div class="chks"><label><input type="checkbox" data-f="trafo"${R.eq.trafo ? " checked" : ""}> ${esc(tr("su.trafo"))}</label><label><input type="checkbox" data-f="sez"${R.eq.sez ? " checked" : ""}> ${esc(tr("su.sez"))}</label></div></div>`;
   if (R.eq.trafo || R.eq.sez) h += `<p class="help">${esc(tr("su.eqHelp"))}</p>`;
-  h += suspEditor(s, R);
+  if (mens) h += suspEditor(s, R);
   h += kv(tr("su.pos"), esc(tr("su.posV", { e: nf(lv.E, 3), n: nf(lv.N, 3) })));
-  h += kv(tr("su.top"), esc(nf(lv.top, 3) + " m"));
-  // fondazione sul supercompattato (0.7.0)
-  h += kv(tr("su.sc"), esc(R.fromSc ? (R.scOut > 0 ? tr("su.scEdge", { z: nf(lv.pf + R.sc, 3), d: nf(R.scOut, 2) }) : tr("su.scV", { z: nf(lv.pf + R.sc, 3) })) : S.sc.length ? tr("su.scMiss", { d: nf(SC_MAX, 0) }) : tr("su.scNone")), S.sc.length > 0 && (!R.fromSc || R.scOut > 0));
-  h += kv(tr("su.pil"), esc(tr("su.pilV", { z: nf(lv.head, 3), d: nf(R.drop, 3) })), R.dropOver);
-  if (R.dropOver) h += `<p class="note warn">${esc(tr("su.dropOver", { d: nf(R.drop, 2), m: nf(K.DROP_MAX, 2) }))}</p>`;
-  if (lv.top < lv.tie - 1e-9) h += `<p class="note warn">${esc(tr("su.short", { h: nf(lv.top - lv.pf, 2), t: nf(lv.tie - lv.pf, 2) }))}</p>`;
-  h += kv(tr("su.vol"), esc(tr("su.volV", { v: nf(R.vol, 2), f: R.found.id, c: nf(R.c1, 2) })));
+  if (mast) {
+    h += kv(tr("su.top"), esc(nf(lv.top, 3) + " m"));
+    // fondazione sul supercompattato (0.7.0)
+    h += kv(tr("su.sc"), esc(R.fromSc ? (R.scOut > 0 ? tr("su.scEdge", { z: nf(lv.pf + R.sc, 3), d: nf(R.scOut, 2) }) : tr("su.scV", { z: nf(lv.pf + R.sc, 3) })) : S.sc.length ? tr("su.scMiss", { d: nf(SC_MAX, 0) }) : tr("su.scNone")), S.sc.length > 0 && (!R.fromSc || R.scOut > 0));
+    h += kv(tr("su.pil"), esc(tr("su.pilV", { z: nf(lv.head, 3), d: nf(R.drop, 3) })), R.dropOver);
+    if (R.dropOver) h += `<p class="note warn">${esc(tr("su.dropOver", { d: nf(R.drop, 2), m: nf(K.DROP_MAX, 2) }))}</p>`;
+    if (mens && lv.top < lv.tie - 1e-9) h += `<p class="note warn">${esc(tr("su.short", { h: nf(lv.top - lv.pf, 2), t: nf(lv.tie - lv.pf, 2) }))}</p>`;
+    h += kv(tr("su.vol"), esc(tr("su.volV", { v: nf(R.vol, 2), f: R.found.id, c: nf(R.c1, 2) })));
+  }
   if (s.attrs && Object.keys(s.attrs).length) { h += `<div class="sub">${esc(tr("su.attrs"))}</div>`; for (const [k, v] of Object.entries(s.attrs)) h += kv(k, esc(v)); }
   h += `<div class="secview"><div class="cap">${esc(tr("su.secCap", { n: s.num }))}</div>${supSection(s, R)}</div>`;
   h += psetPreview(s, R);
@@ -3068,14 +3080,17 @@ function supSection(s, R) {
     g += `<line x1="${r(X(qj))}" y1="${r(Y(zj))}" x2="${r(X(qf))}" y2="${r(Y(zj))}" stroke="var(--blue)" stroke-width="1" marker-start="url(#ar)" marker-end="url(#ar)"/>`;
     g += T10((X(qj) + X(qf)) / 2, Y(zj) - 4, "DR " + nf(x.dr, 3), "middle", "var(--blue)");
   });
-  [{ stag: R.stag, off: 0, type: R.sosp }, ...R.susp].forEach((x) => { if (x.type) g += T10(X(-sd * x.off + sd * x.stag), Y(R.hm) - 5, x.type, "middle"); });
+  if (R.nMens) [{ stag: R.stag, off: 0, type: R.sosp }, ...R.susp].forEach((x) => { if (x.type) g += T10(X(-sd * x.off + sd * x.stag), Y(R.hm) - 5, x.type, "middle"); });
   const side = sd > 0 ? "end" : "start", qx = X(qf + sd * (R.mast.w + 0.25 + (R.eq.trafo || R.eq.sez ? 0.65 : 0)));
   const lv = C.supportLevels(T, s, R);
-  g += T10(qx, Y(lv.top - f.z) + 4, tr("su.lTop", { v: nf(lv.top - f.z, 2) }), side);
-  g += T10(qx, Y(R.hm) + 4, tr("su.lMens", { v: nf(R.hm, 2) }), side);
-  g += T10(X(sd * R.stag) + (sd > 0 ? 6 : -6), Y(R.hw) + 12, tr("su.lWire", { v: nf(R.hw, 2) }), sd > 0 ? "start" : "end", "var(--blue)");
-  g += T10(qx, Y(lv.bottom - f.z) - 3, R.found.id, side);
-  if (R.fromSc) g += T10(qx, Y(R.sc) + 11, tr("su.lSc", { v: nf(R.sc, 2) }), side, "var(--hl)");
+  // configurazione (0.24.0): senza mensola niente mensola né filo, la sola mensola senza testa del palo né fondazione
+  if (R.hasMast) g += T10(qx, Y(lv.top - f.z) + 4, tr("su.lTop", { v: nf(lv.top - f.z, 2) }), side);
+  if (R.nMens) {
+    g += T10(qx, Y(R.hm) + 4, tr("su.lMens", { v: nf(R.hm, 2) }), side);
+    g += T10(X(sd * R.stag) + (sd > 0 ? 6 : -6), Y(R.hw) + 12, tr("su.lWire", { v: nf(R.hw, 2) }), sd > 0 ? "start" : "end", "var(--blue)");
+  }
+  if (R.hasMast) g += T10(qx, Y(lv.bottom - f.z) - 3, R.found.id, side);
+  if (R.hasMast && R.fromSc) g += T10(qx, Y(R.sc) + 11, tr("su.lSc", { v: nf(R.sc, 2) }), side, "var(--hl)");
   g += `<defs><marker id="ar" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L6 3L0 6z" fill="var(--blue)"/></marker></defs></svg>`;
   return g;
 }
@@ -3326,7 +3341,7 @@ function imApply(st) {
     const two = Number.isFinite(rec.L2) || !!rec.sosp2, nb = two ? neighborTrack(t, u, side) : null;
     const L = Number.isFinite(rec.L) && Number.isFinite(rec.L2) ? Math.max(rec.L, rec.L2) : fin(rec.L) ?? fin(rec.L2);
     const s = { id: S.supSeq++, track: t.id, u, side, num: rec.num || K.nextNumber(list, side, def), numUser: !!rec.num, stag,
-      mast: rec.mast, dbl: rec.dbl || undefined, dr: o.xy ? Math.round(o.dr * 1000) / 1000 : fin(o.dr), L, hm: null, hw: fin(rec.hw), found: rec.found, c1: null, sosp: rec.sosp || null, eq: { trafo: false, sez: false },
+      mast: rec.mast, dbl: rec.dbl || undefined, cfg: rec.cfg || undefined, dr: o.xy ? Math.round(o.dr * 1000) / 1000 : fin(o.dr), L, hm: null, hw: fin(rec.hw), found: rec.found, c1: null, sosp: rec.sosp || null, eq: { trafo: false, sez: false },
       susp: two ? [{ track: nb ? nb.t.id : null, off: null, stag: null, type: rec.sosp2 || null }] : [], attrs: Object.keys(rec.attrs).length ? rec.attrs : undefined };
     S.supports.push(s); last = s;
   }
@@ -3351,7 +3366,8 @@ function editSupport(s, k, v) {
   else if (k === "trafo" || k === "sez") s.eq = { ...(s.eq || {}), [k]: !!v };
   else if (k === "auto") s.auto = !!v;
   else if (k === "sosp") s.sosp = String(v).trim() || null;
-  else if (k === "dbl") s.dbl = !!v;                                   // pali doppi (0.11.0)
+  else if (k === "dbl") { s.dbl = !!v; if (s.dbl && !isPortal(s) && !s.cfg) s.cfg = "SM"; }   // pali doppi (0.11.0; del catalogo: senza mensola, 0.24.0)
+  else if (k === "cfg") s.cfg = v && K.SUPPORT_CFGS.includes(v) ? v : undefined;   // configurazione del sostegno (0.24.0)
   // portale
   else if (k === "up") s.up = K.PORTAL_UPS.includes(v) ? v : "PO";
   else if (k === "beam") s.beam = v || null;
@@ -3919,7 +3935,7 @@ function editAuto(k, v) {
    della F6. Qui: editor, anteprima sul sostegno scelto, .json per riusarlo.
    ========================================================================= */
 const IFCT = { label: "IfcLabel", text: "IfcText", identifier: "IfcIdentifier", length: "IfcLengthMeasure", area: "IfcAreaMeasure", volume: "IfcVolumeMeasure", angle: "IfcPlaneAngleMeasure", ratio: "IfcPositiveRatioMeasure", real: "IfcReal", int: "IfcInteger", bool: "IfcBoolean" };
-const fieldLabel = (k) => ({ num: tr("pf.num"), track: tr("pf.track"), sta: tr("pf.sta"), side: tr("pf.side"), dr: tr("pf.dr"), drL: tr("pf.drL"), drR: tr("pf.drR"), mast: tr("pf.mast"), mens: tr("pf.mens"), mensCode: tr("pf.mensCode"),
+const fieldLabel = (k) => ({ num: tr("pf.num"), track: tr("pf.track"), sta: tr("pf.sta"), side: tr("pf.side"), dr: tr("pf.dr"), drL: tr("pf.drL"), drR: tr("pf.drR"), mast: tr("pf.mast"), cfg: tr("pf.cfg"), mens: tr("pf.mens"), mensCode: tr("pf.mensCode"),
   beam: tr("pf.beam"), beamL: tr("pf.beamL"), hm: tr("pf.hm"), hb: tr("pf.hb"), hw: tr("pf.hw"), stag: tr("pf.stag"), sosp: tr("pf.sosp"), served: tr("pf.served"), nSusp: tr("pf.nSusp"), kg: tr("pf.kg"), found: tr("pf.found"), c1: tr("pf.c1"),
   vol: tr("pf.vol"), E: tr("pf.E"), N: tr("pf.N"), top: tr("pf.top"), zPil: tr("pf.zPil"), zSc: tr("pf.zSc") })[k] || k;
 const warnText = (c) => ({ noName: tr("pw.noName"), stdPrefix: tr("pw.stdPrefix"), noKinds: tr("pw.noKinds"), dupSet: tr("pw.dupSet"), dupProp: tr("pw.dupProp"), noKey: tr("pw.noKey"), badConst: tr("pw.badConst") })[c] || c;
@@ -4393,11 +4409,11 @@ function ifcDialog() {
 async function exportIfc(o, railStep) {
   busy(tr("ix.busy")); await frame();
   try {
-    const X = await import("./ocs-ifc.js?v=0.23.0");
+    const X = await import("./ocs-ifc.js?v=0.24.0");
     const tpl = psetTpl();
     const labels = { site: tr("ifc.site"), railway: tr("ifc.railway"), mast: tr("ifc.mast"), portal: tr("ifc.portal"), stem: tr("ifc.stem"), plate: tr("ifc.plate"),
       mens: tr("ifc.mens"), tie: tr("ifc.tie"), susp: tr("ifc.susp"), pend: tr("ifc.pend"), found: tr("ifc.found"), beam: tr("ifc.beam"), pole: tr("ifc.pole"), trafo: tr("ifc.trafo"),
-      sez: tr("ifc.sez"), att: tr("ifc.att"), attTie: tr("ifc.attTie"), attBeam: tr("ifc.attBeam"), iso: tr("ifc.iso"), tubeP: tr("ifc.tubeP"), mensP: tr("ifc.mensP"), plateP: tr("ifc.plateP"), railL: tr("ifc.railL"), railR: tr("ifc.railR"), steel: tr("ifc.steel"), concrete: tr("ifc.concrete"), offset: tr("ifc.offset") };
+      sez: tr("ifc.sez"), att: tr("ifc.att"), attTie: tr("ifc.attTie"), attDouble: tr("ifc.attDouble"), cal: tr("ifc.cal"), attBeam: tr("ifc.attBeam"), iso: tr("ifc.iso"), tubeP: tr("ifc.tubeP"), mensP: tr("ifc.mensP"), plateP: tr("ifc.plateP"), railL: tr("ifc.railL"), railR: tr("ifc.railR"), steel: tr("ifc.steel"), concrete: tr("ifc.concrete"), offset: tr("ifc.offset") };
     const tracks = S.tracks.filter((t) => o.ids.includes(t.id)).map((t) => ({
       name: t.name, T: derivedOf(t).T, gauge: (t.cant && t.cant.gauge) || 1.5, align: o.align, rails: o.rails,
       sups: supsOf(t).slice().sort((a, b) => a.u - b.u).map((s) => {
@@ -4810,7 +4826,7 @@ const projectUid = () => S.uid || (S.uid = "p" + Date.now().toString(36) + Math.
 const RV_SKIP = { portalLsu: () => tr("rv.skip.portalLsu"), double: () => tr("rv.skip.double"), mastSize: () => tr("rv.skip.mastSize"), geom: () => tr("rv.skip.geom") };
 const RV_WARN = {
   mensType: () => tr("rv.w.mensType"), sospType: () => tr("rv.w.sospType"), susp: () => tr("rv.w.susp"), equip: () => tr("rv.w.equip"), tieHeight: () => tr("rv.w.tieHeight"),
-  portalSusp: () => tr("rv.w.portalSusp"), spanRange: () => tr("rv.w.spanRange"), spanType: () => tr("rv.w.spanType"),
+  portalSusp: () => tr("rv.w.portalSusp"), spanRange: () => tr("rv.w.spanRange"), spanType: () => tr("rv.w.spanType"), portalMast: () => tr("rv.w.portalMast"),
 };
 function revitPlaceItems() {
   const items = [], skips = {}, warns = {}, r4 = (v) => Math.round(v * 1e4) / 1e4, r9 = (v) => Math.round(v * 1e9) / 1e9;

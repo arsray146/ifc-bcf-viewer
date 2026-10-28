@@ -307,33 +307,40 @@ export function supportParts(T, sup, R) {
   const box = (k, along, q, zc, sl, st, sv) => out.push({ k, c: at(along, q, zc), sz: [sl, st, sv], th });
   const M = R.mast, face = s * (R.dr + GAUGE_HALF), qc = face + s * M.w / 2;
   const Pl = plateOf(M), zHead = z0 + R.baseDz, zPlate = zHead + GROUT, zBase = zPlate + Pl.t, zTop = zBase + M.H;
-  // fondazione: pilastrino sotto la piastra (che sta GROUT più su), blocco sotto il pilastrino (i B eccentrici: A2 verso il binario)
-  const Fd = R.found, zPil = zHead - R.c1, zBlk = zPil - Fd.C;
-  box("pil", 0, qc, (zHead + zPil) / 2, Fd.B1, Fd.A1, R.c1);
-  const qb = Fd.A2 != null ? qc + s * (Fd.A / 2 - Fd.A2) : qc;
-  box("block", 0, qb, (zPil + zBlk) / 2, Fd.B, Fd.A, Fd.C);
-  for (const x of R.dbl ? [-DOUBLE_GAP_CORE / 2, DOUBLE_GAP_CORE / 2] : [0]) {   // palo doppio (0.11.0): due fusti lungo il binario
-    box("plate", x, qc, zPlate + Pl.t / 2, Pl.b, Pl.a, Pl.t);
-    box("mast", x, qc, (zBase + zTop) / 2, M.d, M.w, M.H);
+  // fondazione: pilastrino sotto la piastra (che sta GROUT più su), blocco sotto il pilastrino (i B eccentrici: A2 verso il binario).
+  // Configurazione (0.24.0, ocs-catalog SUPPORT_CFGS): «SOLO» = la sola mensola su un sostegno esistente (niente palo né
+  // fondazione), «SM» = senza mensola, «2M» = due mensole uguali affiancate lungo il binario a INTERASSE_2M
+  const Fd = R.found, zPil = zHead - R.c1, zBlk = zPil - Fd.C, gap = R.gap || DOUBLE_GAP_CORE;
+  if (R.hasMast !== false) {
+    for (const x of Fd.I ? [-Fd.I / 2, Fd.I / 2] : [0]) box("pil", x, qc, (zHead + zPil) / 2, Fd.B1, Fd.A1, R.c1);   // P8D: due pilastrini
+    const qb = Fd.A2 != null ? qc + s * (Fd.A / 2 - Fd.A2) : qc;
+    box("block", 0, qb, (zPil + zBlk) / 2, Fd.B, Fd.A, Fd.C);
+    for (const x of R.dbl ? [-gap / 2, gap / 2] : [0]) {   // palo doppio (0.11.0): due fusti lungo il binario
+      box("plate", x, qc, zPlate + Pl.t / 2, Pl.b, Pl.a, Pl.t);
+      box("mast", x, qc, (zBase + zTop) / 2, M.d, M.w, M.H);
+    }
   }
   // UNA mensola dalla faccia verso il binario; su di essa una sospensione per binario servito (il binario del
   // palo e quelli in R.susp, all'interasse off oltre il primo, filo a hw sul LORO piano del ferro) e un tirante
   // per sospensione (R.ties: il più lontano alla punta). Parti con suffisso 2, 3… per le sospensioni in più;
-  // «trk» = asse del binario servito (solo per la sezione)
+  // «trk» = asse del binario servito (solo per la sezione). Con due mensole («2M») la seconda ha le stesse parti
+  const nM = R.nMens != null ? R.nMens : 1;
   const q0 = face - s * 0.115, zm = z0 + R.hm, L = R.mens.L, q1 = q0 - s * L;
-  box("mens", 0, (q0 + q1) / 2, zm, 0.06, L, 0.06);
-  // attacco della mensola al palo (0.12.1, E 73012–73014): piastra sulla faccia (255 lungo il binario × 175 alta,
-  // 20 di spessore) e snodo dalla piastra all'inizio della mensola (che parte MENS_START = 115 mm oltre la faccia)
-  box("att", 0, face - s * ATT.t / 2, zm, ATT.w, ATT.t, ATT.h);
-  box("att", 0, face - s * (ATT.t + 0.115) / 2, zm, 0.06, 0.115 - ATT.t, 0.06);
-  const sus = [{ off: 0, dz: 0, stag: R.stag }, ...(R.susp || [])];
-  sus.forEach((x, i) => {
-    const sfx = i ? String(i + 1) : "", qa = -s * x.off, qw = qa + s * x.stag, zw = z0 + x.dz + R.hw;
-    out.push({ k: "arm" + sfx, a: at(0, qw, zm), b: at(0, qw, zw) });
-    out.push({ k: "wire" + sfx, c: at(0, qw, zw) });
-    out.push({ k: "trk" + sfx, c: at(0, qa, z0 + x.dz) });
-  });
-  (R.ties || [R.tir]).forEach((t, i) => out.push({ k: "tir" + (i ? String(i + 1) : ""), a: at(0, face, zm + t.dh), b: at(0, q0 - s * t.xt, zm) }));
+  for (const ax of nM === 2 ? [-INTERASSE_2M_CORE / 2, INTERASSE_2M_CORE / 2] : nM ? [0] : []) {
+    box("mens", ax, (q0 + q1) / 2, zm, 0.06, L, 0.06);
+    // attacco della mensola al palo (0.12.1, E 73012–73014): piastra sulla faccia (255 lungo il binario × 175 alta,
+    // 20 di spessore) e snodo dalla piastra all'inizio della mensola (che parte MENS_START = 115 mm oltre la faccia)
+    box("att", ax, face - s * ATT.t / 2, zm, ATT.w, ATT.t, ATT.h);
+    box("att", ax, face - s * (ATT.t + 0.115) / 2, zm, 0.06, 0.115 - ATT.t, 0.06);
+    const sus = [{ off: 0, dz: 0, stag: R.stag }, ...(R.susp || [])];
+    sus.forEach((x, i) => {
+      const sfx = i ? String(i + 1) : "", qa = -s * x.off, qw = qa + s * x.stag, zw = z0 + x.dz + R.hw;
+      out.push({ k: "arm" + sfx, a: at(ax, qw, zm), b: at(ax, qw, zw) });
+      out.push({ k: "wire" + sfx, c: at(ax, qw, zw) });
+      out.push({ k: "trk" + sfx, c: at(ax, qa, z0 + x.dz) });
+    });
+    (R.ties || [R.tir]).forEach((t, i) => out.push({ k: "tir" + (i ? String(i + 1) : ""), a: at(ax, face, zm + t.dh), b: at(ax, q0 - s * t.xt, zm) }));
+  }
   // apparecchiature sul retro del palo (lontano dal binario); con tutte e due, una per parte lungo il binario
   const back = face + s * (M.w + 0.05);
   const both = R.eq.trafo && R.eq.sez;
@@ -434,12 +441,13 @@ export function portalParts(T, P, R) {
   const B = R.beam, zb = z0 + R.hb, zt = zb + B.h;
   for (const [y, zB, sgn] of [[half, R.zBaseL, 1], [-half, R.zBaseR, -1]]) {
     const zPlate = z0 + zB, Fd = R.found, zPil = zPlate - R.c1, zBlk = zPil - Fd.C;
-    box("pil", 0, y, (zPlate + zPil) / 2, Fd.B1, Fd.A1, R.c1);
+    for (const x of Fd.I ? [-Fd.I / 2, Fd.I / 2] : [0]) box("pil", x, y, (zPlate + zPil) / 2, Fd.B1, Fd.A1, R.c1);   // P8D: due pilastrini
     const yb = Fd.A2 != null ? y - sgn * (Fd.A / 2 - Fd.A2) : y;     // i B eccentrici verso i binari (dentro)
     box("block", 0, yb, (zPil + zBlk) / 2, Fd.B, Fd.A, Fd.C);
     if (R.mast) {
       const M = R.mast, Pl = plateOf(M), zP = zPlate + GROUT, zBase = zP + Pl.t;
-      for (const x of R.dbl ? [-DOUBLE_GAP_CORE / 2, DOUBLE_GAP_CORE / 2] : [0]) {   // palo doppio: due pali lungo il binario
+      const gap = R.gap || DOUBLE_GAP_CORE;
+      for (const x of R.dbl ? [-gap / 2, gap / 2] : [0]) {   // palo doppio: due pali lungo il binario
         box("plate", x, y, zP + Pl.t / 2, Pl.b, Pl.a, Pl.t);
         box("mast", x, y, zBase + M.H / 2, M.d, M.w, M.H);
       }
@@ -463,7 +471,8 @@ export function portalParts(T, P, R) {
 }
 const BEAM_WIDTH_CORE = 0.6, BEAM_TOP_GAP_CORE = 0.1;    // = ocs-catalog BEAM_WIDTH, BEAM_TOP_GAP (il motore non importa il catalogo)
 const ATT = { w: 0.255, h: 0.175, t: 0.02 };              // piastra a X dell'attacco della mensola (E 73013)
-const DOUBLE_GAP_CORE = 1.1;                             // = ocs-catalog DOUBLE_GAP (E 64906 c, 0.12.0)
+const DOUBLE_GAP_CORE = 1.1;                             // = ocs-catalog DOUBLE_GAP (E 64906 c, 0.12.0); per taglia: R.gap (0.24.0)
+const INTERASSE_2M_CORE = 0.28;                          // = ocs-catalog INTERASSE_2M (due mensole, 0.24.0)
 /* la piastra del palo LSU sta 90 mm sopra la testa del pilastrino (E 66013 c; 0.17.0, come le famiglie RFI della
    sessione 18): la quota del tool (baseDz, pilOut) resta quella della testa del pilastrino. = ocs-catalog PLATE_GROUT */
 export const GROUT = 0.09;

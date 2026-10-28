@@ -46,8 +46,8 @@
      RICEVUTO (l'offset sta nella descrizione); i sostegni e le rotaie
      stanno sul binario vero.
    ========================================================================= */
-import * as C from "./ocs-core.js?v=0.23.0";
-import * as RFI from "./ocs-rfi.js?v=0.23.0";
+import * as C from "./ocs-core.js?v=0.24.0";
+import * as RFI from "./ocs-rfi.js?v=0.24.0";
 import { writeStep } from "../common/pset-core.js?v=1.1.0";
 import { ifcGuid, stepStr, stepReal, chainage } from "../profile-sweep/profile-io.js?v=0.23.0";
 
@@ -55,7 +55,7 @@ import { ifcGuid, stepStr, stepReal, chainage } from "../profile-sweep/profile-i
 export const IFC_LABELS = {
   site: "Sito", railway: "Trazione elettrica", mast: "Palo", portal: "Portale", stem: "Fusto", plate: "Piastra", mens: "Mensola",
   tie: "Tirante", susp: "Sospensione", pend: "Pendolo", found: "Fondazione", beam: "Trave", pole: "Pilone", trafo: "Trasformatore",
-  sez: "Sezionatore", att: "Attacco mensola", attTie: "Attacco tirante", attBeam: "Attacco trave", iso: "Isolatori", tubeP: "Tubo della sospensione", mensP: "Mensola da portale", plateP: "Piastra del tubo", railL: "Rotaia sinistra", railR: "Rotaia destra", steel: "Acciaio", concrete: "Calcestruzzo", offset: "Offset dall'asse ricevuto",
+  sez: "Sezionatore", att: "Attacco mensola", attTie: "Attacco tirante", attDouble: "Staffa doppia", cal: "Calastrelli", attBeam: "Attacco trave", iso: "Isolatori", tubeP: "Tubo della sospensione", mensP: "Mensola da portale", plateP: "Piastra del tubo", railL: "Rotaia sinistra", railR: "Rotaia destra", steel: "Acciaio", concrete: "Calcestruzzo", offset: "Offset dall'asse ricevuto",
 };
 export const LODS = ["box", "upn", "lattice"];
 /* rotaia semplice (rettangolo sotto il piano del ferro, fuori dal bordo interno) e aste dei tiranti/pendoli */
@@ -189,7 +189,7 @@ export function ocsIfc(job) {
   const beamType = (B, fix) => typeOf("beam|" + B.id + "|" + B.L.toFixed(3) + "|" + lod, "IFCBEAMTYPE", "BEAM", B.id + (fix ? " L " + R(B.L, 3) : ""), () => C.beamSolids(B, lod).map((b) => boxSolid(b)), "dark");
   /* fondazione: origine sulla testa del pilastrino, asse del palo; +y = verso cui il blocco B è eccentrico */
   const footType = (Fd, c1) => typeOf("found|" + Fd.id + "|" + Math.round(c1 * 1000), "IFCFOOTINGTYPE", "PAD_FOOTING", Fd.id + (c1 !== 0.25 ? " C1 " + R(c1, 3) : ""), () => [
-    aBox(0, 0, -c1 / 2, Fd.B1, Fd.A1, c1),
+    ...(Fd.I ? [-Fd.I / 2, Fd.I / 2] : [0]).map((x) => aBox(x, 0, -c1 / 2, Fd.B1, Fd.A1, c1)),   // P8D (0.24.0): due pilastrini
     aBox(0, Fd.A2 != null ? Fd.A / 2 - Fd.A2 : 0, -c1 - Fd.C / 2, Fd.B, Fd.A, Fd.C),
   ], "conc");
 
@@ -347,6 +347,8 @@ export function ocsIfc(job) {
       if (pc.k === "palo") return lb.mast + " " + Rs.mast.id;
       if (pc.k === "att") return lb.att || "Attacco mensola";
       if (pc.k === "staffa") return lb.attTie || "Attacco tirante";
+      if (pc.k === "staffa2") return lb.attDouble || "Staffa doppia";
+      if (pc.k === "cal") return lb.cal || "Calastrelli";
       if (pc.k === "mens") return lb.mens + " " + Rs.mens.code + " L " + R(Rs.mens.L, 3);
       if (pc.k.startsWith("tir")) return lb.tie;
       if (pc.k === "pilone") return lb.pole + " " + short("RFI_Pilone_");
@@ -382,7 +384,7 @@ export function ocsIfc(job) {
     };
     const feet = RP ? [] : portal
       ? [{ p: PF.at(0, PF.half, f.z + Rs.zBaseL), k: -1 }, { p: PF.at(0, -PF.half, f.z + Rs.zBaseR), k: 1 }]
-      : [{ p: F.at(0, qc, zO), k: sg }];
+      : Rs.hasMast === false ? [] : [{ p: F.at(0, qc, zO), k: sg }];   // la sola mensola (0.24.0) non ha fondazione
     const foots = feet.map((ft) => {
       const Tf = footType(Rs.found, Rs.c1), p = ft.p;
       return footing(LP(part.pl, A3(P3(p.x - O.x, p.y - O.y, p.z), Z, D3(ft.k * tx, ft.k * ty, 0))), mapped(Tf), Tf);

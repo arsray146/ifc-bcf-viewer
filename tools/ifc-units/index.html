@@ -805,7 +805,7 @@ html[data-theme="light"] .sheet-bk{background:rgba(33,42,35,.28)}
      ========================================================================= -->
 <script type="text/engine" id="unitsEngine">
 "use strict";
-var FU_VERSION="0.1.0";
+var FU_VERSION="0.1.1";
 /* marcatura nell'header (FILE_DESCRIPTION, non nei dati): dice che il file è
    già passato di qui. Riconosce anche quella dello script Python da cui il
    tool nasce, così un file sistemato là non si riconverte qua. */
@@ -2156,10 +2156,10 @@ function fuXmlDec(s){
 function fuColNum(l){ let n=0; for(let i=0;i<l.length;i++) n=n*26+(l.charCodeAt(i)-64); return n-1; }
 function fuSharedStrings(xml){
   const out=[]; if(!xml) return out;
-  const re=/<si(?:\s[^>]*)?(?:\/>|>([\s\S]*?)<\/si>)/g; let m;
+  const re=/<si(?:\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/si>)/g; let m;
   while((m=re.exec(xml))){
     if(m[1]==null){ out.push(""); continue; }
-    let s=""; const rt=/<t(?:\s[^>]*)?(?:\/>|>([\s\S]*?)<\/t>)/g; let t;
+    let s=""; const rt=/<t(?:\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/t>)/g; let t;
     while((t=rt.exec(m[1]))) s+=t[1]==null?"":fuXmlDec(t[1]);
     out.push(s);
   }
@@ -2167,7 +2167,7 @@ function fuSharedStrings(xml){
 }
 function fuSheetRows(xml,shared){
   const rows=[]; if(!xml) return rows;
-  const rowRe=/<row(\s[^>]*)?(?:\/>|>([\s\S]*?)<\/row>)/g; let m;
+  const rowRe=/<row(\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/row>)/g; let m;
   while((m=rowRe.exec(xml))){
     /* righe saltate nel foglio (r="7" dopo r="4"): restano vuote, così i
        numeri di riga degli errori sono quelli che si vedono in Excel */
@@ -2175,7 +2175,7 @@ function fuSheetRows(xml,shared){
     if(rn){ const want=parseInt(rn[1],10)-1; while(rows.length<want) rows.push([]); }
     const cells=[];
     if(m[2]!=null){
-      const cRe=/<c(\s[^>]*)?(?:\/>|>([\s\S]*?)<\/c>)/g; let c,auto=0;
+      const cRe=/<c(\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/c>)/g; let c,auto=0;
       while((c=cRe.exec(m[2]))){
         const attr=c[1]||"",body=c[2]||"";
         const rm=attr.match(/r="([A-Z]+)\d+"/), col=rm?fuColNum(rm[1]):auto;
@@ -2375,6 +2375,8 @@ const I18N = {
     "cat.sub1":"{n} proprietà con un numero in {f} · {nu} senza unità · {nr} con una regola",
     "cat.files":"{n} modelli","cat.files1":"1 modello",
     "cat.none":"Nessuna proprietà numerica in questi modelli: niente a cui dare un'unità.",
+    "cat.noneWhy":"Nessuna proprietà numerica in questi modelli: ce ne sono {n} in tutto, tutte di testo. Se ti aspettavi le proprietà degli elementi, il file è stato esportato senza: in Revit vanno attivati i set di proprietà (Revit, comuni IFC o definiti dall'utente) nelle opzioni di esportazione IFC.",
+    "cat.noneWhy1":"Nessuna proprietà numerica in questi modelli: ce n'è una sola, di testo. Se ti aspettavi le proprietà degli elementi, il file è stato esportato senza: in Revit vanno attivati i set di proprietà (Revit, comuni IFC o definiti dall'utente) nelle opzioni di esportazione IFC.",
     "cat.noneF":"Nessuna proprietà con questi filtri.",
     "f.all":"Tutte","f.none":"Senza unità","f.proj":"Unità di progetto","f.unit":"Con unità","f.text":"Numeri nel testo",
     "f.rule":"Con regola","f.fix":"Da sistemare","f.sugg":"Proposte","f.susp":"Sospette",
@@ -2537,6 +2539,8 @@ const I18N = {
     "cat.sub1":"{n} property holding a number in {f} · {nu} without a unit · {nr} with a rule",
     "cat.files":"{n} models","cat.files1":"1 model",
     "cat.none":"No numeric properties in these models: nothing to give a unit to.",
+    "cat.noneWhy":"No numeric properties in these models: there are {n} in all, every one of them text. If you expected the element properties, the file was exported without them: in Revit, turn on the property sets (Revit, IFC common or user-defined) in the IFC export options.",
+    "cat.noneWhy1":"No numeric properties in these models: there is only one, and it is text. If you expected the element properties, the file was exported without them: in Revit, turn on the property sets (Revit, IFC common or user-defined) in the IFC export options.",
     "cat.noneF":"No property with these filters.",
     "f.all":"All","f.none":"No unit","f.proj":"Project unit","f.unit":"With unit","f.text":"Numbers in text",
     "f.rule":"With a rule","f.fix":"To fix","f.sugg":"Suggestions","f.susp":"Suspicious",
@@ -3099,7 +3103,9 @@ function renderList(){
   if(!STATE.files.length){ ui.catList.innerHTML=""; return; }
   const list=visibleEntries();
   ui.catNone.hidden=!!list.length;
-  ui.catNone.textContent=STATE.cat.length?tr("cat.noneF"):tr("cat.none");
+  /* catalogo vuoto con proprietà solo di testo: di solito un export senza i set degli elementi */
+  const np=STATE.files.reduce((s,f)=>s+f.idx.props.length,0);
+  ui.catNone.textContent=STATE.cat.length?tr("cat.noneF"):np?fmtN("cat.noneWhy",np):tr("cat.none");
   let html="", grp=null;
   const gcount=new Map(); for(const e of list){ const g=e.src+"\u0001"+e.pset; gcount.set(g,(gcount.get(g)||0)+1); }
   for(const e of list){

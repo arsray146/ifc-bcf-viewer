@@ -52,8 +52,21 @@ export const MASTS = MAST_SIZES.flatMap((s) => ["a", "b", "c"].map((h) => mastTy
    palo = testa del pilastrino + PLATE_GROUT + piastra + fusto. = ocs-core GROUT */
 export const PLATE_GROUT = 0.09;
 /* palo doppio (0.11.0: «PALO_DOPPIO_2xLSU», montanti «(2+2) x LSU22» dei portali MEC Satferr): due pali uguali
-   affiancati lungo il binario, assi a DOUBLE_GAP; la trave MEC passa in mezzo (E 64906 c, 0.12.0) */
+   affiancati lungo il binario, assi a DOUBLE_GAP; la trave MEC passa in mezzo (E 64906 c, 0.12.0). Dal catalogo RFI
+   del 2026-10-27 (0.24.0) la coppia di LSU24 sta a 0,80 (RFI_PaloDoppio_2xLSU24: piastre 680 + 120 di luce, unite dai
+   calastrelli; ASSUNTO), le altre a 1,10 (RFI_PaloDoppio_2xLSU22 sui due pilastrini del P8D) */
 export const DOUBLE_GAP = 1.1;
+export const DOUBLE_GAP_24 = 0.8;
+export const doubleGap = (m) => (m && m.size === 24 ? DOUBLE_GAP_24 : DOUBLE_GAP);
+/* configurazione del sostegno su palo (0.24.0, varianti del catalogo RFI: sostegni_LSU/genera.py «varianti»):
+   ""     palo, fondazione e una mensola (con le sue sospensioni: sup.susp);
+   "2M"   palo con due mensole uguali affiancate lungo il binario a INTERASSE_2M, una per catenaria della tratta di
+          sovrapposizione, sulla staffa doppia (RFI_Sostegno_<gruppo>_2M, SEGNAPOSTO: staffa e interasse assunti);
+   "SM"   palo e fondazione senza mensola (RFI_Sostegno_<gruppo>_SM; i pali doppi del catalogo sono così);
+   "SOLO" la sola mensola su un sostegno esistente (RFI_SoloMensola_<gruppo>, Satferr PALO_LS_SOLO_MENSOLA): niente
+          palo né fondazione, il tipo di palo dice solo su che palo si monta (larghezza, attacchi) */
+export const SUPPORT_CFGS = ["", "2M", "SM", "SOLO"];
+export const INTERASSE_2M = 0.28;
 
 /* ---- mensole e tiranti --------------------------------------------------- */
 export const MENSOLE = [
@@ -108,8 +121,9 @@ export function migrateSupport(s) {
 /* ---- fondazioni (E 64865 rev. f) ------------------------------------------- */
 /* A trasversale al binario, B lungo il binario, C altezza del blocco; pilastrino A1 × B1, alto C1 (0,25-0,50)
    sopra il blocco; A2 = dall'asse del pilastrino al bordo del blocco verso il binario (solo i B; i P sono
-   centrati); vol = volumi del foglio (scavo; calcestruzzo min/max); tirafondi D × E (mm → m) */
-const F = (id, A, B, C, A1, B1, A2, vs, vmin, vmax, D, E, D24, E24) => ({ id, A, B, C, A1, B1, A2, C1min: 0.25, C1max: 0.5, vs, vmin, vmax, bolts: { D, E }, bolts24: D24 ? { D: D24, E: E24 } : null });
+   centrati); vol = volumi del foglio (scavo; calcestruzzo min/max); tirafondi D × E (mm → m); I = interasse lungo
+   il binario di due pilastrini (pali doppi; 0 = pilastrino unico) */
+const F = (id, A, B, C, A1, B1, A2, vs, vmin, vmax, D, E, D24, E24, I = 0) => ({ id, A, B, C, A1, B1, A2, I, C1min: 0.25, C1max: 0.5, vs, vmin, vmax, bolts: { D, E }, bolts24: D24 ? { D: D24, E: E24 } : null });
 export const FOUNDATIONS = [
   F("B0", 1.9, 1.6, 1.1, 0.8, 0.8, 0.8, 4.10, 3.50, 3.66, 0.4, 0.4),
   F("B0a", 2.2, 1.65, 1.1, 0.8, 0.8, 0.8, 4.90, 4.15, 4.31, 0.4, 0.4),
@@ -134,7 +148,15 @@ export const FOUNDATIONS = [
   F("P7", 1.9, 2.2, 2.2, 0.8, 0.8, null, 10.24, 9.36, 9.52, 0.4, 0.4, 0.55, 0.5),
   F("P7M", 1.9, 2.2, 2.2, 0.9, 0.9, null, 10.24, 9.40, 9.60, 0.4, 0.4, 0.55, 0.5),
   F("P8M", 2.2, 2.2, 2.2, 0.9, 0.9, null, 11.85, 11.05, 13.06, 0.4, 0.4, 0.55, 0.5),
+  // pali doppi (0.24.0, catalogo RFI del 2026-10-27, RFI_Plinto_LSU): P8D = E 64865 f f.51, f.55-58, blocco per 2 pali
+  // LSU (portali MEC su 2 × LSU22, Satferr «P9M-P8D»), 2 pilastrini 800 × 800 a 1,10 lungo il binario, cls 19,57 come
+  // il minimo di tabella; P24D = fondazione speciale del palo doppio 2 × LSU24 (Satferr 20/3): blocco 2,2 × 2,2 dato,
+  // alto 2,80 STIMATO (P8M × 2^(1/3)), pilastrino unico 1,70 lungo il binario × 0,90 per le due piastre, ASSUNTO
+  F("P8D", 2.5, 3.5, 2.2, 0.8, 0.8, null, null, 19.57, 19.89, 0.4, 0.4, null, null, 1.1),
+  F("P24D", 2.2, 2.2, 2.8, 0.9, 1.7, null, null, 13.93, 14.32, 0.55, 0.5),
 ];
+/* le fondazioni dei pali doppi del catalogo, di partenza quando il palo doppio non ne ha una scritta a mano */
+export const DOUBLE_FOUND = { 22: "P8D", 24: "P24D" };
 /* due righe del foglio hanno i volumi di calcestruzzo che non tornano con le misure (A·B·C + A1·B1·C1):
    si tengono come scritte, il tool calcola i suoi dalle misure */
 export const FOUNDATION_SHEET_MISMATCH = ["B8", "P8M"];
@@ -145,7 +167,7 @@ export function foundationFits(f, m) {
   const need = m.bolts;
   return (f.bolts.D === need.D && f.bolts.E === need.E) || (!!f.bolts24 && f.bolts24.D === need.D && f.bolts24.E === need.E);
 }
-export const foundationVolume = (f, c1) => f.A * f.B * f.C + f.A1 * f.B1 * c1;
+export const foundationVolume = (f, c1) => f.A * f.B * f.C + f.A1 * f.B1 * c1 * (f.I ? 2 : 1);
 
 /* ---- apparecchiature su palo (misure di partenza, da verificare: PIANO §7.5) ---- */
 export const EQUIPMENT = {
@@ -169,8 +191,10 @@ function baseFrom(lev, pilOut, baseDz) {
   const on = !!(lev && Number.isFinite(lev.sc));
   return on ? { baseDz: lev.sc + pilOut, fromSc: true, sc: lev.sc, scOut: lev.d || 0 } : { baseDz, fromSc: false, sc: null, scOut: null };
 }
-/* un sostegno: { id, track, u, side (+1 sinistra / −1 destra guardando avanti), num, numUser,
-   mast, dr, L, hm, hw, stag, sosp, susp, found, c1, eq: { trafo, sez } } — null = valore del binario.
+/* un sostegno: { id, track, u, side (+1 sinistra / −1 destra guardando avanti), num, numUser, cfg (SUPPORT_CFGS),
+   mast, dbl, dr, L, hm, hw, stag, sosp, susp, found, c1, eq: { trafo, sez } } — null = valore del binario.
+   Il palo doppio senza fondazione scritta a mano prende quella del catalogo (DOUBLE_FOUND), non quella del binario.
+   R.hasMast = c'è un palo nostro (non «SOLO»), R.nMens = mensole (0 «SM», 2 «2M», sennò 1).
    geo = per ogni sospensione in più col binario servito, { off, dz } misurati sulla geometria al palo
    (ocs-core crossOffset: interasse e dislivello del piano del ferro); senza, l'interasse scritto o INTERAXIS */
 export function resolveSupport(sup, def = TRACK_DEFAULTS, geo = null, lev = null) {
@@ -186,18 +210,20 @@ export function resolveSupport(sup, def = TRACK_DEFAULTS, geo = null, lev = null
   const auto = mensolaFor(dr, stag, susp);
   const L = sup.L != null && sup.L !== "" ? +sup.L : auto.L;
   const mens = MENSOLE.find((x) => Math.abs(x.L - L) < 1e-6) || { L, code: "—" };
-  let f = foundation(pick("found"));
+  const cfg = SUPPORT_CFGS.includes(sup.cfg) ? sup.cfg : "", dbl = !!sup.dbl && cfg !== "SOLO";
+  let f = foundation(dbl && !filled(sup.found) && DOUBLE_FOUND[m.size] ? DOUBLE_FOUND[m.size] : pick("found"));
   if (!f) f = foundation(TRACK_DEFAULTS.found);
   const c1 = Math.max(f.C1min, Math.min(f.C1max, +pick("c1")));
   const pilOut = +pick("pilOut"), B = baseFrom(lev, pilOut, +pick("baseDz"));
+  const hasMast = cfg !== "SOLO", nMens = cfg === "SM" ? 0 : cfg === "2M" ? 2 : 1;
   return {
-    rfi: rfiMastOf(m, !!sup.dbl, mens, sup.sosp),
-    mast: m, dbl: !!sup.dbl, dr, stag, hm: +pick("hm"), hw: +pick("hw"), baseDz: B.baseDz, pilOut, fromSc: B.fromSc, sc: B.sc, scOut: B.scOut,
-    drop: -B.baseDz, dropOver: -B.baseDz > DROP_MAX + 1e-9,
-    mens, Lauto: sup.L == null || sup.L === "", Lshort: L < auto.L - 1e-9, tir: tiranteFor(L),
-    sosp: sup.sosp || "", susp, ties: tiesFor(L, dr, [{ off: 0, stag }, ...susp]),
-    found: f, c1, vol: foundationVolume(f, c1),
-    fits: foundationFits(f, m),
+    rfi: rfiMastOf(m, dbl, mens, sup.sosp, cfg),
+    cfg, hasMast, nMens, mast: m, dbl, gap: dbl ? doubleGap(m) : 0, dr, stag, hm: +pick("hm"), hw: +pick("hw"), baseDz: B.baseDz, pilOut, fromSc: B.fromSc, sc: B.sc, scOut: B.scOut,
+    drop: -B.baseDz, dropOver: hasMast && -B.baseDz > DROP_MAX + 1e-9,
+    mens, Lauto: sup.L == null || sup.L === "", Lshort: nMens > 0 && L < auto.L - 1e-9, tir: tiranteFor(L),
+    sosp: sup.sosp || "", susp: nMens ? susp : [], ties: nMens ? tiesFor(L, dr, [{ off: 0, stag }, ...susp]) : [],
+    found: f, c1, vol: hasMast ? foundationVolume(f, c1) : 0,
+    fits: !hasMast || foundationFits(f, m),
     eq: { trafo: !!(sup.eq && sup.eq.trafo), sez: !!(sup.eq && sup.eq.sez), trafoSpec: EQUIPMENT.trafo, sezSpec: EQUIPMENT.sez },
   };
 }
@@ -282,20 +308,23 @@ export function resolvePortal(p, def = TRACK_DEFAULTS, geo = [], lev = null) {
   const bL = baseFrom(lev && lev.L, pilOut, top.dz + baseDz), bR = baseFrom(lev && lev.R, pilOut, bot.dz + baseDz);
   // famiglia RFI (0.17.0, PIANO §23): rigida e piana come in Revit, sul supercompattato del pilone 1 (montante destro,
   // = revitFrame): testa delle due fondazioni, intradosso della trave e fondazione vengono dalla famiglia
-  const rfi = M ? null : rfiPortalOf(up, Math.hypot(qL - qR, aL - aR)), RP = rfi && RFI_PORTALS[rfi.kind === "MEC" ? "MEC" : "PO"], sc1 = bR.baseDz - pilOut;
+  // 0.24.0: anche i portali MEC tipo C su 2 × LSU22 (RFI_Portale_MEC_C_2xLSU22, fondazioni P8D)
+  const dblP = !!(M && p.dbl);
+  const rfi = rfiPortalOf(M ? (dblP && M.size === 22 ? "2xLSU22" : "LSU") : up, Math.hypot(qL - qR, aL - aR));
+  const RP = rfi && RFI_PORTALS[rfi.kind === "MEC2" ? "MEC2" : rfi.kind === "MEC" ? "MEC" : "PO"], sc1 = bR.baseDz - pilOut;
   const zBaseR = RP ? sc1 + RP.out : bR.baseDz, zBaseL = RP ? zBaseR : bL.baseDz, dropL = top.dz - zBaseL, dropR = bot.dz - zBaseR;
   if (RP) { pilOut = RP.out; beam = { ...beam, h: RP.h, w: RP.w }; }
   let hb, H;                                              // intradosso della trave e altezza dei montanti (dalla piastra)
-  if (M) { const topZ = Math.min(zBaseL, zBaseR) + PLATE_GROUT + M.plate.t + M.H; hb = topZ - BEAM_TOP_GAP - beam.h; H = M.H; }
+  if (M) { const topZ = Math.min(zBaseL, zBaseR) + PLATE_GROUT + M.plate.t + M.H; hb = RP ? sc1 + RP.hb : topZ - BEAM_TOP_GAP - beam.h; H = M.H; }
   else { hb = RP ? sc1 + RP.hb : filled(p.hb) ? +p.hb : PORTAL_DEFAULTS.hb; H = null; }
   const stag0 = +pick("stag"), pend = p.pend || {};
   const susp = trk.map((t) => { const x = pend[t.id] || {}; return { track: t.id, q: t.q, dz: t.dz, stag: filled(x.stag) ? +x.stag : stag0, type: x.type || "" }; });
   const sospRfi = RP ? portalSuspSlots(rfi.kind, susp, hw, { qL, qR, aL, aR }, sc1) : null;
-  let f = RP ? RP.found : foundation(pick("found"));
+  let f = RP ? RP.found : foundation(dblP && !filled(p.found) && DOUBLE_FOUND[M.size] ? DOUBLE_FOUND[M.size] : pick("found"));
   if (!f) f = foundation(TRACK_DEFAULTS.found);
   const c1 = Math.max(f.C1min, Math.min(f.C1max, +pick("c1")));
   return {
-    kind: "portal", rfi, up, mast: M, dbl: !!(M && p.dbl), pole, w, beam, Bauto: !filled(p.beam), short: beam.L < span - 1e-9, span,
+    kind: "portal", rfi, up, mast: M, dbl: dblP, gap: dblP ? doubleGap(M) : 0, pole, w, beam, Bauto: !filled(p.beam), short: beam.L < span - 1e-9, span,
     fixed: !!fx, qL, qR, aL, aR, phi: Math.atan2(aR - aL, qL - qR),
     drL: qL - w / 2 - HALF_GAUGE - top.q, drR: bot.q - HALF_GAUGE - (qR + w / 2), drLmin: drL, drRmin: drR,
     zBaseL, zBaseR, hb, H, hw, baseDz, susp, sospRfi, found: f, c1, vol: 2 * foundationVolume(f, c1),
@@ -321,9 +350,20 @@ export function resolvePortal(p, def = TRACK_DEFAULTS, geo = [], lev = null) {
      Quota_mensola (una per portale, dal supercompattato del pilone 1) e per ogni posizione k Binario_k (dall'asse
      del pilone 1 lungo la trave), Sospensione_k (sì/no) e Poligonazione_k (+ verso il tubo, cioè verso il pilone 1);
      4 posizioni nei MEC e di ormeggio, 2 nei tralicciati.
-   Senza famiglia (saltati con il motivo): LSU24, pali doppi, portali su pali LSU. */
+   - dal catalogo del 2026-10-27 (0.24.0): le varianti dei sostegni (configurazione «2M», «SM», «SOLO»: famiglia del
+     gruppo + _2M / _SM, RFI_SoloMensola_<gruppo>), i pali doppi senza mensola RFI_PaloDoppio_2xLSU24 (tipi LSU24a/b/c,
+     Plinto P24D) e RFI_PaloDoppio_2xLSU22 (LSU22a/b/c, P8D), i portali MEC tipo C su 2 × LSU22
+     RFI_Portale_MEC_C_2xLSU22 (tipi C15 … C27 per campo di luce, Luce d'istanza, sospensioni come gli altri portali).
+   Senza famiglia (saltati con il motivo): LSU24 singolo, pali doppi con la mensola o di altre taglie, portali su pali
+   LSU singoli. */
 export const REVIT = {
   mastFamily: { 14: "RFI_Sostegno_LSU14-16", 16: "RFI_Sostegno_LSU14-16", 18: "RFI_Sostegno_LSU18-22", 20: "RFI_Sostegno_LSU18-22", 22: "RFI_Sostegno_LSU18-22" },
+  // varianti (0.24.0): suffisso della famiglia del gruppo; «SOLO» cambia il prefisso (RFI_SoloMensola_<gruppo>)
+  cfgSuffix: { "2M": "_2M", SM: "_SM" },
+  doubleFamily: { 22: "RFI_PaloDoppio_2xLSU22", 24: "RFI_PaloDoppio_2xLSU24" },
+  // travi tipo C su 2 × LSU22 (E 64923 f.3; C14 esclusa nel catalogo: serve l'elemento CC6): tipo, campo di luce (m)
+  mec2: [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27].map((n) => ({ family: "RFI_Portale_MEC_C_2xLSU22", type: "C" + n, min: n - 1, max: n })),
+  mec2Mast: "LSU22b",                                    // il palo del sostegno 2xLSU22 annidato (di tipo: b nel catalogo)
   plinto: "RFI_Plinto_LSU", mensola: "RFI_Mensola_D76x5",
   mensole: ["768-427_L3800", "768-437_L6000", "768-439_L7000", "768-811_L9000", "768-810_L12500"],
   tieDh: 1.0,
@@ -338,7 +378,7 @@ export const REVIT = {
   portalSospType: "SN620_BN780_2x1100",                  // la sospensione nei portali: tipo fisso (Satferr PT20-21)
   // sospensioni dei portali (0.23.0): posizioni per famiglia, asse della mensola sopra il filo (38 + braccio BN780),
   // posizioni nascoste 1,00 oltre una visibile (istanze coincidenti: avviso di doppio conteggio in Revit)
-  portalSusp: { MEC: 4, ORM: 4, TRAL: 2 }, portalWire: 0.818, portalHidden: 1.0,
+  portalSusp: { MEC: 4, MEC2: 4, ORM: 4, TRAL: 2 }, portalWire: 0.818, portalHidden: 1.0,
 };
 /* le sospensioni della famiglia di un portale (kind MEC | ORM | TRAL): i binari serviti (susp di resolvePortal) in
    ordine dal pilone 1 (montante destro), i primi REVIT.portalSusp[kind]; mensola unica alla media dei fili + portalWire.
@@ -386,28 +426,36 @@ export const RFI_PORTALS = {
   // E 65020 a: blocco 6000 × 2500 × 2200 senza pilastrino, filo superiore +350; trave 1280 × 800 col filo inferiore
   // a +6820 come le MEC (prima 150 sotto la testa del pilone E 65018 H9586, a +8986)
   PO: { found: { id: "POT", A: 2.5, B: 6.0, C: 2.2, A1: 0, B1: 0, A2: null, C1min: 0, C1max: 0, vs: null, vmin: 33, vmax: 33, bolts: null, bolts24: null }, out: 0.35, hb: 6.82, h: 0.8, w: 1.28 },
+  // 0.24.0, portali MEC tipo C su 2 × LSU22 (genera_2xLSU22.py): plinto P8D con la testa dei pilastrini a +250, trave
+  // tipo C 750 × 1000 col filo inferiore a +7100 (filo 5200 + 1900, E 64923 f.3, ASSUNTO)
+  MEC2: { found: foundation("P8D"), out: 0.25, hb: 7.1, h: 1.0, w: 0.75 },
 };
-/* la famiglia di un portale coi piloni (up «MEC» o «PO») lungo span fra gli assi dei montanti, o null:
-   { kind: "MEC" | "TRAL" | "ORM", family, type, luce (m: quella del portale per le MEC, quella del tipo per le PO) } */
+/* la famiglia di un portale lungo span fra gli assi dei montanti, o null: up «MEC» o «PO» (piloni), «2xLSU22» (coppie di
+   LSU22), altro (nessuna). { kind: "MEC" | "MEC2" | "TRAL" | "ORM", family, type, luce (m: quella del portale per le
+   MEC, quella del tipo per le PO) } */
 export function rfiPortalOf(up, span) {
   if (!(span > 0)) return null;
-  if (up === "MEC") {
-    const m = REVIT.mec.find((t) => span >= t.min - 1e-6 && span <= t.max + 1e-6);
-    return m ? { kind: "MEC", family: m.family, type: m.type, luce: span } : null;
+  if (up === "MEC" || up === "2xLSU22") {
+    const list = up === "MEC" ? REVIT.mec : REVIT.mec2, m = list.find((t) => span >= t.min - 1e-6 && span <= t.max + 1e-6);
+    return m ? { kind: up === "MEC" ? "MEC" : "MEC2", family: m.family, type: m.type, luce: span } : null;
   }
   if (up !== "PO") return null;
   const p = REVIT.po.reduce((a, t) => (Math.abs(span - t.L) < Math.abs(span - a.L) ? t : a));
   if (Math.abs(span - p.L) > REVIT.spanTol + 1e-9) return null;
   return { kind: p.family === "RFI_Portale_Tralicciato" ? "TRAL" : "ORM", family: p.family, type: p.type, luce: p.L };
 }
-/* la famiglia di un palo (tipo M, doppio?, mensola, testo del tipo di sospensione) o null: { family, type, mens (tipo
-   della mensola nel catalogo, o «»), sosp (tipo della sospensione annidata che piazza l'add-in: il primo candidato, sennò
-   quello di partenza della famiglia) } */
-export function rfiMastOf(M, dbl, mens, sosp = "") {
-  const family = M && !dbl ? REVIT.mastFamily[M.size] : null;
+/* la famiglia di un palo (tipo M, doppio?, mensola, testo del tipo di sospensione, configurazione) o null: { family,
+   type, cfg, dbl, mens (tipo della mensola nel catalogo, o «»), sosp (tipo della sospensione annidata che piazza
+   l'add-in: il primo candidato, sennò quello di partenza della famiglia) }. Pali doppi: solo senza mensola, come nel
+   catalogo */
+export function rfiMastOf(M, dbl, mens, sosp = "", cfg = "") {
+  if (!M) return null;
+  const base = REVIT.mastFamily[M.size];
+  const family = dbl ? (cfg === "SM" ? REVIT.doubleFamily[M.size] : null)
+    : !base ? null : cfg === "SOLO" ? base.replace("RFI_Sostegno_", "RFI_SoloMensola_") : base + (REVIT.cfgSuffix[cfg] || "");
   if (!family) return null;
-  const t = mens ? revitMensType(mens.code, mens.L) : "";
-  return { family, type: M.id, mens: REVIT.mensole.includes(t) ? t : "", sosp: revitSospTypes(sosp)[0] || REVIT.sospDefault };
+  const t = mens && cfg !== "SM" ? revitMensType(mens.code, mens.L) : "";
+  return { family, type: M.id, cfg, dbl: !!dbl, mens: REVIT.mensole.includes(t) ? t : "", sosp: cfg === "SM" ? "" : revitSospTypes(sosp)[0] || REVIT.sospDefault };
 }
 export const revitMensType = (code, L) => String(code).replace("/", "-") + "_L" + Math.round(L * 1000);
 const revitMensLen = (t) => +((String(t).match(/_L(\d+)$/) || [])[1] || 0) / 1000;
@@ -419,12 +467,14 @@ const revitMensLen = (t) => +((String(t).match(/_L(\d+)$/) || [])[1] || 0) / 100
    non riconosciuto: resta quello della famiglia), susp (sospensioni in più: la famiglia
    ha una mensola sola), equip (trasformatore / sezionatore senza famiglia), tieHeight (la famiglia tiene il tirante
    a 1,00 sopra la mensola), spanRange (luce fuori dal campo delle travi MEC), spanType (nessun tipo di portale con
-   quella luce entro 5 cm), portalSusp (più binari serviti delle sospensioni della famiglia: vanno i primi dal pilone 1) */
+   quella luce entro 5 cm), portalSusp (più binari serviti delle sospensioni della famiglia: vanno i primi dal pilone 1),
+   portalMast (0.24.0: nel portale su 2 × LSU22 il palo del sostegno annidato è di tipo, REVIT.mec2Mast) */
 export function revitItem(R, F) {
   if (!R || !F) return { skip: "geom" };
   const origin = [F.origin.x, F.origin.y, F.origin.z], xAxis = F.xAxis, warn = [];
   if (R.kind === "portal") {
-    if (R.up === "LSU") return { skip: "portalLsu" };
+    const two = R.up === "LSU" && R.dbl && R.mast && R.mast.size === 22;   // 0.24.0: MEC tipo C su 2 × LSU22
+    if (R.up === "LSU" && !two) return { skip: "portalLsu" };
     const L = F.span;
     // sospensioni sotto la trave (0.23.0): le stesse del sito (R.sospRfi); con la luce fuori dai tipi il sito non ha la
     // famiglia, le posizioni si contano su quella che si piazza (origine = revitFrame)
@@ -434,11 +484,12 @@ export function revitItem(R, F) {
       if (S.over) warn.push("portalSusp");
       return sp;
     };
-    if (R.up === "MEC") {
+    if (R.up === "MEC" || two) {
       const gap = (t) => (L < t.min ? t.min - L : L > t.max ? L - t.max : 0);
-      const m = REVIT.mec.reduce((a, t) => (gap(t) < gap(a) ? t : a));
+      const m = (two ? REVIT.mec2 : REVIT.mec).reduce((a, t) => (gap(t) < gap(a) ? t : a));
       if (gap(m) > 1e-9) warn.push("spanRange");
-      return { family: m.family, types: [m.type], origin, xAxis, params: { Luce: { len: L }, ...susp("MEC") }, warn };
+      if (two && R.mast.id !== REVIT.mec2Mast) warn.push("portalMast");      // il palo del sostegno annidato è di tipo
+      return { family: m.family, types: [m.type], origin, xAxis, params: { Luce: { len: L }, ...susp(two ? "MEC2" : "MEC") }, warn };
     }
     const p = REVIT.po.reduce((a, t) => (Math.abs(L - t.L) < Math.abs(L - a.L) ? t : a));
     if (Math.abs(L - p.L) > REVIT.spanTol) warn.push("spanType");
@@ -446,22 +497,30 @@ export function revitItem(R, F) {
   }
   const M = R.mast;
   if (!M) return { skip: "geom" };
-  if (R.dbl) return { skip: "double" };
-  const family = REVIT.mastFamily[M.size];
-  if (!family) return { skip: "mastSize" };
+  if (R.eq && (R.eq.trafo || R.eq.sez)) warn.push("equip");
+  const plinto = { Plinto: { type: { family: REVIT.plinto, types: [R.found.id] } } };
+  // palo doppio (0.24.0): le famiglie del catalogo sono senza mensola
+  if (R.dbl) {
+    const family = REVIT.doubleFamily[M.size];
+    if (!family || R.cfg !== "SM") return { skip: "double" };
+    return { family, types: [M.id], origin, xAxis, warn, params: plinto };
+  }
+  const base = REVIT.mastFamily[M.size];
+  if (!base) return { skip: "mastSize" };
+  const family = R.cfg === "SOLO" ? base.replace("RFI_Sostegno_", "RFI_SoloMensola_") : base + (REVIT.cfgSuffix[R.cfg] || "");
+  if (R.cfg === "SM") return { family, types: [M.id], origin, xAxis, warn, params: plinto };
   const want = revitMensType(R.mens.code, R.mens.L);
   const longer = REVIT.mensole.filter((t) => t !== want && revitMensLen(t) >= R.mens.L - 1e-9).sort((a, b) => revitMensLen(a) - revitMensLen(b));
   if (!REVIT.mensole.includes(want)) warn.push("mensType");
   const sosp = revitSospTypes(R.sosp);
   if (!sosp.length) warn.push("sospType");
   if (R.susp && R.susp.length) warn.push("susp");
-  if (R.eq && (R.eq.trafo || R.eq.sez)) warn.push("equip");
   const ties = R.ties && R.ties.length ? R.ties : [R.tir], tie = ties.reduce((a, t) => (t.xt > a.xt ? t : a));   // la famiglia ha un tirante: quello alla punta
   if (Math.abs(tie.dh - REVIT.tieDh) > 0.01) warn.push("tieHeight");
   return {
     family, types: [M.id], origin, xAxis, warn,
     params: {
-      Plinto: { type: { family: REVIT.plinto, types: [R.found.id] } },
+      ...(R.cfg === "SOLO" ? {} : plinto),             // la sola mensola (0.24.0) non ha palo né plinto
       Mensola: { type: { family: REVIT.mensola, types: [want, ...longer] } },
       Quota_mensola: { len: R.hm - R.baseDz + R.pilOut },
       Attacco_tirante: { len: tie.xt },
@@ -482,7 +541,7 @@ export const PSET_FIELDS = [
   { key: "num", kinds: ALL, type: "label" }, { key: "track", kinds: ALL, type: "label" }, { key: "sta", kinds: ALL, type: "length" },
   { key: "side", kinds: ["mast", "foundation"], type: "label" }, { key: "dr", kinds: ["mast"], type: "length" },
   { key: "drL", kinds: ["portal"], type: "length" }, { key: "drR", kinds: ["portal"], type: "length" },
-  { key: "mast", kinds: MP, type: "label" }, { key: "mens", kinds: ["mast"], type: "length" }, { key: "mensCode", kinds: ["mast"], type: "label" },
+  { key: "mast", kinds: MP, type: "label" }, { key: "cfg", kinds: ["mast"], type: "label" }, { key: "mens", kinds: ["mast"], type: "length" }, { key: "mensCode", kinds: ["mast"], type: "label" },
   { key: "beam", kinds: ["portal"], type: "label" }, { key: "beamL", kinds: ["portal"], type: "length" },
   { key: "hm", kinds: ["mast"], type: "length" }, { key: "hb", kinds: ["portal"], type: "length" }, { key: "hw", kinds: MP, type: "length" },
   { key: "stag", kinds: ["mast"], type: "length" }, { key: "sosp", kinds: MP, type: "label" }, { key: "served", kinds: MP, type: "label" },
@@ -497,14 +556,19 @@ export const PSET_FIELDS = [
 /* il sostegno a parole: «LSU22b», «2×LSU22b» (doppio), «PO» / «MEC» (piloni) */
 export const mastLabel = (R) => (R.mast ? (R.dbl ? "2×" : "") + R.mast.id : R.pole ? R.pole.id : "PO");
 /* peso dei pali LSU del sostegno (kg, E 66013 c): uno, due se doppio; portale: i due montanti; piloni: non noto */
-export const mastKg = (R) => (R && R.mast ? R.mast.kg * (R.dbl ? 2 : 1) * (R.kind === "portal" ? 2 : 1) : null);
+export const mastKg = (R) => (R && R.mast && R.hasMast !== false ? R.mast.kg * (R.dbl ? 2 : 1) * (R.kind === "portal" ? 2 : 1) : null);
 export function psetValues(s, R, ctx = {}, kind = "") {
   const portal = R && R.kind === "portal", v = {
     num: s.num, track: ctx.track, sta: (ctx.s0 || 0) + s.u, found: R.found.id, c1: R.c1, vol: portal && kind === "foundation" ? R.vol / 2 : R.vol,
     E: ctx.E, N: ctx.N, top: ctx.top, hw: R.hw, kg: mastKg(R), served: (ctx.served || []).join(", "), zPil: ctx.zPil, zSc: ctx.zSc,
   };
   if (portal) Object.assign(v, { mast: mastLabel(R), drL: R.drL, drR: R.drR, beam: R.beam.id, beamL: R.beam.L, hb: R.hb, nSusp: R.susp.length, sosp: [...new Set(R.susp.map((x) => x.type).filter(Boolean))].join(", ") });
-  else Object.assign(v, { side: s.side > 0 ? "S" : "D", dr: R.dr, mast: mastLabel(R), mens: R.mens.L, mensCode: R.mens.code, hm: R.hm, stag: R.stag, nSusp: 1 + R.susp.length, sosp: [R.sosp, ...R.susp.map((x) => x.type)].filter(Boolean).join(", ") });
+  else {
+    const nm = R.nMens != null ? R.nMens : 1;              // 0.24.0: configurazione (senza mensola: niente mensola né sospensioni)
+    if (R.hasMast === false) Object.assign(v, { found: null, c1: null, vol: null });
+    Object.assign(v, { side: s.side > 0 ? "S" : "D", dr: R.dr, mast: mastLabel(R), cfg: R.cfg || "1M", mens: nm ? R.mens.L : null, mensCode: nm ? R.mens.code : null,
+      hm: nm ? R.hm : null, stag: nm ? R.stag : null, nSusp: nm * (1 + R.susp.length), sosp: nm ? [R.sosp, ...R.susp.map((x) => x.type)].filter(Boolean).join(", ") : "" });
+  }
   return v;
 }
 

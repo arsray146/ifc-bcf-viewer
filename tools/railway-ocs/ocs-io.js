@@ -9,7 +9,7 @@
    Le coppie di coordinate sono «Nord Est» come vuole la specifica; si
    prova anche l'ordine scambiato e si tiene quello che chiude le giunzioni.
    ========================================================================= */
-import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis, trackFrame, GAUGE_HALF } from "./ocs-core.js?v=0.23.0";
+import { hAlign, hJunctions, profileV, projectOn, nearestTracks, drFromAxis, trackFrame, GAUGE_HALF } from "./ocs-core.js?v=0.24.0";
 
 /* ---- XML minimo: elementi, attributi, testo (niente DTD, niente namespace) ---- */
 const ENT = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
@@ -614,7 +614,16 @@ export function portalSpec(text) {
   const up = /(^|[^a-z0-9])PO([^a-z0-9]|$)/i.test(t) ? "PO" : /pilone/i.test(t) ? "MEC" : lsu ? "LSU" : null;
   return { up, mast: lsu ? "LSU" + lsu[1] + (lsu[2] || "b").toLowerCase() : null, dbl: up === "LSU" && dbl };
 }
-/* righe → sostegni: { row, num, num2, sta, E, N, xy, E2, N2, xy2, side, dr, mast, dbl, portal, spec, Lb, L, L2,
+/* la configurazione del sostegno nel testo del tipo (0.24.0, ocs-catalog SUPPORT_CFGS; blocchi Satferr
+   PALO_LS_SOLO_MENSOLA, «SENZA MENSOLA», sostegni a 2 mensole): "SOLO" | "SM" | "2M" | "" */
+export function cfgOf(text) {
+  const t = String(text == null ? "" : text);
+  if (/solo[\s_-]*mensola/i.test(t)) return "SOLO";
+  if (/senza[\s_-]*mensol/i.test(t)) return "SM";
+  if (/(^|[^0-9])2[\s_-]*mensole|due[\s_-]*mensole|doppia[\s_-]*mensola/i.test(t)) return "2M";
+  return "";
+}
+/* righe → sostegni: { row, num, num2, sta, E, N, xy, E2, N2, xy2, side, dr, mast, dbl, cfg, portal, spec, Lb, L, L2,
    found, hw, stag, track, attrs, warn: [] }. portal = due coppie di coordinate (o, senza, un tipo da portale: si
    salta). opt.masts / opt.founds = codici del catalogo (il modulo non lo importa); opt.swap = E e N scambiate */
 export function tableRecords(rows, head, map, opt = {}) {
@@ -638,6 +647,8 @@ export function tableRecords(rows, head, map, opt = {}) {
     rec.mast = ms ? mastOf(ms) : null;
     rec.portal = rec.xy2 || (!rec.mast && isPortalText(kind));
     rec.dbl = !rec.portal && rec.spec.dbl;                  // palo doppio («PALO_DOPPIO_2xLSU», «2xLSU24»)
+    // configurazione (0.24.0): i pali doppi del catalogo sono senza mensola
+    rec.cfg = rec.portal ? "" : cfgOf(kind) || (rec.dbl ? "SM" : "");
     if (!rec.portal && !rec.mast && rec.spec.up === "LSU" && (rec.dbl || !ms) && masts.has(rec.spec.mast)) rec.mast = rec.spec.mast;
     if (ms && !rec.portal && !(rec.mast && masts.has(rec.mast))) { warn.push("mast"); rec.mast = null; rec.attrs[hdr[map.mast] || "mast"] = ms; }
     if (blk) rec.attrs[String(hdr[map.block] || "").trim() || "block"] = blk;
@@ -647,7 +658,9 @@ export function tableRecords(rows, head, map, opt = {}) {
     rec.sosp = String(cell("sosp") ?? "").trim(); rec.sosp2 = String(cell("sosp2") ?? "").trim();
     // fondazione: del primo montante, se non c'è (o non è del catalogo) del secondo; i testi restano negli attributi
     const fs = String(cell("found") || "").trim(), fs2 = String(cell("found2") || "").trim();
-    rec.found = (fs && founds.get(fs.toUpperCase())) || (fs2 && founds.get(fs2.toUpperCase())) || null;
+    // anche dentro un testo più lungo (0.24.0: «P24D Spec.», «P9M-P8D» → l'ultima sigla del catalogo)
+    const foundIn = (v) => founds.get(v.toUpperCase()) || v.toUpperCase().split(/[^A-Z0-9]+/).reverse().map((w) => founds.get(w)).find(Boolean);
+    rec.found = (fs && foundIn(fs)) || (fs2 && foundIn(fs2)) || null;
     if ((fs || fs2) && !rec.found) warn.push("found");
     if (fs && rec.found !== founds.get(fs.toUpperCase())) rec.attrs[hdr[map.found] || "found"] = fs;
     if (fs2 && rec.found !== founds.get(fs2.toUpperCase())) rec.attrs[hdr[map.found2] || "found2"] = fs2;
