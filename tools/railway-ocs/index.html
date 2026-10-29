@@ -2509,7 +2509,7 @@ const DWG_BASE = new URL("../profile-sweep/vendor/libredwg-web/", location.href)
 let PS = null;
 async function psModules() {
   if (!PS) {
-    const [io, core] = await Promise.all([import("../profile-sweep/profile-io.js?v=0.23.0"), import("../profile-sweep/profile-core.js?v=0.23.0")]);
+    const [io, core] = await Promise.all([import("../profile-sweep/profile-io.js?v=0.23.1"), import("../profile-sweep/profile-core.js?v=0.23.1")]);
     PS = { IO: io, C: core };
   }
   return PS;

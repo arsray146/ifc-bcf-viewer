@@ -1685,7 +1685,7 @@ export const GUITAR_ROWS = Object.freeze([
 ]);
 /** Layer della tavola del profilo: nome, colore ACI, tipo di linea. */
 export const SHEET_LAYERS = Object.freeze({
-  terr: ["PRF_TERRENO", 3], des: ["PRF_SCORRIMENTO", 1], bot: ["PRF_FONDO_SCAVO", 30], ref: ["PRF_RIFERIMENTO", 5],
+  terr: ["PRF_TERRENO", 3], des: ["PRF_SCORRIMENTO", 1], bot: ["PRF_FONDO_SCAVO", 30], env: ["PRF_INGOMBRO", 4], ref: ["PRF_RIFERIMENTO", 5],
   frame: ["CHT_CORNICE", 6], rows: ["CHT_RIGHE", 7], head: ["CHT_INTESTAZIONI", 7], val: ["CHT_VALORI", 7],
   lead: ["CHT_RICHIAMI", 8, "TRATTEGGIO"], grade: ["CHT_LIVELLETTE", 7], title: ["TAV_TITOLI", 2],
   sTerr: ["SEZ_TERRENO", 3], sWork: ["SEZ_OPERA", 7], sStrata: ["SEZ_STRATI", 42], sCut: ["SEZ_SCAVO", 30], sSurf: ["SEZ_PROGETTO", 1],
@@ -1756,7 +1756,8 @@ export const chainage = (p) => { const r = Math.round(p * 100) / 100, k = Math.f
  * l'utente): X = progressiva × v / h (1:1000 / 1:100 → progressiva / 10), Y = QUOTA VERA; una finestra a
  * 1:v rende le distanze a 1:h. Le opere una accanto all'altra. Testi e righe in mm di carta (1 mm =
  * v / 1000 unità). sheets = [{ name, lo, hi, zRef?, cols (C.guitarTable), terrain, design, bottom
- * (pezzi [[p, z]…]), grades (C.gradeRuns), sections? (C.crossSheets) }]; rows = chiavi di GUITAR_ROWS da
+ * (pezzi [[p, z]…]), envelope? ({ top, base }: l'ingombro dell'opera, layer PRF_INGOMBRO; senza = non si disegna), grades
+ * (C.gradeRuns), sections? (C.crossSheets) }]; rows = chiavi di GUITAR_ROWS da
  * mettere (l'ordine resta quello di GUITAR_ROWS); labels = { rows: { k: testo }, title: (nome) => testo,
  * cross: { rows: { zT, zP, dp, da }, marks: { inv, exc, crest, toe }, areas: { chiave: testo }, unit, title:
  * (n, progressiva, kind, ponte) => testo } }. Le sezioni correnti (0.16): a 1:v non deformate (1 unità = 1 m,
@@ -1808,11 +1809,12 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
   for (const sh of sheets) {
     // 6 mm fra la cornice e la prima colonna (i valori stanno a sinistra della loro linea), 6 dopo l'ultima
     const X = (p) => X0 + 6 * mm + (p - sh.lo) * kx, xEnd = X(sh.hi) + 6 * mm;
-    const all = [...sh.cols.flatMap((c) => [c.zT, ...c.zS, ...c.zF]), ...[...sh.terrain, ...sh.design, ...sh.bottom].flat().map((q) => q[1])].filter(Number.isFinite);
+    const env = sh.envelope ? [...sh.envelope.top, ...sh.envelope.base] : [];
+    const all = [...sh.cols.flatMap((c) => [c.zT, ...c.zS, ...c.zF]), ...[...sh.terrain, ...sh.design, ...sh.bottom, ...env].flat().map((q) => q[1])].filter(Number.isFinite);
     const zMin = all.length ? Math.min(...all) : 0, zMax = all.length ? Math.max(...all) : 1;
     const zRef = Number.isFinite(sh.zRef) ? sh.zRef : Math.floor(zMin - 1);
-    // profilo: terreno (DTM), scorrimento, fondo scavo
-    for (const [k, list] of [["terr", sh.terrain], ["des", sh.design], ["bot", sh.bottom]]) for (const l of list) M.push({ t: "poly", layer: L[k], pts: l.map(([p, z]) => [X(p), z]) });
+    // profilo: terreno (DTM), scorrimento, fondo scavo e l'ingombro dell'opera (cima e fondo, 0.23.1: solo se sh.envelope)
+    for (const [k, list] of [["terr", sh.terrain], ["des", sh.design], ["bot", sh.bottom], ["env", env]]) for (const l of list) M.push({ t: "poly", layer: L[k], pts: l.map(([p, z]) => [X(p), z]) });
     for (const t of sh.trims || []) M.push({ t: "line", layer: trimLayer("prf"), a: [X(t.p), t.z0], b: [X(t.p), t.z1] });       // i tagli (0.18): opera chiusa sul piano
     // piano di riferimento: linea, quota col triangolino, asse verticale a sinistra
     M.push({ t: "line", layer: L.ref, a: [X0 - headW, zRef], b: [xEnd, zRef] });
@@ -2097,8 +2099,12 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
     const zMin = Math.min(...zs), zTop = Math.max(...zs), zRef = Math.floor(zMin - 1);
     const hw = cross.guitar ? crossHeadW : 22 * mm, w = hw + 12 * mm + (cs.u1 - cs.u0), A = areaCols(cs, w);
     const gH = cross.guitar ? CROSS_ROWS.reduce((a, r) => a + r.mm, 0) * mm : 0;
-    return { zRef, zTop, hw, w, A, h: 9 * mm + (zTop - zRef) + 3 * mm + gH + (A.ss.length ? 2 * mm + Math.ceil(A.ss.length / A.per) * 4 * mm : 0) };
+    // fw = quanto occupa in larghezza, titolo compreso: «Sezione 12 - 0+065.64 - vertice di progetto» è più largo della sezione
+    // di un tubo e finiva sopra quella accanto
+    const title = crossTitle(s), fw = Math.max(w, glyphW(title, 3.5) * mm);
+    return { zRef, zTop, hw, w, fw, A, title, h: 9 * mm + (zTop - zRef) + 3 * mm + gH + (A.ss.length ? 2 * mm + Math.ceil(A.ss.length / A.per) * 4 * mm : 0) };
   }
+  function crossTitle(s) { const CL = labels.cross || {}; return CL.title ? CL.title(s.n, chainage(s.p), s.kind, s.cs.bridge) : s.n + " - " + chainage(s.p); }
   /* le aree della sezione come testi, in colonne larghe quanto il più lungo dentro la larghezza w */
   function areaCols(cs, w) {
     const CL = labels.cross || {};
@@ -2106,14 +2112,16 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
     const cw = ss.length ? Math.max(...ss.map((x) => x.length)) * text.val * mm + 6 * mm : 1;      // ~1 h per carattere: con 0,8 «mq» e il testo dopo si toccavano
     return { ss, cw, per: Math.max(1, Math.floor((w + 4 * mm) / cw)) };
   }
+  // in griglia: 25 mm di carta fra due sezioni affiancate e 20 fra due file (erano 15 e 15: «un po' troppo vicine», 0.23.1)
   function crossGrid(secs, x0, y0, width) {
+    const gx = 25 * mm, gy = 20 * mm;
     let bx = x0, by = y0, rowH = 0, xMax = x0;
     for (const s of secs) {
       const z = crossSize(s);
-      if (bx > x0 && bx + z.w > x0 + width) { bx = x0; by -= rowH + 15 * mm; rowH = 0; }
+      if (bx > x0 && bx + z.fw > x0 + width) { bx = x0; by -= rowH + gy; rowH = 0; }
       crossBlock(s, bx, by, z);
-      xMax = Math.max(xMax, bx + z.w);
-      bx += z.w + 15 * mm; rowH = Math.max(rowH, z.h);
+      xMax = Math.max(xMax, bx + z.fw);
+      bx += z.fw + gx; rowH = Math.max(rowH, z.h);
     }
     return { x: xMax, y: by - rowH };
   }
@@ -2122,7 +2130,7 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
     const X = (u) => bx + hw + 6 * mm + (u - cs.u0), xR = X(cs.u1) + 6 * mm;
     const yD = by - 9 * mm - (zTop - zRef), Y = (z) => yD + (z - zRef);
     const P = (pts) => pts.map(([u, z]) => [X(u), Y(z)]);
-    T(L.title, bx, by - 4 * mm, 3.5, CL.title ? CL.title(s.n, chainage(s.p), s.kind, cs.bridge) : s.n + " - " + chainage(s.p));
+    T(L.title, bx, by - 4 * mm, 3.5, size.title);
     // sagome: terreno (spezzato fuori dal DTM), opera, strati, scavo, superficie finita, asse
     let piece = [];
     const flush = () => { if (piece.length > 1) M.push({ t: "poly", layer: L.sTerr, pts: P(piece) }); piece = []; };

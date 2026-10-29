@@ -3097,12 +3097,15 @@ export function ctxSlice(part, F, G = null) {
 /**
  * Quote di una sezione rispetto alla linea del profilo: scorrimento = z + lift (fondo interno del fosso
  * e del canale, del tubo), fondo dello scavo = scorrimento + bottom (fosso: sotto il rivestimento del
- * fondo; canale e scatolare: sotto il magrone della zona corrente; tubo: sotto il letto).
+ * fondo; canale e scatolare: sotto il magrone della zona corrente; tubo: sotto il letto). L'ingombro
+ * dell'opera (0.23.1) dallo scorrimento: top = cima (estradosso del tubo, cima dei muri o della soletta
+ * superiore, ciglio del rivestimento del fosso), base = fondo (generatrice inferiore esterna del tubo,
+ * fondo della soletta, fondo del rivestimento; il magrone e il letto no: sono già nel fondo scavo).
  */
 export function sectionLevels(stype, sh) {
-  const lift = sh.lift || 0;
-  const bottom = stype === "pipe" ? sh.vF : stype === "channel" || stype === "box" ? sh.std.vE : -sh.tf;
-  return { lift, bottom };
+  const lift = sh.lift || 0, pipe = stype === "pipe", u = stype === "channel" || stype === "box";
+  const bottom = pipe ? sh.vF : u ? sh.std.vE : -sh.tf;
+  return { lift, bottom, top: pipe ? sh.vt : u ? sh.vC : sh.h, base: pipe ? sh.vb : u ? sh.vs : -sh.tf };
 }
 
 /**
@@ -3244,7 +3247,8 @@ export function levelLine(ps, f) {
 
 /**
  * I dati della tavola di un'opera fra lo e hi (progressive di pianta), senza disegno: { lo, hi, cols
- * (guitarTable), terrain, design, bottom (pezzi [[p, z]…]: terreno, scorrimento, fondo scavo), grades }.
+ * (guitarTable), terrain, design, bottom (pezzi [[p, z]…]: terreno, scorrimento, fondo scavo), envelope
+ * ({ top, base }: l'ingombro dell'opera, pezzi come sopra; anche nei ponti, non nei tratti tolti dai tagli), grades }.
  * axis = pianta, prof = linea di progetto vera (coi raccordi e i salti), map = anchorMap, ctl = vertici
  * di progetto [{ s, z }] in progressiva del profilo (i PVI se ci sono raccordi), square = lati quasi
  * verticali come salti (canale e scatolare, come squareDrops nella pagina), sweep = workSweep (runs,
@@ -3261,13 +3265,14 @@ export function profileSheet({ axis, prof, map, ctl, sweep, zAt3, lo, hi, square
   const bridges = sweep.bridges || [], runs = sweep.runs || [];
   const ends = trimEnds(sweep, axis, lo, hi), out = (p) => (sweep.excluded ? sweep.excluded(p) : false);
   // scorrimento e fondo scavo da una parte (side −1 prima, +1 dopo): la sezione del tratto di quella parte; nei tratti esclusi dai
-  // tagli (0.18) la linea di progetto resta (il tracciato), il fondo scavo no
+  // tagli (0.18) la linea di progetto resta (il tracciato), il fondo scavo no; l'ingombro dell'opera (zO cima, zB fondo) c'è
+  // anche nei ponti, non dove l'opera è tolta
   const at = (p, side) => {
     const z = zAt(prof, map.toQ(p), side), pp = p + side * 1e-6;
     const sp = sweep.specAt ? sweep.specAt(pp) : null;
-    if (!sp || !Number.isFinite(z)) return { zS: z, zF: NaN };
-    const lv = sectionLevels(sp.stype, sp.sh), zS = z + lv.lift;
-    return { zS, zF: bridges.some((b) => pp > b.p0 && pp < b.p1) || out(pp) ? NaN : zS + lv.bottom };
+    if (!sp || !Number.isFinite(z)) return { zS: z, zF: NaN, zO: NaN, zB: NaN };
+    const lv = sectionLevels(sp.stype, sp.sh), zS = z + lv.lift, gone = out(pp);
+    return { zS, zF: bridges.some((b) => pp > b.p0 && pp < b.p1) || gone ? NaN : zS + lv.bottom, zO: gone ? NaN : zS + lv.top, zB: gone ? NaN : zS + lv.base };
   };
   let cp = profileFromPoints(ctl);
   if (square) cp = squareDrops(cp);
@@ -3283,8 +3288,9 @@ export function profileSheet({ axis, prof, map, ctl, sweep, zAt3, lo, hi, square
   return {
     lo, hi, cols: guitarTable(cols, { ground, samples, at }), terrain: linePieces(simplifyLine(samples, 0.01)),
     design: levelLine(ps, (p, s) => at(p, s).zS), bottom: levelLine(ps, (p, s) => at(p, s).zF), grades: gradeRuns(dv),
-    // i tagli: una linea verticale dal fondo scavo del lato che resta fin su al terreno o alla linea di progetto, se più alta
-    trims: ends.map((e) => { const a = at(e.p, -e.dir), g = ground(e.p); return { p: e.p, z0: a.zF, z1: Math.max(a.zS, Number.isFinite(g) ? g : -Infinity) }; })
+    envelope: { top: levelLine(ps, (p, s) => at(p, s).zO), base: levelLine(ps, (p, s) => at(p, s).zB) },
+    // i tagli: una linea verticale dal fondo scavo del lato che resta fin su al terreno o alla cima dell'opera, se più alta
+    trims: ends.map((e) => { const a = at(e.p, -e.dir), g = ground(e.p); return { p: e.p, z0: a.zF, z1: Math.max(a.zS, Number.isFinite(a.zO) ? a.zO : -Infinity, Number.isFinite(g) ? g : -Infinity) }; })
       .filter((t) => Number.isFinite(t.z0) && Number.isFinite(t.z1)),
   };
 }

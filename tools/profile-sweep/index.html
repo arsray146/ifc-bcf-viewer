@@ -937,6 +937,7 @@ const I18N = {
     "tv.rIp": "Distanze inclinate parziali Terreno", "tv.rIs": "Distanze inclinate progressive Terreno", "tv.rZS": "Quote Scorrimento",
     "tv.rZF": "Quote Fondo Scavo", "tv.rHF": "Altezze di Scavo", "tv.rGr": "Livellette",
     "tv.tol": "Punti del terreno: scarto", "tv.gap": "Colonne distanti almeno",
+    "tv.env": "Ingombro dell'opera nel profilo (cima e fondo, layer PRF_INGOMBRO)",
     "tv.title": "{n} - Profilo longitudinale - Scale 1:1000 / 1:100",
     "tv.help": "DXF R2000 per AutoCAD (per il DWG: «Salva con nome»). Nello spazio modello, le opere accese una accanto all'altra: X = progressiva / 10, Y = quota vera, cioè con una finestra a 1:100 distanze a 1:1000 e quote a 1:100. Colonne: i punti dove il terreno del DTM cambia pendenza oltre lo scarto, distanti almeno quanto scritto, e tutti i vertici di progetto, i salti, i cambi di sezione e i ponti. Scorrimento e fondo scavo dalla sezione di ogni tratto; nei ponti niente scavo.",
     "tv.noDtm": "Senza DTM le righe del terreno restano vuote.", "tv.noRows": "Scegli almeno una riga della chitarra.",
@@ -1241,6 +1242,7 @@ const I18N = {
     "tv.rIp": "Partial slope distances, ground", "tv.rIs": "Cumulative slope distances, ground", "tv.rZS": "Invert levels",
     "tv.rZF": "Excavation bottom levels", "tv.rHF": "Excavation depths", "tv.rGr": "Grades",
     "tv.tol": "Ground points: deviation", "tv.gap": "Columns at least",
+    "tv.env": "Outline of the work in the profile (top and bottom, layer PRF_INGOMBRO)",
     "tv.title": "{n} - Longitudinal profile - Scales 1:1000 / 1:100",
     "tv.help": "R2000 DXF for AutoCAD (for a DWG: «Save as»). In model space, the visible works side by side: X = chainage / 10, Y = true level, so a 1:100 viewport gives distances at 1:1000 and levels at 1:100. Columns: where the DTM ground changes slope beyond the deviation, at least the given distance apart, and every design vertex, drop, section change and bridge. Invert and excavation bottom from each stretch's section; no excavation on bridges.",
     "tv.noDtm": "Without a DTM the ground rows stay empty.", "tv.noRows": "Pick at least one row of the table.",
@@ -1271,12 +1273,12 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.23.0";
-import * as IO from "./profile-io.js?v=0.23.0";
+import * as C from "./profile-core.js?v=0.23.1";
+import * as IO from "./profile-io.js?v=0.23.1";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.23.0";
+const TOOL_VERSION = "0.23.1";
 /* il triangolatore dei tappi dei tagli (0.18): earcut di three.js, passato al motore (che resta senza import) */
 const TRI = (c, h) => THREE.ShapeUtils.triangulateShape(c.map(([x, y]) => new THREE.Vector2(x, y)), h.map((r) => r.map(([x, y]) => new THREE.Vector2(x, y))));
 const $ = (id) => document.getElementById(id);
@@ -1366,7 +1368,8 @@ const TV_ROWS = [{ k: "pts", l: () => tr("tv.rPts") }, { k: "zT", l: () => tr("t
   { k: "hF", l: () => tr("tv.rHF") }, { k: "gr", l: () => tr("tv.rGr") }];
 /* sezioni correnti (0.16, secondo passo): nello stesso file, passo (m), chitarrina, quote sul disegno, aree */
 /* tabulato dei movimenti terra (0.17): nello stesso file, a destra delle sezioni (serve che ci siano) */
-const newTav = (t = {}) => ({ rows: TV_ROWS.map((r) => r.k), tol: 0.05, gap: 2.5, sec: true, step: 25, sGuitar: true, sMarks: true, sAreas: true, earth: true, plan: true, pScale: 1000, ...t });
+/* ingombro dell'opera nel profilo (0.23.1, env): cima e fondo dell'opera oltre a scorrimento e fondo scavo */
+const newTav = (t = {}) => ({ rows: TV_ROWS.map((r) => r.k), tol: 0.05, gap: 2.5, env: true, sec: true, step: 25, sGuitar: true, sMarks: true, sAreas: true, earth: true, plan: true, pScale: 1000, ...t });
 const PL_SCALES = [500, 1000, 2000, 5000];       // scale della pianta georeferita nelle tavole (scelta dell'utente: più scale)
 /* velo (0.22): formato (TIN LandXML, punti a griglia, .grd di Surfer) e passo della griglia (m; 10 cm: quello chiesto dall'idraulico) */
 const VE_FMTS = ["xml", "xyz", "grd"], VE_LABEL = { xml: () => tr("ve.xml"), xyz: () => tr("ve.xyz"), grd: () => tr("ve.grd") };
@@ -5501,6 +5504,7 @@ function renderTav(ok) {
   return `<div class="sub">${esc(tr("tv.sub"))}</div>`
     + `<p class="tvh">${esc(tr("tv.subP"))}</p>`
     + `<div class="tvrows">${TV_ROWS.map((r) => `<label class="check"><input type="checkbox" data-tv="${r.k}"${T.rows.includes(r.k) ? " checked" : ""}> ${esc(r.l())}</label>`).join("")}</div>`
+    + chk("env", tr("tv.env"))
     + `<div class="pgrid">${num("tvTol", tr("tv.tol"), Math.round(T.tol * 1000) / 10, "cm")}${num("tvGap", tr("tv.gap"), T.gap, "m")}</div>`
     + `<p class="help">${esc(tr("tv.help"))}${TIN ? "" : " " + esc(tr("tv.noDtm"))}</p>`
     + `<p class="tvh">${esc(tr("sc.sub"))}</p>${chk("sec", tr("sc.on"))}`
@@ -5881,7 +5885,9 @@ function exportSheets() {
       // tabulato (0.17): sezioni ragguagliate fra le sezioni correnti, più le righe ai capi di ponti, cambi netti e zone dei salti;
       // in fondo il computo dei tratti (lo stesso di CSV, IFC e .3dm) e lo scarto
       const earth = T.earth && sections.length ? C.earthSheet({ ...args, secs: sections, tool: C.earthTool(d.parts || []) }) : null;
-      return { name: w.name, ...C.profileSheet({ ...args, tol: T.tol, gap: T.gap }), sections, earth,
+      const ps = C.profileSheet({ ...args, tol: T.tol, gap: T.gap });
+      if (!T.env) delete ps.envelope;
+      return { name: w.name, ...ps, sections, earth,
         plan: T.plan ? { verts: C.axisVertices(d.axis), at: (p) => C.planAt(d.axis, p), foot: d.specAt ? C.planFootprint(args) : [],
           work: d.specAt ? C.planWork(args) : null, trims: trimsOk(w, d).map((t) => ({ a: t.a, b: t.b })) } : null };
     });
