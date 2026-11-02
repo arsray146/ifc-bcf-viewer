@@ -380,6 +380,11 @@ export function firstCrossing(p0, p1, poly) {
      { id, type: "lock",  name?, on?, polygon } non toccano il terreno
        (opEvaluator → null): l'acqua si vede e basta, l'area bloccata
        ferma pennelli e limite di pendenza (TerrainDoc.locked)
+     { id, type: "soft",  name?, on?, seed?: [x,y], polygon?, tension, keep?,
+       bumps?: [{ at: [x,y], radius, height }] }
+       area morbida: NON è una funzione del singolo nodo (opEvaluator →
+       null), la calcola il documento — vedi softArea / softSolve e
+       TerrainDoc.settle
    startPad/endPad agganciano la quota d'inizio/fine di una rampa alla
    piattaforma da cui parte o a cui arriva: se la piattaforma cambia quota,
    la rampa la segue (se è inclinata, la quota del suo piano nel punto dove
@@ -579,6 +584,279 @@ export function opRange(ev, hf, zLo, zHi) {
   return i0 <= i1 && j0 <= j1 ? { i0, i1, j0, j1 } : null;
 }
 
+/* ======================================================================
+   Area morbida (richiesta dell'utente del 2 novembre 2026: topografie dove
+   i bordi stanno a quote precise — le rampe — e l'interno dev'essere «più
+   organico e dolce, meno triangolato»). Scelte dell'utente: è un'OPERA
+   modificabile (se una rampa si sposta, l'interno si rifà), l'area si
+   prende con un CLIC dentro (si trova da sola fino agli impalcati e al
+   bordo del rilievo) o col CONTORNO, si parte dalla LASTRA SOTTILE, e a
+   scelta «tieni le forme più grandi di … m».
+
+   Dentro l'area il terreno diventa la superficie che rende minima
+     E = (1 − t)·∫(Δz)² + t·κ²·∫|∇z|² + w0·∫(z − z0)²
+   con FERMI i nodi fuori dall'area, gli impalcati delle opere (dove la
+   quota non dipende dal terreno: piano di piattaforme e rampe, faccia
+   delle scarpate, cella dei punti), le aree bloccate e il bordo del
+   rilievo. t = 0 lastra sottile (curvatura minima: esce tangente dalle
+   rampe, colline tonde sui punti quotati); t = 1 membrana (non va mai
+   sopra né sotto i bordi, ma fa spigolo sulle rampe e «tende» sui punti).
+   κ = SOFT_K / √area: la tensione dice la stessa cosa in un'area di 20 m
+   e in una di 200. w0 > 0 (campo `keep`, metri: vedi softParams) tiene le
+   forme di quello che c'era (z0) più grandi di `keep` e arrotonda le altre.
+   Sulla griglia: laplaciano a 5 punti nei nodi col vicinato valido,
+   differenze sui lati; il sistema si risolve con CG precondizionato da un
+   V-ciclo multigrid (Gauss–Seidel avanti / indietro, livelli grossi di
+   Galerkin Pᵀ·A·P con P bilineare: con lo stencil riscritto a passo
+   doppio le iterazioni crescevano col lato dell'area, 45 → 145).
+   Misurato (2 novembre, anello di rampe con rampa interna e un punto
+   quotato): scarto dal CG semplice portato fino in fondo 0,07 mm; 19 000
+   nodi liberi 0,14 s, 200 000 1,8 s, 825 000 9 s.
+   ====================================================================== */
+export const SOFT_K = 6;
+export const SOFT_MAX = 1200000;              // nodi liberi: oltre, l'area non si calcola (~15 s)
+const SN = 25;                                 // stencil 5×5 per nodo libero (k = (dj+2)·5 + di+2)
+
+/* livello: array con un margine di 2·nx+2 davanti e dietro, così i vicini a ±2 non escono mai dall'array
+   (i coefficienti verso nodi fuori dalla griglia sono zero: la lettura che «gira» sulla riga accanto non conta) */
+function softLevel(nx, ny) {
+  const pad = 2 * nx + 2, OFF = new Int32Array(SN);
+  for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) OFF[(dj + 2) * 5 + di + 2] = di + dj * nx;
+  return { nx, ny, pad, M: nx * ny + 2 * pad, OFF };
+}
+/* livello fine: la riga di A dalla definizione dell'energia, anche verso i nodi fissi (servono al termine noto) */
+function softFine(nx, ny, free, valid, wL, wG, wK) {
+  const L = softLevel(nx, ny), N = nx * ny, ok = valid ? (k) => valid[k] === 1 : () => true;
+  const inQ = new Uint8Array(N);                      // nodi il cui laplaciano entra nell'energia
+  for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) {
+    const k = j * nx + i;
+    if ((free[k] || free[k - 1] || free[k + 1] || free[k - nx] || free[k + nx]) && ok(k) && ok(k - 1) && ok(k + 1) && ok(k - nx) && ok(k + nx)) inQ[k] = 1;
+  }
+  let n = 0;
+  for (let k = 0; k < N; k++) n += free[k];
+  const F = new Int32Array(n), S = new Float64Array(n * SN), N5 = [[0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]];
+  for (let k = 0, q = 0; k < N; k++) {
+    if (!free[k]) continue;
+    const fi = k % nx, fj = (k - fi) / nx, row = q * SN;
+    F[q++] = k + L.pad;
+    if (wL) for (const [ai, aj] of N5) {
+      const ki = fi + ai, kj = fj + aj;
+      if (ki < 0 || kj < 0 || ki >= nx || kj >= ny || !inQ[kj * nx + ki]) continue;
+      const a = ai || aj ? 1 : -4;
+      for (const [bi, bj] of N5) S[row + (aj + bj + 2) * 5 + ai + bi + 2] += wL * a * (bi || bj ? 1 : -4);
+    }
+    if (wG) for (const [ai, aj] of N5) {
+      const gi = fi + ai, gj = fj + aj;
+      if (!(ai || aj) || gi < 0 || gj < 0 || gi >= nx || gj >= ny || !ok(gj * nx + gi)) continue;
+      S[row + 12] += wG; S[row + (aj + 2) * 5 + ai + 2] -= wG;
+    }
+    S[row + 12] += wK;
+  }
+  return Object.assign(L, { F, S, n });
+}
+/* livello grosso: incognite = nodi interni il cui supporto di P (3×3 fine) tocca un libero; S = Pᵀ·S_fine·P */
+function softCoarse(L) {
+  const nx = L.nx, ny = L.ny, cx = Math.floor((nx - 1) / 2) + 1, cy = Math.floor((ny - 1) / 2) + 1, C = softLevel(cx, cy);
+  const qOf = new Int32Array(L.M).fill(-1);
+  for (let q = 0; q < L.n; q++) qOf[L.F[q]] = q;
+  const cl = [];
+  for (let J = 1; J < cy - 1; J++) for (let I = 1; I < cx - 1; I++) {
+    const k = 2 * J * nx + 2 * I + L.pad;
+    if (qOf[k] >= 0 || qOf[k - 1] >= 0 || qOf[k + 1] >= 0 || qOf[k - nx] >= 0 || qOf[k + nx] >= 0
+      || qOf[k - nx - 1] >= 0 || qOf[k - nx + 1] >= 0 || qOf[k + nx - 1] >= 0 || qOf[k + nx + 1] >= 0) cl.push(J * cx + I);
+  }
+  const n = cl.length, F = new Int32Array(n), cq = new Int32Array(C.M).fill(-1), S = new Float64Array(n * SN);
+  for (let q = 0; q < n; q++) { F[q] = cl[q] + C.pad; cq[F[q]] = q; }
+  const y = new Float64Array(49), PW = [0.25, 0.5, 0.25, 0.5, 1, 0.5, 0.25, 0.5, 0.25];
+  for (let q = 0; q < n; q++) {
+    const I = cl[q] % cx, J = (cl[q] - I) / cx, ci = 2 * I, cj = 2 * J;
+    y.fill(0);                                        // y = A·P·e_C nella finestra 7×7 fine attorno al centro
+    for (let a = 0; a < 9; a++) {
+      const gi = ci + (a % 3) - 1, gj = cj + ((a / 3) | 0) - 1, qg = qOf[gj * nx + gi + L.pad];
+      if (qg < 0) continue;
+      for (let m = 0, row = qg * SN; m < SN; m++) {
+        const s = L.S[row + m];
+        if (!s) continue;
+        const hi = gi + (m % 5) - 2, hj = gj + ((m / 5) | 0) - 2;
+        if (qOf[hj * nx + hi + L.pad] >= 0) y[(hj - cj + 3) * 7 + hi - ci + 3] += PW[a] * s;   // A simmetrica: A_hg = A_gh
+      }
+    }
+    for (let b = 0, row = q * SN; b < 49; b++) {
+      const v = y[b];
+      if (!v) continue;
+      const hi = ci + (b % 7) - 3, hj = cj + ((b / 7) | 0) - 3;
+      const Is = hi & 1 ? [(hi - 1) >> 1, (hi + 1) >> 1] : [hi >> 1], Js = hj & 1 ? [(hj - 1) >> 1, (hj + 1) >> 1] : [hj >> 1];
+      const w = (hi & 1 ? 0.5 : 1) * (hj & 1 ? 0.5 : 1);
+      for (const I2 of Is) for (const J2 of Js) if (cq[J2 * cx + I2 + C.pad] >= 0) S[row + (J2 - J + 2) * 5 + I2 - I + 2] += w * v;
+    }
+  }
+  return Object.assign(C, { F, S, n });
+}
+function softRow(L, x, q) {
+  const S = L.S, O = L.OFF, f = L.F[q], r = q * SN;
+  let s = 0;
+  for (let m = 0; m < SN; m++) s += S[r + m] * x[f + O[m]];
+  return s;
+}
+function softGS(L, x, b, forward) {
+  const n = L.n, S = L.S, F = L.F;
+  if (forward) for (let q = 0; q < n; q++) x[F[q]] += (b[F[q]] - softRow(L, x, q)) / S[q * SN + 12];
+  else for (let q = n - 1; q >= 0; q--) x[F[q]] += (b[F[q]] - softRow(L, x, q)) / S[q * SN + 12];
+}
+/* il livello più grosso: CG semplice fino in fondo */
+function softCG(L, b, x) {
+  const n = L.n, F = L.F, r = new Float64Array(L.M), p = new Float64Array(L.M), Ap = new Float64Array(L.M);
+  let rr = 0, bn = 0;
+  for (let q = 0; q < n; q++) { const f = F[q]; r[f] = b[f] - softRow(L, x, q); p[f] = r[f]; rr += r[f] * r[f]; bn += b[f] * b[f]; }
+  for (let it = 0, max = 6 * n + 50; it < max && rr > 1e-26 * bn; it++) {
+    let pAp = 0;
+    for (let q = 0; q < n; q++) { const v = softRow(L, p, q); Ap[F[q]] = v; pAp += p[F[q]] * v; }
+    if (!(pAp > 0)) return;
+    const a = rr / pAp;
+    let rr2 = 0;
+    for (let q = 0; q < n; q++) { const f = F[q]; x[f] += a * p[f]; r[f] -= a * Ap[f]; rr2 += r[f] * r[f]; }
+    const beta = rr2 / rr; rr = rr2;
+    for (let q = 0; q < n; q++) { const f = F[q]; p[f] = r[f] + beta * p[f]; }
+  }
+}
+/* V-ciclo simmetrico (precondizionatore): x_l ≈ A_l⁻¹·b_l partendo da zero */
+function softV(Ls, l, nu) {
+  const L = Ls[l];
+  L.x.fill(0);
+  if (l === Ls.length - 1) { softCG(L, L.b, L.x); return; }
+  for (let s = 0; s < nu; s++) softGS(L, L.x, L.b, true);
+  for (let q = 0; q < L.n; q++) L.r[L.F[q]] = L.b[L.F[q]] - softRow(L, L.x, q);
+  const C = Ls[l + 1], nx = L.nx, cx = C.nx;
+  for (let q = 0; q < C.n; q++) {                    // restrizione Pᵀ (r è zero fuori dai liberi)
+    const K = C.F[q] - C.pad, I = K % cx, J = (K - I) / cx, k = 2 * J * nx + 2 * I + L.pad, r = L.r;
+    C.b[C.F[q]] = r[k] + 0.5 * (r[k - 1] + r[k + 1] + r[k - nx] + r[k + nx]) + 0.25 * (r[k - nx - 1] + r[k - nx + 1] + r[k + nx - 1] + r[k + nx + 1]);
+  }
+  softV(Ls, l + 1, nu);
+  for (let q = 0; q < L.n; q++) {                    // prolungamento bilineare P (i nodi grossi fermi valgono zero)
+    const f = L.F[q] - L.pad, i = f % nx, j = (f - i) / nx, k = (j >> 1) * cx + (i >> 1) + C.pad, X = C.x;
+    L.x[L.F[q]] += !(i & 1) && !(j & 1) ? X[k] : !(j & 1) ? 0.5 * (X[k] + X[k + 1]) : !(i & 1) ? 0.5 * (X[k] + X[k + cx])
+      : 0.25 * (X[k] + X[k + 1] + X[k + cx] + X[k + cx + 1]);
+  }
+  for (let s = 0; s < nu; s++) softGS(L, L.x, L.b, false);
+}
+
+/** risolve l'area: sub = { nx, ny, cell, z (Float64Array: quote dei fissi, partenza nei liberi; riscritta nei
+    liberi), free (Uint8Array, mai sul bordo della griglia), valid (Uint8Array | null), z0 (forme da tenere; di
+    base z) }; p = { t, kappa, w0 } come nell'energia sopra. → { iters, res, ms, levels } */
+export function softSolve(sub, { t = 0, kappa = 0, w0 = 0 } = {}, { tol = 1e-7, maxIter = 400, nu = 2 } = {}) {
+  const t0 = Date.now(), { nx, ny, cell: h, z } = sub, z0 = sub.z0 || z;
+  const wL = (1 - t) / (h * h), wG = t * kappa * kappa, wK = w0 * h * h;
+  const L0 = softFine(nx, ny, sub.free, sub.valid || null, wL, wG, wK), Ls = [L0];
+  for (let L = L0; L.n > 300 && L.nx > 6 && L.ny > 6; ) {
+    const C = softCoarse(L);
+    if (!C.n || C.n >= L.n) break;
+    Ls.push(L = C);
+  }
+  for (const L of Ls) { L.x = new Float64Array(L.M); L.b = new Float64Array(L.M); L.r = new Float64Array(L.M); }
+  const n = L0.n, F = L0.F, M = L0.M, pad = L0.pad;
+  if (!n) return { iters: 0, res: 0, ms: 0, levels: 1 };
+  /* incognita = z nei liberi (zero altrove); termine noto = −A·(quote dei fissi) + wK·z0 */
+  const zf = new Float64Array(M), b = new Float64Array(M), x = new Float64Array(M);
+  for (let k = 0; k < nx * ny; k++) if (!sub.free[k]) zf[k + pad] = z[k];
+  for (let q = 0; q < n; q++) { const f = F[q]; b[f] = wK * z0[f - pad] - softRow(L0, zf, q); x[f] = z[f - pad]; }
+  const r = new Float64Array(M), p = new Float64Array(M), Ap = new Float64Array(M);
+  let bn = 0, rn = 0;
+  for (let q = 0; q < n; q++) { const f = F[q]; r[f] = b[f] - softRow(L0, x, q); bn += b[f] * b[f]; rn += r[f] * r[f]; }
+  bn = Math.sqrt(bn) || 1;
+  let res = Math.sqrt(rn) / bn, it = 0;
+  const prec = () => { L0.b.set(r); softV(Ls, 0, nu); return L0.x; };
+  if (res > tol) {
+    let zv = prec(), rz = 0;
+    for (let q = 0; q < n; q++) { const f = F[q]; p[f] = zv[f]; rz += r[f] * zv[f]; }
+    while (it < maxIter) {
+      let pAp = 0;
+      for (let q = 0; q < n; q++) { const v = softRow(L0, p, q); Ap[F[q]] = v; pAp += p[F[q]] * v; }
+      if (!(pAp > 0)) break;
+      const a = rz / pAp;
+      rn = 0;
+      for (let q = 0; q < n; q++) { const f = F[q]; x[f] += a * p[f]; r[f] -= a * Ap[f]; rn += r[f] * r[f]; }
+      it++;
+      if ((res = Math.sqrt(rn) / bn) <= tol) break;
+      zv = prec();
+      let rz2 = 0;
+      for (let q = 0; q < n; q++) rz2 += r[F[q]] * zv[F[q]];
+      const beta = rz2 / rz; rz = rz2;
+      for (let q = 0; q < n; q++) { const f = F[q]; p[f] = zv[f] + beta * p[f]; }
+    }
+  }
+  for (let q = 0; q < n; q++) z[F[q] - pad] = x[F[q]];
+  return { iters: it, res, ms: Date.now() - t0, levels: Ls.length };
+}
+
+/** i parametri dell'energia per un'area di `count` nodi a passo `cell` (tension 0 lastra … 1 membrana;
+    keep in metri, 0/assente = l'interno non conta). «Tieni le forme più grandi di keep»: un'onda lunga
+    λ resta per w0 / (w0 + (1 − t)·(2π/λ)⁴ + t·κ²·(2π/λ)²) — metà quando la mezz'onda (una gobba, una
+    conca) è lunga keep, il 94 % al doppio, il 6 % alla metà */
+export function softParams(op, count, cell) {
+  const t = Math.min(1, Math.max(0, +op.tension || 0)), kappa = SOFT_K / Math.max(cell, Math.sqrt(count) * cell), q = +op.keep > 0 ? Math.PI / +op.keep : 0;
+  return { t, kappa, w0: q ? (1 - t) * q ** 4 + t * kappa * kappa * q * q : 0 };
+}
+
+/** i nodi liberi di un'area morbida sulla griglia g (nx, ny, cell, x0, y0). Candidati: nodi validi, non sul
+    bordo del rilievo (bordo della griglia, o accanto a un nodo fuori dalla maschera), non bloccati, non
+    impalcati (isDeck(k), chiesto solo ai nodi che si visitano), dentro il contorno se c'è. Col seme, solo
+    quelli collegati (4 vicini) al nodo del seme; senza, tutti quelli nel contorno.
+    → { free: Uint8Array(nx·ny), count, i0, i1, j0, j1 } o { count: 0, why: "seed" | "empty" | "big", i0… } */
+export function softArea(g, op, { mask = null, locked = null, isDeck = () => false, max = SOFT_MAX } = {}) {
+  const n = g.nx, m = g.ny, c = g.cell, N = n * m;
+  const hasPoly = Array.isArray(op.polygon) && op.polygon.length >= 3 && okPts(op.polygon), hasSeed = okPt(op.seed);
+  if (!hasPoly && !hasSeed) return { count: 0, why: "empty" };
+  let inPoly = null;
+  if (hasPoly) { inPoly = new Uint8Array(N); polygonRows(g, op.polygon, (j, a, b) => inPoly.fill(1, j * n + a, j * n + b + 1)); }
+  const st = new Uint8Array(N);                       // 0 da vedere, 1 libero, 2 no
+  const cand = (k) => {
+    if (st[k]) return st[k] === 1;
+    const i = k % n;
+    let yes = i > 0 && i < n - 1 && k >= n && k < N - n && (!inPoly || inPoly[k]) && !(locked && locked[k]);
+    if (yes && mask) yes = mask[k] && mask[k - 1] && mask[k + 1] && mask[k - n] && mask[k + n];
+    if (yes) yes = !isDeck(k);
+    st[k] = yes ? 1 : 2;
+    return yes;
+  };
+  const free = new Uint8Array(N);
+  let count = 0, i0 = n, i1 = -1, j0 = m, j1 = -1, big = false;
+  const take = (k) => {
+    free[k] = 1; count++;
+    const i = k % n, j = (k - i) / n;
+    if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j;
+    if (count > max) big = true;
+  };
+  if (hasSeed) {
+    const si = Math.round((op.seed[0] - g.x0) / c), sj = Math.round((op.seed[1] - g.y0) / c);
+    if (si < 0 || sj < 0 || si >= n || sj >= m) return { count: 0, why: "seed" };
+    const s0 = sj * n + si;                           // un clic proprio sul ciglio: il primo libero accanto
+    const s = [s0, si > 0 ? s0 - 1 : -1, si < n - 1 ? s0 + 1 : -1, s0 - n, s0 + n].find((k) => k >= 0 && k < N && cand(k));
+    if (s === undefined) return { count: 0, why: "seed" };
+    const stack = [s];
+    take(s);
+    while (stack.length && !big) {                    // i candidati sono interni: i 4 vicini stanno nella griglia
+      const k = stack.pop();
+      for (const q of [k - 1, k + 1, k - n, k + n]) if (!free[q] && cand(q)) { take(q); stack.push(q); }
+    }
+  } else {
+    for (let k = 0; k < N && !big; k++) if (inPoly[k] && cand(k)) take(k);
+  }
+  if (big) return { count, why: "big", i0, i1, j0, j1 };
+  return count ? { free, count, i0, i1, j0, j1 } : { count: 0, why: "empty" };
+}
+/** i dossi validi di un'area morbida: [{ at: [x, y], radius (m, > 0), height (m, anche negativa) }] */
+export function softBumps(op) {
+  return (Array.isArray(op.bumps) ? op.bumps : []).filter((b) => b && okPt(b.at) && +b.radius > 0 && Number.isFinite(+b.height) && +b.height !== 0)
+    .map((b) => ({ at: [+b.at[0], +b.at[1]], radius: +b.radius, height: +b.height }));
+}
+/* il nodo (x, y) è sull'impalcato dell'opera e (una voce di TerrainDoc._evs)? = la sua quota lì non
+   dipende dal terreno: piano di piattaforme e rampe, faccia delle scarpate, cella dei punti */
+function softDeckAt(e, x, y) {
+  const b = e.ev.box;
+  if (x < b[0] - 1e-9 || x > b[2] + 1e-9 || y < b[1] - 1e-9 || y > b[3] + 1e-9) return false;
+  return Math.abs(e.ev.at(1e6, x, y) - e.ev.at(-1e6, x, y)) < 1e-6;
+}
+
 const cloneOp = (o) => JSON.parse(JSON.stringify(o));
 
 /* ======================================================================
@@ -607,14 +885,20 @@ export class TerrainDoc {
     this.undoStack = []; this.redoStack = []; this.histBytes = 0;
     this._stroke = null;
     this._seq = 1 + this.ops.reduce((m, o) => Math.max(m, +(String(o.id).match(/\d+$/) || [0])[0]), 0);
+    for (const o of this.ops) if (!o.id) o.id = this.newId(o.type);       // le aree morbide si orientano con gli id
+    /* aree morbide: id → l'ultimo calcolo (vedi settle). autoSettle: dopo ogni modifica si ricalcolano
+       subito; la pagina lo spegne e chiama settle() a riposo (un'area grande costa secondi) */
+    this._soft = new Map();
+    this.autoSettle = true;
     this._groundRange();
     this._rebuild();
     this.refold(this.full());
+    this.settle();
   }
   get nx() { return this.base.nx; }
   get ny() { return this.base.ny; }
   full() { return { i0: 0, i1: this.base.nx - 1, j0: 0, j1: this.base.ny - 1 }; }
-  newId(type) { return (["pad", "water", "bank", "lock", "point"].includes(type) ? type : "path") + this._seq++; }
+  newId(type) { return (["pad", "water", "bank", "lock", "point", "soft"].includes(type) ? type : "path") + this._seq++; }
 
   /* ---- range delle quote: decide quanto lontano può arrivare una scarpata */
   _groundRange() {
@@ -624,7 +908,7 @@ export class TerrainDoc {
   _bounds(lists) {
     let lo = this.zr.lo, hi = this.zr.hi, rmax = 0;
     for (const list of lists) for (const o of list) {
-      const ev = opEvaluator(o, list, this.base);
+      const ev = o.type === "soft" ? (this._soft.get(o.id) || {}).ev : opEvaluator(o, list, this.base);
       if (!ev) continue;
       lo = Math.min(lo, ev.zMin); hi = Math.max(hi, ev.zMax); rmax = Math.max(rmax, ev.round);
     }
@@ -636,6 +920,11 @@ export class TerrainDoc {
     this._evs = [];
     for (const o of this.ops) {
       if (o.on === false) continue;
+      if (o.type === "soft") {                         // l'area morbida c'è solo quando il suo calcolo è aggiornato
+        const c = this._soft.get(o.id);
+        if (c && !c.stale && c.ev) this._evs.push({ id: o.id, ev: c.ev, r: c.r });
+        continue;
+      }
       const ev = opEvaluator(o, this.ops, this.base), r = opRange(ev, this.final, lo, hi);
       if (ev && r) this._evs.push({ id: o.id, ev, r });
     }
@@ -654,6 +943,162 @@ export class TerrainDoc {
     let any = false;
     for (const p of polys) polygonRows(this.ground, p, (j, a, b) => { L.fill(1, j * n + a, j * n + b + 1); any = true; });
     this.locked = any ? L : null;
+  }
+
+  /* ---- aree morbide (vedi softArea / softSolve). Un'area dipende dal terreno e dalle opere nel suo
+     riquadro allargato di 2 nodi (lo stencil, `dep`): una modifica che lo tocca la segna «da rifare», e da
+     lì finché settle() non la ricalcola l'area non c'è (si vede quello che sta sotto) — così durante un
+     trascinamento non copre una rampa che si è spostata. Solo le aree DOPO l'opera `from` (indice
+     nell'elenco; -1 = tutte). → la regione da ripiegare: quella data più le zone delle aree spente */
+  _touch(region, from = -1) {
+    if (!region || !this._soft.size) return region;
+    let R = region, any = false;
+    for (const [id, c] of this._soft) {
+      if (c.stale || this.ops.findIndex(o => o.id === id) <= from) continue;
+      const d = c.dep;
+      if (d && (d.i0 > region.i1 || d.i1 < region.i0 || d.j0 > region.j1 || d.j1 < region.j0)) continue;
+      c.stale = true; any = true;
+      if (c.r) R = unionRegion(R, c.r);
+    }
+    if (any) this._rebuild();
+    return R;
+  }
+  /* i nodi di un contorno (per le aree bloccate, che spostano i confini delle aree morbide) */
+  _polyRegion(poly) {
+    if (!Array.isArray(poly) || !okPts(poly) || poly.length < 3) return null;
+    const [x0, y0, x1, y1] = boxOf(poly), g = this.base, c = g.cell;
+    const i0 = Math.max(0, Math.floor((x0 - g.x0) / c)), i1 = Math.min(g.nx - 1, Math.ceil((x1 - g.x0) / c));
+    const j0 = Math.max(0, Math.floor((y0 - g.y0) / c)), j1 = Math.min(g.ny - 1, Math.ceil((y1 - g.y0) / c));
+    return i0 <= i1 && j0 <= j1 ? { i0, i1, j0, j1 } : null;
+  }
+  /* un'area: i nodi liberi (softArea, con gli impalcati di TUTTE le opere accese fermi, prima o dopo di lei
+     nell'elenco), le quote di partenza (il terreno piegato dalle opere che la precedono; sugli impalcati delle
+     opere che la seguono, la loro quota) e la soluzione. Se area, quote e parametri sono quelli dell'ultimo
+     calcolo, torna buono quello (`same`) */
+  _softRegion(o) {
+    const g = this.base, n = g.nx, c = g.cell, solid = this._evs.filter(e => !e.ev.soft);
+    const isDeck = (k) => { const i = k % n, x = g.x0 + i * c, y = g.y0 + (k - i) / n * c; return solid.some(e => softDeckAt(e, x, y)); };
+    return softArea(g, o, { mask: this.mask, locked: this.locked, isDeck });
+  }
+  /** dove arriverebbe un'area morbida, senza calcolarla (il clic dello strumento) → { status, count } */
+  softProbe(op) {
+    const a = this._softRegion(op);
+    return { status: a.free ? "ok" : a.why, count: a.count };
+  }
+  /** il nodo più vicino a (x, y) è dentro l'area `id`? (per sceglierla col clic) */
+  softAt(id, x, y) {
+    const c = this._soft.get(id), g = this.base;
+    if (!c || !c.free) return false;
+    const i = Math.round((x - g.x0) / g.cell) - c.dep.i0, j = Math.round((y - g.y0) / g.cell) - c.dep.j0;
+    return i >= 0 && j >= 0 && i < c.snx && j < c.sny && c.free[j * c.snx + i] === 1;
+  }
+  _softCompute(o, prev) {
+    const g = this.base, n = g.nx, c = g.cell, idx = this.ops.indexOf(o);
+    const order = new Map(this.ops.map((x, q) => [x.id, q]));
+    const before = this._evs.filter(e => order.get(e.id) < idx), after = this._evs.filter(e => !e.ev.soft && order.get(e.id) > idx);
+    const key = JSON.stringify([+o.tension || 0, +o.keep || 0]);
+    const area = this._softRegion(o);
+    if (!area.free) {
+      const dep = area.why === "big" ? { i0: Math.max(0, area.i0 - 2), i1: Math.min(n - 1, area.i1 + 2), j0: Math.max(0, area.j0 - 2), j1: Math.min(g.ny - 1, area.j1 + 2) } : null;
+      return { stale: false, same: false, status: area.why, count: area.count, ev: null, r: null, dep, key };
+    }
+    const si0 = Math.max(0, area.i0 - 2), si1 = Math.min(n - 1, area.i1 + 2), sj0 = Math.max(0, area.j0 - 2), sj1 = Math.min(g.ny - 1, area.j1 + 2);
+    const snx = si1 - si0 + 1, sny = sj1 - sj0 + 1, NS = snx * sny;
+    const free = new Uint8Array(NS), zin = new Float64Array(NS), valid = this.mask ? new Uint8Array(NS) : null;
+    for (let j = sj0; j <= sj1; j++) for (let i = si0; i <= si1; i++) {
+      const k = j * n + i, s = (j - sj0) * snx + i - si0, x = g.x0 + i * c, y = g.y0 + j * c;
+      free[s] = area.free[k];
+      if (valid) valid[s] = this.mask[k];
+      let z = this.ground.z[k];
+      for (const e of before) if (i >= e.r.i0 && i <= e.r.i1 && j >= e.r.j0 && j <= e.r.j1) z = e.ev.at(z, x, y);
+      if (!free[s]) for (const e of after) if (i >= e.r.i0 && i <= e.r.i1 && j >= e.r.j0 && j <= e.r.j1 && softDeckAt(e, x, y)) z = e.ev.at(z, x, y);
+      zin[s] = z;
+    }
+    const r = { i0: area.i0, i1: area.i1, j0: area.j0, j1: area.j1 }, dep = { i0: si0, i1: si1, j0: sj0, j1: sj1 };
+    const sameArea = !!prev && prev.status === "ok" && prev.key === key && prev.dep.i0 === si0 && prev.dep.j0 === sj0 && prev.snx === snx && prev.sny === sny
+      && prev.free.every((v, s) => v === free[s]) && prev.zin.every((v, s) => v === zin[s]);
+    const bumps = softBumps(o), bkey = JSON.stringify(bumps);
+    if (sameArea && prev.bkey === bkey) return { ...prev, stale: false, same: true };
+    const t0 = Date.now(), p = softParams(o, area.count, c);
+    let solA = sameArea ? prev.solA : null, iters = 0;                  // spostando un dosso l'area sotto resta quella
+    if (!solA) { solA = Float64Array.from(zin); iters = softSolve({ nx: snx, ny: sny, cell: c, z: solA, free, valid, z0: zin }, p).iters; }
+    const sol = Float64Array.from(solA), peaks = [];
+    if (bumps.length) {
+      /* dossi (richiesta del 2 novembre: «rigonfiamenti»): B con i nodi fermi a zero, tenuto vicino alla somma delle
+         gobbe a coseno (il profilo del pennello e del raccordo dei punti) alla scala kb; la soluzione è A + B. È lo
+         stesso che rifare l'area con «tieni le forme» verso A + gobbe: il termine misto fra A e B si annulla (A
+         rispetta le sue equazioni, B è zero sui fissi). Un dosso che tocca un'opera o il bordo si schiaccia lì */
+      const B = new Float64Array(NS), tgt = new Float64Array(NS), kb = Math.max(2 * c, 0.3 * Math.min(...bumps.map((b) => b.radius)));
+      const q = Math.PI / kb, wb = (1 - p.t) * q ** 4 + p.t * p.kappa * p.kappa * q * q, share = wb / (p.w0 + wb);
+      for (let j = 0; j < sny; j++) for (let i = 0; i < snx; i++) {
+        const s = j * snx + i;
+        if (!free[s]) continue;
+        const x = g.x0 + (i + si0) * c, y = g.y0 + (j + sj0) * c;
+        let b = 0;
+        for (const u of bumps) b += u.height * brushWeight(Math.hypot(x - u.at[0], y - u.at[1]), u.radius);
+        tgt[s] = B[s] = share * b;
+      }
+      iters += softSolve({ nx: snx, ny: sny, cell: c, z: B, free, valid, z0: tgt }, { t: p.t, kappa: p.kappa, w0: p.w0 + wb }).iters;
+      for (let s = 0; s < NS; s++) if (free[s]) sol[s] += B[s];
+      for (const u of bumps) {                                         // quanto sale davvero il dosso, al centro
+        const i = Math.round((u.at[0] - g.x0) / c) - si0, j = Math.round((u.at[1] - g.y0) / c) - sj0;
+        peaks.push(i >= 0 && j >= 0 && i < snx && j < sny ? B[j * snx + i] : 0);
+      }
+    }
+    const res = { ms: Date.now() - t0, iters };
+    let zMin = Infinity, zMax = -Infinity;
+    for (let s = 0; s < NS; s++) if (free[s]) { if (sol[s] < zMin) zMin = sol[s]; if (sol[s] > zMax) zMax = sol[s]; }
+    const X0 = g.x0, Y0 = g.y0;
+    const ev = {
+      soft: true, box: [X0 + area.i0 * c, Y0 + area.j0 * c, X0 + area.i1 * c, Y0 + area.j1 * c], zMin, zMax, slope: 1, cut: 1, round: 0, reach: 0,
+      at(z, x, y) {
+        const i = Math.round((x - X0) / c) - si0, j = Math.round((y - Y0) / c) - sj0;
+        if (i < 0 || j < 0 || i >= snx || j >= sny) return z;
+        const s = j * snx + i;
+        return free[s] ? sol[s] : z;
+      },
+    };
+    return { stale: false, same: false, status: "ok", key, bkey, snx, sny, free, zin, solA, sol, peaks, ev, r, dep, count: area.count, ms: res.ms, iters: res.iters };
+  }
+  /** ricalcola le aree morbide da rifare, in ordine (ognuna vede quelle che la precedono) → la regione
+      cambiata, o null */
+  settle() {
+    for (const id of [...this._soft.keys()]) if (!this.ops.some(o => o.id === id && o.type === "soft")) this._soft.delete(id);
+    let region = null;
+    this.ops.forEach((o, q) => {
+      if (o.type !== "soft" || o.on === false) return;
+      const prev = this._soft.get(o.id);
+      if (prev && !prev.stale) return;
+      const c = this._softCompute(o, prev);
+      this._soft.set(o.id, c);
+      const R = unionRegion(prev && prev.r, c.r);
+      region = unionRegion(region, R);
+      this._rebuild();
+      if (!c.same && R) region = unionRegion(region, this._touch(R, q));    // le aree dopo questa che la toccano si rifanno
+    });
+    if (region) this.refold(region);
+    return region;
+  }
+  /** c'è un'area morbida accesa da (ri)calcolare? */
+  get softPending() { return this.ops.some(o => o.type === "soft" && o.on !== false && (!this._soft.has(o.id) || this._soft.get(o.id).stale)); }
+  /** stato di un'area per il pannello: status "ok" | "stale" (da rifare) | "seed" (il clic non cade in
+      un'area) | "empty" | "big" (oltre SOFT_MAX nodi); count nodi liberi, area m², ms del calcolo */
+  softInfo(id) {
+    const c = this._soft.get(id);
+    if (!c) return null;
+    return { status: c.stale ? "stale" : c.status, count: c.count || 0, area: (c.count || 0) * this.base.cell ** 2, ms: c.ms || 0, iters: c.iters || 0, peaks: c.peaks || [] };
+  }
+  /** il contorno dei nodi liberi di un'area (polilinee in pianta, a metà fra nodo libero e fermo; si
+      ricorda finché l'area non cambia) */
+  softOutline(id) {
+    const c = this._soft.get(id);
+    if (!c || !c.free) return [];
+    if (!c.outline) {
+      const g = this.base, z = new Float64Array(c.free.length);
+      for (let s = 0; s < z.length; s++) z[s] = c.free[s];
+      c.outline = contourLines({ nx: c.snx, ny: c.sny, cell: g.cell, x0: g.x0 + c.dep.i0 * g.cell, y0: g.y0 + c.dep.j0 * g.cell, z, mask: null }, { levels: [0.5] });
+    }
+    return c.outline;
   }
 
   /* ricalcola final = opere(ground) nella regione */
@@ -717,10 +1162,11 @@ export class TerrainDoc {
       const v = hf.z[j * hf.nx + i];
       if (v < lo) lo = v; if (v > hi) hi = v;
     }
+    const R = this._touch(r);                          // le aree morbide toccate si spengono fino a fine tratto
     if (lo < this.zr.lo || hi > this.zr.hi) { this.zr = { lo, hi }; this._rebuild(); }
-    this.refold(r);
+    this.refold(R);
     if (own) this.endStroke();
-    return r;
+    return R;
   }
   endStroke() {
     const s = this._stroke;
@@ -734,9 +1180,9 @@ export class TerrainDoc {
       for (let j = t.j0; j <= t.j1 && same; j++) for (let i = t.i0; i <= t.i1; i++) if (t.v[(j - t.j0) * w + i - t.i0] !== z[j * n + i]) { same = false; break; }
       if (!same) tiles.push(t);
     }
-    if (!tiles.length) return false;
-    this._push({ tiles });
-    return true;
+    if (tiles.length) this._push({ tiles });
+    if (this.autoSettle) this.settle();
+    return tiles.length > 0;
   }
   /* annulla il tratto in corso senza lasciare voci di storia (touch: il
      primo dito ha già dato qualche colpo quando arriva il secondo, che vuol
@@ -753,8 +1199,10 @@ export class TerrainDoc {
       region = unionRegion(region, { i0: t.i0, i1: t.i1, j0: t.j0, j1: t.j1 });
     }
     this._groundRange();
+    region = this._touch(region);
     this._rebuild();
     this.refold(region);
+    if (this.autoSettle) region = unionRegion(region, this.settle());
     return region;
   }
   /* limite di pendenza su tutto il terreno scolpito (fase 4): una voce di
@@ -768,7 +1216,7 @@ export class TerrainDoc {
     this.beginStroke();
     this._backup(this.full(), this._stroke.tiles);
     const res = limitSlope(this.ground, slope, mode, { fixed: this.locked });
-    if (res.region) { this._groundRange(); this._rebuild(); this.refold(res.region); }
+    if (res.region) { this._groundRange(); res.region = this._touch(res.region); this._rebuild(); this.refold(res.region); }
     this.endStroke();
     return res;
   }
@@ -809,19 +1257,24 @@ export class TerrainDoc {
   setOps(newOps, { coalesce = null } = {}) {
     const before = this.ops;
     this.ops = newOps.map(cloneOp);
+    for (const o of this.ops) if (!o.id) o.id = this.newId(o.type);
     const last = this.undoStack[this.undoStack.length - 1], now = Date.now();
     if (coalesce && last && last.coalesce === coalesce && !last.tiles && now - last.t < 2000 && !this.redoStack.length) last.t = now;
     else this._push({ ops: before, coalesce, t: now });
-    const region = this._diffRegion(before, this.ops);
+    let region = this._touch(this._diffRegion(before, this.ops));
     this._rebuild();
     this.refold(region);
+    if (this.autoSettle) region = unionRegion(region, this.settle());
     this.lastRegion = region;                // per chi ha chiamato addOp (che restituisce l'id)
     return region;
   }
   /* chiude la voce di storia in corso: il prossimo trascinamento ne apre una nuova */
   sealHistory() { const last = this.undoStack[this.undoStack.length - 1]; if (last) last.coalesce = null; }
   /* le opere cambiate fra due elenchi (contenuto, quote agganciate o posto
-     nell'ordine): unione delle loro zone d'influenza prima e dopo */
+     nell'ordine): unione delle loro zone d'influenza prima e dopo. Un'area
+     morbida cambiata si segna da rifare (la sua zona è quella dell'ultimo
+     calcolo); un'area bloccata conta col suo contorno, perché sposta i
+     confini delle aree morbide */
   _diffRegion(a, b) {
     const keys = (list) => {
       const act = list.filter(o => o.on !== false), m = new Map();
@@ -831,23 +1284,44 @@ export class TerrainDoc {
     const ka = keys(a), kb = keys(b), { lo, hi } = this._bounds([a, b]);
     let R = null;
     for (const [list, own, other] of [[a, ka, kb], [b, kb, ka]])
-      for (const o of list) if (own.get(o.id) !== other.get(o.id)) R = unionRegion(R, opRange(opEvaluator(o, list, this.base), this.final, lo, hi));
+      for (const o of list) {
+        if (own.get(o.id) === other.get(o.id)) continue;
+        if (o.type === "soft") { const c = this._soft.get(o.id); if (c) { c.stale = true; R = unionRegion(R, c.r); } }
+        else if (o.type === "lock") R = unionRegion(R, this._polyRegion(o.polygon));
+        else R = unionRegion(R, opRange(opEvaluator(o, list, this.base), this.final, lo, hi));
+      }
     return R;
   }
   /* consolida: le opere attive fino a `id` compresa diventano terreno
      scolpito (ci si può ripassare col pennello). Quello che si vede non cambia. */
+  /* fin dove arriva «consolida fino a `id`»: un'area morbida che viene dopo e tocca quello che si consolida
+     perderebbe gli impalcati che la fermano (si allargherebbe sopra la rampa diventata terreno), quindi si
+     consolida insieme, con tutto quello che sta fra le due → l'indice dell'ultima opera, o -1 (con le aree
+     dell'ultimo calcolo: bakeThrough fa prima settle) */
+  bakeEnd(id) {
+    let k = this.ops.findIndex(o => o.id === id);
+    if (k < 0) return -1;
+    for (let grew = true; grew; ) {
+      grew = false;
+      let reg = null;
+      for (const e of this._evs) if (this.ops.findIndex(o => o.id === e.id) <= k) reg = unionRegion(reg, e.r);
+      if (!reg) break;
+      this.ops.forEach((o, q) => {
+        const d = q > k && o.type === "soft" && o.on !== false && (this._soft.get(o.id) || {}).dep;
+        if (d && !(d.i0 > reg.i1 || d.i1 < reg.i0 || d.j0 > reg.j1 || d.j1 < reg.j0)) { k = q; grew = true; }
+      });
+    }
+    return k;
+  }
   bakeThrough(id) {
-    const k = this.ops.findIndex(o => o.id === id);
+    this.settle();                                     // le aree morbide si consolidano col calcolo aggiornato
+    const k = this.bakeEnd(id);
     if (k < 0) return null;
     /* l'acqua e le aree bloccate non sono terreno: restano oggetti anche quando si consolida quello che sta loro sopra */
     const head = this.ops.slice(0, k + 1).filter(o => o.on !== false && o.type !== "water" && o.type !== "lock"), gone = head.map(o => o.id);
-    const { lo, hi } = this._bounds([this.ops]);
-    const evs = [];
+    const evs = this._evs.filter(e => gone.includes(e.id));      // le stesse funzioni (e zone) di refold
     let region = null;
-    for (const o of head) {
-      const ev = opEvaluator(o, this.ops, this.base), r = opRange(ev, this.ground, lo, hi);
-      if (ev && r) { evs.push({ ev, r }); region = unionRegion(region, r); }
-    }
+    for (const e of evs) region = unionRegion(region, e.r);
     const tiles = new Map();
     if (region) {
       this._backup(region, tiles);
@@ -861,9 +1335,12 @@ export class TerrainDoc {
     const before = this.ops;
     this.ops = this.ops.filter(o => !gone.includes(o.id)).map(o => this._freeze(o, gone));
     this._push({ ops: before, tiles: [...tiles.values()] });
+    for (const g of gone) this._soft.delete(g);
     this._groundRange();
+    region = this._touch(region);                      // le aree dopo: stesse quote di partenza, il calcolo torna buono
     this._rebuild();
     this.refold(region);
+    if (this.autoSettle) region = unionRegion(region, this.settle());
     return { region, count: gone.length };
   }
 
@@ -897,8 +1374,10 @@ export class TerrainDoc {
       region = unionRegion(region, this._diffRegion(cur, this.ops));
     }
     e.coalesce = null;                       // dopo un annulla la voce non si fonde più
+    region = this._touch(region);
     this._rebuild();
     this.refold(region);
+    if (this.autoSettle) region = unionRegion(region, this.settle());
     return region || this.full();
   }
   undo() { const e = this.undoStack.pop(); if (!e) return null; const r = this._swap(e); this.redoStack.push(e); return r; }
