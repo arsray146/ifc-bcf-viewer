@@ -3414,7 +3414,7 @@ function delSusp(s, i) {
    Sculptor, ctxAssemble di profile-core), con in più per ogni elemento nome, tipo, layer e Pset: servono a
    «tutti quelli uguali» (negli IFC Civil 3D del federato BG-PSP il nome è vuoto: decidono i Pset).
    ========================================================================= */
-const TS_IO = new URL("../terrain-sculptor/terrain-io.js?v=1.12.0", location.href).href;
+const TS_IO = new URL("../terrain-sculptor/terrain-io.js?v=1.12.1", location.href).href;
 const CTX_OPEN = 300000, CTX_STALL = 40000, CTX_STALL_SIMPLE = 120000, CTX_REACH = 200;
 function ctxWorkerMain() {   // gira DENTRO il worker (serializzata con toString)
   self.onmessage = async (ev) => {

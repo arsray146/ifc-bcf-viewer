@@ -1116,12 +1116,12 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as T from "./terrain-core.js?v=1.12.0";
-import * as IO from "./terrain-io.js?v=1.12.0";
+import * as T from "./terrain-core.js?v=1.12.1";
+import * as IO from "./terrain-io.js?v=1.12.1";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 import Delatin from "./vendor/delatin.js";
 
-const TOOL_VERSION = "1.12.0";
+const TOOL_VERSION = "1.12.1";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -4249,6 +4249,7 @@ async function revitPlaceSend() {
   $("rpGo").disabled = true;
   projectUid(); saveNow();                                   // l'id del progetto resta col progetto
   try {
+    if (S.doc.softPending) { await step("soft.step"); settleSoft(); }   // in Revit il terreno con le aree morbide calcolate, come negli export
     await step("rp.stepTin");
     const { args, tin, rings } = await revitPlaceArgs();
     busy(tr("rp.working", { n: ni(tin.points), b: ni(rings.reduce((s, r) => s + r.length, 0)) })); await frame();
@@ -4302,19 +4303,23 @@ function revitChose(id) {
   RVS.t = setTimeout(() => RB.call("select", args).catch((e) => console.warn("Revit select:", e.message)), 120);
 }
 /* l'ingombro di un'opera (x, y del terreno, quota min, poi max) sul terreno finale: i vertici, la larghezza della rampa
-   o della faccia della scarpata attorno alla linea, la quota dell'opera */
+   o della faccia della scarpata attorno alla linea, la quota dell'opera; dell'area morbida il contorno calcolato (fatta
+   col clic, i vertici sono il solo punto del clic) e la cima dei dossi */
 function revitBounds(o) {
   if (!o) return null;
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   const w = o.type === "path" ? (+o.width || 0) / 2 : o.type === "bank" ? ((T.bankGeom(o) || {}).W || 0) : 0;
   const growZ = (z) => { if (Number.isFinite(z)) { lo[2] = Math.min(lo[2], z); hi[2] = Math.max(hi[2], z); } };
-  for (const [x, y] of o.type === "path" ? pathProfile(o).line : geomOf(o)) {
+  const pts = o.type === "path" ? pathProfile(o).line : geomOf(o);
+  if (o.type === "soft") for (const L of S.doc.softOutline(o.id)) pts.push(...L.pts);
+  for (const [x, y] of pts) {
     lo[0] = Math.min(lo[0], x - w); lo[1] = Math.min(lo[1], y - w); hi[0] = Math.max(hi[0], x + w); hi[1] = Math.max(hi[1], y + w);
     growZ(hAt(x, y));
   }
   growZ(zRefOf(o));
   if (o.type === "bank") growZ(+o.zBottom);                // il piede della scarpata
   if (o.type === "path") growZ(pathProfile(o).zEnd);       // la rampa arriva a un'altra quota
+  if (o.type === "soft") for (const b of T.softBumps(o)) growZ(hAt(b.at[0], b.at[1]));
   return lo[0] <= hi[0] && lo[2] <= hi[2] ? { lo, hi } : null;
 }
 /* la scatola per select: l'ingombro +6 m in pianta, ±1 m in quota, al mm */
