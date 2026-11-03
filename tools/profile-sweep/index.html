@@ -325,6 +325,7 @@ body.pod-off #pod{display:none}
 .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin:6px 0}
 .pgrid label{display:flex;flex-direction:column;gap:3px;font:400 11.5px/1.2 var(--sans);color:var(--muted)}
 .pgrid .numbox input{padding:5px 7px}
+.pgrid select.txt{height:28px;padding:0 6px;line-height:1.2}
 .secview{margin:8px 0 2px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2);padding:6px 6px 2px}
 .secview .cap{font:500 10.5px/1 var(--mono);color:var(--faint);margin:2px 2px 4px}
 .secview svg{display:block;width:100%;height:132px}
@@ -902,9 +903,9 @@ const I18N = {
     "ve.done": "Velo di «{w}»: {n} triangoli, {a} m² in pianta", "ve.doneG": "Velo di «{w}»: {n} nodi ogni {s} cm", "ve.none": "«{w}»: niente superficie da esportare",
     "ve.big": "«{w}»: la griglia sarebbe di {nx} × {ny} nodi, troppi per il browser: alza il passo o usa la TIN", "ve.s7": "«{w}»: oltre 32 767 nodi per lato, il .grd è nel formato di Surfer 7",
     "ve.err": "Non riesco a fare il velo: {e}",
-    "tv.sub": "Tavole (DXF)", "tv.btn": "Profili e sezioni (.dxf)", "tv.file": "tavole", "tv.subP": "Profilo longitudinale: righe della chitarra",
-    "sc.sub": "Sezioni correnti", "sc.on": "Nello stesso file, sotto il profilo", "sc.step": "Una sezione ogni", "sc.guitar": "Chitarrina", "sc.marks": "Quote sul disegno", "sc.areas": "Aree",
-    "sc.help": "1:100 non deformate (la stessa finestra delle quote del profilo), in griglia sotto la chitarra della loro opera, in ordine di progressiva. Oltre al passo: vertici di progetto, salti (1 m a monte e a valle), cambi di sezione, capi dei ponti. Terreno dal DTM, opera e scavo dalla sezione del tratto; nei ponti solo l'opera.",
+    "tv.sub": "Tavole (DXF)", "tv.btn": "Profili e sezioni (.dxf)", "tv.file": "tavole", "tv.subP": "Profilo longitudinale: righe della chitarra", "tv.scale": "Scala del profilo",
+    "sc.sub": "Sezioni correnti", "sc.on": "Nello stesso file, sotto il profilo", "sc.step": "Una sezione ogni", "sc.guitar": "Chitarrina", "sc.marks": "Quote sul disegno", "sc.areas": "Aree", "sc.scale": "Scala delle sezioni",
+    "sc.help": "Non deformate, in metri veri; testi, chitarrina e spazi in mm di carta alla scala scelta: alla scala delle quote del profilo si leggono nella sua stessa finestra, a un'altra scala in una finestra a parte. In griglia sotto la chitarra della loro opera, in ordine di progressiva. Oltre al passo: vertici di progetto, salti (1 m a monte e a valle), cambi di sezione, capi dei ponti. Terreno dal DTM, opera e scavo dalla sezione del tratto; nei ponti solo l'opera.",
     "sc.rZT": "Quote terreno", "sc.rZP": "Quote progetto", "sc.rDp": "Distanze parziali", "sc.rDa": "Distanze dall'asse",
     "sc.mInv": "scorr.", "sc.mExc": "f.s.", "sc.mCrest": "ciglio", "sc.mToe": "piede", "sc.unit": "mq", "sc.title": "Sezione {n} - {p}",
     "sc.kUp": "a monte del salto", "sc.kDown": "a valle del salto", "sc.kBefore": "prima del cambio di sezione", "sc.kAfter": "dopo il cambio di sezione",
@@ -938,8 +939,8 @@ const I18N = {
     "tv.rZF": "Quote Fondo Scavo", "tv.rHF": "Altezze di Scavo", "tv.rGr": "Livellette",
     "tv.tol": "Punti del terreno: scarto", "tv.gap": "Colonne distanti almeno",
     "tv.env": "Ingombro dell'opera nel profilo (cima e fondo, layer PRF_INGOMBRO)",
-    "tv.title": "{n} - Profilo longitudinale - Scale 1:1000 / 1:100",
-    "tv.help": "DXF R2000 per AutoCAD (per il DWG: «Salva con nome»). Nello spazio modello, le opere accese una accanto all'altra: X = progressiva / 10, Y = quota vera, cioè con una finestra a 1:100 distanze a 1:1000 e quote a 1:100. Colonne: i punti dove il terreno del DTM cambia pendenza oltre lo scarto, distanti almeno quanto scritto, e tutti i vertici di progetto, i salti, i cambi di sezione e i ponti. Scorrimento e fondo scavo dalla sezione di ogni tratto; nei ponti niente scavo.",
+    "tv.title": "{n} - Profilo longitudinale - Scale 1:{h} / 1:{v}",
+    "tv.help": "DXF R2000 per AutoCAD (per il DWG: «Salva con nome»). Nello spazio modello, le opere accese una accanto all'altra: X = progressiva / 10, Y = quota vera, cioè con una finestra alla scala delle quote (da 1:50 a 1:500) le distanze escono dieci volte più piccole (da 1:500 a 1:5000); testi e righe in mm di carta alla scala scelta. Colonne: i punti dove il terreno del DTM cambia pendenza oltre lo scarto, distanti almeno quanto scritto, e tutti i vertici di progetto, i salti, i cambi di sezione e i ponti. Scorrimento e fondo scavo dalla sezione di ogni tratto; nei ponti niente scavo.",
     "tv.noDtm": "Senza DTM le righe del terreno restano vuote.", "tv.noRows": "Scegli almeno una riga della chitarra.",
     "st.at": "pianta {p} · profilo {q} · quota {z}", "st.cover": " · terreno {g} · copertura {c} m",
     "t.read": "Leggo {f}…", "t.readDwg": "Leggo {f}… (la prima volta scarico il lettore DWG, 9,5 MB)",
@@ -1207,9 +1208,9 @@ const I18N = {
     "ve.done": "Surface of «{w}»: {n} triangles, {a} m² in plan", "ve.doneG": "Surface of «{w}»: {n} nodes every {s} cm", "ve.none": "«{w}»: no surface to export",
     "ve.big": "«{w}»: the grid would have {nx} × {ny} nodes, too many for the browser: raise the spacing or use the TIN", "ve.s7": "«{w}»: more than 32,767 nodes per side, the .grd is in the Surfer 7 format",
     "ve.err": "Could not build the surface: {e}",
-    "tv.sub": "Drawings (DXF)", "tv.btn": "Profiles and sections (.dxf)", "tv.file": "drawings", "tv.subP": "Longitudinal profile: table rows",
-    "sc.sub": "Cross sections", "sc.on": "In the same file, below the profile", "sc.step": "One section every", "sc.guitar": "Small table", "sc.marks": "Levels on the drawing", "sc.areas": "Areas",
-    "sc.help": "Undistorted 1:100 (the same viewport as the profile levels), in a grid below their work's table, by chainage. Besides the spacing: design vertices, drops (1 m upstream and downstream), section changes, bridge ends. Ground from the DTM, work and excavation from the stretch's section; on bridges only the work.",
+    "tv.sub": "Drawings (DXF)", "tv.btn": "Profiles and sections (.dxf)", "tv.file": "drawings", "tv.subP": "Longitudinal profile: table rows", "tv.scale": "Profile scale",
+    "sc.sub": "Cross sections", "sc.on": "In the same file, below the profile", "sc.step": "One section every", "sc.guitar": "Small table", "sc.marks": "Levels on the drawing", "sc.areas": "Areas", "sc.scale": "Section scale",
+    "sc.help": "Undistorted, in true metres; texts, small table and spacing in paper mm at the chosen scale: at the profile levels scale they read in the same viewport, at another scale in a viewport of their own. In a grid below their work's table, by chainage. Besides the spacing: design vertices, drops (1 m upstream and downstream), section changes, bridge ends. Ground from the DTM, work and excavation from the stretch's section; on bridges only the work.",
     "sc.rZT": "Ground levels", "sc.rZP": "Design levels", "sc.rDp": "Partial distances", "sc.rDa": "Distances from axis",
     "sc.mInv": "inv.", "sc.mExc": "exc.", "sc.mCrest": "crest", "sc.mToe": "toe", "sc.unit": "sq m", "sc.title": "Section {n} - {p}",
     "sc.kUp": "upstream of the drop", "sc.kDown": "downstream of the drop", "sc.kBefore": "before the section change", "sc.kAfter": "after the section change",
@@ -1243,8 +1244,8 @@ const I18N = {
     "tv.rZF": "Excavation bottom levels", "tv.rHF": "Excavation depths", "tv.rGr": "Grades",
     "tv.tol": "Ground points: deviation", "tv.gap": "Columns at least",
     "tv.env": "Outline of the work in the profile (top and bottom, layer PRF_INGOMBRO)",
-    "tv.title": "{n} - Longitudinal profile - Scales 1:1000 / 1:100",
-    "tv.help": "R2000 DXF for AutoCAD (for a DWG: «Save as»). In model space, the visible works side by side: X = chainage / 10, Y = true level, so a 1:100 viewport gives distances at 1:1000 and levels at 1:100. Columns: where the DTM ground changes slope beyond the deviation, at least the given distance apart, and every design vertex, drop, section change and bridge. Invert and excavation bottom from each stretch's section; no excavation on bridges.",
+    "tv.title": "{n} - Longitudinal profile - Scales 1:{h} / 1:{v}",
+    "tv.help": "R2000 DXF for AutoCAD (for a DWG: «Save as»). In model space, the visible works side by side: X = chainage / 10, Y = true level, so a viewport at the levels scale (1:50 to 1:500) gives distances ten times smaller (1:500 to 1:5000); texts and rows in paper mm at the chosen scale. Columns: where the DTM ground changes slope beyond the deviation, at least the given distance apart, and every design vertex, drop, section change and bridge. Invert and excavation bottom from each stretch's section; no excavation on bridges.",
     "tv.noDtm": "Without a DTM the ground rows stay empty.", "tv.noRows": "Pick at least one row of the table.",
     "st.at": "plan {p} · profile {q} · elevation {z}", "st.cover": " · ground {g} · cover {c} m",
     "t.read": "Reading {f}…", "t.readDwg": "Reading {f}… (the first time the DWG reader is downloaded, 9.5 MB)",
@@ -1273,12 +1274,12 @@ const I18N = {
    ========================================================================= */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import * as C from "./profile-core.js?v=0.23.1";
-import * as IO from "./profile-io.js?v=0.23.1";
+import * as C from "./profile-core.js?v=0.23.2";
+import * as IO from "./profile-io.js?v=0.23.2";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.23.1";
+const TOOL_VERSION = "0.23.2";
 /* il triangolatore dei tappi dei tagli (0.18): earcut di three.js, passato al motore (che resta senza import) */
 const TRI = (c, h) => THREE.ShapeUtils.triangulateShape(c.map(([x, y]) => new THREE.Vector2(x, y)), h.map((r) => r.map(([x, y]) => new THREE.Vector2(x, y))));
 const $ = (id) => document.getElementById(id);
@@ -1369,8 +1370,12 @@ const TV_ROWS = [{ k: "pts", l: () => tr("tv.rPts") }, { k: "zT", l: () => tr("t
 /* sezioni correnti (0.16, secondo passo): nello stesso file, passo (m), chitarrina, quote sul disegno, aree */
 /* tabulato dei movimenti terra (0.17): nello stesso file, a destra delle sezioni (serve che ci siano) */
 /* ingombro dell'opera nel profilo (0.23.1, env): cima e fondo dell'opera oltre a scorrimento e fondo scavo */
-const newTav = (t = {}) => ({ rows: TV_ROWS.map((r) => r.k), tol: 0.05, gap: 2.5, env: true, sec: true, step: 25, sGuitar: true, sMarks: true, sAreas: true, earth: true, plan: true, pScale: 1000, ...t });
+/* scale (0.23.2): del profilo (vScale = quote 1:v, distanze 1:10v) e delle sezioni correnti (sScale; quella delle quote = la
+   finestra del profilo, le altre in una finestra a parte) */
+const newTav = (t = {}) => ({ rows: TV_ROWS.map((r) => r.k), tol: 0.05, gap: 2.5, env: true, vScale: 100, sec: true, step: 25, sGuitar: true, sMarks: true, sAreas: true, sScale: 100, earth: true, plan: true, pScale: 1000, ...t });
 const PL_SCALES = [500, 1000, 2000, 5000];       // scale della pianta georeferita nelle tavole (scelta dell'utente: più scale)
+const PR_SCALES = [50, 100, 200, 500];           // scale delle quote del profilo (distanze dieci volte più piccole: 1:500 / 1:50 … 1:5000 / 1:500)
+const SC_SCALES = [50, 100, 200];                // scale delle sezioni correnti
 /* velo (0.22): formato (TIN LandXML, punti a griglia, .grd di Surfer) e passo della griglia (m; 10 cm: quello chiesto dall'idraulico) */
 const VE_FMTS = ["xml", "xyz", "grd"], VE_LABEL = { xml: () => tr("ve.xml"), xyz: () => tr("ve.xyz"), grd: () => tr("ve.grd") };
 const newVelo = (v = {}) => { const o = { fmt: "xml", step: 0.1, ...v }; if (!VE_FMTS.includes(o.fmt)) o.fmt = "xml"; if (!(o.step > 0)) o.step = 0.1; return o; };
@@ -5501,20 +5506,23 @@ function bindVelo() {
 function renderTav(ok) {
   const T = S.tav, num = (id, label, v, unit) => `<label for="${id}">${esc(label)}<span class="numbox"><input type="number" id="${id}" step="any" min="0" value="${v}"><span>${unit}</span></span></label>`;
   const chk = (k, label, off = false) => `<label class="check"><input type="checkbox" data-sc="${k}"${T[k] ? " checked" : ""}${off ? " disabled" : ""}> ${esc(label)}</label>`;
+  // le scale come i numeri accanto: etichetta sopra, campo sotto, nella stessa griglia (0.23.2: in riga col «92px» stonavano)
+  const pick = (id, label, opts, v) => `<label for="${id}">${esc(label)}<select id="${id}" class="txt">${opts.map(([k, s]) => `<option value="${k}"${k === v ? " selected" : ""}>${s}</option>`).join("")}</select></label>`;
   return `<div class="sub">${esc(tr("tv.sub"))}</div>`
     + `<p class="tvh">${esc(tr("tv.subP"))}</p>`
     + `<div class="tvrows">${TV_ROWS.map((r) => `<label class="check"><input type="checkbox" data-tv="${r.k}"${T.rows.includes(r.k) ? " checked" : ""}> ${esc(r.l())}</label>`).join("")}</div>`
     + chk("env", tr("tv.env"))
-    + `<div class="pgrid">${num("tvTol", tr("tv.tol"), Math.round(T.tol * 1000) / 10, "cm")}${num("tvGap", tr("tv.gap"), T.gap, "m")}</div>`
+    + `<div class="pgrid">${num("tvTol", tr("tv.tol"), Math.round(T.tol * 1000) / 10, "cm")}${num("tvGap", tr("tv.gap"), T.gap, "m")}`
+    + `${pick("tvScale", tr("tv.scale"), PR_SCALES.map((v) => [v, "1:" + v * 10 + " / 1:" + v]), T.vScale)}</div>`
     + `<p class="help">${esc(tr("tv.help"))}${TIN ? "" : " " + esc(tr("tv.noDtm"))}</p>`
     + `<p class="tvh">${esc(tr("sc.sub"))}</p>${chk("sec", tr("sc.on"))}`
-    + `<div class="pgrid">${num("scStep", tr("sc.step"), T.step, "m")}</div>`
+    + `<div class="pgrid">${num("scStep", tr("sc.step"), T.step, "m")}${pick("scScale", tr("sc.scale"), SC_SCALES.map((s) => [s, "1:" + s]), T.sScale)}</div>`
     + `<div class="tvrows">${chk("sGuitar", tr("sc.guitar"))}${chk("sMarks", tr("sc.marks"))}${chk("sAreas", tr("sc.areas"))}</div>`
     + `<p class="help">${esc(tr("sc.help"))}</p>`
     + `<p class="tvh">${esc(tr("tb.sub"))}</p>${chk("earth", tr("tb.on"), !T.sec)}`
     + `<p class="help">${esc(tr("tb.help"))}${T.sec ? "" : " " + esc(tr("tb.noSec"))}</p>`
     + `<p class="tvh">${esc(tr("pl.sub"))}</p>${chk("plan", tr("pl.on"))}`
-    + `<div class="row"><label for="plScale">${esc(tr("pl.scale"))}</label><select id="plScale" class="txt">${PL_SCALES.map((s) => `<option value="${s}"${s === T.pScale ? " selected" : ""}>1:${s}</option>`).join("")}</select></div>`
+    + `<div class="pgrid">${pick("plScale", tr("pl.scale"), PL_SCALES.map((s) => [s, "1:" + s]), T.pScale)}</div>`
     + `<p class="help">${esc(tr("pl.help"))}</p>`
     + `<div class="btns"><button id="expTav"${ok ? "" : " disabled"}>${esc(tr("tv.btn"))}</button></div>`;
 }
@@ -5536,6 +5544,8 @@ function bindTav() {
     scheduleSave();
   });
   $("plScale").addEventListener("change", (e) => { S.tav = { ...S.tav, pScale: Number(e.target.value) }; scheduleSave(); });
+  $("scScale").addEventListener("change", (e) => { S.tav = { ...S.tav, sScale: Number(e.target.value) }; scheduleSave(); });
+  $("tvScale").addEventListener("change", (e) => { S.tav = { ...S.tav, vScale: Number(e.target.value) }; scheduleSave(); });
   $("expTav").addEventListener("click", fastGuard(exportSheets));
 }
 /* l'opera attiva in cima al pannello e nella lastra del profilo */
@@ -5901,10 +5911,10 @@ function exportSheets() {
     classes: { ...cross.areas, shore: tr("tb.shore") }, sub: { a: tr("tb.sA"), v: tr("tb.sV"), c: tr("tb.sC"), sa: tr("tb.sSa"), sv: tr("tb.sSv"), sc: tr("tb.sSc") },
     kinds: { ...Object.fromEntries(Object.entries(SC_KIND).map(([k, f]) => [k, f()])), ...Object.fromEntries(Object.entries(TB_KIND).map(([k, f]) => [k, f()])) },
     total: tr("tb.total"), tool: tr("tb.tool"), diff: tr("tb.diff"), summary: tr("tb.summary"), work: tr("tb.work"), unitV: tr("tb.unitV"), unitS: tr("sc.unit") };
-  const labels = { rows: Object.fromEntries(TV_ROWS.map((r) => [r.k, r.l()])), title: (n) => tr("tv.title", { n }), cross, earth, plan: { note: (dy) => tr("pl.note", { dy }) } };
+  const labels = { rows: Object.fromEntries(TV_ROWS.map((r) => [r.k, r.l()])), title: (n) => tr("tv.title", { n, h: 10 * T.vScale, v: T.vScale }), cross, earth, plan: { note: (dy) => tr("pl.note", { dy }) } };
   const withEarth = sheets.filter((s) => s.earth);
   const summary = withEarth.length > 1 ? C.earthSummary(withEarth.map((s) => ({ name: s.name, table: s.earth }))) : null;
-  download(fileBase() + " - " + tr("tv.file") + ".dxf", IO.profileSheetsDXF({ sheets, rows, labels, cross: { guitar: T.sGuitar, marks: T.sMarks, areas: T.sAreas },
+  download(fileBase() + " - " + tr("tv.file") + ".dxf", IO.profileSheetsDXF({ sheets, rows, labels, scale: { h: 10 * T.vScale, v: T.vScale }, cross: { guitar: T.sGuitar, marks: T.sMarks, areas: T.sAreas, scale: T.sScale },
     plan: T.plan ? { scale: T.pScale } : null, summary }), "application/dxf");
 }
 const stampNow = () => {

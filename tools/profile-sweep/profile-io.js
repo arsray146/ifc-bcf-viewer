@@ -1760,9 +1760,10 @@ export const chainage = (p) => { const r = Math.round(p * 100) / 100, k = Math.f
  * (C.gradeRuns), sections? (C.crossSheets) }]; rows = chiavi di GUITAR_ROWS da
  * mettere (l'ordine resta quello di GUITAR_ROWS); labels = { rows: { k: testo }, title: (nome) => testo,
  * cross: { rows: { zT, zP, dp, da }, marks: { inv, exc, crest, toe }, areas: { chiave: testo }, unit, title:
- * (n, progressiva, kind, ponte) => testo } }. Le sezioni correnti (0.16): a 1:v non deformate (1 unità = 1 m,
- * la stessa finestra del profilo), ognuna col suo piano di riferimento, in griglia sotto la chitarra della
- * sua opera e larga quanto lei; cross = { guitar, marks, areas }: chitarrina, quote sul disegno, aree.
+ * (n, progressiva, kind, ponte) => testo } }. Le sezioni correnti (0.16): non deformate (1 unità = 1 m), ognuna col
+ * suo piano di riferimento, in griglia sotto la chitarra della sua opera e larga in carta quanto lei; cross = { guitar,
+ * marks, areas, scale? }: chitarrina, quote sul disegno, aree e la scala 1:scale di testi e spazi (0.23.2; senza = 1:v,
+ * la stessa finestra del profilo; con un'altra serve una finestra a parte, e l'asse va sul tratteggio TRATTEGGIO_SEZ).
  * La pianta georeferita (0.16, terzo passo): con plan = { scale (1:scale), step, every, tick } e per opera
  * sh.plan = { verts (C.axisVertices), at (p → C.planAt), foot? (C.planFootprint: l'ingombro, anelli chiusi), work?
  * (C.planWork: l'opera vista dall'alto) } l'asse va
@@ -1785,22 +1786,27 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
   const doc = dxfR2000();
   let EL = null, tabTop = null;                                 // layer del tabulato (solo se serve), cima della prima tabella
   const TL = {}, trimLayer = (k) => (TL[k] ||= doc.layer(TRIM_LAYERS[k][0], { color: TRIM_LAYERS[k][1] }));   // layer dei tagli, solo se ce ne sono
-  const mm = scale.v / 1000, kx = scale.v / scale.h;           // unità del modello per mm di carta; X per metro di progressiva
+  // mm = unità del modello per mm di carta: 1:v nel profilo, 1:cross.scale nelle sezioni correnti (0.23.2, unit() la cambia
+  // mentre si disegnano); kx = X per metro di progressiva
+  const kx = scale.v / scale.h, pmm = scale.v / 1000, cmm = (cross.scale || scale.v) / 1000;
+  let mm, VOFF, VW;
   const tx = (s, h) => String(s).length * h * 0.8 * mm;        // larghezza di un testo in romans.shx (~0,8 h per carattere)
+  // valori verticali centrati sul loro asse a 0,4 mm dalla linea (a sinistra; il «dopo» di un salto a destra): con
+  // l'allineamento «in basso» AutoCAD lascia lo spazio delle discendenti (0,3 h) e due salti a 5 m si toccavano.
+  const unit = (u) => { mm = u; VOFF = (0.4 + text.val / 2) * mm; VW = (text.val + 0.4) * mm; };
+  unit(pmm);
   doc.ltype("TRATTEGGIO", "Tratteggio __ __ __", [3 * mm, -1.5 * mm]);   // 3 mm pieno, 1,5 vuoto in carta
+  if (cmm !== pmm) doc.ltype("TRATTEGGIO_SEZ", "Tratteggio __ __ __", [3 * cmm, -1.5 * cmm]);   // l'asse delle sezioni, alla loro scala
   const L = {};
-  for (const [k, [name, color, ltype]] of Object.entries(SHEET_LAYERS)) L[k] = doc.layer(name, { color, ltype: ltype || "Continuous" });
+  for (const [k, [name, color, ltype]] of Object.entries(SHEET_LAYERS)) L[k] = doc.layer(name, { color, ltype: k === "sAxis" && cmm !== pmm ? "TRATTEGGIO_SEZ" : ltype || "Continuous" });
   doc.style("PROFILI", "romans.shx");
   const M = doc.model;
   const T = (layer, x, y, h, s, o = {}) => M.push({ t: "text", layer, style: "PROFILI", x, y, h: h * mm, s, ...o });
   const f3 = (v) => (Number.isFinite(v) ? v.toFixed(3) : ""), f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : "");
   const want = GUITAR_ROWS.filter((r) => rows.includes(r.k));
   const headW = Math.max(40, ...want.map((r) => (labels.rows[r.k] || r.k).length * text.head * 0.8 + 8)) * mm;
-  const crossHeadW = Math.max(30, ...CROSS_ROWS.map((r) => ((((labels.cross || {}).rows) || {})[r.k] || r.k).length * text.head * 0.8 + 8)) * mm;
-  // valori verticali centrati sul loro asse a 0,4 mm dalla linea (a sinistra; il «dopo» di un salto a destra): con
-  // l'allineamento «in basso» AutoCAD lascia lo spazio delle discendenti (0,3 h) e due salti a 5 m si toccavano.
-  // In una riga i testi che si toccherebbero (colonne obbligate vicine) si distribuiscono attorno alle loro colonne.
-  const VOFF = (0.4 + text.val / 2) * mm, VW = (text.val + 0.4) * mm;
+  const crossHeadW = Math.max(30, ...CROSS_ROWS.map((r) => ((((labels.cross || {}).rows) || {})[r.k] || r.k).length * text.head * 0.8 + 8)) * cmm;
+  // in una riga i testi che si toccherebbero (colonne obbligate vicine) si distribuiscono attorno alle loro colonne
   const vrow = (items, ym, lo) => {
     const xs = spreadCenters(items.map((q) => q.c), VW, lo);
     items.forEach((q, i) => T(L.val, xs[i], ym, text.val, q.s, { rot: 90, ha: 1, va: 2 }));
@@ -2112,18 +2118,22 @@ export function profileSheetsDXF({ sheets, rows = GUITAR_ROWS.map((r) => r.k), l
     const cw = ss.length ? Math.max(...ss.map((x) => x.length)) * text.val * mm + 6 * mm : 1;      // ~1 h per carattere: con 0,8 «mq» e il testo dopo si toccavano
     return { ss, cw, per: Math.max(1, Math.floor((w + 4 * mm) / cw)) };
   }
-  // in griglia: 25 mm di carta fra due sezioni affiancate e 20 fra due file (erano 15 e 15: «un po' troppo vicine», 0.23.1)
+  // in griglia: 25 mm di carta fra due sezioni affiancate e 20 fra due file (erano 15 e 15: «un po' troppo vicine», 0.23.1);
+  // tutto alla scala delle sezioni (0.23.2), file larghe in carta quanto il profilo (width è nelle unità del profilo)
   function crossGrid(secs, x0, y0, width) {
-    const gx = 25 * mm, gy = 20 * mm;
-    let bx = x0, by = y0, rowH = 0, xMax = x0;
-    for (const s of secs) {
-      const z = crossSize(s);
-      if (bx > x0 && bx + z.fw > x0 + width) { bx = x0; by -= rowH + gy; rowH = 0; }
-      crossBlock(s, bx, by, z);
-      xMax = Math.max(xMax, bx + z.fw);
-      bx += z.fw + gx; rowH = Math.max(rowH, z.h);
-    }
-    return { x: xMax, y: by - rowH };
+    unit(cmm);
+    try {
+      const gx = 25 * mm, gy = 20 * mm, W = width * cmm / pmm;
+      let bx = x0, by = y0, rowH = 0, xMax = x0;
+      for (const s of secs) {
+        const z = crossSize(s);
+        if (bx > x0 && bx + z.fw > x0 + W) { bx = x0; by -= rowH + gy; rowH = 0; }
+        crossBlock(s, bx, by, z);
+        xMax = Math.max(xMax, bx + z.fw);
+        bx += z.fw + gx; rowH = Math.max(rowH, z.h);
+      }
+      return { x: xMax, y: by - rowH };
+    } finally { unit(pmm); }
   }
   function crossBlock(s, bx, by, size) {
     const cs = s.cs, CL = labels.cross || {}, { zRef, zTop, hw } = size;
