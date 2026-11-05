@@ -611,7 +611,7 @@ const I18N = {
    ========================================================================== */
 const GROUPS = [
   {id:"start", pages:["load","formats","privacy"]},
-  {id:"work",  pages:["navigate","select","section","federated"]},
+  {id:"work",  pages:["navigate","select","section","federated","color"]},
   {id:"coord", pages:["bcf","clash","ids","qto"]},
   {id:"infra", pages:["alignment","profile","cloud","asbuilt"]},
   {id:"tools", pages:["class-patcher","progressiva","aln-landxml","merge"], sep:true}
@@ -722,7 +722,8 @@ it:{
     ["p","Dal menu contestuale puoi <b>isolare</b> la selezione — resta a schermo solo quella — o <b>nascondere</b> il singolo elemento che ti sta davanti. Le stesse voci sono disponibili dall'albero, sui rami interi, per lavorare per piani o per classi."],
     ["h","Modificare i parametri"],
     ["p","I valori delle property sono editabili, anche su più elementi selezionati insieme: scrivi una volta e il viewer applica la modifica a tutta la selezione. Quando esporti, il file IFC viene riscritto con i nuovi valori e resta un IFC valido per gli altri strumenti."],
-    ["warn","La modifica massiva è comoda e definitiva: controlla la selezione prima di confermare, e riesporta sempre con un nome nuovo."]
+    ["warn","La modifica massiva è comoda e definitiva: controlla la selezione prima di confermare, e riesporta sempre con un nome nuovo."],
+    ["tip","I nomi dei property set compaiono esattamente come sono scritti nel file, maiuscole comprese: «Pset_WallCommon» e «PSET_WALLCOMMON» sono due pset diversi, e un controllo IDS li distingue."]
   ]},
 
   section:{t:"Sezionare: box e piano", d:"Due modi di tagliare il modello: la scatola di sezione, quando vuoi ritagliare una porzione, e il piano su faccia, quando ti serve un taglio allineato alla geometria.", b:[
@@ -747,6 +748,30 @@ it:{
     ["p","Se un IFC atterra a chilometri dagli altri, quasi sempre la causa è la sua georeferenziazione: una <b>IfcMapConversion</b> vuota o degenere, tipica di file riesportati da alcuni strumenti, sposta il modello sull'origine invece che al suo posto. Il viewer segnala il caso e continua a caricare gli altri modelli."],
     ["p","È un problema del file, non della vista: la strada giusta è correggere la georeferenziazione a monte, nello strumento di authoring. Nel frattempo puoi lavorare disattivando il modello anomalo dall'elenco."],
     ["tip","Doppio clic sul nome nell'elenco modelli inquadra solo quel file: è il modo più veloce per capire dove è finito davvero."]
+  ]},
+
+  color:{t:"Colorare la vista", d:"Un colore per modello, per classe IFC, per contenitore o per i valori di un parametro: la vista diventa una mappa, e la legenda ti dice cosa stai guardando.", b:[
+    ["h","Scegliere il criterio"],
+    ["p","Apri <b>Colora</b> dalla barra a sinistra e scegli come colorare: <b>Modello</b> dà un colore a ogni file della federazione, <b>Classe</b> a ogni classe IFC (IfcWall, IfcSlab…), <b>Contenitore</b> a ogni piano, zona o parte di un'infrastruttura, <b>Parametro</b> a ogni valore di una proprietà dei property set. L'interruttore <b>Colora la vista</b> torna ai colori del file senza perdere la scelta."],
+    ["rows",[
+      ["Modello","Discipline a colpo d'occhio: architettonico, strutture, impianti"],
+      ["Classe","Cosa c'è davvero nel file, e cosa è finito nella classe sbagliata"],
+      ["Contenitore","Elementi assegnati al piano giusto, o «Fuori struttura spaziale»"],
+      ["Parametro","Fasi, resistenza al fuoco, codici WBS, materiali, lunghezze…"]
+    ]],
+    ["h","Colorare per parametro"],
+    ["p","Scegli il property set e la proprietà; con «qualsiasi pset» il viewer cerca la proprietà in tutti i set, di istanza e di type. Gli elementi che non la hanno finiscono in <b>(senza valore)</b>, in grigio. Le parti di un assieme senza valore prendono quello del loro assieme: la marca scritta sull'IfcElementAssembly colora anche le sue piastre."],
+    ["p","Se i valori sono numeri, la <b>scala continua</b> li dispone dal viola (il minimo) al giallo (il massimo), con la barra della scala sopra la legenda; con pochi valori parte spenta e ognuno ha il suo colore. Se modifichi un valore dal pannello delle proprietà, la colorazione lo rilegge da sola."],
+    ["h","La legenda"],
+    ["keys",[
+      [["Clic"],"Seleziona tutti gli elementi di quel valore"],
+      [["Ctrl+clic"],"Li aggiunge alla selezione"],
+      [["Doppio clic"],"Inquadra la selezione"],
+      [["Occhio"],"Nasconde o mostra quel valore"],
+      [["solo"],"Lascia a schermo solo quel valore; di nuovo, torna tutto"],
+      [["Quadratino"],"Cambia il colore; «colori» torna a quelli automatici"]
+    ]],
+    ["tip","La colorazione convive con tutto il resto: la selezione resta arancione sopra i colori, «Isola selezione» vela il resto, e le sezioni piene prendono il colore dell'elemento tagliato."]
   ]},
 
   bcf:{t:"Issue BCF", d:"Carichi il file BCF e le issue si agganciano ai modelli: ognuna con la sua inquadratura, i suoi commenti e i suoi componenti.", b:[
@@ -955,7 +980,8 @@ en:{
     ["p","From the context menu you can <b>isolate</b> the selection — only that stays on screen — or <b>hide</b> the single element in front of you. The same entries are available from the tree, on whole branches, to work storey by storey or class by class."],
     ["h","Editing parameters"],
     ["p","Property values are editable, including across several selected elements: write once and the viewer applies the change to the whole selection. When you export, the IFC file is rewritten with the new values and stays a valid IFC for other tools."],
-    ["warn","Bulk editing is convenient and final: check the selection before you confirm, and always re-export under a new name."]
+    ["warn","Bulk editing is convenient and final: check the selection before you confirm, and always re-export under a new name."],
+    ["tip","Property set names appear exactly as they are written in the file, case included: «Pset_WallCommon» and «PSET_WALLCOMMON» are two different psets, and an IDS check tells them apart."]
   ]},
 
   section:{t:"Sectioning: box and plane", d:"Two ways to cut the model: the section box, when you want to carve out a portion, and the plane on a face, when you need a cut aligned to the geometry.", b:[
@@ -980,6 +1006,30 @@ en:{
     ["p","If an IFC lands kilometres away from the others, the cause is almost always its georeferencing: an empty or degenerate <b>IfcMapConversion</b>, typical of files re-exported by some tools, drops the model on the origin instead of in its place. The viewer flags the case and carries on loading the others."],
     ["p","It is a problem in the file, not in the view: the right fix is to correct the georeferencing upstream, in the authoring tool. In the meantime you can keep working with the odd model switched off in the list."],
     ["tip","Double-clicking the name in the model list frames that file alone: the quickest way to see where it really ended up."]
+  ]},
+
+  color:{t:"Coloring the view", d:"One color per model, per IFC class, per container or per value of a parameter: the view becomes a map, and the legend tells you what you are looking at.", b:[
+    ["h","Choosing the criterion"],
+    ["p","Open <b>Color</b> from the bar on the left and choose how to color: <b>Model</b> gives each file of the federation its own color, <b>Class</b> each IFC class (IfcWall, IfcSlab…), <b>Container</b> each storey, zone or part of an infrastructure, <b>Parameter</b> each value of a property set property. The <b>Color the view</b> switch goes back to the file's colors without losing your choice."],
+    ["rows",[
+      ["Model","Disciplines at a glance: architecture, structure, MEP"],
+      ["Class","What is really in the file, and what ended up in the wrong class"],
+      ["Container","Elements assigned to the right storey, or «Outside the spatial structure»"],
+      ["Parameter","Phases, fire rating, WBS codes, materials, lengths…"]
+    ]],
+    ["h","Coloring by parameter"],
+    ["p","Pick the property set and the property; with «any pset» the viewer looks for the property in every set, instance and type. Elements that don't have it end up in <b>(no value)</b>, in grey. Parts of an assembly with no value take the assembly's: the mark written on the IfcElementAssembly colors its plates too."],
+    ["p","When the values are numbers, the <b>continuous scale</b> lays them out from purple (the minimum) to yellow (the maximum), with the scale bar above the legend; with only a few values it starts off and each value gets its own color. If you edit a value from the properties panel, the coloring reads it again by itself."],
+    ["h","The legend"],
+    ["keys",[
+      [["Click"],"Select every element with that value"],
+      [["Ctrl+click"],"Add them to the selection"],
+      [["Double click"],"Frame the selection"],
+      [["Eye"],"Hide or show that value"],
+      [["only"],"Keep only that value on screen; again, everything is back"],
+      [["Square"],"Change the color; «colors» goes back to the automatic ones"]
+    ]],
+    ["tip","Coloring lives alongside everything else: the selection stays orange over the colors, «Isolate selection» ghosts the rest, and solid sections take the color of the element being cut."]
   ]},
 
   bcf:{t:"BCF issues", d:"Load the BCF file and the issues snap onto the models: each with its viewpoint, its comments and its components.", b:[

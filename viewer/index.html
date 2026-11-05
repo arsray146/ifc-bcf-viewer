@@ -571,7 +571,6 @@ main.left-off .left-resize{display:none}
 .qto-part{color:var(--faint);font-size:10px;white-space:nowrap}
 /* impaginazione tabella QTO: nomi parametro su due righe (proprietà + pset
    piccolo), numeri allineati a destra, niente testi troncati a metà parola */
-.qto-grp .pset-name{text-transform:none}   /* le chiavi gruppo sono dati, non etichette */
 .qto-tbl td:first-child{width:52%}
 .qto-tbl td:last-child{text-align:right}
 .qto-tbl .num{white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -1003,7 +1002,9 @@ main.with-detail #detailPanel{display:flex}
 .pset-head:hover{background:var(--lime-soft)}
 .pset-chev{color:var(--lime-deep);font-size:10px;transition:transform .15s;flex:none}
 .pset-block[data-open="1"] .pset-chev{transform:rotate(90deg)}
-.pset-name{font-family:var(--disp);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--text);flex:1;word-break:break-word}
+/* nomi dei pset come sono scritti nel file: niente maiuscolo forzato (2.11.0) — «Pset_WallCommon»
+   e «PSET_WALLCOMMON» sono due pset diversi, e un'IDS o un filtro li distingue */
+.pset-name{font-family:var(--disp);font-weight:600;font-size:13px;letter-spacing:.01em;color:var(--text);flex:1;word-break:break-word}
 .pset-count{font-family:var(--mono);font-size:10.5px;color:var(--faint);background:var(--line);border-radius:9px;padding:1px 7px;flex:none}
 .pset-block[data-open="0"] .prop-table{display:none}
 .pset-block .prop-table{margin-bottom:0}
@@ -1250,9 +1251,10 @@ select option{background:var(--panel-solid);color:var(--text)}
 @media(max-width:820px){#btnIfc,#btnBcf{padding:9px 12px}}
 /* modalità diff incorporata (?embed=diff, iframe del tool IFC Diff):
    restano albero, proprietà, sezioni, misure, QTO; via i tool estranei al
-   confronto — clash, issues/BCF, nuvole di punti, tracciato — e i punti di
+   confronto — clash, issues/BCF, nuvole di punti, tracciato, «Colora» (la
+   pittura per stato del confronto è già una colorazione) — e i punti di
    ingresso file (i modelli arrivano dal tool via postMessage). */
-body.diff-embed #railIssues,body.diff-embed #railClouds,
+body.diff-embed #railIssues,body.diff-embed #railClouds,body.diff-embed #railColor,
 body.diff-embed #btnAlign,body.diff-embed #alignMenu,body.diff-embed #profilePanel,
 body.diff-embed #btnIfc,body.diff-embed #btnBcf,body.diff-embed #hdrGuide,
 body.diff-embed #dtabClash,body.diff-embed #landing,body.diff-embed #dropHint{display:none!important}
@@ -1302,6 +1304,30 @@ body.diff-embed #railDiff{display:flex}
 #dvAll{opacity:1}
 #dvBody{display:flex;flex-direction:column;gap:13px}
 #dvBody[hidden]{display:none}
+/* ---- pagina «Colora» (v2.11.0): stessi mattoni della pagina Confronto ---- */
+/* quattro criteri in 314 px: il carattere condensato del viewer, «Contenitore» intero */
+.cb-seg button{padding:6px 2px;min-width:0;font-family:var(--disp);font-size:12px;letter-spacing:.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cb-param{display:flex;flex-direction:column;gap:6px}
+.cb-param .qto-sel{margin:0}
+.cb-param[hidden],.dv-tgl[hidden],.dv-khead[hidden],.dv-note[hidden]{display:none}
+.cb-hbtns{display:flex;gap:2px}
+#cbAll,#cbReset{opacity:1}
+#cbStatus:empty{display:none}
+#cbStatus{padding:6px 4px}
+.cb-ramp{display:flex;flex-direction:column;gap:3px;padding:2px 6px 6px}
+.cb-ramp[hidden]{display:none}
+.cb-rbar{height:10px;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.cb-rlbl{display:flex;justify-content:space-between;gap:8px;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.cb-row{cursor:pointer}
+.cb-row.sel{background:var(--lime-soft);box-shadow:inset 2px 0 0 var(--lime-deep)}
+/* il quadratino del colore È il selettore nativo: un clic apre la tavolozza del sistema */
+input.cb-sw{-webkit-appearance:none;appearance:none;flex:0 0 auto;width:15px;height:15px;padding:0;margin:0;border:0;border-radius:4px;background:none;cursor:pointer}
+input.cb-sw::-webkit-color-swatch-wrapper{padding:0}
+input.cb-sw::-webkit-color-swatch{border:0;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.22)}
+input.cb-sw::-moz-color-swatch{border:0;border-radius:4px}
+input.cb-sw:hover,input.cb-sw:focus-visible{outline:2px solid var(--lime-deep);outline-offset:1px}
+.cb-row.off input.cb-sw{opacity:.45}
+.cb-row .dv-nm.none{color:var(--muted);font-style:italic}
 </style>
 <!-- v2.1.1 — vendoring locale: three e web-ifc serviti da ./vendor/ (stesse versioni pinnate
      0.160.0 / 0.0.77 di prima, scaricate da unpkg). Niente più dipendenza dalla latenza CDN
@@ -1371,6 +1397,10 @@ body.diff-embed #railDiff{display:flex}
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/></svg>
       <span class="rail-dot" hidden></span>
     </button>
+    <button class="rail-btn" id="railColor" data-railtab="color" data-i18n-title="tab.color" title="Colora">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.1 0 1.7-.7 1.7-1.6 0-.45-.17-.83-.45-1.13-.28-.3-.45-.7-.45-1.14 0-.9.73-1.63 1.63-1.63h1.9A4.7 4.7 0 0 0 21 10.3C21 6.55 16.97 3.5 12 3.5z"/><circle cx="7.6" cy="11.4" r="1.15"/><circle cx="10.3" cy="7.5" r="1.15"/><circle cx="15" cy="7.6" r="1.15"/></svg>
+      <span class="rail-dot" hidden></span>
+    </button>
     <button class="rail-btn" id="railQto" data-railtab="qto" data-i18n-title="tab.qto" title="QTO">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>
       <span class="rail-dot" hidden></span>
@@ -1397,6 +1427,7 @@ body.diff-embed #railDiff{display:flex}
       <button class="ltab" data-tab="diff"><span data-i18n="tab.diff">Confronto</span> <span class="tbadge" id="tabDiffCount">0</span></button>
       <button class="ltab" data-tab="issues"><span data-i18n="tab.issues">Issues</span> <span class="tbadge" id="tabIssuesCount">0</span></button>
       <button class="ltab" data-tab="search"><span data-i18n="tab.search">Cerca</span> <span class="tbadge" id="tabSearchCount">0</span></button>
+      <button class="ltab" data-tab="color"><span data-i18n="tab.color">Colora</span> <span class="tbadge" id="tabColorCount">0</span></button>
       <button class="ltab" data-tab="qto" data-i18n-title="title.qtoTab" title="Computo delle quantità (Quantity Take-Off) dai modelli caricati"><span data-i18n="tab.qto">QTO</span> <span class="tbadge" id="tabQtoCount">0</span></button>
       <button class="ltab" data-tab="clouds"><span data-i18n="pc.title">Nuvole di punti</span> <span class="tbadge" id="tabCloudsCount">0</span></button>
       <button id="leftCollapse" data-i18n-title="title.collapse" title="Comprimi il pannello laterale">«</button>
@@ -1632,6 +1663,38 @@ body.diff-embed #railDiff{display:flex}
         <div class="empty-note" data-i18n-html="srch.empty">Scrivi un testo o aggiungi un filtro.<br>Puoi filtrare per <b>classe IFC</b>, <b>modello</b>, <b>contenitore</b> (piano, zona, parte di un'infrastruttura) e per qualsiasi <b>parametro dei pset</b>.</div>
       </div>
     </div>
+    <!-- pagina "Colora" (v2.11.0): la vista colorata per modello, classe IFC,
+         contenitore o parametro; legenda con occhio, «solo», selezione e colore
+         modificabile (stessi mattoni della pagina Confronto) -->
+    <div id="colorBlock" class="ltab-page" style="display:none">
+      <div class="dv-wrap">
+        <div class="dv-sec">
+          <div class="dv-tgl" id="cbTgPaint" role="switch" aria-checked="false" tabindex="0"><span data-i18n="cb.paint">Colora la vista</span><span class="dv-sw"><i></i></span></div>
+        </div>
+        <div class="dv-sec">
+          <div class="dv-k" data-i18n="cb.by">Colora per</div>
+          <div class="dv-seg cb-seg" id="cbModeSeg" role="group">
+            <button data-mode="model" class="on" data-i18n="cb.mModel" data-i18n-title="cb.mModelT" title="Un colore per ogni file IFC caricato">Modello</button>
+            <button data-mode="class" data-i18n="cb.mClass" data-i18n-title="cb.mClassT" title="Un colore per ogni classe IFC (IfcWall, IfcSlab…)">Classe</button>
+            <button data-mode="container" data-i18n="cb.mCont" data-i18n-title="cb.mContT" title="Un colore per ogni contenitore spaziale: piano, zona, parte di un'infrastruttura">Contenitore</button>
+            <button data-mode="param" data-i18n="cb.mParam" data-i18n-title="cb.mParamT" title="Un colore per ogni valore di un parametro dei pset (istanza o type)">Parametro</button>
+          </div>
+          <div id="cbParamRow" class="cb-param" hidden>
+            <div id="cbWarmup" class="qto-warmup" hidden><span class="mini-spin"></span><span></span></div>
+            <select id="cbPset" class="qto-sel"></select>
+            <select id="cbProp" class="qto-sel"></select>
+          </div>
+          <div class="dv-tgl" id="cbTgGrad" role="switch" aria-checked="false" tabindex="0" hidden data-i18n-title="cb.gradT" title="Valori numerici su una scala di colore: viola il minimo, giallo il massimo. Spenta: un colore per valore"><span data-i18n="cb.grad">Scala continua</span><span class="dv-sw"><i></i></span></div>
+        </div>
+        <div class="dv-sec">
+          <div class="dv-k dv-khead" id="cbLegendHead" hidden><span id="cbLegendTitle"></span><span class="cb-hbtns"><button class="dv-only" id="cbReset" data-i18n="cb.reset" data-i18n-title="cb.resetT" title="Torna ai colori automatici (toglie quelli scelti a mano)">colori</button><button class="dv-only" id="cbAll" data-i18n="cb.all" data-i18n-title="cb.allT" title="Mostra tutti gli elementi della legenda">tutto</button></span></div>
+          <div id="cbStatus" class="dv-empty"></div>
+          <div id="cbRamp" class="cb-ramp" hidden><span class="cb-rbar"></span><span class="cb-rlbl"><span id="cbRampMin"></span><span id="cbRampMax"></span></span></div>
+          <div id="cbLegend"></div>
+          <div class="dv-note" id="cbHint" hidden data-i18n="cb.hint">Clic su un valore: seleziona · Ctrl+clic: aggiunge · doppio clic: inquadra · quadratino: cambia colore</div>
+        </div>
+      </div>
+    </div>
     <div id="qtoBlock" class="ltab-page" style="display:none">
       <div class="panel-head">
         <div id="qtoWarmup" class="qto-warmup" hidden><span class="mini-spin"></span><span></span></div>
@@ -1742,7 +1805,7 @@ body.diff-embed #railDiff{display:flex}
   <div class="lp-wrap">
     <div class="lp-hero">
       <div class="lp-copy">
-        <div class="lp-chip lp-in"><span class="pulse"></span><span><b>v2.8</b>&nbsp;·&nbsp;<span data-i18n="lp.chip">La nuova interfaccia è online</span></span></div>
+        <div class="lp-chip lp-in"><span class="pulse"></span><span><b>v2.11</b>&nbsp;·&nbsp;<span data-i18n="lp.chip">Nuovo: colora la vista per modello, classe o parametro</span></span></div>
         <h1 class="lp-h1 lp-in" style="--d:.06s"><span data-i18n="lp.h1a">Esplora.</span><br><span data-i18n="lp.h1a2">Verifica.</span><br><span data-i18n="lp.h1b">Costruisci </span><span class="accent" data-i18n="lp.h1c">meglio.</span></h1>
         <p class="lp-sub lp-in" style="--d:.12s" data-i18n="lp.sub">Il viewer BIM per IFC e BCF. Visualizza i modelli, coordina le issue ed edita i parametri direttamente nel 3D.</p>
         <div class="lp-cta lp-in" style="--d:.18s">
@@ -1870,16 +1933,17 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
    bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
    ogni release il .js vecchio in cache non viene più usato. vendor/ resta
    senza versione: cambia solo quando si aggiornano three o web-ifc. */
-import { readLASHeader, parseLAS } from "./las.js?v=2.10.5";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
-import { parseE57, e57PointCount } from "./e57.js?v=2.10.5";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js?v=2.10.5";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.10.5";  // feature QTO (v2.5.0)
+import { readLASHeader, parseLAS } from "./las.js?v=2.11.0";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.11.0";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.11.0";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.11.0";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.10.5";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.11.0";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.10.5";  // studio verifica nuvola ↔ modello
-import * as SRCH from "./search.js?v=2.10.5";                          // feature Cerca (v2.10.0): confronti, regole, CSV
-import * as CAPS from "./caps.js?v=2.10.5";                            // tappi pieni delle sezioni (v2.10.2)
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.11.0";  // studio verifica nuvola ↔ modello
+import * as SRCH from "./search.js?v=2.11.0";                          // feature Cerca (v2.10.0): confronti, regole, CSV
+import * as CAPS from "./caps.js?v=2.11.0";                            // tappi pieni delle sezioni (v2.10.2)
+import * as CBY from "./colorby.js?v=2.11.0";                          // feature Colora (v2.11.0): legenda, palette, pittura
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -1982,7 +2046,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.10.5";
+const APP_VERSION = "2.11.0";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2157,6 +2221,27 @@ const STRINGS = {
     "dv.tCand": "Coppie proposte sotto la soglia di ri-associazione",
     "dv.tSame": "Elementi identici nelle due revisioni (contesto)",
     "tab.search": "Cerca",
+    "tab.color": "Colora",
+    "cb.paint": "Colora la vista",
+    "cb.by": "Colora per",
+    "cb.mModel": "Modello", "cb.mModelT": "Un colore per ogni file IFC caricato",
+    "cb.mClass": "Classe", "cb.mClassT": "Un colore per ogni classe IFC (IfcWall, IfcSlab…)",
+    "cb.mCont": "Contenitore", "cb.mContT": "Un colore per ogni contenitore spaziale: piano, zona, parte di un'infrastruttura",
+    "cb.mParam": "Parametro", "cb.mParamT": "Un colore per ogni valore di un parametro dei pset (istanza o type)",
+    "cb.grad": "Scala continua", "cb.gradT": "Valori numerici su una scala di colore: viola il minimo, giallo il massimo. Spenta: un colore per valore",
+    "cb.legend": "Legenda · {n}",
+    "cb.all": "tutto", "cb.allT": "Mostra tutti gli elementi della legenda",
+    "cb.reset": "colori", "cb.resetT": "Torna ai colori automatici (toglie quelli scelti a mano)",
+    "cb.only": "solo", "cb.onlyT": "Mostra solo questo valore (di nuovo: tutto)",
+    "cb.swT": "Cambia il colore",
+    "cb.rowT": "{n} elementi · clic: seleziona · doppio clic: inquadra",
+    "cb.noValue": "(senza valore)",
+    "cb.off": "Scegli un criterio qui sopra: la vista si colora e qui compare la legenda.",
+    "cb.noModels": "Carica un modello per colorarlo.",
+    "cb.pickParam": "Scegli il pset e la proprietà da cui prendere i colori.",
+    "cb.reading": "Leggo i valori… {p}%",
+    "cb.noGeo": "Nessun elemento con geometria da colorare.",
+    "cb.hint": "Clic su un valore: seleziona · Ctrl+clic: aggiunge · doppio clic: inquadra · quadratino: cambia colore",
     "srch.ph": "Nome, GUID, classe, Tag…",
     "srch.inParams": "Cerca anche nei valori dei parametri",
     "srch.inParamsT": "Il testo cerca anche nei valori di tutti i parametri dei pset (istanza e type)",
@@ -2239,7 +2324,7 @@ const STRINGS = {
     "navHelp": "Orbita: tasto sx &nbsp;·&nbsp; Pan: rotella premuta &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× clic rotella: zoom esteso",
     "drop.big": "Trascina qui i file IFC e BCF",
     "drop.small": "Oppure usa i pulsanti in alto. Clic su un elemento nel 3D per leggerne le proprietà, <kbd>Esc</kbd> per deselezionare. Doppio clic su un modello in elenco per inquadrarlo.",
-    "lp.chip": "La nuova interfaccia è online",
+    "lp.chip": "Nuovo: colora la vista per modello, classe o parametro",
     "lp.h1a": "Esplora.", "lp.h1a2": "Verifica.", "lp.h1b": "Costruisci ", "lp.h1c": "meglio.",
     "lp.sub": "Il viewer BIM per IFC e BCF. Visualizza i modelli, coordina le issue ed edita i parametri direttamente nel 3D.",
     "lp.ctaIfc": "Carica IFC", "lp.ctaIfcSub": "Supporta IFC2x3, IFC4, IFC4x3",
@@ -2718,6 +2803,27 @@ const STRINGS = {
     "dv.tCand": "Proposed pairs below the re-match threshold",
     "dv.tSame": "Elements identical in both revisions (context)",
     "tab.search": "Search",
+    "tab.color": "Color",
+    "cb.paint": "Color the view",
+    "cb.by": "Color by",
+    "cb.mModel": "Model", "cb.mModelT": "One color per loaded IFC file",
+    "cb.mClass": "Class", "cb.mClassT": "One color per IFC class (IfcWall, IfcSlab…)",
+    "cb.mCont": "Container", "cb.mContT": "One color per spatial container: storey, zone, part of an infrastructure",
+    "cb.mParam": "Parameter", "cb.mParamT": "One color per value of a property set parameter (instance or type)",
+    "cb.grad": "Continuous scale", "cb.gradT": "Numeric values on a color scale: purple the minimum, yellow the maximum. Off: one color per value",
+    "cb.legend": "Legend · {n}",
+    "cb.all": "all", "cb.allT": "Show every element in the legend",
+    "cb.reset": "colors", "cb.resetT": "Back to the automatic colors (drops the ones picked by hand)",
+    "cb.only": "only", "cb.onlyT": "Show this value only (again: everything)",
+    "cb.swT": "Change the color",
+    "cb.rowT": "{n} elements · click: select · double click: zoom",
+    "cb.noValue": "(no value)",
+    "cb.off": "Pick a criterion above: the view gets colored and the legend shows up here.",
+    "cb.noModels": "Load a model to color it.",
+    "cb.pickParam": "Choose the property set and the property to take the colors from.",
+    "cb.reading": "Reading values… {p}%",
+    "cb.noGeo": "No element with geometry to color.",
+    "cb.hint": "Click a value: select · Ctrl+click: add · double click: zoom · square: change color",
     "srch.ph": "Name, GUID, class, Tag…",
     "srch.inParams": "Also search parameter values",
     "srch.inParamsT": "The text also searches the values of every pset parameter (instance and type)",
@@ -2800,7 +2906,7 @@ const STRINGS = {
     "navHelp": "Orbit: left button &nbsp;·&nbsp; Pan: wheel pressed &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× wheel click: zoom to fit",
     "drop.big": "Drag IFC and BCF files here",
     "drop.small": "Or use the buttons above. Click an element in 3D to read its properties, <kbd>Esc</kbd> to deselect. Double-click a model in the list to frame it.",
-    "lp.chip": "The new interface is live",
+    "lp.chip": "New: color the view by model, class or parameter",
     "lp.h1a": "Explore.", "lp.h1a2": "Review.", "lp.h1b": "Build ", "lp.h1c": "better.",
     "lp.sub": "The BIM viewer for IFC and BCF. Visualize models, coordinate issues and edit parameters right in the 3D view.",
     "lp.ctaIfc": "Upload IFC", "lp.ctaIfcSub": "Supports IFC2x3, IFC4, IFC4x3",
@@ -3126,6 +3232,7 @@ function refreshDynamicI18n() {
   try { renderIdsChips(); renderIdsList(); } catch (e) {}
   try { renderQtoSelects(); renderQtoColChips(); renderQtoList(); } catch (e) {}
   try { renderSearchRules(); renderSearch(); } catch (e) {}   /* Cerca: etichette di filtri e risultati */
+  try { renderColorPanel(); } catch (e) {}   /* Colora: legenda («senza valore»), tendine */
   try { renderC2mBlock(); } catch (e) {}   /* righe codici + tabella classi (verifica nuvola) */
   try { if (models.length) renderModelList(); } catch (e) {}   /* tooltip e conteggi delle righe modello */
   try { updateNavHelp(); } catch (e) {}
@@ -3166,6 +3273,11 @@ let currentSelectionBox = null;
 let _diffOnIsolate = null;    // (dim) → la pittura del diff si toglie di mezzo quando isoli
 let _diffOnLang = null;       // ridisegna le righe categoria al cambio lingua
 let _diffOnVisibility = null; // qualcosa è stato nascosto/mostrato → ridipingi il confronto
+/* agganci della colorazione (feature Colora, v2.11.0): li registra la sezione
+   «Colora» più in basso, null finché il modulo non l'ha valutata */
+let _colorOnModels = null;     // modelli aggiunti/tolti → valori da rileggere
+let _colorOnVisibility = null; // qualcosa è stato nascosto/mostrato → occhi della legenda
+let _colorOnEdit = null;       // (model) proprietà modificate → valori del parametro da rileggere
 
 const EYE_ON = '<svg viewBox="0 0 24 24"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>';
 const EYE_OFF = '<svg viewBox="0 0 24 24"><path d="M4 5l16 14M9.5 6.1A11 11 0 0 1 12 5.5c6.5 0 10 6.5 10 6.5a17 17 0 0 1-3.2 3.9M6 8.3A16 16 0 0 0 2 12s3.5 6.5 10 6.5c1.2 0 2.3-.2 3.3-.6"/></svg>';
@@ -4174,6 +4286,7 @@ async function buildModel(data, name) {
   qtoInvalidate();       // idem per il computo quantità (feature/qto)
   searchInvalidate();    // idem per la ricerca (feature Cerca, v2.10.0)
   clashInvalidate();     // idem per la clash detection (feature/clash)
+  if (_colorOnModels) _colorOnModels();   // idem per la colorazione (feature Colora, v2.11.0)
   if (_PERF.cur) _PERF.cur.scnInv = Math.round(performance.now() - _tsi);
   prewarmModel(model);  // v1.9.4 — costruisce le mappe pset/type in background (idle),
                         // così la PRIMA selezione non paga la scansione del modello
@@ -4380,6 +4493,7 @@ function toggleModelVisibility(m) {
   for (const mesh of m.meshes) mesh.visible = m.visible;
   for (const ed of m.edges) ed.visible = m.visible && edgesOn;
   if (_diffOnVisibility) _diffOnVisibility();   // confronto: niente colore su un modello spento
+  if (_colorOnVisibility) _colorOnVisibility(); // Colora: occhi della legenda
   capsSchedule();   // tappi delle sezioni: un modello spento non lascia le sue facce (v2.10.2)
   /* sincronizza gli occhi-modello di questo modello, in entrambe le viste
      (NON gli occhi per-elemento: hanno un loro stato, li gestisce _syncElemEyes) */
@@ -4414,6 +4528,7 @@ function setElementsHidden(model, eids, hidden) {
   /* se un elemento appena nascosto era selezionato, il fantasma rosso resterebbe in scena */
   if (hidden && hlItems && hlItems.some(it => it.model === model && touch.has(it.eid))) clearHighlight();
   if (_diffOnVisibility) _diffOnVisibility();   // confronto: la pittura segue la geometria visibile
+  if (_colorOnVisibility) _colorOnVisibility(); // Colora: occhi della legenda (i colori per vertice restano giusti da soli)
   capsSchedule();   // tappi delle sezioni: seguono gli elementi nascosti (v2.10.2)
 }
 
@@ -4690,6 +4805,7 @@ function removeModel(model) {
   qtoInvalidate();       // idem per il computo quantità (feature/qto)
   searchInvalidate();    // idem per la ricerca (feature Cerca, v2.10.0)
   clashInvalidate();     // le mesh rimosse invalidano indice/cache clash (feature/clash)
+  if (_colorOnModels) _colorOnModels();   // legenda della colorazione senza il modello tolto (v2.11.0)
   capsSchedule();        // tappi delle sezioni: via quelli del modello tolto (v2.10.2)
   updateAlignUI();       // il bottone Asse dipende anche da models.length (LandXML, v2.1.0)
   if (!models.length && !PCLOUD.sources.length) {
@@ -6056,7 +6172,8 @@ function qtoInvalidate() {
   /* v2.10.0 — anche con la pagina Cerca aperta: i suoi filtri usano lo stesso
      indice, e senza questo dal secondo modello le tendine Pset restavano vuote */
   if (typeof qtoIndexWarmup === "function" &&
-      ($("qtoBlock").style.display !== "none" || $("searchBlock").style.display !== "none")) qtoIndexWarmup();
+      ($("qtoBlock").style.display !== "none" || $("searchBlock").style.display !== "none" ||
+       $("colorBlock").style.display !== "none")) qtoIndexWarmup();   /* idem «Colora per parametro» (v2.11.0) */
 }
 
 /* Come readPset (che alimenta il pannello proprietà e NON va toccato) ma
@@ -9118,7 +9235,7 @@ function applyDetailEdits() {
       nOk++;
     } catch (ex) { console.warn("Modifica fallita su #" + e.pid, ex); }
   }
-  if (nOk) { model.dirty = true; renderModelList(); }
+  if (nOk) { model.dirty = true; renderModelList(); if (_colorOnEdit) _colorOnEdit(model); }
   detailEditMode = false;
   detailFlash = nOk ? tn(nOk, "edit.flash1", "edit.flashN") : "";
   showElementDetail(model, curDetail.eid);
@@ -9391,6 +9508,7 @@ function applyBulk(sel) {
   for (const [m, s] of perModel) {
     if (s.upd + s.cProp + s.cPset === 0) continue;
     m.dirty = true;
+    if (_colorOnEdit) _colorOnEdit(m);   /* Colora per parametro: valori da rileggere (v2.11.0) */
     m.edits.push({
       eid: 0, el: `BULK · ${sel.label}`, pid: 0,
       pset: psetName, prop: propName,
@@ -9788,7 +9906,7 @@ function renderQtoSelects() {
    modelli nuovi (federazione in carico) il giro li raccoglie prima di fondere. */
 let _qtoWarmRun = null;
 function _qtoWarmupUI(on, i, n) {
-  for (const id of ["qtoWarmup", "clashWarmup", "srchWarmup"]) {
+  for (const id of ["qtoWarmup", "clashWarmup", "srchWarmup", "cbWarmup"]) {
     const el = $(id); if (!el) continue;
     el.hidden = !on;
     if (on) el.lastElementChild.textContent = tr("qto.warmup", { i, n });
@@ -9818,6 +9936,7 @@ function qtoIndexWarmup() {
       _qtoWarmupUI(false);
       renderQtoSelects();
       if ($("searchBlock").style.display !== "none") renderSearchRules();   /* tendine Pset → Proprietà dei filtri */
+      if ($("colorBlock").style.display !== "none") renderColorPanel();      /* tendine di «Colora per parametro» */
       if ($("clashPane").style.display !== "none") renderClashUI();
     }
   })();
@@ -10501,6 +10620,505 @@ $("btnSrchCsv").addEventListener("click", exportSearchCsv);
 renderSearchRules();
 renderSearch();
 
+/* ===================== Colora — per modello, classe, contenitore, parametro =====================
+   Feature "Colora" (v2.11.0), richiesta dell'utente: colorare la vista con un
+   colore per modello, per classe IFC o per i valori di un parametro scelto (il
+   contenitore spaziale viene gratis dai record di Cerca). Logica pura — ordine
+   della legenda, palette, scala continua, vertici di ogni elemento — in
+   viewer/colorby.js; qui la lettura dei valori da web-ifc e la pittura.
+   Pittura = COLORI PER VERTICE sulle mesh dei bucket (attributo "color" a 3
+   byte normalizzati, colore del materiale a bianco). Niente mesh sovrapposte
+   come la pittura del confronto: lì si disegna due volte e si ridipinge a ogni
+   nascondi/mostra; qui nascondere cambia solo l'index e i colori dei vertici
+   restano giusti da soli. Selezione (hlGroup, sopra), «Isola selezione»,
+   velature, tappi delle sezioni e snapshot BCF vedono la vista colorata.
+   Spenta: vertexColors = false e colore originale del bucket (ud.baseColor);
+   l'attributo resta in memoria (3 byte a vertice) per la riaccensione.
+   Valori per elemento CON GEOMETRIA (i range dei bucket):
+   - modello: il file (chiave = uid, nell'ordine di caricamento);
+   - classe: typeByExpress, quindi anche IfcSite/IfcSpace con geometria;
+   - contenitore: il nodo spaziale del record di Cerca (null = «Fuori struttura
+     spaziale», la voce senza valore); un IfcSpace con geometria = il suo piano;
+   - parametro: pset di istanza e type grezzi (cache m._srchPs di Cerca, come i
+     filtri), pset vuoto = in qualsiasi pset; una parte senza valore prende
+     quello del suo assieme (CBY.inheritValues). */
+const CB_PAGE = 200;     /* voci di legenda disegnate per volta ("Mostra altri") */
+const cb = {
+  on: false, mode: "model", pset: "", prop: "",
+  grad: null,             /* scala continua: null = automatica (vedi CBY.AUTO_GRADIENT_MIN) */
+  custom: new Map(),      /* firma del criterio → Map<chiave, "#rrggbb"> scelti a mano */
+  vals: null, valsSig: "",/* Map<model, Map<geoEid, chiave>> dell'ultimo calcolo, e per quale criterio */
+  legend: null, items: null, rgb: null,   /* legenda; chiave → Map<model, eid[]>; chiave → [r,g,b] lineari 0..255 */
+  runId: 0, busy: false, prog: "", shown: CB_PAGE, timer: 0
+};
+const _cbSig = () => cb.mode + (cb.mode === "param" ? "\u0001" + cb.pset + "\u0001" + cb.prop : "");
+function _cbCustom() {
+  const s = _cbSig();
+  if (!cb.custom.has(s)) cb.custom.set(s, new Map());
+  return cb.custom.get(s);
+}
+/* elementi con geometria del modello (expressID dei range), una volta */
+function _cbGeo(m) {
+  if (!m._cbGeo) {
+    const s = new Set();
+    for (const mesh of m.meshes) for (const r of mesh.userData.fullRanges) s.add(r.expressID);
+    m._cbGeo = s;
+  }
+  return m._cbGeo;
+}
+/* nome della classe come nell'albero e in Cerca (stessa GetNameFromTypeCode) */
+function _cbClass(m, eid) {
+  const code = m.typeByExpress.get(eid);
+  const cache = m._cbTypeNames || (m._cbTypeNames = new Map());
+  let n = cache.get(code);
+  if (n === undefined) {
+    try { n = m.api.GetNameFromTypeCode ? m.api.GetNameFromTypeCode(code) : ""; } catch (e) { n = ""; }
+    n = n || ("IFC " + code);
+    cache.set(code, n);
+  }
+  return n;
+}
+/* "#rrggbb" sRGB → [r, g, b] 0..255 nello spazio LINEARE di three.js (quello dei
+   colori per vertice): THREE.Color fa la conversione come per i materiali */
+function _cbLin(hex) {
+  const c = new THREE.Color(hex);
+  return [Math.round(c.r * 255), Math.round(c.g * 255), Math.round(c.b * 255)];
+}
+
+/* ---- valori: lettura a fette (il viewer resta usabile, un nuovo calcolo annulla il vecchio) ---- */
+async function _cbCompute() {
+  const id = ++cb.runId, sig = _cbSig(), mode = cb.mode, pset = cb.pset, prop = cb.prop;
+  cb.busy = true; cb.prog = "";
+  renderColorPanel();
+  const prog = (s) => { if (id === cb.runId) { cb.prog = s; _cbStatus(); } };
+  const out = new Map();
+  try {
+    const tot = models.reduce((a, m) => a + _cbGeo(m).size, 0) || 1;
+    let done = 0;
+    for (let i = 0; i < models.length; i++) {
+      const m = models[i], geo = _cbGeo(m), map = new Map();
+      if (mode === "model") for (const g of geo) map.set(g, String(m.uid));
+      else if (mode === "class") for (const g of geo) map.set(g, _cbClass(m, g));
+      else {
+        if (!m._srchRecs) { prog(tr("srch.indexing", { i: i + 1, n: models.length })); await _srchYield(); if (id !== cb.runId) return; }
+        const recs = _srchRecords(m);
+        if (mode === "container") {
+          for (const r of recs) if (r.cont !== null && geo.has(r.eid)) map.set(r.eid, r.cont);
+          /* nodi spaziali con geometria (IfcSpace, il terreno di IfcSite): il contenitore è il genitore */
+          const t = ensureTree(m);
+          const walk = (n) => { for (const ch of n.children) { if (geo.has(ch.eid) && !map.has(ch.eid)) map.set(ch.eid, n.label); walk(ch); } };
+          if (t.root) walk(t.root);
+        } else {
+          await _prewarmPsets(m); await _prewarmTypes(m);   /* a fette; poi il lazy sincrono se interrotti */
+          if (id !== cb.runId) return;
+          ensurePsetMap(m); ensureTypeMap(m);
+          const recBy = new Map();
+          for (const r of recs) recBy.set(r.eid, r);
+          const own = new Map();
+          let t0 = performance.now();
+          for (const g of geo) {
+            if (performance.now() - t0 > 12) {
+              prog(tr("cb.reading", { p: Math.round(done * 100 / tot) }));
+              await _srchYield();
+              if (id !== cb.runId) return;
+              t0 = performance.now();
+            }
+            done++;
+            const k = CBY.valueKey(_srchAcc.prop(recBy.get(g) || { m, eid: g }, pset, prop));
+            if (k) own.set(g, k);
+          }
+          /* assiemi (record con geometria nelle parti): il loro valore va alle parti che non ne hanno */
+          const groups = [];
+          for (const r of recs) {
+            if (!r.geo.length || (r.geo.length === 1 && r.geo[0] === r.eid)) continue;
+            const k = CBY.valueKey(_srchAcc.prop(r, pset, prop));
+            if (k) groups.push({ key: k, geo: r.geo });
+          }
+          for (const [g, k] of CBY.inheritValues(own, groups)) if (geo.has(g)) map.set(g, k);
+        }
+      }
+      out.set(m, map);
+    }
+  } catch (e) {
+    if (id === cb.runId) { cb.busy = false; toast(tr("tab.color") + ": " + e.message); console.warn(e); renderColorPanel(); }
+    return;
+  }
+  if (id !== cb.runId) return;
+  cb.vals = out; cb.valsSig = sig; cb.busy = false;
+  _cbBuildLegend();
+  _cbPaint();
+  renderColorPanel();
+}
+
+/* legenda + elementi per voce + colori lineari per la GPU */
+function _cbBuildLegend() {
+  const counts = new Map(), items = new Map();
+  if (cb.mode === "model") for (const m of models) counts.set(String(m.uid), 0);   /* ordine di caricamento */
+  for (const [m, map] of cb.vals) {
+    if (!models.includes(m)) continue;
+    for (const g of _cbGeo(m)) {
+      const v = map.get(g), k = v === undefined ? CBY.NO_VALUE : v;
+      counts.set(k, (counts.get(k) || 0) + 1);
+      let per = items.get(k); if (!per) items.set(k, per = new Map());
+      let arr = per.get(m); if (!arr) per.set(m, arr = []);
+      arr.push(g);
+    }
+  }
+  for (const [k, n] of counts) if (!n) counts.delete(k);   /* modello senza geometria */
+  const byModel = cb.mode === "model";   /* chiavi = uid: ordine di caricamento, mai una scala */
+  cb.legend = CBY.buildLegend(counts, { order: byModel ? "given" : "natural", numeric: !byModel, gradient: cb.grad, custom: _cbCustom() });
+  cb.items = items;
+  cb.rgb = new Map(cb.legend.entries.map(e => [e.key, _cbLin(e.color)]));
+}
+
+/* ---- pittura ---- */
+function _cbPaint() {
+  if (!cb.on || !cb.vals || !cb.rgb) { _cbUnpaint(); return; }
+  const none = cb.rgb.get(CBY.NO_VALUE) || _cbLin(CBY.NONE_COLOR);
+  for (const m of models) {
+    const map = cb.vals.get(m);
+    for (const mesh of m.meshes) {
+      if (!map) { _cbUnpaintMesh(mesh); continue; }   /* modello arrivato dopo il calcolo: il prossimo lo colora */
+      const ud = mesh.userData, g = mesh.geometry;
+      let attr = g.getAttribute("color");
+      if (!attr) { attr = new THREE.BufferAttribute(new Uint8Array(g.attributes.position.count * 3), 3, true); g.setAttribute("color", attr); }
+      if (!ud.cbSpans) ud.cbSpans = CBY.rangeSpans(ud.fullIndex.array, ud.fullRanges);
+      CBY.fillColors(attr.array, ud.cbSpans, ud.fullRanges, (eid) => {
+        const k = map.get(eid);
+        return cb.rgb.get(k === undefined ? CBY.NO_VALUE : k);
+      }, none);
+      attr.needsUpdate = true;
+      if (!ud.baseColor) ud.baseColor = mesh.material.color.clone();
+      mesh.material.color.setRGB(1, 1, 1);
+      if (!mesh.material.vertexColors) { mesh.material.vertexColors = true; mesh.material.needsUpdate = true; }
+    }
+  }
+  capsSchedule();   /* i tappi delle sezioni prendono i colori degli elementi */
+}
+function _cbUnpaintMesh(mesh) {
+  if (!mesh.material.vertexColors) return;
+  mesh.material.vertexColors = false;
+  if (mesh.userData.baseColor) mesh.material.color.copy(mesh.userData.baseColor);
+  mesh.material.needsUpdate = true;
+}
+function _cbUnpaint() {
+  let any = false;
+  for (const m of models) for (const mesh of m.meshes) { if (mesh.material.vertexColors) any = true; _cbUnpaintMesh(mesh); }
+  if (any) capsSchedule();
+}
+/* un colore scelto a mano cambia di continuo mentre si trascina nella tavolozza:
+   al più un ridisegno ogni 30 ms (timer, non rAF: vale anche a scheda in secondo piano) */
+let _cbPaintT = 0;
+function _cbRepaintSoon() {
+  if (_cbPaintT) return;
+  _cbPaintT = setTimeout(() => { _cbPaintT = 0; _cbPaint(); }, 30);
+}
+
+/* ---- regia: cosa serve per arrivare alla vista richiesta ---- */
+function _cbRun() {
+  clearTimeout(cb.timer);
+  if (!cb.on || !models.length || (cb.mode === "param" && !cb.prop)) {
+    cb.runId++; cb.busy = false;
+    _cbUnpaint(); renderColorPanel();
+    return;
+  }
+  if (cb.vals && cb.valsSig === _cbSig()) { _cbBuildLegend(); _cbPaint(); renderColorPanel(); return; }
+  _cbCompute();
+}
+/* modelli che cambiano durante una federazione: si ricalcola a caricamento finito */
+function _cbSchedule() {
+  clearTimeout(cb.timer);
+  cb.timer = setTimeout(function go() {
+    if (_loadingOn) { cb.timer = setTimeout(go, 300); return; }
+    _cbRun();
+  }, 300);
+}
+
+/* ---- visibilità dalla legenda (occhio, «solo», «tutto») ---- */
+const _cbModelOf = (k) => models.find(m => String(m.uid) === k);
+function _cbHidden(k) {
+  if (cb.mode === "model") { const m = _cbModelOf(k); return m ? !m.visible : false; }
+  const per = cb.items && cb.items.get(k);
+  if (!per) return false;
+  for (const [m, eids] of per) for (const e of eids) if (!m.hiddenEids.has(e)) return false;
+  return true;
+}
+/* visible(chiave) → bool per le voci date (keys = Set, null = tutte); una passata
+   sola per modello: nascondere ricostruisce index e spigoli dei bucket */
+function _cbApplyVis(visible, keys = null) {
+  if (!cb.legend) return;
+  const todo = cb.legend.entries.filter(e => !keys || keys.has(e.key));
+  if (cb.mode === "model") {
+    for (const e of todo) { const m = _cbModelOf(e.key); if (m && m.visible !== visible(e.key)) toggleModelVisibility(m); }
+    return;
+  }
+  const per = new Map();
+  for (const e of todo) {
+    const v = visible(e.key), pm = cb.items.get(e.key);
+    if (!pm) continue;
+    for (const [m, eids] of pm) {
+      let s = per.get(m); if (!s) per.set(m, s = { show: [], hide: [] });
+      const dst = v ? s.show : s.hide;
+      for (const g of eids) dst.push(g);
+    }
+  }
+  for (const [m, s] of per) {
+    if (!models.includes(m)) continue;
+    if (s.hide.length) setElementsHidden(m, s.hide, true);
+    if (s.show.length) setElementsHidden(m, s.show, false);
+    _syncElemEyes(m);
+  }
+  _syncGroupEyes();
+}
+/* stato nascosto di tutte le voci, calcolato una volta: «solo» = l'unica visibile */
+function _cbHidAll() { return cb.legend ? cb.legend.entries.map(e => _cbHidden(e.key)) : []; }
+function _cbOnlyIdx(hid) {
+  if (hid.length < 2) return -1;
+  let vis = -1;
+  for (let i = 0; i < hid.length; i++) if (!hid[i]) { if (vis >= 0) return -1; vis = i; }
+  return vis;
+}
+
+/* ---- pannello ---- */
+function _cbLabel(e) {
+  if (e.none) return tr(cb.mode === "container" ? "srch.loose" : "cb.noValue");
+  if (cb.mode === "model") { const m = _cbModelOf(e.key); return m ? m.name : e.key; }
+  return e.key;
+}
+const _cbNum = (v) => Number(v).toLocaleString(LANG === "en" ? "en-GB" : "it-IT", { maximumFractionDigits: 3 });
+function _cbFillSelects() {
+  const ps = $("cbPset"), pr = $("cbProp");
+  const psets = qtoPropIndex ? [...qtoPropIndex.keys()] : [];
+  if (cb.pset && !psets.includes(cb.pset)) psets.unshift(cb.pset);   /* la scelta resta mentre l'indice si ricostruisce */
+  ps.innerHTML = "";
+  for (const [v, l] of [["", tr("srch.anyPset")], ...psets.map(p => [p, p])]) {
+    const o = document.createElement("option"); o.value = v; o.textContent = l; ps.appendChild(o);
+  }
+  ps.value = cb.pset;
+  const props = (cb.pset ? (qtoPropIndex && qtoPropIndex.get(cb.pset)) || [] : _srchAllProps()).slice();
+  if (cb.prop && !props.includes(cb.prop)) props.unshift(cb.prop);
+  pr.innerHTML = "";
+  for (const [v, l] of [["", tr("qto.selProp")], ...props.map(p => [p, p])]) {
+    const o = document.createElement("option"); o.value = v; o.textContent = l; pr.appendChild(o);
+  }
+  pr.value = cb.prop;
+  pr.disabled = !props.length;
+}
+function _cbStatus() {
+  const st = $("cbStatus"); if (!st) return;
+  if (cb.busy) { st.innerHTML = `<span class="qto-warmup"><span class="mini-spin"></span><span>${esc(cb.prog || tr("cb.reading", { p: 0 }))}</span></span>`; return; }
+  let msg = "";
+  if (!models.length) msg = tr("cb.noModels");
+  else if (!cb.on) msg = tr("cb.off");
+  else if (cb.mode === "param" && !cb.prop) msg = tr("cb.pickParam");
+  else if (cb.legend && !cb.legend.entries.length) msg = tr("cb.noGeo");
+  st.textContent = msg;
+}
+function renderColorPanel() {
+  if (!$("colorBlock")) return;
+  $("cbTgPaint").classList.toggle("on", cb.on);
+  $("cbTgPaint").setAttribute("aria-checked", cb.on ? "true" : "false");
+  $("cbModeSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.mode === cb.mode));
+  $("cbParamRow").hidden = cb.mode !== "param";
+  if (cb.mode === "param") _cbFillSelects();
+  const ready = cb.on && !cb.busy && models.length && !(cb.mode === "param" && !cb.prop);
+  const L = ready && cb.legend && cb.legend.entries.length ? cb.legend : null;
+  _cbStatus();
+  const tg = $("cbTgGrad");
+  tg.hidden = !(L && L.numeric && L.entries.filter(e => !e.none).length >= 2);
+  tg.classList.toggle("on", !!(L && L.gradient));
+  tg.setAttribute("aria-checked", L && L.gradient ? "true" : "false");
+  $("cbLegendHead").hidden = !L;
+  $("cbHint").hidden = !L;
+  $("cbRamp").hidden = !(L && L.gradient);
+  if (L && L.gradient) {
+    $("cbRamp").querySelector(".cb-rbar").style.background = `linear-gradient(90deg, ${CBY.RAMP.join(", ")})`;
+    $("cbRampMin").textContent = _cbNum(L.min);
+    $("cbRampMax").textContent = _cbNum(L.max);
+  }
+  if (L) $("cbLegendTitle").textContent = tr("cb.legend", { n: L.entries.length });
+  _cbRenderLegend(L);
+  $("tabColorCount").textContent = L ? String(L.entries.length) : "0";
+}
+function _cbRenderLegend(L) {
+  const host = $("cbLegend");
+  host.innerHTML = "";
+  if (!L) return;
+  const frag = document.createDocumentFragment();
+  const n = Math.min(L.entries.length, cb.shown);
+  for (let i = 0; i < n; i++) {
+    const e = L.entries[i], label = _cbLabel(e);
+    const row = document.createElement("div");
+    row.className = "dv-row cb-row";
+    row.dataset.i = i;
+    row.title = label + "\n" + tr("cb.rowT", { n: e.n.toLocaleString(LANG === "en" ? "en-GB" : "it-IT") });
+    row.innerHTML = '<button class="eye" type="button"></button><input type="color" class="cb-sw">' +
+      '<span class="dv-nm"></span><span class="dv-cnt"></span><button class="dv-only" type="button"></button>';
+    const sw = row.querySelector(".cb-sw");
+    sw.value = e.color; sw.title = tr("cb.swT");
+    const nm = row.querySelector(".dv-nm");
+    nm.textContent = label; nm.classList.toggle("none", e.none);
+    row.querySelector(".dv-cnt").textContent = e.n.toLocaleString(LANG === "en" ? "en-GB" : "it-IT");
+    const only = row.querySelector(".dv-only");
+    only.textContent = tr("cb.only"); only.title = tr("cb.onlyT");
+    frag.appendChild(row);
+  }
+  host.appendChild(frag);
+  const rest = L.entries.length - n;
+  if (rest > 0) {
+    const more = document.createElement("button");
+    more.className = "srch-more";
+    more.textContent = tr("srch.more", { n: Math.min(rest, CB_PAGE) });
+    more.addEventListener("click", () => { cb.shown += CB_PAGE; _cbRenderLegend(cb.legend); });
+    host.appendChild(more);
+  }
+  _cbSyncEyes();
+}
+/* stato degli occhi e del «solo» sulle righe già disegnate (niente ridisegno:
+   una tavolozza aperta su un quadratino non deve chiudersi) */
+function _cbSyncEyes() {
+  if (!cb.legend) return;
+  const all = _cbHidAll(), only = _cbOnlyIdx(all);
+  $("cbLegend").querySelectorAll(".cb-row").forEach(row => {
+    const i = +row.dataset.i;
+    if (!cb.legend.entries[i]) return;
+    const hid = all[i];
+    const eye = row.querySelector(".eye");
+    eye.innerHTML = hid ? EYE_OFF : EYE_ON;
+    eye.classList.toggle("off", hid);
+    eye.title = tr(hid ? "elhide.show" : "elhide.hide");
+    row.classList.toggle("off", hid);
+    row.querySelector(".dv-only").classList.toggle("on", only === i);
+  });
+}
+/* più nascondi/mostra di fila (un «solo» tocca tutti i modelli) = un aggiornamento;
+   setTimeout e non rAF: gli occhi seguono anche a scheda in secondo piano */
+let _cbEyesT = 0;
+_colorOnVisibility = () => {
+  if (_cbEyesT || !cb.legend || $("colorBlock").style.display === "none") return;
+  _cbEyesT = setTimeout(() => { _cbEyesT = 0; _cbSyncEyes(); }, 0);
+};
+_colorOnModels = () => {
+  cb.vals = null; cb.legend = null; cb.items = null; cb.rgb = null;
+  cb.runId++; cb.shown = CB_PAGE;
+  /* colorazione accesa: rotellina subito, non un pannello vuoto fino al ricalcolo */
+  cb.busy = cb.on && models.length > 0 && !(cb.mode === "param" && !cb.prop); cb.prog = "";
+  renderColorPanel();
+  _cbSchedule();
+};
+_colorOnEdit = (m) => {
+  /* pset riletti alla prossima lettura: valgono anche per Cerca e per le sue liste «è uno di» */
+  m._srchPs = null; srch.valCache.clear(); srch.valGen++;
+  if (cb.mode !== "param") return;
+  cb.vals = null;
+  if (cb.on) _cbSchedule();
+};
+
+/* ---- comandi ---- */
+const _cbItems = (k) => {
+  const out = [], per = cb.items && cb.items.get(k);
+  if (per) for (const [m, eids] of per) if (models.includes(m)) for (const g of eids) out.push({ model: m, eid: g });
+  return out;
+};
+function _cbBindTgl(el, flip) {
+  el.addEventListener("click", flip);
+  el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+}
+_cbBindTgl($("cbTgPaint"), () => { cb.on = !cb.on; _cbRun(); });
+_cbBindTgl($("cbTgGrad"), () => {
+  if (!cb.legend) return;
+  cb.grad = !cb.legend.gradient;
+  _cbRun();
+});
+$("cbModeSeg").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-mode]");
+  if (!b) return;
+  if (cb.mode !== b.dataset.mode) { cb.mode = b.dataset.mode; cb.grad = null; cb.shown = CB_PAGE; }
+  cb.on = true;   /* scegliere un criterio accende la colorazione */
+  if (cb.mode === "param") qtoIndexWarmup();
+  _cbRun();
+});
+$("cbPset").addEventListener("change", () => {
+  cb.pset = $("cbPset").value;
+  if (cb.pset && cb.prop && !((qtoPropIndex && qtoPropIndex.get(cb.pset)) || []).includes(cb.prop)) cb.prop = "";
+  cb.grad = null; cb.shown = CB_PAGE;
+  _cbRun();
+});
+$("cbProp").addEventListener("change", () => {
+  cb.prop = $("cbProp").value;
+  cb.grad = null; cb.shown = CB_PAGE;
+  if (cb.prop) cb.on = true;
+  _cbRun();
+});
+$("cbAll").addEventListener("click", () => _cbApplyVis(() => true));
+$("cbReset").addEventListener("click", () => {
+  cb.custom.delete(_cbSig());
+  if (cb.vals) { _cbBuildLegend(); _cbPaint(); renderColorPanel(); }
+});
+const _cbEntryOf = (ev) => {
+  const row = ev.target.closest(".cb-row");
+  return row && cb.legend ? { row, e: cb.legend.entries[+row.dataset.i] } : null;
+};
+$("cbLegend").addEventListener("click", (ev) => {
+  const hit = _cbEntryOf(ev);
+  if (!hit || !hit.e) return;
+  const { row, e } = hit;
+  if (ev.target.closest(".cb-sw")) return;   /* il quadratino apre la tavolozza nativa */
+  if (ev.target.closest(".eye")) { const show = _cbHidden(e.key); _cbApplyVis(() => show, new Set([e.key])); return; }
+  if (ev.target.closest(".dv-only")) {
+    /* «solo»: questa voce e basta; di nuovo sulla stessa = tutto */
+    const was = _cbOnlyIdx(_cbHidAll()) === +row.dataset.i;
+    _cbApplyVis((k) => was || k === e.key);
+    return;
+  }
+  const items = _cbItems(e.key);
+  if (!items.length) return;
+  if (ev.ctrlKey || ev.metaKey) { toggleSelection(items, row); return; }
+  if (items.length > SRCH_SEL_MAX) { toast(tr("qto.tooMany", { n: items.length })); return; }
+  buildHighlight(items);
+  row.classList.add("sel"); selTreeRows.add(row);
+  $("ftHint").textContent = tr("sel.count", { n: items.length, label: _cbLabel(e) });
+});
+$("cbLegend").addEventListener("dblclick", (ev) => {
+  if (ev.target.closest(".cb-sw, .eye, .dv-only")) return;
+  if (_cbEntryOf(ev)) zoomSelection();
+});
+$("cbLegend").addEventListener("input", (ev) => {
+  const sw = ev.target.closest(".cb-sw"), hit = sw && _cbEntryOf(ev);
+  if (!hit || !hit.e) return;
+  hit.e.color = sw.value;
+  _cbCustom().set(hit.e.key, sw.value);
+  cb.rgb.set(hit.e.key, _cbLin(sw.value));
+  _cbRepaintSoon();
+});
+renderColorPanel();
+
+/* Hook per la QA della colorazione (console/automazione, come __apeCapsQA): NON
+   è API pubblica, può cambiare senza preavviso. color(mi, eid) = colore per
+   vertice (lineare 0..255) del primo vertice dell'elemento, null se non dipinto. */
+window.__apeColorQA = {
+  state: () => ({ on: cb.on, mode: cb.mode, pset: cb.pset, prop: cb.prop, busy: cb.busy, sig: cb.valsSig,
+                  entries: cb.legend ? cb.legend.entries.length : 0, gradient: cb.legend ? cb.legend.gradient : null,
+                  painted: models.reduce((a, m) => a + m.meshes.filter(x => x.material.vertexColors).length, 0),
+                  meshes: models.reduce((a, m) => a + m.meshes.length, 0) }),
+  legend: () => cb.legend ? cb.legend.entries.map(e => ({ key: e.key, label: _cbLabel(e), n: e.n, color: e.color, hidden: _cbHidden(e.key) })) : null,
+  color: (mi, eid) => {
+    const m = models[mi]; if (!m) return null;
+    for (const mesh of m.meshes) {
+      const ud = mesh.userData, r = ud.fullRanges.findIndex(x => x.expressID === eid);
+      if (r < 0) continue;
+      const a = mesh.geometry.getAttribute("color");
+      if (!a || !mesh.material.vertexColors) return null;
+      const v = ud.fullIndex.array[ud.fullRanges[r].start * 3];
+      return [a.array[3 * v], a.array[3 * v + 1], a.array[3 * v + 2]];
+    }
+    return null;
+  },
+  lin: (hex) => _cbLin(hex),
+  sample: (key) => { const it = _cbItems(key)[0]; return it ? [models.indexOf(it.model), it.eid] : null; },
+  valueOf: (mi, eid) => { const m = models[mi], map = m && cb.vals && cb.vals.get(m); return map ? (map.get(eid) ?? null) : null; }
+};
+
 /* ============================ utilità UI ============================ */
 function setLeftTab(which) {
   document.querySelectorAll(".ltab").forEach(b => b.classList.toggle("on", b.dataset.tab === which));
@@ -10508,10 +11126,12 @@ function setLeftTab(which) {
   $("issuesBlock").style.display = which === "issues" ? "" : "none";
   $("qtoBlock").style.display = which === "qto" ? "" : "none";
   $("searchBlock").style.display = which === "search" ? "" : "none";
+  $("colorBlock").style.display = which === "color" ? "" : "none";
   $("cloudsBlock").style.display = which === "clouds" ? "" : "none";
   $("diffBlock").style.display = which === "diff" ? "" : "none";   /* pagina viva solo in ?embed=diff */
   if (which === "qto") { renderQtoSelects(); qtoIndexWarmup(); }
   if (which === "search") { renderSearchRules(); qtoIndexWarmup(); setTimeout(() => $("srchText").focus(), 0); }   /* stesso indice Pset→Proprietà del QTO */   /* indice Pset→Proprietà: costruito in background alla prima apertura */
+  if (which === "color") { renderColorPanel(); qtoIndexWarmup(); }   /* tendine di «Colora per parametro»: stesso indice */
 }
 document.querySelectorAll(".ltab").forEach(b => b.addEventListener("click", () => setLeftTab(b.dataset.tab)));
 
@@ -10591,7 +11211,7 @@ $("railCollapse").addEventListener("click", () => {
 new MutationObserver(railSync).observe($("leftTabs"), { subtree: true, attributes: true, attributeFilter: ["class"], childList: true, characterData: true });
 new MutationObserver(railSync).observe($("main"), { attributes: true, attributeFilter: ["class"] });
 /* pallino lime sul rail quando la sezione ha contenuti (conteggio tab > 0) */
-[["tabModelsCount", "railModels"], ["tabIssuesCount", "railIssues"], ["tabSearchCount", "railSearch"], ["tabQtoCount", "railQto"], ["tabCloudsCount", "railClouds"], ["tabDiffCount", "railDiff"]].forEach(([src, btn]) => {
+[["tabModelsCount", "railModels"], ["tabIssuesCount", "railIssues"], ["tabSearchCount", "railSearch"], ["tabColorCount", "railColor"], ["tabQtoCount", "railQto"], ["tabCloudsCount", "railClouds"], ["tabDiffCount", "railDiff"]].forEach(([src, btn]) => {
   const el = $(src), dot = document.querySelector("#" + btn + " .rail-dot");
   if (!el || !dot) return;
   const upd = () => { dot.hidden = !(parseInt(el.textContent, 10) || 0); };
@@ -11264,7 +11884,10 @@ function _capsBuild() {
       if (!cut.length) continue;
       const ud = mesh.userData, pos = g.attributes.position.array, idx = ud.fullIndex.array;
       if (!ud.capBoxes) ud.capBoxes = CAPS.rangeBoxes(pos, idx, ud.fullRanges);   // ingombri per elemento, una volta
-      const pv = [], ix = [];
+      /* vista colorata («Colora», v2.11.0): il tappo prende il colore per vertice
+         del suo elemento (quello di un vertice qualsiasi del range), non del bucket */
+      const vc = mesh.material.vertexColors && g.attributes.color ? g.attributes.color.array : null;
+      const pv = [], ix = [], pc = vc ? [] : null;
       for (const p of cut) {
         const ox = p.nx * CAPS_EPS, oy = p.ny * CAPS_EPS, oz = p.nz * CAPS_EPS;
         for (let r = 0; r < ud.fullRanges.length; r++) {
@@ -11276,15 +11899,23 @@ function _capsBuild() {
             open++;
             for (let k = 0; k < s.open.length; k += 3) lines.push(s.open[k] + ox, s.open[k + 1] + oy, s.open[k + 2] + oz);
           }
-          if (s.loops.length) CAPS.capLoops(s.loops, p, _capsTri, pv, ix, lines, CAPS_EPS, p.basis);
+          if (!s.loops.length) continue;
+          const pv0 = pv.length;
+          CAPS.capLoops(s.loops, p, _capsTri, pv, ix, lines, CAPS_EPS, p.basis);
+          if (pc) {
+            const v0 = 3 * idx[rg.start * 3];
+            for (let k = pv0; k < pv.length; k += 3) pc.push(vc[v0], vc[v0 + 1], vc[v0 + 2]);
+          }
         }
       }
       if (!ix.length) continue;
       const cg = new THREE.BufferGeometry();
       cg.setAttribute("position", new THREE.Float32BufferAttribute(pv, 3));
+      if (pc) cg.setAttribute("color", new THREE.Uint8BufferAttribute(pc, 3, true));
       cg.setIndex(ix);
-      const cap = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, clippingPlanes: planes }));
-      cap.userData = { color: mesh.material.color.clone(), baseOpacity: ud.baseOpacity };
+      const cap = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, clippingPlanes: planes, vertexColors: !!pc }));
+      /* colorata: il materiale è bianco (× CAPS_SHADE in _capsStyle) e scurisce i colori per vertice */
+      cap.userData = { color: pc ? new THREE.Color(1, 1, 1) : mesh.material.color.clone(), baseOpacity: ud.baseOpacity };
       cap.matrixAutoUpdate = false;
       S.group.add(cap);
     }
@@ -11338,6 +11969,12 @@ window.__apeCapsQA = {
     fitBox(sbWorldBox(), 0);
   },
   build: () => { _capsBuild(); return window.__apeCapsQA.stats(); },
+  /* colori dei tappi: per vertice con la vista colorata («Colora», v2.11.0), altrimenti del materiale */
+  colors: () => _caps().group.children.filter(o => !o.isLineSegments).map(o => {
+    const a = o.geometry.attributes.color;
+    return { vc: !!o.material.vertexColors, mat: o.material.color.getHexString(),
+             first: a ? [a.array[0], a.array[1], a.array[2]] : null, distinct: a ? new Set(Array.from({ length: a.count }, (_, i) => a.array[3 * i] + "," + a.array[3 * i + 1] + "," + a.array[3 * i + 2])).size : 0 };
+  }),
   show: (on) => { _caps().group.visible = !!on; },
   /* camera verso il centro del box da una direzione mondo (y in alto), distanza k × diagonale */
   view: (dx, dy, dz, k = 0.9) => {
