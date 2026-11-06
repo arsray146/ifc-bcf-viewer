@@ -992,7 +992,9 @@ main.with-detail #detailPanel{display:flex}
 .prop-table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:10px}
 .prop-table td{padding:4px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 .prop-table td:first-child{color:var(--muted);width:45%;word-break:break-word}
-.prop-table td:last-child{font-family:var(--mono);font-size:11.5px;word-break:break-word}
+.prop-table td:last-child,.prop-table td:nth-child(2){font-family:var(--mono);font-size:11.5px;word-break:break-word}
+/* colonna Unità del pannello proprietà (v2.11.1): stretta, mai a capo, tono del valore attenuato */
+.prop-table td.pv-u{width:1%;white-space:nowrap;word-break:normal;padding-left:2px;font-size:11px;color:var(--muted)}
 .pset-tabs{display:flex;gap:6px;margin:18px 0 10px;flex-wrap:wrap}
 .pset-tab{font-family:var(--mono);font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid var(--line-2);background:var(--panel);color:var(--muted);cursor:pointer;letter-spacing:.02em}
 .pset-tab:hover{border-color:var(--lime-deep)}
@@ -1933,17 +1935,17 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
    bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
    ogni release il .js vecchio in cache non viene più usato. vendor/ resta
    senza versione: cambia solo quando si aggiornano three o web-ifc. */
-import { readLASHeader, parseLAS } from "./las.js?v=2.11.0";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
-import { parseE57, e57PointCount } from "./e57.js?v=2.11.0";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js?v=2.11.0";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.11.0";  // feature QTO (v2.5.0)
+import { readLASHeader, parseLAS } from "./las.js?v=2.11.1";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.11.1";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.11.1";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.11.1";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.11.0";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.11.1";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.11.0";  // studio verifica nuvola ↔ modello
-import * as SRCH from "./search.js?v=2.11.0";                          // feature Cerca (v2.10.0): confronti, regole, CSV
-import * as CAPS from "./caps.js?v=2.11.0";                            // tappi pieni delle sezioni (v2.10.2)
-import * as CBY from "./colorby.js?v=2.11.0";                          // feature Colora (v2.11.0): legenda, palette, pittura
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.11.1";  // studio verifica nuvola ↔ modello
+import * as SRCH from "./search.js?v=2.11.1";                          // feature Cerca (v2.10.0): confronti, regole, CSV
+import * as CAPS from "./caps.js?v=2.11.1";                            // tappi pieni delle sezioni (v2.10.2)
+import * as CBY from "./colorby.js?v=2.11.1";                          // feature Colora (v2.11.0): legenda, palette, pittura
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -2046,7 +2048,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.11.0";
+const APP_VERSION = "2.11.1";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2496,6 +2498,7 @@ const STRINGS = {
     "el.typeReadonly": "I pset del Type sono in sola lettura: una modifica impatterebbe tutte le istanze.",
     "el.applyEdits": "Applica modifiche", "el.applyN": "Applica {n} modifiche", "el.apply1": "Applica 1 modifica",
     "el.qtyTitle": "Quantità — derivata dalla geometria", "el.qtyRo": "Quantità — non modificabile",
+    "el.unitOwn": "Unità scritta nella proprietà", "el.unitProj": "Unità del progetto per {ut} (IfcUnitAssignment)",
     "el.typeUnsupported": "Tipo valore non supportato in modifica",
     "el.selByValue": "Seleziona tutti gli elementi con {k} = {v}",
     "detail.title": "Dettagli", "title.closePanel": "Chiudi pannello",
@@ -3078,6 +3081,7 @@ const STRINGS = {
     "el.typeReadonly": "Type psets are read-only: an edit would affect all instances.",
     "el.applyEdits": "Apply edits", "el.applyN": "Apply {n} edits", "el.apply1": "Apply 1 edit",
     "el.qtyTitle": "Quantity — derived from geometry", "el.qtyRo": "Quantity — not editable",
+    "el.unitOwn": "Unit written on the property", "el.unitProj": "Project unit for {ut} (IfcUnitAssignment)",
     "el.typeUnsupported": "Value type not supported for editing",
     "el.selByValue": "Select all elements with {k} = {v}",
     "detail.title": "Details", "title.closePanel": "Close panel",
@@ -5907,7 +5911,149 @@ function ensureTypeMap(model) {
   model.typePsetIds = typePsetIds;
 }
 
-/* legge un IfcPropertySet o IfcElementQuantity → {name, props[]} */
+/* ---- unità di misura dei parametri (v2.11.1) -----------------------------------------------
+   Come BIMvision: accanto al valore l'unità con cui il FILE lo dichiara, nessuna conversione.
+   1) quella scritta nella proprietà: IfcPropertySingleValue.Unit, IfcPhysicalSimpleQuantity.Unit
+      (le scrive per esempio il tool Unità di misura: «Passo Armature 20 cm»);
+   2) altrimenti quella del progetto (IfcProject.UnitsInContext) per il tipo di misura del valore:
+      IfcLengthMeasure → LENGTHUNIT, IfcQuantityArea → AREAUNIT… (regola di ifcopenshell).
+   IfcLabel, IfcReal, IfcBoolean, rapporti, conteggi, o un tipo senza unità di progetto → nessuna
+   unità: mai indovinare. Etichette come nel tool Unità di misura (m², kN/m², W/(m²·K), °). */
+/* nome SI → [simbolo, potenza del prefisso, fattore verso SI, dimensioni L M T I Θ N J] */
+const UNIT_SI = { METRE: ["m", 1, 1, [1]], SQUARE_METRE: ["m²", 2, 1, [2]], CUBIC_METRE: ["m³", 3, 1, [3]],
+  GRAM: ["g", 1, 1e-3, [0, 1]], SECOND: ["s", 1, 1, [0, 0, 1]], AMPERE: ["A", 1, 1, [0, 0, 0, 1]],
+  KELVIN: ["K", 1, 1, [0, 0, 0, 0, 1]], DEGREE_CELSIUS: ["°C", 1, 1, [0, 0, 0, 0, 1]], MOLE: ["mol", 1, 1, [0, 0, 0, 0, 0, 1]],
+  CANDELA: ["cd", 1, 1, [0, 0, 0, 0, 0, 0, 1]], LUMEN: ["lm", 1, 1, [0, 0, 0, 0, 0, 0, 1]], LUX: ["lx", 1, 1, [-2, 0, 0, 0, 0, 0, 1]],
+  RADIAN: ["rad", 1, 1, []], STERADIAN: ["sr", 1, 1, []], NEWTON: ["N", 1, 1, [1, 1, -2]], PASCAL: ["Pa", 1, 1, [-1, 1, -2]],
+  JOULE: ["J", 1, 1, [2, 1, -2]], WATT: ["W", 1, 1, [2, 1, -3]], HERTZ: ["Hz", 1, 1, [0, 0, -1]], COULOMB: ["C", 1, 1, [0, 0, 1, 1]],
+  VOLT: ["V", 1, 1, [2, 1, -3, -1]], OHM: ["Ω", 1, 1, [2, 1, -3, -2]], FARAD: ["F", 1, 1, [-2, -1, 4, 2]],
+  SIEMENS: ["S", 1, 1, [-2, -1, 3, 2]], WEBER: ["Wb", 1, 1, [2, 1, -2, -1]], TESLA: ["T", 1, 1, [0, 1, -2, -1]],
+  HENRY: ["H", 1, 1, [2, 1, -2, -2]], BECQUEREL: ["Bq", 1, 1, [0, 0, -1]], GRAY: ["Gy", 1, 1, [2, 0, -2]], SIEVERT: ["Sv", 1, 1, [2, 0, -2]] };
+const UNIT_PFX = { EXA: ["E", 18], PETA: ["P", 15], TERA: ["T", 12], GIGA: ["G", 9], MEGA: ["M", 6], KILO: ["k", 3],
+  HECTO: ["h", 2], DECA: ["da", 1], DECI: ["d", -1], CENTI: ["c", -2], MILLI: ["m", -3], MICRO: ["µ", -6],
+  NANO: ["n", -9], PICO: ["p", -12], FEMTO: ["f", -15], ATTO: ["a", -18] };
+/* IfcConversionBasedUnit: nomi della tabella IFC (minuscoli) → simbolo; gli altri restano come scritti */
+const UNIT_CONV = { "degree": "°", "inch": "in", "foot": "ft", "yard": "yd", "mile": "mi", "square inch": "in²",
+  "square foot": "ft²", "square yard": "yd²", "acre": "ac", "square mile": "mi²", "cubic inch": "in³", "cubic foot": "ft³",
+  "cubic yard": "yd³", "litre": "l", "liter": "l", "fluid ounce uk": "fl oz UK", "fluid ounce us": "fl oz US",
+  "pint uk": "pt UK", "pint us": "pt US", "gallon uk": "gal UK", "gallon us": "gal US", "ounce": "oz", "pound": "lb",
+  "ton uk": "ton UK", "ton us": "ton US", "tonne": "t", "minute": "min", "hour": "h", "day": "d",
+  "fahrenheit": "°F", "degree fahrenheit": "°F", "grad": "gon", "btu": "BTU" };
+/* IfcDerivedUnit in SI coerente scritta con le unità base (così le esporta Revit: la trasmittanza
+   è kg·K⁻¹·s⁻³) → nome consueto, solo se fattore 1 e dimensioni uguali */
+const UNIT_DERIVED = { LINEARFORCEUNIT: ["N/m", [0, 1, -2]], LINEARSTIFFNESSUNIT: ["N/m", [0, 1, -2]],
+  PLANARFORCEUNIT: ["N/m²", [-1, 1, -2]], MODULUSOFLINEARSUBGRADEREACTIONUNIT: ["N/m²", [-1, 1, -2]],
+  MODULUSOFSUBGRADEREACTIONUNIT: ["N/m³", [-2, 1, -2]], MODULUSOFELASTICITYUNIT: ["Pa", [-1, 1, -2]],
+  SHEARMODULUSUNIT: ["Pa", [-1, 1, -2]], SOUNDPRESSUREUNIT: ["Pa", [-1, 1, -2]], SOUNDPOWERUNIT: ["W", [2, 1, -3]],
+  HEATFLUXDENSITYUNIT: ["W/m²", [0, 1, -3]], THERMALTRANSMITTANCEUNIT: ["W/(m²·K)", [0, 1, -3, 0, -1]],
+  THERMALADMITTANCEUNIT: ["W/(m²·K)", [0, 1, -3, 0, -1]], THERMALCONDUCTANCEUNIT: ["W/(m·K)", [1, 1, -3, 0, -1]],
+  THERMALRESISTANCEUNIT: ["m²·K/W", [0, -1, 3, 0, 1]], SPECIFICHEATCAPACITYUNIT: ["J/(kg·K)", [2, 0, -2, 0, -1]],
+  HEATINGVALUEUNIT: ["J/kg", [2, 0, -2]], DYNAMICVISCOSITYUNIT: ["Pa·s", [-1, 1, -1]], TORQUEUNIT: ["N·m", [2, 1, -2]],
+  LINEARMOMENTUNIT: ["N·m/m", [1, 1, -2]], ROTATIONALSTIFFNESSUNIT: ["N·m/rad", [2, 1, -2]], WARPINGMOMENTUNIT: ["N·m²", [3, 1, -2]] };
+/* misure senza dimensione: nessuna unità anche se il progetto ne dichiara */
+const UNIT_NODIM = new Set(["RATIO", "NORMALISEDRATIO", "COUNT", "NUMERIC", "PARAMETERVALUE", "CONTEXTDEPENDENT", "DESCRIPTIVE"]);
+/* quantità → tipo di unità (IfcQuantityCount e IfcQuantityNumber non ne hanno) */
+const UNIT_QTY = { LengthValue: "LENGTHUNIT", AreaValue: "AREAUNIT", VolumeValue: "VOLUMEUNIT", WeightValue: "MASSUNIT", TimeValue: "TIMEUNIT" };
+const _unitSup = (n) => String(n).replace(/[-0-9]/g, (c) => "⁻⁰¹²³⁴⁵⁶⁷⁸⁹"["-0123456789".indexOf(c)]);
+const _unitEnum = (x) => unwrap(x).replace(/\./g, "").toUpperCase();
+const _measUt = new Map();
+/* tipo di misura del valore (nome web-ifc, es. "IFCLENGTHMEASURE") → tipo di unità, "" = nessuna */
+function measureUnitType(name) {
+  const up = String(name || "").toUpperCase();
+  if (_measUt.has(up)) return _measUt.get(up);
+  const m = /^IFC(.+)MEASURE$/.exec(up);
+  let ut = "";
+  if (m) {
+    const core = m[1].replace(/^(POSITIVE|NONNEGATIVE)/, "");
+    ut = UNIT_NODIM.has(core) ? ""
+      : core === "THERMALCONDUCTIVITY" ? "THERMALCONDUCTANCEUNIT"
+      : core === "COMPOUNDPLANEANGLE" ? "PLANEANGLEUNIT" : core + "UNIT";
+  }
+  _measUt.set(up, ut);
+  return ut;
+}
+/* un'unità (riga già appiattita o handle) → {ut, label, f: fattore verso SI|null, d: dimensioni|null};
+   memo per expressID sul modello (le unità sono poche e condivise da migliaia di proprietà) */
+function unitInfo(model, u, depth = 0) {
+  if (!u || depth > 8) return null;
+  let line = u;
+  if (u.type === 5 || u.expressID === undefined) {           // handle {type:5, value:id}
+    if (!u.value) return null;
+    const memo0 = model._unitInfo;
+    if (memo0 && memo0.has(u.value)) return memo0.get(u.value);
+    try { line = model.api.GetLine(model.modelID, u.value, true); } catch (e) { return null; }
+  }
+  const memo = model._unitInfo || (model._unitInfo = new Map());
+  if (line.expressID && memo.has(line.expressID)) return memo.get(line.expressID);
+  const t = line.type;
+  let o = null;
+  if (t === WebIFC.IFCSIUNIT) {
+    const nm = _unitEnum(line.Name), p = UNIT_PFX[_unitEnum(line.Prefix)], b = UNIT_SI[nm];
+    o = { ut: _unitEnum(line.UnitType), label: (p ? p[0] : "") + (b ? b[0] : nm.toLowerCase()),
+      f: b ? Math.pow(10, (p ? p[1] : 0) * b[1]) * b[2] : null, d: b ? b[3] : null };
+  } else if (t === WebIFC.IFCCONVERSIONBASEDUNIT || t === WebIFC.IFCCONVERSIONBASEDUNITWITHOFFSET) {
+    const nm = unwrap(line.Name).trim();
+    let f = null, d = null;
+    let mw = line.ConversionFactor;
+    if (mw && mw.expressID === undefined && mw.value) { try { mw = model.api.GetLine(model.modelID, mw.value, true); } catch (e) { mw = null; } }
+    if (mw) {
+      const base = unitInfo(model, mw.UnitComponent, depth + 1), v = parseFloat(unwrap(mw.ValueComponent));
+      if (base) { d = base.d; if (base.f != null && isFinite(v)) f = v * base.f; }
+    }
+    o = { ut: _unitEnum(line.UnitType), label: UNIT_CONV[nm.toLowerCase()] || nm, f, d };
+  } else if (t === WebIFC.IFCDERIVEDUNIT) {
+    const ut = _unitEnum(line.UnitType), num = [], den = [];
+    let f = 1, d = [0, 0, 0, 0, 0, 0, 0];
+    for (let e of line.Elements || []) {
+      if (e && e.expressID === undefined && e.value) { try { e = model.api.GetLine(model.modelID, e.value, true); } catch (x) { e = null; } }
+      const ex = e ? parseInt(unwrap(e.Exponent), 10) : NaN, ui = e ? unitInfo(model, e.Unit, depth + 1) : null;
+      if (!ui || !isFinite(ex) || !ex) { f = null; d = null; continue; }
+      if (f != null && ui.f != null) f *= Math.pow(ui.f, ex); else f = null;
+      if (d && ui.d) for (let i = 0; i < 7; i++) d[i] += ex * (ui.d[i] || 0); else d = null;
+      const a = Math.abs(ex), lb = a !== 1 && /[²³⁴]$/.test(ui.label) ? "(" + ui.label + ")" : ui.label;
+      (ex > 0 ? num : den).push(lb + (a === 1 ? "" : _unitSup(a)));
+    }
+    let label = (num.join("·") || "1") + (den.length ? "/" + (den.length > 1 ? "(" + den.join("·") + ")" : den[0]) : "");
+    const c = UNIT_DERIVED[ut];
+    if (c && f != null && Math.abs(f - 1) < 1e-9 && d && d.every((x, i) => x === (c[1][i] || 0))) label = c[0];
+    o = { ut, label, f, d };
+  } else if (t === WebIFC.IFCMONETARYUNIT) {
+    /* IFC2X3: enum .EUR.; IFC4: IfcLabel scritta come vuole l'autore (niente maiuscolo forzato) */
+    o = { ut: "MONETARYUNIT", label: unwrap(line.Currency).replace(/^\.|\.$/g, "").trim(), f: null, d: null };
+  } else if (t === WebIFC.IFCCONTEXTDEPENDENTUNIT) {
+    o = { ut: _unitEnum(line.UnitType), label: unwrap(line.Name), f: null, d: null };
+  }
+  if (line.expressID) memo.set(line.expressID, o);
+  return o;
+}
+/* unità di progetto: tipo di unità → unitInfo, dall'IfcUnitAssignment dell'IfcProject (o il primo);
+   per modello, una volta sola */
+function projectUnits(model) {
+  if (model._projUnits) return model._projUnits;
+  const out = new Map();
+  try {
+    let ua = null;
+    const pj = model.api.GetLineIDsWithType(model.modelID, WebIFC.IFCPROJECT);
+    if (pj.size()) { const p = model.api.GetLine(model.modelID, pj.get(0)); ua = p.UnitsInContext && p.UnitsInContext.value; }
+    if (!ua) { const ids = model.api.GetLineIDsWithType(model.modelID, WebIFC.IFCUNITASSIGNMENT); if (ids.size()) ua = ids.get(0); }
+    if (ua) for (const h of model.api.GetLine(model.modelID, ua).Units || []) {
+      const u = unitInfo(model, h);
+      if (u && u.ut && u.label && !out.has(u.ut)) out.set(u.ut, u);
+    }
+  } catch (e) { /* nessuna unità di progetto leggibile */ }
+  model._projUnits = out;
+  return out;
+}
+/* unità di un valore → {u: etichetta, own: scritta nella proprietà, ut} o null */
+function valueUnit(model, unitAttr, ut) {
+  const own = unitAttr ? unitInfo(model, unitAttr) : null;
+  if (own && own.label) return { u: own.label, own: true, ut: own.ut };
+  const pu = ut ? projectUnits(model).get(ut) : null;
+  return pu ? { u: pu.label, own: false, ut } : null;
+}
+
+/* legge un IfcPropertySet o IfcElementQuantity → {name, props[]}
+   ogni prop: k, v, … + u (unità, "" se nessuna), uOwn (scritta nella proprietà), ut (tipo di unità) */
 function readPset(model, pid) {
   const p = model.api.GetLine(model.modelID, pid, true);
   const pset = { name: unwrap(p.Name) || "(senza nome)", props: [] };
@@ -5915,21 +6061,26 @@ function readPset(model, pid) {
     if (!pr) continue;
     const nv = pr.NominalValue;
     const editable = !!(nv && typeof nv === "object" && "value" in nv && pr.expressID);
+    /* solo i valori singoli: limiti, liste ed enumerazioni qui non mostrano il valore */
+    const un = editable ? valueUnit(model, pr.Unit, measureUnitType(nv.name)) : null;
     pset.props.push({
       k: unwrap(pr.Name), v: unwrap(nv),
       pid: pr.expressID || 0,
       tok: editable ? nv.type : 0,
       tname: editable ? (nv.name || "") : "",
-      editable
+      editable,
+      u: un ? un.u : "", uOwn: !!(un && un.own), ut: un ? un.ut : ""
     });
   }
   const QKEYS = ["VolumeValue", "AreaValue", "LengthValue", "CountValue", "WeightValue", "TimeValue"];
   for (const q of p.Quantities || []) {
     if (!q) continue;
-    let val = "";
-    for (const key of QKEYS) if (q[key] !== undefined && q[key] !== null) { val = unwrap(q[key]); break; }
-    if (val === "") for (const key of Object.keys(q)) if (key.endsWith("Value")) { val = unwrap(q[key]); break; }
-    pset.props.push({ k: unwrap(q.Name), v: val, editable: false, isQty: true });
+    let val = "", vkey = "";
+    for (const key of QKEYS) if (q[key] !== undefined && q[key] !== null) { val = unwrap(q[key]); vkey = key; break; }
+    if (val === "") for (const key of Object.keys(q)) if (key.endsWith("Value")) { val = unwrap(q[key]); vkey = key; break; }
+    const un = valueUnit(model, q.Unit, UNIT_QTY[vkey] || "");
+    pset.props.push({ k: unwrap(q.Name), v: val, editable: false, isQty: true,
+      u: un ? un.u : "", uOwn: !!(un && un.own), ut: un ? un.ut : "" });
   }
   return pset;
 }
@@ -9583,17 +9734,23 @@ function showElementDetail(model, eid) {
     </div>`;
   detailFlash = "";
   /* ---- proprietà: tab Istanza | Type, ogni pset collassabile ---- */
-  const rowRead = (p, psName, inst) => `<tr${p.isQty ? ` class="pv-qty" title="${esc(tr("el.qtyTitle"))}"` : ""}><td>${esc(p.k)}</td><td>${esc(p.v)}${inst && p.editable && !p.isQty ? `<button class="pv-selby" data-pset="${esc(psName)}" data-pname="${esc(p.k)}" data-val="${esc(p.v)}" title="${esc(tr("el.selByValue", { k: p.k, v: p.v }))}">⌖</button>` : ""}</td></tr>`;
-  const rowEdit = (p, psName) => {
-    if (!p.editable) return `<tr class="pv-ro" title="${p.isQty ? esc(tr("el.qtyRo")) : esc(tr("el.typeUnsupported"))}"><td>${esc(p.k)}</td><td>${esc(p.v)}</td></tr>`;
+  /* colonna Unità come BIMvision (v2.11.1), solo nei pset con almeno un'unità; il tooltip dice
+     se è scritta nella proprietà o viene dalle unità del progetto */
+  const unitCell = (p, uc) => !uc ? "" : `<td class="pv-u"${p.u ? ` title="${esc(p.uOwn ? tr("el.unitOwn") : tr("el.unitProj", { ut: p.ut }))}"` : ""}>${esc(p.u || "")}</td>`;
+  const rowRead = (p, psName, inst, uc) => `<tr${p.isQty ? ` class="pv-qty" title="${esc(tr("el.qtyTitle"))}"` : ""}><td>${esc(p.k)}</td><td>${esc(p.v)}${inst && p.editable && !p.isQty ? `<button class="pv-selby" data-pset="${esc(psName)}" data-pname="${esc(p.k)}" data-val="${esc(p.v)}" title="${esc(tr("el.selByValue", { k: p.k, v: p.v }))}">⌖</button>` : ""}</td>${unitCell(p, uc)}</tr>`;
+  const rowEdit = (p, psName, uc) => {
+    if (!p.editable) return `<tr class="pv-ro" title="${p.isQty ? esc(tr("el.qtyRo")) : esc(tr("el.typeUnsupported"))}"><td>${esc(p.k)}</td><td>${esc(p.v)}</td>${unitCell(p, uc)}</tr>`;
     const opts = [p.tname, ...PV_TYPES.map(o => o[0]).filter(n => n && n !== p.tname)]
       .map(n => `<option value="${esc(n)}"${n === p.tname ? " selected" : ""}>${esc(n)}</option>`).join("");
-    return `<tr class="pv-row" data-pid="${p.pid}" data-orig="${esc(p.v)}" data-origtype="${esc(p.tname)}" data-tok="${p.tok}" data-pset="${esc(psName)}" data-pname="${esc(p.k)}">
+    /* data-u/-uown: al cambio di tipo l'unità del progetto vale solo per il tipo originale
+       (PV_TYPES sono tutti senza dimensione), quella scritta nella proprietà resta */
+    return `<tr class="pv-row" data-pid="${p.pid}" data-orig="${esc(p.v)}" data-origtype="${esc(p.tname)}" data-tok="${p.tok}" data-pset="${esc(psName)}" data-pname="${esc(p.k)}" data-u="${esc(p.u || "")}" data-uown="${p.uOwn ? 1 : 0}">
       <td>${esc(p.k)}<select class="pv-type" data-pid="${p.pid}">${opts}</select></td>
-      <td class="pv-cell">${pvValueControl(p.tok, p.v, p.pid)}</td></tr>`;
+      <td class="pv-cell">${pvValueControl(p.tok, p.v, p.pid)}</td>${unitCell(p, uc)}</tr>`;
   };
   const renderPsetBlocks = (arr, editable, inst) => arr.map(ps => {
-    const rows = ps.props.map(p => editable ? rowEdit(p, ps.name) : rowRead(p, ps.name, inst)).join("");
+    const uc = ps.props.some(p => p.u);
+    const rows = ps.props.map(p => editable ? rowEdit(p, ps.name, uc) : rowRead(p, ps.name, inst, uc)).join("");
     return `<div class="pset-block" data-open="1">
         <div class="pset-head"><span class="pset-chev">▸</span><span class="pset-name">${esc(ps.name)}</span><span class="pset-count">${ps.props.length}</span></div>
         <table class="prop-table"><tbody>${rows}</tbody></table>
@@ -9652,6 +9809,8 @@ function showElementDetail(model, eid) {
         const tok = sel.value === r.dataset.origtype ? +r.dataset.tok : pvTok(sel.value);
         const cur = r.querySelector(".pv-val").value;
         r.querySelector(".pv-cell").innerHTML = pvValueControl(tok, cur, r.dataset.pid);
+        const uc = r.querySelector(".pv-u");
+        if (uc && r.dataset.uown !== "1") uc.textContent = sel.value === r.dataset.origtype ? r.dataset.u : "";
       }
       if (e.target.closest(".pv-row")) recount();
     };
