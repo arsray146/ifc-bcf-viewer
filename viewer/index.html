@@ -1935,17 +1935,17 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
    bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
    ogni release il .js vecchio in cache non viene più usato. vendor/ resta
    senza versione: cambia solo quando si aggiornano three o web-ifc. */
-import { readLASHeader, parseLAS } from "./las.js?v=2.11.1";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
-import { parseE57, e57PointCount } from "./e57.js?v=2.11.1";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js?v=2.11.1";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.11.1";  // feature QTO (v2.5.0)
+import { readLASHeader, parseLAS } from "./las.js?v=2.11.2";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.11.2";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.11.2";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.11.2";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.11.1";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.11.2";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.11.1";  // studio verifica nuvola ↔ modello
-import * as SRCH from "./search.js?v=2.11.1";                          // feature Cerca (v2.10.0): confronti, regole, CSV
-import * as CAPS from "./caps.js?v=2.11.1";                            // tappi pieni delle sezioni (v2.10.2)
-import * as CBY from "./colorby.js?v=2.11.1";                          // feature Colora (v2.11.0): legenda, palette, pittura
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.11.2";  // studio verifica nuvola ↔ modello
+import * as SRCH from "./search.js?v=2.11.2";                          // feature Cerca (v2.10.0): confronti, regole, CSV
+import * as CAPS from "./caps.js?v=2.11.2";                            // tappi pieni delle sezioni (v2.10.2)
+import * as CBY from "./colorby.js?v=2.11.2";                          // feature Colora (v2.11.0): legenda, palette, pittura
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -2048,7 +2048,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.11.1";
+const APP_VERSION = "2.11.2";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -4254,9 +4254,11 @@ async function buildModel(data, name) {
     });
     const mesh = new THREE.Mesh(g, mat);
     /* fullRanges/fullIndex: buffer originali del bucket, per ripristinare gli elementi
-       nascosti singolarmente (ranges/index correnti possono essere una vista filtrata) */
+       nascosti singolarmente; visRanges/visIndex: senza i nascosti; ranges/index correnti:
+       quello che si disegna (v. _applyMeshDraw) */
     mesh.userData = { model, ranges: b.ranges, fullRanges: b.ranges, fullIndex: g.index,
-                      edgeObj: null, edgeFullGeom: null,
+                      visRanges: b.ranges, visIndex: g.index, cull: null,
+                      edgeObj: null, edgeFullGeom: null, edgeVisGeom: null,
                       baseOpacity: b.opacity, baseTransparent: b.opacity < 0.999 };
     rootGroup.add(mesh);
     model.meshes.push(mesh);
@@ -4268,7 +4270,7 @@ async function buildModel(data, name) {
       rootGroup.add(edge);
       model.edges.push(edge);
       mesh.userData.edgeObj = edge;
-      mesh.userData.edgeFullGeom = edge.geometry;
+      mesh.userData.edgeFullGeom = mesh.userData.edgeVisGeom = edge.geometry;
     }
   }
   /* v2.6.1 — federazioni con sistemi di coordinate misti: se il modello atterra lontano
@@ -4536,42 +4538,127 @@ function setElementsHidden(model, eids, hidden) {
   capsSchedule();   // tappi delle sezioni: seguono gli elementi nascosti (v2.10.2)
 }
 
+/* v2.11.2 — tre livelli di index per bucket:
+   - fullIndex/fullRanges: tutto (tappi, clash, verifica nuvola, Colora);
+   - visIndex/visRanges: senza gli elementi nascosti — è quello che geometry.index/ranges
+     erano fino alla 2.11.1, e lo leggono ancora evidenziazione, confronto e sezione 2D;
+   - geometry.index/ranges: quello che si DISEGNA = vis meno gli elementi tutti fuori dalle
+     sezioni (_clipCullApply). Picking ed expressFromFace leggono questo: coerenti col raycast.
+   Spigoli: edgeFullGeom → edgeVisGeom (ri-estratti senza i nascosti) → edgeObj.geometry
+   (senza i segmenti tutti fuori da un piano). */
 function _rebuildMeshVisibility(model, mesh) {
   const ud = mesh.userData;
   const anyHidden = ud.fullRanges.some(r => model.hiddenEids.has(r.expressID));
   if (!anyHidden) {
-    if (ud.ranges !== ud.fullRanges) {   // ripristina i buffer originali
-      mesh.geometry.setIndex(ud.fullIndex);
-      ud.ranges = ud.fullRanges;
-      if (ud.edgeObj && ud.edgeObj.geometry !== ud.edgeFullGeom) {
-        ud.edgeObj.geometry.dispose();
-        ud.edgeObj.geometry = ud.edgeFullGeom;
-      }
+    ud.visIndex = ud.fullIndex; ud.visRanges = ud.fullRanges;
+    _setEdgeVis(ud, ud.edgeFullGeom);
+  } else {
+    const p = CAPS.packRanges(ud.fullIndex.array, ud.fullRanges, r => !model.hiddenEids.has(r.expressID));
+    ud.visIndex = new THREE.BufferAttribute(p.index, 1); ud.visRanges = p.ranges;
+    if (ud.edgeObj) {   /* un elemento nascosto non deve lasciare il wireframe: spigoli ri-estratti */
+      const g0 = mesh.geometry;
+      const segs = extractEdges({ getAttribute: (n) => g0.getAttribute(n), index: ud.visIndex, boundingBox: g0.boundingBox }, EDGE_ANGLE_DEG);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(segs, 3));
+      _setEdgeVis(ud, g);
     }
+  }
+  _applyMeshDraw(model, mesh);
+}
+/* nuova base degli spigoli (completa o senza i nascosti); libera la precedente e l'eventuale ritaglio */
+function _setEdgeVis(ud, g) {
+  if (!ud.edgeObj || ud.edgeVisGeom === g) return;
+  const old = ud.edgeVisGeom, cur = ud.edgeObj.geometry;
+  if (cur !== old && cur !== ud.edgeFullGeom && cur !== g) cur.dispose();
+  if (old && old !== ud.edgeFullGeom) old.dispose();
+  ud.edgeVisGeom = g;
+  ud.edgeObj.geometry = g;
+}
+function _setEdgeDrawn(ud, g) {
+  const cur = ud.edgeObj.geometry;
+  if (cur === g) return;
+  if (cur !== ud.edgeVisGeom && cur !== ud.edgeFullGeom) cur.dispose();
+  ud.edgeObj.geometry = g;
+}
+/* index e spigoli disegnati = livello vis meno gli elementi scartati da ud.cull */
+function _applyMeshDraw(model, mesh) {
+  const ud = mesh.userData, g = mesh.geometry, C = ud.cull;
+  if (!C) {
+    if (g.index !== ud.visIndex) g.setIndex(ud.visIndex);
+    ud.ranges = ud.visRanges;
+    if (ud.edgeObj) _setEdgeDrawn(ud, ud.edgeVisGeom);
     return;
   }
-  const src = ud.fullIndex.array;
-  let tot = 0;
-  for (const r of ud.fullRanges) if (!model.hiddenEids.has(r.expressID)) tot += r.count * 3;
-  const idx = new src.constructor(tot);
-  const ranges = [];
-  let o = 0;
-  for (const r of ud.fullRanges) {
-    if (model.hiddenEids.has(r.expressID)) continue;
-    idx.set(src.subarray(r.start * 3, (r.start + r.count) * 3), o);
-    ranges.push({ start: o / 3, count: r.count, expressID: r.expressID });
-    o += r.count * 3;
-  }
-  mesh.geometry.setIndex(new THREE.BufferAttribute(idx, 1));
-  ud.ranges = ranges;
+  const hid = model.hiddenEids, mask = C.mask;
+  const p = CAPS.packRanges(ud.fullIndex.array, ud.fullRanges, (r, i) => !mask[i] && !hid.has(r.expressID));
+  g.setIndex(new THREE.BufferAttribute(p.index, 1));
+  ud.ranges = p.ranges;
   if (ud.edgeObj) {
-    const segs = extractEdges(mesh.geometry, EDGE_ANGLE_DEG);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(segs, 3));
-    if (ud.edgeObj.geometry !== ud.edgeFullGeom) ud.edgeObj.geometry.dispose();
-    ud.edgeObj.geometry = g;
+    const segs = CAPS.cullSegments(ud.edgeVisGeom.getAttribute("position").array, C.planes);
+    if (!segs) _setEdgeDrawn(ud, ud.edgeVisGeom);
+    else {
+      const eg = new THREE.BufferGeometry();
+      eg.setAttribute("position", new THREE.BufferAttribute(segs, 3));
+      _setEdgeDrawn(ud, eg);
+    }
   }
 }
+
+/* ============ elementi fuori dalle sezioni: fuori anche dal disegno (v2.11.2) ============
+   Fino alla 2.11.1 il taglio era solo un filtro a schermo: la scheda grafica trasformava ogni
+   vertice e colorava ogni pixel anche della parte tolta, e il raggio sotto il cursore (selezione,
+   perno d'orbita, rotella) provava ogni triangolo. Ora gli elementi col loro ingombro TUTTO dalla
+   parte tolta di un piano escono dall'index disegnato (CAPS.cullMask, stesso meccanismo degli
+   elementi nascosti); quelli attraversati restano interi e li rifila il clipping, come prima.
+   A ogni cambio dei piani si torna SUBITO al livello vis (un'assegnazione, niente copie: un
+   elemento che rientra nel box non deve mancare nemmeno per un frame) e lo scarto si rifà
+   CLIP_CULL_IDLE_MS dopo l'ultimo cambio: trascinando si disegna tutto come prima, da fermi
+   (e girandoci intorno) solo quello che resta. Stato in una funzione, come i tappi. */
+const CLIP_CULL_IDLE_MS = 250;
+function _clipCull() {
+  if (!_clipCull.s) _clipCull.s = { timer: 0, ms: 0 };
+  return _clipCull.s;
+}
+function clipCullSchedule() {
+  const S = _clipCull();
+  clearTimeout(S.timer); S.timer = 0;
+  for (const m of models) for (const mesh of m.meshes) {
+    if (mesh.userData.cull) { mesh.userData.cull = null; _applyMeshDraw(m, mesh); }
+  }
+  if (_activeClipPlanes().length) S.timer = setTimeout(_clipCullApply, CLIP_CULL_IDLE_MS);
+}
+function _clipCullApply() {
+  const S = _clipCull();
+  clearTimeout(S.timer); S.timer = 0;
+  const planes = _activeClipPlanes();
+  if (!planes.length) return;
+  const t0 = performance.now();
+  /* rootGroup è a identità: posizioni delle mesh = coordinate mondo, i piani valgono così */
+  const P = planes.map(pl => ({ nx: pl.normal.x, ny: pl.normal.y, nz: pl.normal.z, c: pl.constant }));
+  for (const m of models) for (const mesh of m.meshes) {
+    const ud = mesh.userData;
+    if (!ud.capBoxes) ud.capBoxes = CAPS.rangeBoxes(mesh.geometry.getAttribute("position").array, ud.fullIndex.array, ud.fullRanges);
+    const { mask, n } = CAPS.cullMask(ud.capBoxes, ud.fullRanges.length, P);
+    if (!n && !ud.cull) continue;
+    ud.cull = n ? { mask, n, planes: P } : null;
+    _applyMeshDraw(m, mesh);
+  }
+  S.ms = performance.now() - t0;
+}
+/* Hook per la QA dello scarto (come __apeCapsQA): NON è API pubblica. */
+window.__apeCullQA = {
+  stats: () => {
+    let tris = 0, drawn = 0, culled = 0, segs = 0, segsDrawn = 0;
+    for (const m of models) for (const mesh of m.meshes) {
+      const ud = mesh.userData;
+      tris += ud.fullIndex.count / 3; drawn += mesh.geometry.index.count / 3;
+      if (ud.cull) culled += ud.cull.n;
+      if (ud.edgeObj) { segs += ud.edgeVisGeom.getAttribute("position").count / 2; segsDrawn += ud.edgeObj.geometry.getAttribute("position").count / 2; }
+    }
+    return { tris, drawn, culled, segs, segsDrawn, pending: !!_clipCull().timer, ms: Math.round(_clipCull().ms * 10) / 10 };
+  },
+  apply: () => { _clipCullApply(); return window.__apeCullQA.stats(); }
+};
 
 function hiddenElemCount() {
   let n = 0;
@@ -4788,6 +4875,10 @@ function removeModel(model) {
   for (const ed of model.edges) {
     rootGroup.remove(ed);
     ed.geometry.dispose();
+  }
+  for (const mesh of model.meshes) {   /* basi degli spigoli non in scena (nascosti / scarto per sezione) */
+    const ud = mesh.userData;
+    for (const g of new Set([ud.edgeVisGeom, ud.edgeFullGeom])) if (g && ud.edgeObj && g !== ud.edgeObj.geometry) g.dispose();
   }
   if (model.alignObjs) {                     // v1.9.7 — rimuovi gli overlay alignment del modello
     for (const o of model.alignObjs) {
@@ -5514,10 +5605,11 @@ function buildHighlight(items) {
   for (const mesh of allBaseMeshes()) {
     const set = byModel.get(mesh.userData.model);
     if (!set) continue;
-    const srcIdx = mesh.geometry.index.array;
+    /* livello vis (v2.11.2): anche un elemento fuori dalle sezioni si evidenzia e si inquadra */
+    const srcIdx = mesh.userData.visIndex.array;
     const pos = mesh.geometry.getAttribute("position");
     const picked = [];
-    for (const r of mesh.userData.ranges) {
+    for (const r of mesh.userData.visRanges) {
       if (!set.has(r.expressID)) continue;
       const s = r.start * 3, e = (r.start + r.count) * 3;
       for (let i = s; i < e; i++) {
@@ -11969,6 +12061,7 @@ function _applyClipping() {
      nel disegno 2D (computeSection2D), non per la resa 3D. */
   for (const src of PCLOUD.sources) { src.points.material.clippingPlanes = planes; src.points.material.needsUpdate = true; }
   renderer.localClippingEnabled = planes.length > 0;
+  clipCullSchedule();   /* v2.11.2 — gli elementi tutti fuori escono dal disegno (da fermi) */
   capsSchedule();   /* v2.10.2 — tappi pieni sui piani nuovi */
 }
 function _applySbClipping() { _updateSbPlanes(); _applyClipping(); }
@@ -15118,7 +15211,8 @@ function computeSection2D() {
         if (fc - rad > 0 || fc + rad < 0) continue;              // box tutto da un lato → nessun taglio
       }
       const arr = geo.attributes.position.array;
-      const idx = geo.index, ix = idx ? idx.array : null, triCount = idx ? idx.count : geo.attributes.position.count;
+      /* livello vis (v2.11.2): il disegno 2D vede quello che vedeva prima dello scarto per sezione */
+      const idx = mesh.userData.visIndex || geo.index, ix = idx ? idx.array : null, triCount = idx ? idx.count : geo.attributes.position.count;
       let ax, ay, az, bx, by, bz, cx, cy, cz;
       for (let t = 0; t + 2 < triCount; t += 3) {
         const a = (ix ? ix[t] : t) * 3, b = (ix ? ix[t + 1] : t + 1) * 3, c = (ix ? ix[t + 2] : t + 2) * 3;
@@ -15721,7 +15815,7 @@ applyStaticI18n();
     }
   }
   /* pittura per stato: un mesh per (bucket × categoria), costruito sui range
-     VISIBILI (mesh.userData.ranges, coerenti con geometry.index) — un elemento
+     VISIBILI (mesh.userData.visRanges/visIndex: senza i nascosti, v2.11.2) — un elemento
      nascosto dall'albero o spento da un filtro non deve lasciare il colore a
      mezz'aria. Ogni elemento è dipinto una sola volta: niente due mesh
      coincidenti dello stesso pezzo (prima rimosso e "da confermare" si
@@ -15732,10 +15826,10 @@ applyStaticI18n();
       const model = models[mi], map = dvKind[mi];
       if (!model || !map || !map.size || !model.visible) continue;
       for (const mesh of model.meshes) {
-        if (!mesh.geometry.index) continue;
-        const src = mesh.geometry.index.array;
+        if (!mesh.userData.visIndex) continue;
+        const src = mesh.userData.visIndex.array;
         const byKind = new Map();
-        for (const r of mesh.userData.ranges) {
+        for (const r of mesh.userData.visRanges) {
           const k = map.get(r.expressID);
           if (!k) continue;
           let arr = byKind.get(k);

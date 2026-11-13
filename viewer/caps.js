@@ -54,6 +54,66 @@ export function boxOutside(boxes, r, p) {
   return p.nx * x + p.ny * y + p.nz * z + p.c < 0;          // il vertice più avanti lungo la normale
 }
 
+/* ---- elementi fuori dalle sezioni, fuori anche dal disegno (v2.11.2) ----
+   Il clipping di three.js scarta i pixel della parte tolta solo DOPO aver trasformato ogni
+   vertice e colorato ogni pixel: un section box su un piano di un edificio costava come
+   l'edificio intero. Il viewer toglie dall'index disegnato gli elementi il cui ingombro sta
+   tutto dalla parte tolta di almeno un piano (i piani valgono in AND: la parte tenuta è
+   l'intersezione dei semispazi). Gli elementi attraversati restano interi: li rifila il clipping. */
+
+/** Maschera dei range da non disegnare: 1 = ingombro tutto oltre `eps` dalla parte tolta di un
+ *  piano { nx, ny, nz, c }. Prudente: nel dubbio (ingombro vuoto, NaN) l'elemento resta. */
+export function cullMask(boxes, count, planes, eps = 1e-4) {
+  const mask = new Uint8Array(count);
+  let n = 0;
+  for (let r = 0; r < count; r++) {
+    const o = r * 6;
+    for (const p of planes) {
+      const x = p.nx >= 0 ? boxes[o + 3] : boxes[o], y = p.ny >= 0 ? boxes[o + 4] : boxes[o + 1], z = p.nz >= 0 ? boxes[o + 5] : boxes[o + 2];
+      if (p.nx * x + p.ny * y + p.nz * z + p.c < -eps) { mask[r] = 1; n++; break; }   // il vertice più avanti lungo la normale
+    }
+  }
+  return { mask, n };
+}
+
+/** Index compatto dei soli range con keep(r) vero, nell'ordine, coi nuovi start:
+ *  { index (stesso tipo di `index`), ranges: [{ start, count, expressID }] }. */
+export function packRanges(index, ranges, keep) {
+  const flags = new Uint8Array(ranges.length);
+  let tot = 0;
+  for (let r = 0; r < ranges.length; r++) if (keep(ranges[r], r)) { flags[r] = 1; tot += ranges[r].count * 3; }
+  const out = new index.constructor(tot), kept = [];
+  let o = 0;
+  for (let r = 0; r < ranges.length; r++) {
+    if (!flags[r]) continue;
+    const rg = ranges[r];
+    out.set(index.subarray(rg.start * 3, (rg.start + rg.count) * 3), o);
+    kept.push({ start: o / 3, count: rg.count, expressID: rg.expressID });
+    o += rg.count * 3;
+  }
+  return { index: out, ranges: kept };
+}
+
+/** Spigoli (x,y,z,x,y,z di seguito) da disegnare: fuori = i due estremi oltre `eps` dalla parte
+ *  tolta dello STESSO piano. Float32Array compatta, o null se non se ne toglie nessuno. */
+export function cullSegments(seg, planes, eps = 1e-4) {
+  const n = Math.floor(seg.length / 6), keep = new Uint8Array(n);
+  let k = 0;
+  for (let s = 0; s < n; s++) {
+    const o = s * 6;
+    let out = false;
+    for (const p of planes) {
+      if (p.nx * seg[o] + p.ny * seg[o + 1] + p.nz * seg[o + 2] + p.c < -eps &&
+          p.nx * seg[o + 3] + p.ny * seg[o + 4] + p.nz * seg[o + 5] + p.c < -eps) { out = true; break; }
+    }
+    if (!out) { keep[s] = 1; k++; }
+  }
+  if (k === n) return null;
+  const res = new Float32Array(k * 6);
+  for (let s = 0, w = 0; s < n; s++) if (keep[s]) { res.set(seg.subarray ? seg.subarray(s * 6, s * 6 + 6) : seg.slice(s * 6, s * 6 + 6), w); w += 6; }
+  return res;
+}
+
 /**
  * Fetta dei triangoli [start, start + count) col piano p { nx, ny, nz, c }.
  * weld = distanza sotto la quale due punti di taglio sono lo stesso punto (m).
