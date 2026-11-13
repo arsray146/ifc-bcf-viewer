@@ -992,7 +992,7 @@ import * as RFI from "./ocs-rfi.js?v=0.24.0";
 import * as PSET from "../common/pset-core.js?v=1.1.0";
 import * as RB from "../common/revit-bridge.js?v=1.6.0";
 
-const TOOL_VERSION = "0.24.0";
+const TOOL_VERSION = "0.24.1";
 const $ = (id) => document.getElementById(id);
 let LANG = "it";
 function tr(k, vars) {
@@ -1433,7 +1433,9 @@ function themeColors() {
   if (CUT.mode) cutLater();
   drawPV();
 }
-const Zs = (z) => z - G.zRef;
+/* un binario senza livelletta ha le quote NaN: in scena sta piatto alla quota più bassa dei binari (una sola
+   coordinata NaN rende NaN il riquadro e quindi la telecamera: vista vuota, niente più da inquadrare) */
+const Zs = (z) => (Number.isFinite(z) ? z : G.zFlat) - G.zRef;
 function clearGroup() {
   for (const o of [...G.group.children]) { G.group.remove(o); o.traverse((c) => { if (c.geometry && !c.geometry.userData.shared) c.geometry.dispose(); }); }
 }
@@ -1452,7 +1454,8 @@ function buildScene() {
   G.marker = null;
   if (!S.tracks.length) { placeCtx(); return; }
   const o = sceneOrigin();
-  G.O = { x: o.x, y: o.y }; G.zRef = Math.floor(o.z0) - 2;
+  G.zFlat = Number.isFinite(o.z0) ? o.z0 : 0;
+  G.O = { x: o.x, y: o.y }; G.zRef = Math.floor(G.zFlat) - 2;
   const step = stepNow();
   const tag = (ob, k) => { ob.userData.key = k; return ob; };
   for (const t of S.tracks) {
@@ -1535,7 +1538,12 @@ function resize() {
 addEventListener("resize", resize);
 function sceneBox() {
   const b = new THREE.Box3();
-  for (const o of G.group.children) if (!o.userData.noFrame && o !== G.marker) b.expandByObject(o);
+  const fin = (v) => Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z);
+  for (const o of G.group.children) {
+    if (o.userData.noFrame || o === G.marker) continue;
+    const ob = new THREE.Box3().setFromObject(o);       // un oggetto con coordinate NaN non entra nell'inquadratura
+    if (!ob.isEmpty() && fin(ob.min) && fin(ob.max)) b.union(ob);
+  }
   return b.isEmpty() ? null : b;
 }
 function frameAll(box = sceneBox(), opt = {}) {
