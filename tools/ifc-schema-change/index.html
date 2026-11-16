@@ -68,6 +68,21 @@
     fra 2X2 e 2X3 non sono modellate, e il registro lo dichiara.
   - niente marchio oltre al Pset facoltativo: nessuna riga di commento
     aggiunta, l'originale resta dov'è (esce un file nuovo).
+
+  1.1 — il 2X3 in discesa passa ifcopenshell.validate (parser compreso):
+  - IfcStyledItem.Styles: lo stile diretto dell'IFC4/4X3 viene avvolto in
+    un IfcPresentationStyleAssignment, uno per stile, condiviso;
+  - IfcProductDefinitionShape condivisa da più prodotti (ShapeOfProduct
+    [1:1] nel 2X3): una copia per prodotto oltre il primo, con le sue
+    IfcShapeRepresentation; gli item (IfcMappedItem, RepresentationMap)
+    restano condivisi. Idem per una rappresentazione in più PDS;
+  - gli orfani dell'asse si raccolgono per raggiungibilità su tutto il
+    grafo, di qualunque classe (IfcCompositeCurve e i suoi IfcCurveSegment,
+    IfcClothoid, il Pset dell'IfcReferent, lo stile della curva); il piano
+    conta come l'esecuzione e dichiara solo ciò che resta davvero;
+  - il PredefinedType d'origine (.RAIL., .SLEEPER.) non finisce più nel
+    CompositionType dell'IfcBuildingElementProxy;
+  - il registro e il piano dichiarano stili riavvolti e forme sdoppiate.
 -->
 <html lang="it">
 <head>
@@ -963,6 +978,12 @@ function scArgc(K,col){ const t=scKnow(K); if(!t) return -2;      /* ignota */
   return t.a[col]; }
 function scCamel(K){ const t=scKnow(K); return t?t.camel:("Ifc"+K.slice(3)); }
 
+/* versione dello strumento: IfcApplication generato e Pset_Conversione.
+   1.1: discesa al 2X3 valida per IfcOpenShell — stili avvolti in
+   IfcPresentationStyleAssignment, forme condivise sdoppiate per prodotto,
+   orfani dell'asse raccolti tutti, PredefinedType fuori dal proxy        */
+var SC_APP_VER="1.1";
+
 /* ---- versioni ----------------------------------------------------------- */
 /* col: colonna della tabella (0 = 2X3, 1 = era IFC4, 2 = 4X3).
    Si esce sempre sull'ultimo addendum pubblicato (out).                    */
@@ -1070,6 +1091,50 @@ function scMeasure(a,def){
 }
 function scList(a){ if(!a||a[0]!=="(") return null; return scArgs("x"+a); }
 function scFirst(model,type){ const a=model.byType.get(type); return a&&a.length?a[0]:-1; }
+/* l'argomento idx di primo livello senza scomporre tutta la riga: per la
+   Representation (indice 6) di migliaia di prodotti basta fermarsi lì   */
+function scArgAt(text,idx){
+  const p0=text.indexOf("(");
+  if(p0<0) return null;
+  let d=0,q=false,n=0,st=p0+1;
+  for(let i=p0+1;i<text.length;i++){
+    const c=text.charCodeAt(i);
+    if(q){ if(c===39){ if(text.charCodeAt(i+1)===39) i++; else q=false; } continue; }
+    if(c===39) q=true;
+    else if(c===40) d++;
+    else if(c===41){ if(d===0) return n===idx?text.slice(st,i).trim():null; d--; }
+    else if(c===44&&d===0){ if(n===idx) return text.slice(st,i).trim(); n++; st=i+1; }
+  }
+  return null;
+}
+/* la riga con l'argomento idx sostituito (stessa classe, stesso id) */
+function scSetArg(text,idx,val){
+  const m=text.match(/^\s*#(\d+)\s*=\s*([A-Z0-9_]+)/);
+  const a=scArgs(text); a[idx]=val;
+  return "#"+m[1]+"="+m[2]+"("+a.join(",")+");";
+}
+/* ogni #id citato dalla riga, saltato quello in testa (i # dentro le
+   stringhe contano anche loro: per la raccolta degli orfani è prudenza) */
+function scEachRef(text,fn){
+  let i=text.indexOf("=");
+  if(i<0) i=0;
+  for(;;){
+    const h=text.indexOf("#",i);
+    if(h<0) return;
+    let j=h+1,id=0,any=false;
+    while(j<text.length){ const c=text.charCodeAt(j); if(c<48||c>57) break; id=id*10+(c-48); j++; any=true; }
+    if(any) fn(id);
+    i=j;
+  }
+}
+/* il PredefinedType dell'IfcBuildingElementProxy (CompositionType nel 2X3):
+   un .RAIL. o .SLEEPER. ereditato dalla classe d'origine non è un letterale
+   valido — IfcOpenShell lo azzera in silenzio, un validatore lo segnala   */
+function scProxyEnumOk(v,T){
+  if(!v||v==="$") return true;
+  return T===0?/^\.(COMPLEX|ELEMENT|PARTIAL)\.$/.test(v):
+    /^\.(COMPLEX|ELEMENT|PARTIAL|PROVISIONFORVOID|PROVISIONFORSPACE|USERDEFINED|NOTDEFINED)\.$/.test(v);
+}
 /* stringhe STEP: \X2\00E0\X0\ (UTF-16), \X4\…\X0\, \X\hh, \S\c, \\ — Revit
    scrive «Identità» come 'Identit\X2\00E0\X0\': senza decodifica i nomi del
    registro e dei campioni escono con le sequenze */
@@ -1428,9 +1493,21 @@ function scConvert(info,tgtKey,opts){
   const lostPos=[];                  /* posizionamenti non valutabili       */
   const stats={adapted:0,renamed:0,demoted:0,dropped:0,gc:0,warned:0,rootedFix:0,
     reclass:0,promoted:0,geomRewritten:0,attrLost:0,products:info.products,
-    rooted:0,unchanged:0,triCap:0};
+    rooted:0,unchanged:0,triCap:0,
+    styled:0,psa:0,                  /* StyledItem riavvolti · PSA nuove (2X3)  */
+    dupShared:0,dupPds:0,dupRep:0};  /* forme condivise · copie PDS · copie rep */
   const samples=new Map();           /* gruppo collaudo → [campioni]        */
   const count=(m,t)=>m.set(t,(m.get(t)||0)+1);
+  /* conversioni che possono finire nella raccolta degli orfani (una curva
+     dell'asse, il posizionamento di un IfcReferent): se la raccolta le
+     spazza, le righe nuove che hanno generato se ne vanno con loro e i
+     conteggi tornano indietro — il piano conta come l'esecuzione        */
+  const conv=new Map();              /* k → stat che la conversione ha contato */
+  const ownRows=new Map();           /* k → [da,a) righe nuove nate da k (exec) */
+  const warnedK=new Map();           /* k → classe dichiarata senza mappa       */
+  const warnK=(k,K)=>{ count(warnTypes,K); stats.warned++; warnedK.set(k,K); };
+  const alignDrop=[];                /* prodotti dell'asse tolti: radici degli orfani */
+  const aggK=new Map();              /* k → riga aggregata del registro (adattamenti 1:1) */
   const MAXTRI=250000;
   let triBudget=MAXTRI;
 
@@ -1447,7 +1524,7 @@ function scConvert(info,tgtKey,opts){
         const pe=add("IFCPERSON($,$,'viewifc.com',$,$,$,$,$)");
         const or=add("IFCORGANIZATION($,'viewifc.com — Cambio schema IFC',$,$,$)");
         const po=add("IFCPERSONANDORGANIZATION(#"+pe+",#"+or+",$)");
-        const ap=add("IFCAPPLICATION(#"+or+",'1.0','Cambio schema IFC — viewifc.com','viewifc-schema-change')");
+        const ap=add("IFCAPPLICATION(#"+or+",'"+SC_APP_VER+"','Cambio schema IFC — viewifc.com','viewifc-schema-change')");
         const ts=Math.floor((opts.now!=null?opts.now:Date.now())/1000);
         ohRef="#"+add("IFCOWNERHISTORY(#"+po+",#"+ap+",$,.NOCHANGE.,$,$,$,"+ts+")");
       } else ohRef="#0";
@@ -1482,7 +1559,7 @@ function scConvert(info,tgtKey,opts){
     const know=scKnow(K);
 
     /* classe ignota alla tabella (schemi intermedi, refusi): resta, dichiarata */
-    if(!know){ count(warnTypes,K); stats.warned++; continue; }
+    if(!know){ warnK(k,K); continue; }
 
     const aS0=know.a[S];
     let aT0=know.a[T];
@@ -1540,9 +1617,13 @@ function scConvert(info,tgtKey,opts){
     /* --- discesa: posizionamento lineare → locale --- */
     if(down&&K==="IFCLINEARPLACEMENT"&&aT0===-1){
       getA();
+      const r0=addRows.length;
+      /* il piano scrive gli stessi riferimenti in uscita (il PlacementRelTo,
+         niente Axis2PlacementLinear): la raccolta degli orfani conta uguale */
+      const planText="#"+model.ids[k]+"=IFCLOCALPLACEMENT("+(a[0]||"$")+",$);";
       let done=false;
       if(a[2]&&a[2][0]==="#"){
-        if(exec) rew.set(k,"#"+model.ids[k]+"=IFCLOCALPLACEMENT("+(a[0]||"$")+","+a[2]+");");
+        rew.set(k,"#"+model.ids[k]+"=IFCLOCALPLACEMENT("+(a[0]||"$")+","+a[2]+");");
         az="assolutizzato"; nota="dal CartesianPosition dichiarato"; done=true;
       } else {
         /* valuta il PointByDistanceExpression sui segmenti di business */
@@ -1568,7 +1649,7 @@ function scConvert(info,tgtKey,opts){
             const dx=add("IFCDIRECTION(("+scStepReal(Math.cos(p.th))+","+scStepReal(Math.sin(p.th))+",0.))");
             const ax=add("IFCAXIS2PLACEMENT3D(#"+pt+",#"+dz+",#"+dx+")");
             rew.set(k,"#"+model.ids[k]+"=IFCLOCALPLACEMENT("+(a[0]||"$")+",#"+ax+");");
-          }
+          } else rew.set(k,planText);
           az="assolutizzato"; nota="valutato sull'asse a s="+scStepReal(s,2); done=true;
         }
       }
@@ -1577,11 +1658,12 @@ function scConvert(info,tgtKey,opts){
           const pt=add("IFCCARTESIANPOINT((0.,0.,0.))");
           const ax=add("IFCAXIS2PLACEMENT3D(#"+pt+",$,$)");
           rew.set(k,"#"+model.ids[k]+"=IFCLOCALPLACEMENT("+(a[0]||"$")+",#"+ax+");");
-        }
+        } else rew.set(k,planText);
         az="perso"; nota="posizionamento lineare non valutabile: elemento all'origine";
         lostPos.push(model.ids[k]);
       }
-      stats.adapted++;
+      stats.adapted++; conv.set(k,"adapted");
+      if(addRows.length>r0) ownRows.set(k,[r0,addRows.length]);
       regRow(k,a,"IfcLinearPlacement","IfcLocalPlacement",az,nota);
       continue;
     }
@@ -1589,34 +1671,39 @@ function scConvert(info,tgtKey,opts){
     /* --- discesa: tassellature → brep (solo verso il 2x3) --- */
     if(down&&T===0&&(K==="IFCTRIANGULATEDFACESET"||K==="IFCPOLYGONALFACESET"||K==="IFCTRIANGULATEDIRREGULARNETWORK")&&aT0===-1){
       getA();
-      const r=exec?scTessToBrep(model,k,K,a,{add,triBudget}):scTessCount(model,k,K,a);
-      if(r&&r.tris!=null&&exec) triBudget-=r.tris;
+      const r0=addRows.length;
+      let r=exec?scTessToBrep(model,k,K,a,{add,triBudget}):scTessCount(model,k,K,a);
+      if(!exec&&r&&r.ok&&r.tris>triBudget) r={ok:false,why:"cap",tris:0};   /* il piano ha lo stesso tetto */
+      if(r&&r.tris!=null) triBudget-=r.tris;
       if(r&&r.ok){
         if(exec){
           refRepl.set(model.ids[k],r.newId);
           repKind.set(r.newId,r.closed?"closed":"open");
-          rew.set(k,null);
+          ownRows.set(k,[r0,addRows.length]);
         }
+        rew.set(k,null); conv.set(k,"geomRewritten");     /* anche nel piano: la lista di punti resta orfana */
         stats.geomRewritten++;
         regRow(k,null,scCamel(K),r.closed?"IfcFacetedBrep":"IfcShellBasedSurfaceModel","riscritta",
           r.tris+" facce");
         sample("tess",{id:model.ids[k],guid:"",name:scCamel(K),from:scCamel(K),
           toC:r.closed?"IfcFacetedBrep":"IfcShellBasedSurfaceModel",geo:r.tris+" f"});
       } else {
-        count(warnTypes,K); stats.warned++;
+        warnK(k,K);
         if(r&&r.why==="cap") stats.triCap++;
       }
       continue;
     }
     if(down&&T===0&&K==="IFCINDEXEDPOLYCURVE"&&aT0===-1){
       getA();
+      const r0=addRows.length;
       const r=exec?scIpcToPolyline(model,k,a,{add,sagitta}):{ok:true,pts:0};
       if(r.ok){
-        if(exec){ refRepl.set(model.ids[k],r.newId); rew.set(k,null); }
+        if(exec){ refRepl.set(model.ids[k],r.newId); ownRows.set(k,[r0,addRows.length]); }
+        rew.set(k,null); conv.set(k,"geomRewritten");
         stats.geomRewritten++;
         regRow(k,null,"IfcIndexedPolyCurve","IfcPolyline","riscritta",
           r.arcs?("archi discretizzati, freccia ≤ 2 mm"):"");
-      } else { count(warnTypes,K); stats.warned++; }
+      } else warnK(k,K);
       continue;
     }
 
@@ -1640,19 +1727,10 @@ function scConvert(info,tgtKey,opts){
       if(down&&SC_ALIGN_P.has(K)){
         getA();
         rew.set(k,null); stats.dropped++;
-        /* placement e rappresentazione dell'asse restano orfani → candidati al GC */
-        for(const ri of [5,6]){
-          const rk=scRef(model,a[ri]);
-          if(rk<0) continue;
-          gcCand.add(rk);
-          if(ri===6){
-            const pa=scArgs(scStmt(model,rk));
-            for(const rr of (scList(pa[2])||[])){
-              const sk=scRef(model,rr);
-              if(sk>=0) gcCand.add(sk);
-            }
-          }
-        }
+        /* tutto ciò che l'asse si porta dietro (placement, rappresentazioni,
+           curve, segmenti di business…) diventa candidato alla raccolta degli
+           orfani, di qualunque classe: dopo il ciclo, dal grafo intero */
+        alignDrop.push(k);
         regRow(k,a,scCamel(K),"—","persa","il "+V.label+" non sa dire il posizionamento lineare");
         sample("align",{id:model.ids[k],guid:scIsRooted(a[0])?scUnq(a[0]):"",name:scUnq(a[2])||scCamel(K),
           from:scCamel(K),toC:"—"});
@@ -1701,7 +1779,7 @@ function scConvert(info,tgtKey,opts){
       }
       /* tipi ritirati senza mappa sicura (drafting 2x3, scheduling…):
          restano com'erano, contati e dichiarati — pattern dello strumento 11 */
-      if(SC_WARN23.test(K)){ count(warnTypes,K); stats.warned++; continue; }
+      if(SC_WARN23.test(K)){ warnK(k,K); continue; }
       /* demansionamento calcolato (ancestry) o per categoria */
       const cat=know.cat||"R";
       const tag=T===0?"d23":"d4";
@@ -1728,6 +1806,9 @@ function scConvert(info,tgtKey,opts){
         while(a.length<argcTo2) a.push("$");
         a.length=argcTo2;
         if(cat==="T"&&toK==="IFCBUILDINGELEMENTPROXYTYPE") a[argcTo2-1]=".NOTDEFINED.";
+        /* il 9° attributo d'origine è il suo PredefinedType (.RAIL., .SLEEPER.):
+           nel proxy lo stesso posto è CompositionType (2X3) o un altro enum */
+        if(toK==="IFCBUILDINGELEMENTPROXY"&&argcTo2>8&&!scProxyEnumOk(a[8],T)) a[8]="$";
         if(needOH&&scIsRooted(a[0])&&a[1]==="$"){ a[1]=ohRef; stats.rootedFix++; }
         rew.set(k,"#"+model.ids[k]+"="+toK+"("+a.join(",")+");");
         stats.demoted++;
@@ -1792,7 +1873,7 @@ function scConvert(info,tgtKey,opts){
       }
       continue;
     }
-    if(SC_XWARN.has(K)){ count(warnTypes,K); stats.warned++; continue; }
+    if(SC_XWARN.has(K)){ warnK(k,K); continue; }
     getA();
     if(a.length>aTgt){
       const cut=a.slice(aTgt).filter(x=>x!=="$"&&x!=="*"&&x!=="");
@@ -1803,7 +1884,8 @@ function scConvert(info,tgtKey,opts){
     if(needOH&&scIsRooted(a[0])&&a[1]==="$"){ a[1]=ohRef; stats.rootedFix++; }
     if(exec) rew.set(k,"#"+model.ids[k]+"="+K+"("+a.join(",")+");");
     stats.adapted++;
-    count(regAgg,scCamel(K)+";"+scCamel(K)+";adattata;"+(aTgt>aSrc?"attributi opzionali aggiunti ($)":"attributi in coda ricalibrati")+(nota?" · "+nota:""));
+    const aggKey=scCamel(K)+";"+scCamel(K)+";adattata;"+(aTgt>aSrc?"attributi opzionali aggiunti ($)":"attributi in coda ricalibrati")+(nota?" · "+nota:"");
+    count(regAgg,aggKey); aggK.set(k,aggKey);
   }
 
   /* --- 2x3 → 4x3: gli IfcStyledItem appiattiscono le StyleAssignment --- */
@@ -1831,6 +1913,7 @@ function scConvert(info,tgtKey,opts){
   }
 
   /* --- ripulitura delle relazioni dai riferimenti caduti --- */
+  const relSeeds=[];                 /* ciò che una relazione caduta lasciava appeso (il Pset dell'IfcReferent…) */
   const droppedIds=new Set();
   for(const [k,v] of rew) if(v===null) droppedIds.add(model.ids[k]);
   if(droppedIds.size){
@@ -1859,45 +1942,187 @@ function scConvert(info,tgtKey,opts){
       if(dead||emptied){
         rew.set(k,null); stats.gc++;
         droppedIds.add(model.ids[k]);
+        for(let i=4;i<a.length;i++){
+          const x=a[i]; if(!x) continue;
+          for(const r of (x[0]==="("?(scList(x)||[]):[x])){ const rk=scRef(model,r); if(rk>=0) relSeeds.push(rk); }
+        }
       } else if(touched){
         rew.set(k,"#"+model.ids[k]+"="+K+"("+a.join(",")+");");
       }
     }
   }
 
-  /* --- GC: risorse orfane (curve dell'asse, liste di punti consumate…) --- */
+  /* --- raccolta degli orfani: raggiungibilità sul grafo intero ------------
+     Candidati: le risorse che il bersaglio non sa dire (gcCand) e TUTTO ciò
+     che i prodotti dell'asse tolti e le relazioni cadute si portavano dietro,
+     di qualunque classe — un IfcCompositeCurve esiste anche nel 2X3, ma
+     tenuto in vita lui restavano i suoi IfcCurveSegment e la IfcClothoid.
+     Vivo = raggiungibile da una riga viva che non è candidata (o da una riga
+     nuova); il resto se ne va, in un passaggio solo (il vecchio GC a 6 giri
+     si fermava a metà delle catene asse → curva → segmento → punto).
+     Riferimenti deboli: lo StyledItem vive solo se vive ciò che veste; gli
+     AssignedItems di uno strato non tengono in vita nessuno.
+     Restano dichiarati soltanto i candidati vivi che il bersaglio non sa
+     dire (prima anche un IfcAxis2Placement3D condiviso finiva fra i
+     «senza mappa»).                                                       */
   let gcDropped=0;
-  if(gcCand.size){
-    for(let round=0;round<6;round++){
-      const refd=new Set();
-      const markRefs=(text)=>{
-        let i=0;
-        while(true){
-          const h=text.indexOf("#",i);
-          if(h<0) break;
-          let j=h+1, id=0, any=false;
-          while(j<text.length&&text.charCodeAt(j)>=48&&text.charCodeAt(j)<=57){ id=id*10+(text.charCodeAt(j)-48); j++; any=true; }
-          if(any&&h>0) refd.add(id);
-          i=j>h?j:h+1;
-        }
-      };
-      for(let k=0;k<model.count;k++){
-        if(rew.get(k)===null) continue;
-        const text=rew.has(k)?rew.get(k):scStmt(model,k);
-        if(text) markRefs(text.slice(1));              /* salta l'id in testa */
-      }
-      for(const t of addRows) markRefs(t.slice(1));
-      let changed=false;
-      for(const k of [...gcCand]){
-        if(rew.has(k)) continue;
-        if(!refd.has(model.ids[k])){ rew.set(k,null); gcCand.delete(k); gcDropped++; changed=true; }
-      }
-      if(!changed) break;
+  const SC_GC_STOP=/^IFC(OWNERHISTORY|PROJECT|PROJECTLIBRARY|GEOMETRICREPRESENTATIONCONTEXT|GEOMETRICREPRESENTATIONSUBCONTEXT|REPRESENTATIONCONTEXT|REL[A-Z]+)$/;
+  const orphanable=kk=>{
+    const KK=TN[TI[kk]];
+    if(SC_GC_STOP.test(KK)) return false;
+    const kn=scKnow(KK);
+    return !kn||kn.cat==="R";            /* mai prodotti, tipi, spaziali, gruppi */
+  };
+  const closure=new Set();
+  if(alignDrop.length||relSeeds.length){
+    const st=[];
+    const push=kk=>{ if(kk>=0&&!closure.has(kk)&&orphanable(kk)){ closure.add(kk); st.push(kk); } };
+    const pushId=id=>{ const kk=model.idMap.get(id); if(kk!==undefined) push(kk); };
+    for(const k of alignDrop) scEachRef(scStmt(model,k),pushId);
+    for(const k of relSeeds) push(k);
+    while(st.length) scEachRef(scStmt(model,st.pop()),pushId);
+  }
+  const cand=new Set();
+  for(const k of gcCand) if(rew.get(k)!==null||conv.has(k)) cand.add(k);
+  for(const k of closure) if(rew.get(k)!==null||conv.has(k)) cand.add(k);
+  /* StyledItem che vestono un candidato: vivono solo se vive ciò che
+     vestono, e i loro stili (IfcCurveStyle dell'asse…) diventano candidati */
+  const deps=new Set();
+  if(cand.size){
+    const st=[];
+    const push=kk=>{ if(kk>=0&&!cand.has(kk)&&orphanable(kk)&&rew.get(kk)!==null){ cand.add(kk); st.push(kk); } };
+    for(const k of (model.byType.get("IFCSTYLEDITEM")||[])){
+      if(rew.get(k)===null) continue;
+      const t=rew.has(k)?rew.get(k):scStmt(model,k);
+      const ik=scRef(model,scArgAt(t,0));
+      if(ik<0||!cand.has(ik)) continue;
+      deps.add(k);
+      for(const r of (scList(scArgAt(t,1))||[])) push(scRef(model,r));
     }
-    /* i candidati ancora referenziati restano, dichiarati */
-    for(const k of gcCand){ if(!rew.has(k)){ count(warnTypes,TN[TI[k]]); stats.warned++; } }
+    while(st.length) scEachRef(scStmt(model,st.pop()),id=>{ const kk=model.idMap.get(id); if(kk!==undefined) push(kk); });
+  }
+  if(cand.size){
+    const textOf=k=>rew.has(k)?rew.get(k):scStmt(model,k);
+    const marked=new Set(), st=[];
+    const mark=id=>{ const kk=model.idMap.get(id); if(kk!==undefined&&cand.has(kk)&&!marked.has(kk)){ marked.add(kk); st.push(kk); } };
+    const candRef=r=>{ const kk=scRef(model,r); return kk>=0&&cand.has(kk); };
+    const rowOwner=new Map();
+    for(const [k,o] of ownRows) for(let i=o[0];i<o[1];i++) rowOwner.set(i,k);
+    const layers=[];
+    for(let k=0;k<model.count;k++){
+      if(cand.has(k)||deps.has(k)) continue;
+      const t=textOf(k);
+      if(t===null) continue;
+      const K=TN[TI[k]];
+      if(K==="IFCPRESENTATIONLAYERASSIGNMENT"||K==="IFCPRESENTATIONLAYERWITHSTYLE"){
+        const a=scArgs(t);
+        if((scList(a[2])||[]).some(candRef)){
+          layers.push(k);
+          a[2]="()";
+          scEachRef("#0=X("+a.join(",")+")",mark);
+          continue;
+        }
+      }
+      scEachRef(t,mark);
+    }
+    for(let i=0;i<addRows.length;i++){
+      const o=rowOwner.get(i);
+      if(o!==undefined&&cand.has(o)) continue;
+      if(addRows[i]) scEachRef(addRows[i],mark);
+    }
+    const drain=()=>{
+      while(st.length){
+        const k=st.pop(), t=textOf(k);
+        if(t) scEachRef(t,mark);
+        const o=ownRows.get(k);
+        if(o) for(let i=o[0];i<o[1];i++) if(addRows[i]) scEachRef(addRows[i],mark);
+      }
+    };
+    drain();
+    for(const k of deps){
+      const t=textOf(k), ik=scRef(model,scArgAt(t,0));
+      if(marked.has(ik)) scEachRef(t,mark);
+      else { rew.set(k,null); gcDropped++; }
+    }
+    drain();
+    for(const k of layers){
+      const t=textOf(k), items=scList(scArgs(t)[2])||[];
+      const kept=items.filter(r=>{ const kk=scRef(model,r); return !(kk>=0&&cand.has(kk)&&!marked.has(kk)); });
+      if(!kept.length){ rew.set(k,null); gcDropped++; }
+      else if(kept.length!==items.length) rew.set(k,scSetArg(t,2,"("+kept.join(",")+")"));
+    }
+    /* via chi non è raggiunto, con le righe nuove che aveva generato */
+    const sweptIds=new Set();
+    for(const k of cand){
+      if(marked.has(k)) continue;
+      rew.set(k,null); gcDropped++;
+      const o=ownRows.get(k);
+      if(o) for(let i=o[0];i<o[1];i++) addRows[i]=null;
+      const cs=conv.get(k);
+      if(cs){ stats[cs]--; sweptIds.add(model.ids[k]); }
+      const ag=aggK.get(k);
+      if(ag){ stats.adapted--; const n=(regAgg.get(ag)||1)-1; if(n>0) regAgg.set(ag,n); else regAgg.delete(ag); }
+      const wK=warnedK.get(k);
+      if(wK){
+        const n=(warnTypes.get(wK)||1)-1;
+        if(n>0) warnTypes.set(wK,n); else warnTypes.delete(wK);
+        stats.warned--; warnedK.delete(k);
+      }
+    }
+    if(sweptIds.size){                   /* le conversioni spazzate escono anche dal registro */
+      let w=0;
+      for(const r of reg) if(!sweptIds.has(r.id)) reg[w++]=r;
+      reg.length=w;
+      for(const arr of samples.values()){
+        let v=0;
+        for(const s of arr) if(!sweptIds.has(s.id)) arr[v++]=s;
+        arr.length=v;
+      }
+      for(let i=lostPos.length-1;i>=0;i--) if(sweptIds.has(lostPos[i])) lostPos.splice(i,1);
+    }
+    /* i candidati vivi che il bersaglio non sa dire restano, dichiarati */
+    for(const k of cand){
+      if(!marked.has(k)||warnedK.has(k)) continue;
+      const t=rew.has(k)?rew.get(k):scStmt(model,k);
+      if(t===null) continue;                         /* convertita: vive nelle righe nuove */
+      const mK=t.match(/=\s*([A-Z0-9_]+)/);
+      const outK=mK?mK[1]:TN[TI[k]];
+      if(scArgc(outK,T)===-1) warnK(k,outK);
+    }
   }
   stats.gc+=gcDropped;
+
+  /* --- discesa al 2X3: IfcStyledItem.Styles vuole IfcPresentationStyleAssignment
+     (SET [1:?] OF PSA, e WR11: una sola). In IFC4/4X3 lo stile è diretto:
+     una PSA per insieme di stili, condivisa fra tutti gli StyledItem che lo
+     usano (377 messaggi su 380 del validatore, nel file dell'armamento) --- */
+  if(T===0&&S>0){
+    const psaOf=new Map();
+    for(const k of (model.byType.get("IFCSTYLEDITEM")||[])){
+      if(rew.get(k)===null) continue;
+      const t=rew.has(k)?rew.get(k):scStmt(model,k);
+      const a=scArgs(t);
+      const items=scList(a[1]);
+      if(!items||!items.length) continue;
+      let direct=false; const styles=[];
+      for(const r of items){
+        const rk=scRef(model,r);
+        if(rk>=0&&TN[TI[rk]]==="IFCPRESENTATIONSTYLEASSIGNMENT"){
+          styles.push(...(scList(scArgs(scStmt(model,rk))[0])||[]));
+        } else { styles.push(r); direct=true; }
+      }
+      if(!direct&&items.length===1) continue;
+      const key=[...new Set(styles)].join(",");
+      if(!key) continue;
+      let pid=psaOf.get(key);
+      if(pid===undefined){ pid=exec?add("IFCPRESENTATIONSTYLEASSIGNMENT(("+key+"))"):0; psaOf.set(key,pid); }
+      if(exec){ a[1]="(#"+pid+")"; rew.set(k,"#"+model.ids[k]+"=IFCSTYLEDITEM("+a.join(",")+");"); }
+      stats.styled++; stats.adapted++;
+    }
+    stats.psa=psaOf.size;
+    if(stats.styled) regAgg.set("IfcStyledItem;IfcStyledItem;adattata;stile avvolto in IfcPresentationStyleAssignment ("+
+      stats.psa+" nuove, una per stile, condivise)",stats.styled);
+  }
 
   /* --- sostituzione dei riferimenti alla geometria riscritta --- */
   if(exec&&refRepl.size){
@@ -1933,6 +2158,74 @@ function scConvert(info,tgtKey,opts){
     }
   }
 
+  /* --- discesa al 2X3: una IfcProductDefinitionShape per prodotto ---------
+     In IFC4/4X3 ShapeOfProduct è SET [1:?]: una forma condivisa da migliaia
+     di traverse dello stesso tipo (un IfcMappedItem sulla RepresentationMap
+     del tipo). Nel 2X3 è SET [1:1], e una IfcShapeRepresentation sta in una
+     sola IfcProductRepresentation (OfProductRepresentation [0:1]).
+     Il primo prodotto tiene l'originale; per ogni altro, una copia della PDS
+     e delle sue rappresentazioni che puntano agli STESSI item: la geometria
+     (IfcMappedItem, RepresentationMap) resta una. Poi le rappresentazioni
+     condivise fra PDS diverse: una copia per ogni PDS oltre la prima.     */
+  if(T===0&&S>0&&(model.byType.get("IFCPRODUCTDEFINITIONSHAPE")||[]).length){
+    const textOf=k=>rew.has(k)?rew.get(k):scStmt(model,k);
+    const isPds=kk=>kk>=0&&TN[TI[kk]]==="IFCPRODUCTDEFINITIONSHAPE"&&rew.get(kk)!==null;
+    const body=t=>t.replace(/^\s*#\d+\s*=\s*/,"").replace(/;\s*$/,"");
+    const cloneRep=rk=>{ stats.dupRep++; return exec?add(body(textOf(rk))):0; };
+    const users=new Map();                 /* PDS → prodotti vivi che la usano */
+    for(const [t,arr] of model.byType){
+      const kn=scKnow(t);
+      if(!kn||(kn.cat!=="E"&&kn.cat!=="S"&&kn.cat!=="P")) continue;
+      for(const k of arr){
+        const tx=textOf(k);
+        if(tx===null) continue;
+        const pk=scRef(model,scArgAt(tx,6));        /* IfcProduct.Representation */
+        if(!isPds(pk)) continue;
+        let u=users.get(pk); if(!u){ u=[]; users.set(pk,u); }
+        u.push(k);
+      }
+    }
+    for(const [pk,us] of users){
+      if(us.length<2) continue;
+      const a=scArgs(textOf(pk));
+      const reps=scList(a[2])||[];
+      let first=0,last=0;
+      for(let i=1;i<us.length;i++){
+        const b=a.slice();
+        b[2]="("+reps.map(r=>{ const rk=scRef(model,r); return rk<0?r:"#"+cloneRep(rk); }).join(",")+")";
+        const nid=exec?add("IFCPRODUCTDEFINITIONSHAPE("+b.join(",")+")"):0;
+        if(!first) first=nid;
+        last=nid;
+        if(exec) rew.set(us[i],scSetArg(textOf(us[i]),6,"#"+nid));
+      }
+      stats.dupShared++; stats.dupPds+=us.length-1;
+      const nota="condivisa da "+us.length+" prodotti: "+(us.length-1)+(us.length>2?" copie":" copia")+
+        (exec?" (#"+first+(last!==first?" … #"+last:"")+")":"")+
+        ", una per prodotto; gli item (IfcMappedItem, RepresentationMap) restano condivisi";
+      regRow(pk,null,"IfcProductDefinitionShape","IfcProductDefinitionShape","duplicata",nota);
+      sample("dup",{id:model.ids[pk],guid:"",name:"IfcProductDefinitionShape",
+        from:"IfcProductDefinitionShape ×1",toC:"IfcProductDefinitionShape ×"+us.length,nota});
+    }
+    /* rappresentazioni condivise fra PDS diverse (le copie qui sopra ne hanno di proprie) */
+    const seen=new Set();
+    let repShared=0;
+    for(const pk of model.byType.get("IFCPRODUCTDEFINITIONSHAPE")){
+      if(!isPds(pk)) continue;
+      const t=textOf(pk), reps=scList(scArgs(t)[2])||[];
+      let ch=false;
+      const out=reps.map(r=>{
+        const rk=scRef(model,r);
+        if(rk<0) return r;
+        if(!seen.has(rk)){ seen.add(rk); return r; }
+        ch=true; repShared++;
+        return "#"+cloneRep(rk);
+      });
+      if(ch&&exec) rew.set(pk,scSetArg(t,2,"("+out.join(",")+")"));
+    }
+    if(repShared) regAgg.set("IfcShapeRepresentation;IfcShapeRepresentation;duplicata;"+
+      "usata da più IfcProductDefinitionShape: una copia per ciascuna oltre la prima",repShared);
+  }
+
   /* --- Pset_Conversione sull'IfcProject (facoltativo) --- */
   if(exec&&opts.pset!==false&&info.projK>=0){
     const pj=scArgs(scStmt(model,info.projK));
@@ -1941,7 +2234,7 @@ function scConvert(info,tgtKey,opts){
     const pv=(n,v)=>P.push("#"+add("IFCPROPERTYSINGLEVALUE('"+scEsc(n)+"',$,IFCLABEL('"+scEsc(v)+"'),$)"));
     pv("SchemaOrigine",info.schemaRaw);
     pv("SchemaDestinazione",V.out);
-    pv("Strumento","viewifc.com — Cambio schema IFC v1");
+    pv("Strumento","viewifc.com — Cambio schema IFC v"+SC_APP_VER);
     pv("Adattate",String(stats.adapted));
     pv("Demansionate",String(stats.demoted));
     pv("Perse",String(stats.dropped+stats.gc));
@@ -1988,7 +2281,8 @@ function scConvert(info,tgtKey,opts){
     }
   }
   if(run0<model.endsecPos) parts.push(bytes.subarray(run0,model.endsecPos));
-  if(addRows.length) parts.push(addRows.join(nlB)+nlB);
+  const liveRows=addRows.filter(x=>x!==null);     /* le righe nuove di una conversione spazzata se ne vanno */
+  if(liveRows.length) parts.push(liveRows.join(nlB)+nlB);
   parts.push(bytes.subarray(model.endsecPos));
 
   result.parts=parts;
@@ -2320,6 +2614,10 @@ const I18N = {
     "row.alignUpT":"resta vuoto","row.alignUpTs":"si importa con LandXML → IFC4x3",
     "row.geom":"Geometria da riscrivere","row.geomSub":"tassellature e curve indicizzate che il {v} non conosce",
     "row.geomT":"IfcFacetedBrep · IfcPolyline","row.geomTs":"stessa forma, più byte",
+    "row.sty":"Colori sugli oggetti","row.stySub":"nel {v} lo StyledItem vuole un IfcPresentationStyleAssignment, non lo stile diretto",
+    "row.styT":"IfcPresentationStyleAssignment","row.styTs":"+{n} assegnazioni, una per stile, condivise",
+    "row.dup":"Forme condivise da sdoppiare","row.dupSub":"nel {v} una IfcProductDefinitionShape appartiene a un solo prodotto",
+    "row.dupT":"una copia per prodotto","row.dupTs":"+{p} forme · +{r} rappresentazioni; la geometria resta una",
     "row.georef":"Georeferenziazione","row.georefSub":"IfcMapConversion e CRS non esistono nel {v}",
     "row.georefT":"nel registro: E/N/H","row.georefTs":"riapplicabile col Georef Editor",
     "row.oh":"Storico d'autore da inventare","row.ohSub":"IfcOwnerHistory assente, obbligatorio nel 2x3",
@@ -2359,6 +2657,7 @@ const I18N = {
     "kl.dem":"Le classi tornano scatole","kl.demD":"Il nome vero resta in <code>ObjectType</code>.",
     "kl.georef":"La georeferenziazione si perde","kl.georefD":"E/N/H restano nel registro, riapplicabili col Georef Editor.",
     "kl.tess":"Geometria riscritta","kl.tessD":"Stessa forma, più byte.",
+    "kl.dup":"Forme condivise sdoppiate","kl.dupD":"Una copia della forma per prodotto: gli item (IfcMappedItem, RepresentationMap) restano condivisi, il file cresce di poco.",
     "kl.warn":"Senza mappa sicura","kl.warnD":"Restano com'erano: il validatore le segnalerà.",
     "kl.oh":"Storico d'autore da inventare","kl.ohD":"Ne viene generato uno, dichiarato come conversione.",
     "kl.reclass":"Le scatole prendono il nome vero","kl.reclassD":"Riconosciute da nome e tipo; le dubbie restano proxy.",
@@ -2414,6 +2713,10 @@ const I18N = {
     "row.alignUpT":"stays empty","row.alignUpTs":"import it with LandXML → IFC4x3",
     "row.geom":"Geometry to rewrite","row.geomSub":"tessellations and indexed curves that {v} does not know",
     "row.geomT":"IfcFacetedBrep · IfcPolyline","row.geomTs":"same shape, more bytes",
+    "row.sty":"Colours on objects","row.stySub":"in {v} the StyledItem wants an IfcPresentationStyleAssignment, not the style itself",
+    "row.styT":"IfcPresentationStyleAssignment","row.styTs":"+{n} assignments, one per style, shared",
+    "row.dup":"Shared shapes to split","row.dupSub":"in {v} an IfcProductDefinitionShape belongs to one product only",
+    "row.dupT":"one copy per product","row.dupTs":"+{p} shapes · +{r} representations; the geometry stays one",
     "row.georef":"Georeferencing","row.georefSub":"IfcMapConversion and CRS do not exist in {v}",
     "row.georefT":"in the register: E/N/H","row.georefTs":"re-applicable with the Georef Editor",
     "row.oh":"Author history to invent","row.ohSub":"IfcOwnerHistory absent, mandatory in 2x3",
@@ -2453,6 +2756,7 @@ const I18N = {
     "kl.dem":"Classes go back to boxes","kl.demD":"The real name stays in <code>ObjectType</code>.",
     "kl.georef":"Georeferencing is lost","kl.georefD":"E/N/H stay in the register, re-applicable with the Georef Editor.",
     "kl.tess":"Geometry rewritten","kl.tessD":"Same shape, more bytes.",
+    "kl.dup":"Shared shapes split","kl.dupD":"One copy of the shape per product: the items (IfcMappedItem, RepresentationMap) stay shared, the file grows a little.",
     "kl.warn":"No safe map","kl.warnD":"They stay as they were: the validator will flag them.",
     "kl.oh":"Author history to invent","kl.ohD":"One is generated, declared as conversion.",
     "kl.reclass":"Boxes take their real name","kl.reclassD":"Recognised by name and type; doubtful ones stay proxies.",
@@ -2751,6 +3055,16 @@ function renderTable(){
       sub:esc(fmt("row.geomSub",{v:tL})),
       tn:tr("row.geomT"),ts:tr("row.geomTs"),es:tr("es.rew")});
   }
+  if(p.down&&p.stats.styled>0){
+    R.push({st:"ok",name:tr("row.sty"),mm:nf(p.stats.styled),
+      sub:esc(fmt("row.stySub",{v:tL})),
+      tn:tr("row.styT"),ts:fmt("row.styTs",{n:nf(p.stats.psa)}),es:tr("es.rew")});
+  }
+  if(p.down&&(p.stats.dupPds+p.stats.dupRep)>0){
+    R.push({st:"ok",name:tr("row.dup"),mm:nf(p.stats.dupShared||p.stats.dupRep),
+      sub:esc(fmt("row.dupSub",{v:tL})),
+      tn:tr("row.dupT"),ts:fmt("row.dupTs",{p:nf(p.stats.dupPds),r:nf(p.stats.dupRep)}),es:tr("es.rew")});
+  }
   if(p.down&&SC_VERS[ST.tgt].col===0&&info.mapConvK>=0){
     R.push({st:"lost",name:tr("row.georef"),mm:"IfcMapConversion",
       sub:esc(fmt("row.georefSub",{v:tL})),
@@ -2891,6 +3205,8 @@ function lossEntries(){
     if(p.stats.geomRewritten) push("tess","rew",tr("kl.tess"),nf(p.stats.geomRewritten),
       "IfcTriangulatedFaceSet · IfcIndexedPolyCurve → IfcFacetedBrep · IfcPolyline",
       tr("kl.tessD"),tr("kt.rew"));
+    if(p.stats.dupPds+p.stats.dupRep) push("dup","rew",tr("kl.dup"),nf(p.stats.dupShared||p.stats.dupRep),
+      "IfcProductDefinitionShape · IfcShapeRepresentation",tr("kl.dupD"),tr("kt.rew"));
     if(p.ohMade) push("oh","made",tr("kl.oh"),"1","IfcOwnerHistory",tr("kl.ohD"),tr("kt.made"));
   } else {
     if(p.stats.reclass) push("reclass","gain",tr("kl.reclass"),nf(p.stats.reclass),
@@ -2932,12 +3248,12 @@ function renderCheck(){
     ui.klossList.appendChild(b);
   }
   const touched=p.stats.adapted+p.stats.renamed+p.stats.demoted+p.stats.reclass+
-    p.stats.promoted+p.stats.geomRewritten+p.stats.dropped+p.stats.gc;
+    p.stats.promoted+p.stats.geomRewritten+p.stats.dropped+p.stats.gc+p.stats.dupPds;
   ui.kfootMsg.innerHTML=fmtRaw(tr("k.foot"),{n:"§N§"}).replace("§N§","<b>"+nf(touched)+"</b>");
   ui.klegNote.innerHTML=fmtRaw(tr("leg.note"),{f:regName()});
   renderInspector();
 }
-const SAMPLE_KEY={align:"align",lostPos:null,demote:"demote",georef:"georef",tess:"tess",
+const SAMPLE_KEY={align:"align",lostPos:null,demote:"demote",georef:"georef",tess:"tess",dup:"dup",
   reclass:"reclass",promote:"promote",ren:null,warn:null,oh:null};
 function renderInspector(){
   const p=ST.plan;
@@ -2989,7 +3305,7 @@ async function convertAndDownload(){
   const b=await buildNow();
   download(b.outName,b.parts,"application/x-step");
   const touched=b.stats.adapted+b.stats.renamed+b.stats.demoted+b.stats.reclass+
-    b.stats.promoted+b.stats.geomRewritten+b.stats.dropped+b.stats.gc;
+    b.stats.promoted+b.stats.geomRewritten+b.stats.dropped+b.stats.gc+b.stats.dupPds;
   toast(fmt("toast.done",{f:b.outName,n:touched}));
   ui.regBtn.hidden=false;
   try{ if(window.goatcounter&&goatcounter.count) goatcounter.count({path:"tool-schema-change-run",event:true}); }catch(e){}
