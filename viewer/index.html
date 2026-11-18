@@ -1935,17 +1935,17 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
    bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
    ogni release il .js vecchio in cache non viene più usato. vendor/ resta
    senza versione: cambia solo quando si aggiornano three o web-ifc. */
-import { readLASHeader, parseLAS } from "./las.js?v=2.11.2";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
-import { parseE57, e57PointCount } from "./e57.js?v=2.11.2";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js?v=2.11.2";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.11.2";  // feature QTO (v2.5.0)
+import { readLASHeader, parseLAS } from "./las.js?v=2.11.3";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.11.3";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.11.3";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.11.3";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.11.2";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.11.3";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.11.2";  // studio verifica nuvola ↔ modello
-import * as SRCH from "./search.js?v=2.11.2";                          // feature Cerca (v2.10.0): confronti, regole, CSV
-import * as CAPS from "./caps.js?v=2.11.2";                            // tappi pieni delle sezioni (v2.10.2)
-import * as CBY from "./colorby.js?v=2.11.2";                          // feature Colora (v2.11.0): legenda, palette, pittura
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.11.3";  // studio verifica nuvola ↔ modello
+import * as SRCH from "./search.js?v=2.11.3";                          // feature Cerca (v2.10.0): confronti, regole, CSV
+import * as CAPS from "./caps.js?v=2.11.3";                            // tappi pieni delle sezioni (v2.10.2)
+import * as CBY from "./colorby.js?v=2.11.3";                          // feature Colora (v2.11.0): legenda, palette, pittura
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -2048,7 +2048,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.11.2";
+const APP_VERSION = "2.11.3";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -4056,6 +4056,8 @@ async function buildModel(data, name) {
       if (Math.abs(geo.s - 1) < 1e-9) geo.s = 1;
     }
   }
+  /* v2.11.3 — WorldCoordinateSystem del contesto (web-ifc lo ignora): entra in A */
+  geo.wcs = readContextWcs(api, modelID, geo.unitFactor !== undefined ? geo.unitFactor : readLengthUnit(api, modelID));
   const A = georefMatrix(geo);
   /* bcfGeoMatrix viene fissata DOPO lo streaming: A può ancora essere neutralizzata
      al primo vertice (TrueNorth su coordinate già assolute, vedi tnPending). */
@@ -4132,9 +4134,10 @@ async function buildModel(data, name) {
         tnPending = false;
         _v3.set(verts[0], verts[1], verts[2]).applyMatrix4(mFlat);
         if (Math.max(Math.abs(_v3.x), Math.abs(_v3.y), Math.abs(_v3.z)) > 1e5) {
-          A.identity();
-          mModelIfc.copy(F_INV);
-          model.A.identity();
+          /* v2.11.3 — si toglie solo la rotazione: il WCS è una trasformazione vera, resta */
+          if (geo.wcs) A.copy(georefMatrix({ kind: "none", wcs: geo.wcs })); else A.identity();
+          mModelIfc.multiplyMatrices(A, F_INV);
+          model.A.copy(A);
           model.geoInfo += " · rotazione ignorata: coordinate già assolute";
         }
       }
@@ -4459,9 +4462,63 @@ function readGeoref(api, modelID) {
   return { kind: "none" };
 }
 
+/** v2.11.3 — WorldCoordinateSystem del contesto 3D «Model», in metri (Z-up), o null se
+ *  è l'identità. Per la spec le placement senza PlacementRelTo sono relative a lui, ma
+ *  web-ifc lo ignora. Caso reale: Revit 2025 IFC2X3 esportato sul «Project Base Point»
+ *  (PGI1_0738, cm) scrive lì lo spostamento MN95 (E 2 492 757, N 1 121 203) e la sola
+ *  rotazione nel TrueNorth; lo stesso progetto esportato sulle coordinate condivise lo
+ *  mette invece nella placement di IfcSite. Senza leggerlo l'edificio restava a E=19 N=4,
+ *  a 2 700 km dai micropali che in Navisworks gli combaciano. */
+function readContextWcs(api, modelID, unitFactor) {
+  const vec = (ref, def) => {
+    if (!ref || ref.value === undefined) return def;
+    const d = api.GetLine(modelID, ref.value);
+    const r = ((d && (d.DirectionRatios || d.Coordinates)) || []).map((v) => nval(v));
+    return [r[0] || 0, r[1] || 0, r[2] || 0];
+  };
+  try {
+    const ids = api.GetLineIDsWithType(modelID, WebIFC.IFCGEOMETRICREPRESENTATIONCONTEXT);
+    let pick = null;
+    for (let i = 0; i < ids.size(); i++) {
+      const ctx = api.GetLine(modelID, ids.get(i));
+      if (!ctx || !ctx.WorldCoordinateSystem) continue;
+      const is3d = nval(ctx.CoordinateSpaceDimension, 3) === 3;
+      const isModel = String(unwrap(ctx.ContextType) || "").toLowerCase() === "model";
+      if (is3d && (isModel || !pick)) { pick = ctx; if (isModel) break; }
+    }
+    if (!pick) return null;
+    const pl = api.GetLine(modelID, pick.WorldCoordinateSystem.value);
+    if (!pl || !pl.Location) return null;
+    const loc = vec(pl.Location, [0, 0, 0]).map((c) => c * (unitFactor || 1));
+    const z = new THREE.Vector3(...vec(pl.Axis, [0, 0, 1]));
+    const x = new THREE.Vector3(...vec(pl.RefDirection, [1, 0, 0]));
+    if (z.lengthSq() < 1e-24) z.set(0, 0, 1);
+    z.normalize();
+    x.addScaledVector(z, -x.dot(z));
+    if (x.lengthSq() < 1e-24) {   // RefDirection parallela ad Axis: un perpendicolare qualsiasi
+      x.set(Math.abs(z.x) < 0.9 ? 1 : 0, Math.abs(z.x) < 0.9 ? 0 : 1, 0);
+      x.addScaledVector(z, -x.dot(z));
+    }
+    x.normalize();
+    const y = new THREE.Vector3().crossVectors(z, x);
+    const W = new THREE.Matrix4().makeBasis(x, y, z).setPosition(loc[0], loc[1], loc[2]);
+    if (W.equals(new THREE.Matrix4())) return null;
+    return W;
+  } catch (e) { return null; }   /* contesto senza WCS leggibile: come prima */
+}
+
 /** Matrice locale → CRS mappa (coordinate IFC, Z-up). */
 function georefMatrix(geo) {
   const M = new THREE.Matrix4();
+  if (geo.kind !== "map" && geo.wcs) {
+    /* v2.11.3 — posizione = WCS; il TrueNorth ruota attorno alla sua origine (il punto
+       base del progetto): T(WCS) · Rz(TrueNorth) · assi del WCS */
+    const W = geo.wcs, Wr = W.clone().setPosition(0, 0, 0);
+    if (geo.kind === "north") M.makeRotationZ(geo.theta);
+    M.multiply(Wr);
+    M.premultiply(new THREE.Matrix4().copyPosition(W));
+    return M;
+  }
   if (geo.kind === "map") {
     const { E, N, H, xa, xo, s } = geo;
     // E = Eastings + s·(xa·x − xo·y) ; N = Northings + s·(xo·x + xa·y) ; quota = H + s·z
@@ -4484,9 +4541,18 @@ function describeGeoref(geo) {
     let sNote = "";
     if (geo.sRaw !== undefined) sNote = ` · scala ${geo.sRaw} normalizzata a ${geo.s} (file in unità ≠ m, fattore ${geo.unitFactor})`;
     else if (geo.s !== 1) sNote = ` · scala ${geo.s}`;
+    /* WCS + IfcMapConversion insieme: mai visti su file veri, si resta al comportamento
+       di sempre (sola MapConversion) e lo si dice, per riconoscere il caso se capita */
+    if (geo.wcs) sNote += " · WorldCoordinateSystem non identità ignorato (c'è IfcMapConversion)";
     return `IfcMapConversion · E=${geo.E.toFixed(2)} N=${geo.N.toFixed(2)} H=${geo.H.toFixed(2)} · rotazione ${rot.toFixed(2)}°` + sNote;
   }
-  if (geo.kind === "north") return `TrueNorth · ${(geo.theta * 180 / Math.PI).toFixed(2)}°`;
+  let wcs = "";
+  if (geo.wcs) {
+    const p = new THREE.Vector3().setFromMatrixPosition(geo.wcs);
+    wcs = `WorldCoordinateSystem · E=${p.x.toFixed(2)} N=${p.y.toFixed(2)} H=${p.z.toFixed(2)}`;
+  }
+  if (geo.kind === "north") return (wcs ? wcs + " · " : "") + `TrueNorth · ${(geo.theta * 180 / Math.PI).toFixed(2)}°`;
+  if (wcs) return wcs;
   return "Nessuna georeferenziazione esplicita (coordinate del file)";
 }
 
