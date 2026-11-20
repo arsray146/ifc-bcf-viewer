@@ -135,6 +135,12 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>https://viewifc.com/tools/railway-track/</loc>
+    <lastmod>2026-11-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>https://viewifc.com/revit/</loc>
     <lastmod>2026-10-18</lastmod>
     <changefreq>monthly</changefreq>
