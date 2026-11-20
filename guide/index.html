@@ -713,11 +713,13 @@ it:{
     ["h","Selezionare e leggere"],
     ["p","Clicca un elemento nel 3D o scegli il suo nodo nell'albero del modello: il pannello delle proprietà mostra classe IFC, nome, GUID e i property set con i loro valori. La selezione è condivisa fra 3D, albero e liste, così ti muovi avanti e indietro senza perdere il filo."],
     ["keys",[
-      [["Clic"],"Seleziona un elemento"],
+      [["Clic"],"Seleziona un elemento, o l'assembly di cui fa parte"],
       [["Ctrl / Maiusc+clic"],"Aggiungi alla selezione, anche nelle liste"],
       [["Tasto destro"],"Menu: copia GUID, isola, nascondi, section box sull'elemento"],
       [["Esc"],"Deseleziona"]
     ]],
+    ["h","Assembly e parti"],
+    ["p","Scale, facciate continue, tetti e IfcElementAssembly sono <b>assembly</b>: un elemento che raccoglie altre parti. Il clic nel 3D seleziona l'assembly intero anche se colpisci una sola rampa o un pannello. Nel pannello delle proprietà la riga <b>Assembly</b> mostra la catena dei livelli, l'elenco <b>Parti</b> i componenti, e i pulsanti <b>↓ Livello giù</b> e <b>↑ Livello su</b> ti portano verso la parte che hai cliccato e ritorno. Sceso a un livello ci resti: un clic sull'altra rampa della stessa scala seleziona quella."],
     ["h","Isolare e nascondere"],
     ["p","Dal menu contestuale puoi <b>isolare</b> la selezione — resta a schermo solo quella — o <b>nascondere</b> il singolo elemento che ti sta davanti. Le stesse voci sono disponibili dall'albero, sui rami interi, per lavorare per piani o per classi."],
     ["h","Modificare i parametri"],
@@ -744,6 +746,7 @@ it:{
   federated:{t:"Modelli federati", d:"Più IFC aperti insieme, ciascuno con il suo colore e la sua visibilità. La federazione avviene sul primo modello caricato.", b:[
     ["h","Come si federa"],
     ["p","Il primo file che apri stabilisce il sistema di riferimento; gli altri si posizionano rispetto a lui usando la loro georeferenziazione. Nell'elenco modelli ogni file ha una spunta di visibilità e un colore, e un doppio clic sul suo nome lo inquadra da solo. Aprire un file in più non sposta la vista: per andarlo a vedere, doppio clic sul suo nome."],
+    ["p","Nel pannello Dettagli di un elemento, accanto al nome del file, c'è il suo schema (per esempio <b>IFC4X3_ADD2</b>): un clic apre le informazioni dei modelli caricati, con lo schema, la vista MVD, l'applicazione che l'ha esportato, la data e la georeferenziazione. Lo schema compare anche nel tooltip della riga del modello."],
     ["h","Quando un modello finisce lontano"],
     ["p","Se un IFC atterra a chilometri dagli altri, quasi sempre la causa è la sua georeferenziazione: una <b>IfcMapConversion</b> vuota o degenere, tipica di file riesportati da alcuni strumenti, sposta il modello sull'origine invece che al suo posto. Il viewer segnala il caso e continua a caricare gli altri modelli."],
     ["p","È un problema del file, non della vista: la strada giusta è correggere la georeferenziazione a monte, nello strumento di authoring. Nel frattempo puoi lavorare disattivando il modello anomalo dall'elenco."],
@@ -971,11 +974,13 @@ en:{
     ["h","Selecting and reading"],
     ["p","Click an element in the 3D or pick its node in the model tree: the properties panel shows the IFC class, the name, the GUID and the property sets with their values. Selection is shared between 3D, tree and lists, so you can move back and forth without losing your place."],
     ["keys",[
-      [["Click"],"Select an element"],
+      [["Click"],"Select an element, or the assembly it belongs to"],
       [["Ctrl / Shift+click"],"Add to the selection, in the lists too"],
       [["Right button"],"Menu: copy GUID, isolate, hide, section box on the element"],
       [["Esc"],"Deselect"]
     ]],
+    ["h","Assemblies and parts"],
+    ["p","Stairs, curtain walls, roofs and IfcElementAssembly are <b>assemblies</b>: one element that gathers other parts. A click in the 3D selects the whole assembly even if you hit a single flight or panel. In the properties panel the <b>Assembly</b> line shows the chain of levels, the <b>Parts</b> list the components, and the <b>↓ Level down</b> and <b>↑ Level up</b> buttons take you towards the part you clicked and back. Once you go down a level you stay there: a click on the other flight of the same stair selects that one."],
     ["h","Isolating and hiding"],
     ["p","From the context menu you can <b>isolate</b> the selection — only that stays on screen — or <b>hide</b> the single element in front of you. The same entries are available from the tree, on whole branches, to work storey by storey or class by class."],
     ["h","Editing parameters"],
@@ -1002,6 +1007,7 @@ en:{
   federated:{t:"Federated models", d:"Several IFCs open together, each with its own colour and visibility. Federation happens on the first model loaded.", b:[
     ["h","How federation works"],
     ["p","The first file you open sets the reference system; the others place themselves relative to it using their own georeferencing. In the model list every file has a visibility checkbox and a colour, and a double-click on its name frames it alone. Opening one more file does not move the view: to go and see it, double-click its name."],
+    ["p","In an element's Details panel, next to the file name, sits its schema (for example <b>IFC4X3_ADD2</b>): a click opens the info on the loaded models, with the schema, the MVD view, the application that exported it, the date and the georeferencing. The schema also shows in the model row's tooltip."],
     ["h","When a model lands far away"],
     ["p","If an IFC lands kilometres away from the others, the cause is almost always its georeferencing: an empty or degenerate <b>IfcMapConversion</b>, typical of files re-exported by some tools, drops the model on the origin instead of in its place. The viewer flags the case and carries on loading the others."],
     ["p","It is a problem in the file, not in the view: the right fix is to correct the georeferencing upstream, in the authoring tool. In the meantime you can keep working with the odd model switched off in the list."],

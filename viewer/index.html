@@ -255,6 +255,9 @@ main.left-off .left-resize{display:none}
 .model-row .eye.off{background:var(--panel-2)}
 .model-row .nm{flex:1;min-width:0;font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .model-row .cnt{font-family:var(--mono);font-size:11px;color:var(--muted);flex:0 0 auto}
+/* schema IFC del file (v2.12.0): a colpo d'occhio nell'elenco, il clic apre le info dei modelli */
+.schema-chip{display:inline-block;margin-left:6px;vertical-align:1px;cursor:pointer;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.02em;line-height:1.5;color:var(--muted);background:var(--panel-2);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+.schema-chip:hover{border-color:var(--lime-deep);color:var(--text);background:var(--lime-soft)}
 .model-row .rm{flex:0 0 auto;width:22px;height:22px;border:none;background:none;color:var(--faint);font-size:13px;padding:0;border-radius:4px;cursor:pointer}
 .model-row .rm:hover{color:var(--st-open);background:var(--panel-2);border:none}
 .model-row.hidden-model .nm{color:var(--faint)}
@@ -1049,6 +1052,23 @@ main.with-detail #detailPanel{display:flex}
 .blk-dist-r{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);border-bottom:1px dashed var(--line);padding:2px 0}
 .blk-dist-r b{color:var(--lime-deep)}
 .d-actions{display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+/* assembly (v2.12.0): catena dei livelli di aggregazione sopra il titolo e parti sotto le azioni */
+.agg-crumbs{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;font-size:12px;color:var(--muted);margin:-3px 0 10px}
+.agg-crumbs .agg-lnk{font:inherit;font-size:12px;color:var(--text);background:none;border:none;border-radius:0;padding:0;text-decoration:underline;text-decoration-color:var(--lime-deep);text-underline-offset:3px}
+.agg-crumbs .agg-lnk:hover{color:var(--lime-deep);background:none}
+.agg-crumbs .agg-sep{color:var(--faint)}
+.agg-crumbs .agg-cur{color:var(--text);font-weight:600}
+.agg-parts{margin:12px 0 4px}
+.agg-part{cursor:pointer}
+.agg-part:hover td{background:var(--lime-soft)}
+.agg-part.on td{font-weight:600}
+/* info dei modelli caricati (v2.12.0): una scheda per file */
+.minfo-card{border:1px solid var(--line);border-left:3px solid var(--line-2);border-radius:6px;padding:10px 12px 2px;margin-bottom:10px}
+.minfo-card.on{border-left-color:var(--lime-deep)}
+.minfo-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.minfo-head .d-status{margin-bottom:0;flex:none}
+.minfo-name{font-family:var(--disp);font-weight:700;font-size:15px;line-height:1.25;word-break:break-word}
+.minfo-card .d-grid{margin-bottom:8px}
 
 /* ---------- footer / toast ----------
    Il footer non è più una barra: diventa una pillola di stato centrata in
@@ -1807,7 +1827,7 @@ input.cb-sw:hover,input.cb-sw:focus-visible{outline:2px solid var(--lime-deep);o
   <div class="lp-wrap">
     <div class="lp-hero">
       <div class="lp-copy">
-        <div class="lp-chip lp-in"><span class="pulse"></span><span><b>v2.11</b>&nbsp;·&nbsp;<span data-i18n="lp.chip">Nuovo: colora la vista per modello, classe o parametro</span></span></div>
+        <div class="lp-chip lp-in"><span class="pulse"></span><span><b>v2.12</b>&nbsp;·&nbsp;<span data-i18n="lp.chip">Nuovo: assembly selezionabili e schema IFC dei modelli</span></span></div>
         <h1 class="lp-h1 lp-in" style="--d:.06s"><span data-i18n="lp.h1a">Esplora.</span><br><span data-i18n="lp.h1a2">Verifica.</span><br><span data-i18n="lp.h1b">Costruisci </span><span class="accent" data-i18n="lp.h1c">meglio.</span></h1>
         <p class="lp-sub lp-in" style="--d:.12s" data-i18n="lp.sub">Il viewer BIM per IFC e BCF. Visualizza i modelli, coordina le issue ed edita i parametri direttamente nel 3D.</p>
         <div class="lp-cta lp-in" style="--d:.18s">
@@ -1935,17 +1955,17 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
    bottone rispondeva ("Carica IFC non funziona più"). Con l'URL che cambia a
    ogni release il .js vecchio in cache non viene più usato. vendor/ resta
    senza versione: cambia solo quando si aggiornano three o web-ifc. */
-import { readLASHeader, parseLAS } from "./las.js?v=2.11.3";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
-import { parseE57, e57PointCount } from "./e57.js?v=2.11.3";           // studio import PointCloud (E57)
-import { parseIds, evaluateIds } from "./ids.js?v=2.11.3";             // feature Controlli IDS
-import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.11.3";  // feature QTO (v2.5.0)
+import { readLASHeader, parseLAS } from "./las.js?v=2.12.0";            // studio import PointCloud (LAS, a fette dalla 2.9.2)
+import { parseE57, e57PointCount } from "./e57.js?v=2.12.0";           // studio import PointCloud (E57)
+import { parseIds, evaluateIds } from "./ids.js?v=2.12.0";             // feature Controlli IDS
+import { aggregateQto, toCsv, toNumber, formatNum, STD_COLS } from "./qto.js?v=2.12.0";  // feature QTO (v2.5.0)
 import { TriBvh, hardPair, clearancePair, penetrationPair, broadPhase, expandClassName, clashKey,
-         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.11.3";  // clash detection (v2.6.0) + distanze nuvola
+         parseMatrixCsv, matrixToCsv, matrixToRules, nearestBlock } from "./clash.js?v=2.12.0";  // clash detection (v2.6.0) + distanze nuvola
 import { makeCodebook, matchCodeProp, classifyElement, summarize as summarizeCodes, stubCsv,
-         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.11.3";  // studio verifica nuvola ↔ modello
-import * as SRCH from "./search.js?v=2.11.3";                          // feature Cerca (v2.10.0): confronti, regole, CSV
-import * as CAPS from "./caps.js?v=2.11.3";                            // tappi pieni delle sezioni (v2.10.2)
-import * as CBY from "./colorby.js?v=2.11.3";                          // feature Colora (v2.11.0): legenda, palette, pittura
+         parseCodebookCsv, PROP_ALIASES, IFC_FALLBACK } from "./wbs.js?v=2.12.0";  // studio verifica nuvola ↔ modello
+import * as SRCH from "./search.js?v=2.12.0";                          // feature Cerca (v2.10.0): confronti, regole, CSV
+import * as CAPS from "./caps.js?v=2.12.0";                            // tappi pieni delle sezioni (v2.10.2)
+import * as CBY from "./colorby.js?v=2.12.0";                          // feature Colora (v2.11.0): legenda, palette, pittura
 import * as WebIFC from "./vendor/web-ifc-api.js";
 
 /* ============================================================================
@@ -2048,7 +2068,7 @@ import * as WebIFC from "./vendor/web-ifc-api.js";
 /* ============================ stato globale ============================ */
 /* Lo stato è dichiarato NELLA sezione che lo usa (vedi indice); qui vivono solo
    le costanti trasversali a tutto il modulo. */
-const APP_VERSION = "2.11.3";
+const APP_VERSION = "2.12.0";
 const $ = (id) => document.getElementById(id);
 
 /* ============================ i18n IT/EN ============================ */
@@ -2326,7 +2346,7 @@ const STRINGS = {
     "navHelp": "Orbita: tasto sx &nbsp;·&nbsp; Pan: rotella premuta &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× clic rotella: zoom esteso",
     "drop.big": "Trascina qui i file IFC e BCF",
     "drop.small": "Oppure usa i pulsanti in alto. Clic su un elemento nel 3D per leggerne le proprietà, <kbd>Esc</kbd> per deselezionare. Doppio clic su un modello in elenco per inquadrarlo.",
-    "lp.chip": "Nuovo: colora la vista per modello, classe o parametro",
+    "lp.chip": "Nuovo: assembly selezionabili e schema IFC dei modelli",
     "lp.h1a": "Esplora.", "lp.h1a2": "Verifica.", "lp.h1b": "Costruisci ", "lp.h1c": "meglio.",
     "lp.sub": "Il viewer BIM per IFC e BCF. Visualizza i modelli, coordina le issue ed edita i parametri direttamente nel 3D.",
     "lp.ctaIfc": "Carica IFC", "lp.ctaIfcSub": "Supporta IFC2x3, IFC4, IFC4x3",
@@ -2493,6 +2513,15 @@ const STRINGS = {
     "el.title": "Elemento", "el.noName": "(senza nome)", "el.model": "Modello",
     "el.zoomElem": "Zoom su elemento", "el.editMode": "✎ Modifica", "el.cancelEdit": "Annulla modifiche",
     "el.backIssue": "↩ Torna alla issue",
+    "agg.path": "Assembly", "agg.up": "↑ Livello su", "agg.down": "↓ Livello giù",
+    "agg.upTitle": "Seleziona l'assembly che contiene questo elemento: {n}",
+    "agg.downTitle": "Scendi di un livello, verso {n}",
+    "agg.crumbTitle": "{t} · clic: seleziona questo livello",
+    "agg.parts": "Parti", "agg.partTitle": "{t} · clic: seleziona questa parte",
+    "minfo.title": "Modelli caricati", "minfo.schema": "Schema IFC", "minfo.mvd": "Vista (MVD)",
+    "minfo.app": "Applicazione", "minfo.pre": "Preprocessore", "minfo.time": "Data del file",
+    "minfo.elems": "Elementi", "minfo.georef": "Georeferenziazione",
+    "minfo.chip": "Schema {s}{mvd} · clic: informazioni sui modelli caricati",
     "el.noPset": "Nessun property set associato.", "el.noInstPset": "Nessun pset sull'istanza.",
     "el.tabInst": "Istanza", "el.tabType": "Type",
     "el.typeReadonly": "I pset del Type sono in sola lettura: una modifica impatterebbe tutte le istanze.",
@@ -2909,7 +2938,7 @@ const STRINGS = {
     "navHelp": "Orbit: left button &nbsp;·&nbsp; Pan: wheel pressed &nbsp;·&nbsp; Zoom: scroll &nbsp;·&nbsp; 2× wheel click: zoom to fit",
     "drop.big": "Drag IFC and BCF files here",
     "drop.small": "Or use the buttons above. Click an element in 3D to read its properties, <kbd>Esc</kbd> to deselect. Double-click a model in the list to frame it.",
-    "lp.chip": "New: color the view by model, class or parameter",
+    "lp.chip": "New: selectable assemblies and the IFC schema of each model",
     "lp.h1a": "Explore.", "lp.h1a2": "Review.", "lp.h1b": "Build ", "lp.h1c": "better.",
     "lp.sub": "The BIM viewer for IFC and BCF. Visualize models, coordinate issues and edit parameters right in the 3D view.",
     "lp.ctaIfc": "Upload IFC", "lp.ctaIfcSub": "Supports IFC2x3, IFC4, IFC4x3",
@@ -3076,6 +3105,15 @@ const STRINGS = {
     "el.title": "Element", "el.noName": "(no name)", "el.model": "Model",
     "el.zoomElem": "Zoom to element", "el.editMode": "✎ Edit", "el.cancelEdit": "Cancel edits",
     "el.backIssue": "↩ Back to issue",
+    "agg.path": "Assembly", "agg.up": "↑ Level up", "agg.down": "↓ Level down",
+    "agg.upTitle": "Select the assembly that contains this element: {n}",
+    "agg.downTitle": "Go down one level, towards {n}",
+    "agg.crumbTitle": "{t} · click: select this level",
+    "agg.parts": "Parts", "agg.partTitle": "{t} · click: select this part",
+    "minfo.title": "Loaded models", "minfo.schema": "IFC schema", "minfo.mvd": "View (MVD)",
+    "minfo.app": "Application", "minfo.pre": "Preprocessor", "minfo.time": "File date",
+    "minfo.elems": "Elements", "minfo.georef": "Georeferencing",
+    "minfo.chip": "Schema {s}{mvd} · click: info on the loaded models",
     "el.noPset": "No property set associated.", "el.noInstPset": "No instance pset.",
     "el.tabInst": "Instance", "el.tabType": "Type",
     "el.typeReadonly": "Type psets are read-only: an edit would affect all instances.",
@@ -3241,7 +3279,8 @@ function refreshDynamicI18n() {
   try { if (models.length) renderModelList(); } catch (e) {}   /* tooltip e conteggi delle righe modello */
   try { updateNavHelp(); } catch (e) {}
   try { if (_diffOnLang) _diffOnLang(); } catch (e) {}   /* righe categoria del confronto */
-  if (typeof statsOpen !== "undefined" && statsOpen) { try { openReportStats(); } catch (e) {} }
+  if (modelsInfoShown()) { try { showModelsInfo(); } catch (e) {} }   /* info dei modelli (v2.12.0) */
+  else if (typeof statsOpen !== "undefined" && statsOpen) { try { openReportStats(); } catch (e) {} }
   else if (typeof activeTopic !== "undefined" && activeTopic) { try { renderTopicDetail(activeTopic); } catch (e) {} }
   else if (typeof activeReport !== "undefined" && activeReport) { try { openReportTopic(activeReport); } catch (e) {} }
   else if (typeof activeIdsSpec !== "undefined" && activeIdsSpec) { try { renderIdsDetail(activeIdsSpec); } catch (e) {} }
@@ -4032,6 +4071,29 @@ function neutralizeVoidBombs(api, modelID, bombs) {
   }
 }
 
+/* v2.12.0 — header STEP del file: schema esatto da FILE_SCHEMA (IFC4X3_ADD2, non la famiglia a cui
+   web-ifc lo riduce per leggerlo), MVD dal «ViewDefinition [...]» di FILE_DESCRIPTION, data,
+   preprocessore e applicazione da FILE_NAME. web-ifc decodifica già gli escape \X2\ delle stringhe. */
+function readIfcHeader(api, modelID) {
+  const h = { schema: "", mvd: "", app: "", pre: "", time: "" };
+  const str = (v) => unwrap(v).trim();
+  const list = (v) => (Array.isArray(v) ? v : [v]).map(str).filter(Boolean);
+  try { h.schema = list(api.GetHeaderLine(modelID, WebIFC.FILE_SCHEMA).arguments[0]).join(", "); } catch (e) {}
+  if (!h.schema) try { h.schema = api.GetModelSchema(modelID) || ""; } catch (e) {}
+  try {
+    const a = api.GetHeaderLine(modelID, WebIFC.FILE_NAME).arguments;
+    h.time = str(a[1]); h.pre = str(a[4]); h.app = str(a[5]);
+  } catch (e) {}
+  try {
+    const d = list(api.GetHeaderLine(modelID, WebIFC.FILE_DESCRIPTION).arguments[0]).join(" ");
+    const m = /ViewDefinition\s*\[([^\]]*)\]/i.exec(d);
+    if (m) h.mvd = m[1].split(",").map(x => x.trim()).filter(Boolean).join(", ");
+  } catch (e) {}
+  return h;
+}
+/* famiglia per il chip dell'elenco: IFC4X3_ADD2 → IFC4X3, IFC2X3_TC1 → IFC2X3 */
+function schemaShort(s) { return String(s || "").split(",")[0].trim().replace(/_.*$/, "").toUpperCase(); }
+
 async function buildModel(data, name) {
   /* Catena verificata sui file reali:
        render = F · ( A · F⁻¹ · flat · v  −  O )
@@ -4044,6 +4106,7 @@ async function buildModel(data, name) {
                                   // recupero fault-tolerant può doverla sostituire)
   _perfPhase("open");
   const modelID = api.OpenModel(data, {});
+  const ifcHeader = readIfcHeader(api, modelID);   // v2.12.0 — schema, MVD, applicazione
   _perfPhase("prescan");
   const geo = readGeoref(api, modelID);
   /* v1.4.1: s_eff = Scale / fattoreUnità — la geometria di web-ifc è già in metri.
@@ -4070,7 +4133,8 @@ async function buildModel(data, name) {
   const model = {
     name, modelID, api, uid: ++modelUidCounter,
     meshes: [], edges: [], elemCount: 0, visible: true,
-    mModelIfc, A: A.clone(), unitFactor, angleFactor, geoInfo: describeGeoref(geo),
+    mModelIfc, A: A.clone(), unitFactor, angleFactor, geoInfo: describeGeoref(geo), ifcHeader,
+    aggIdx: null,            // assembly: genitore/parti via IfcRelAggregates fra elementi (v2.12.0), lazy
     guidByExpress: new Map(), expressByGuid: new Map(), typeByExpress: new Map(),
     psetMap: null, typeOfElem: null, typePsetIds: null,
     classMap: null, materialMap: null, partOfMap: null,   // indici IDS (classificazioni/materiali/partOf), lazy
@@ -4850,6 +4914,43 @@ function renderModelList() {
   else renderModelRows(list);
   renderC2mBlock();                          // e si invalidano quando cambia l'insieme dei modelli
   renderC2dBlock();
+  if (modelsInfoShown()) showModelsInfo();   // le schede seguono i modelli aggiunti/tolti (v2.12.0)
+}
+
+/* ---------- info dei modelli caricati (v2.12.0) ----------
+   Nel pannello Dettagli, una scheda per file: schema esatto, MVD, applicazione e preprocessore
+   dall'header STEP, data, elementi, georeferenziazione. Si apre dal chip dello schema. */
+let minfoFocus = null;      // scheda evidenziata: il modello del chip cliccato
+function modelsInfoShown() { return $("main").classList.contains("with-detail") && !!$("detailBody").querySelector(".minfo"); }
+function showModelsInfo(focus) {
+  if (!models.length) { closeDetail(); return; }
+  if (typeof DRAW !== "undefined" && DRAW.on && !$("sectionBody").hidden) _drawShowTab("info");
+  const body = $("detailBody");
+  const refresh = focus === undefined && modelsInfoShown();   // stesso pannello ridisegnato: resta dov'era
+  const keepScroll = body.scrollTop;
+  if (focus === undefined) focus = models.includes(minfoFocus) ? minfoFocus : null;
+  minfoFocus = focus;
+  $("detailTitle").textContent = tr("minfo.title");
+  const row = (k, v) => v ? `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>` : "";
+  const nf = LANG === "en" ? "en-GB" : "it-IT";
+  body.innerHTML = `<div class="minfo">${models.map(m => {
+    const h = m.ifcHeader || {};
+    return `<div class="minfo-card${m === focus ? " on" : ""}" data-muid="${m.uid}">
+      <div class="minfo-head"><span class="d-status" style="background:var(--st-other)">${esc(schemaShort(h.schema) || "IFC")}</span><span class="minfo-name">${esc(m.name)}</span></div>
+      <dl class="d-grid">
+        ${row(tr("minfo.schema"), h.schema)}${row(tr("minfo.mvd"), h.mvd)}
+        ${row(tr("minfo.app"), h.app)}${row(tr("minfo.pre"), h.pre)}
+        ${row(tr("minfo.time"), (h.time || "").replace("T", " "))}
+        ${row(tr("minfo.elems"), m.elemCount.toLocaleString(nf))}
+        ${row(tr("minfo.georef"), m.geoInfo)}
+      </dl></div>`;
+  }).join("")}</div>
+    ${(activeTopic || activeReport || activeIdsSpec) ? `<div class="d-actions"><button id="btnBackTopic">${tr("el.backIssue")}</button></div>` : ""}`;
+  const back = $("btnBackTopic");
+  if (back) back.addEventListener("click", returnToActiveDetail);
+  openDetailPane();
+  const card = focus && body.querySelector(`.minfo-card[data-muid="${focus.uid}"]`);
+  body.scrollTop = refresh ? keepScroll : card ? Math.max(0, card.offsetTop - body.offsetTop - 8) : 0;
 }
 
 document.querySelectorAll(".tmode").forEach(b => b.addEventListener("click", () => {
@@ -4872,7 +4973,8 @@ function renderModelRows(list) {
     const row = document.createElement("div");
     row.className = "model-row" + (m.visible ? "" : " hidden-model");
     row.dataset.muid = m.uid;
-    row.title = tr("model.rowTitle") + "\n" + m.geoInfo;
+    row.title = tr("model.rowTitle") + "\n" + m.geoInfo +
+      (m.ifcHeader && m.ifcHeader.schema ? "\n" + tr("minfo.schema") + ": " + m.ifcHeader.schema : "");
     row.innerHTML = `
       <button class="chevbtn${m.uiExpanded ? " open" : ""}" title="Struttura IFC">${CHEV_SVG}</button>
       <button class="eye${m.visible ? "" : " off"}" data-muid="${m.uid}" title="${tr(m.visible ? "model.hide" : "model.show")}">${m.visible ? EYE_ON : EYE_OFF}</button>
@@ -5129,6 +5231,7 @@ function nodeGeoIds(node) {
 }
 
 function selectSpatialNode(model, node, row) {
+  aggPick = null;   // selezione dall'albero: nessuna parte cliccata verso cui scendere
   const ids = nodeGeoIds(node);
   buildHighlight(ids.map(id => ({ model, eid: id })));
   if (node.eid > 0) showElementDetail(model, node.eid); /* pset di IfcProject/IfcSite/Storey */
@@ -5297,6 +5400,7 @@ function appendTreeItems(model, cl, depth, box, start) {
 }
 
 function selectElement(model, item, row) {
+  aggPick = null;   // selezione dall'albero: nessuna parte cliccata verso cui scendere
   const ids = item.geoIds && item.geoIds.length ? item.geoIds : [item.eid];
   buildHighlight(ids.map(id => ({ model, eid: id })));
   showElementDetail(model, item.eid); /* proprietà del contenitore (assembly), geometria delle parti */
@@ -5736,6 +5840,129 @@ function resolveGuids(guids) {
   return { found, missing };
 }
 
+/* ============================ assembly (v2.12.0) ============================
+   IfcRelAggregates fra ELEMENTI, non fra contenitori spaziali: scala → rampe + pianerottolo,
+   IfcElementAssembly → parti (anche su più livelli), facciata continua → pannelli e montanti,
+   tetto → falde, muro → IfcBuildingElementPart. Il clic nel 3D colpisce sempre una parte con
+   geometria (l'assembly spesso non ne ha): prima della 2.12.0 si selezionava solo quella, e la
+   scala restava «rampa + pianerottolo + rampa». Ora il clic seleziona l'assembly più alto che
+   contiene la parte e il pannello Dettagli scende di un livello alla volta verso la parte
+   cliccata (o risale). Dentro lo stesso assembly il livello raggiunto resta: scesi alle rampe,
+   un clic sull'altra rampa seleziona quella, non di nuovo la scala. */
+function _aggStart(model) {
+  let ids = null;
+  try { ids = model.api.GetLineIDsWithType(model.modelID, WebIFC.IFCRELAGGREGATES); } catch (e) { /* tipo assente */ }
+  return { model, ids, i: 0, n: ids ? ids.size() : 0, parent: new Map(), kids: new Map() };
+}
+/* una relazione per passo; true = scansione finita */
+function _aggStep(st) {
+  if (st.i >= st.n) return true;
+  const api = st.model.api, mid = st.model.modelID;
+  const type = (id) => { try { return api.GetLineType(mid, id); } catch (e) { return null; } };
+  let rel = null;
+  try { rel = api.GetLine(mid, st.ids.get(st.i++)); } catch (e) { return st.i >= st.n; }
+  const p = rel && rel.RelatingObject && rel.RelatingObject.value;
+  const pt = p ? type(p) : null;
+  if (pt !== null && !SPATIAL_TYPES.has(pt) && rel.RelatedObjects) {
+    const arr = st.kids.get(p) || [];
+    for (const o of rel.RelatedObjects) {
+      const c = o && o.value;
+      if (!c || c === p || st.parent.has(c)) continue;
+      const ct = type(c);
+      if (ct === null || SPATIAL_TYPES.has(ct)) continue;   // un contenitore sotto un elemento non è una parte
+      st.parent.set(c, p);
+      arr.push(c);
+    }
+    if (arr.length) st.kids.set(p, arr);
+  }
+  return st.i >= st.n;
+}
+/** {parent: parte → assembly, kids: assembly → [parti]} del modello, in cache */
+function aggIndex(model) {
+  if (model.aggIdx) return model.aggIdx;
+  const st = _aggStart(model);
+  while (!_aggStep(st)) { /* scansione sincrona: il prewarm di solito l'ha già fatta */ }
+  model.aggIdx = { parent: st.parent, kids: st.kids };
+  return model.aggIdx;
+}
+/** [assembly più alto, …, eid]: [eid] se l'elemento non è parte di nulla */
+function aggChain(model, eid) {
+  const { parent } = aggIndex(model);
+  const chain = [eid], seen = new Set(chain);
+  for (let x = eid; parent.has(x);) {
+    x = parent.get(x);
+    if (seen.has(x)) break;                 // aggregazione circolare (file rotto): ci si ferma
+    seen.add(x);
+    chain.unshift(x);
+  }
+  return chain;
+}
+/** parti CON geometria sotto eid (eid compreso se ne ha): ciò che si evidenzia */
+function aggGeoIds(model, eid) {
+  const { kids } = aggIndex(model);
+  const out = [], stack = [eid], seen = new Set();
+  while (stack.length) {
+    const x = stack.pop();
+    if (seen.has(x)) continue;
+    seen.add(x);
+    if (model.guidByExpress.has(x)) out.push(x);
+    const k = kids.get(x);
+    if (k) for (let i = k.length - 1; i >= 0; i--) stack.push(k[i]);
+  }
+  return out.length ? out : [eid];
+}
+/* catena dell'ultimo clic nel 3D e livello mostrato: {model, chain, level} */
+let aggPick = null;
+/** livello della catena che il clic seleziona: quello già raggiunto se si clicca dentro
+    lo stesso assembly con la selezione ancora attiva, altrimenti l'assembly più alto */
+function aggPickLevel(prev, chain, model, selActive, shownEid) {
+  if (prev && selActive && prev.model === model && prev.chain[0] === chain[0] &&
+      prev.chain[prev.level] === shownEid)
+    return Math.min(prev.level, chain.length - 1);
+  return 0;
+}
+/** clic nel 3D sulla parte eid → elemento da selezionare (aggiorna aggPick se commit) */
+function aggPickTarget(model, eid, commit) {
+  const chain = aggChain(model, eid);
+  const shown = curDetail && curDetail.model === model ? curDetail.eid : null;
+  const level = aggPickLevel(aggPick, chain, model, !!(hlItems && hlItems.length), shown);
+  if (commit) aggPick = { model, chain, level };
+  return chain[level];
+}
+/** seleziona un livello (assembly o parte) dal pannello, senza muovere la camera: se sta
+    sulla catena del clic la si conserva, così «Livello giù» torna verso la parte cliccata */
+function selectAggLevel(model, eid) {
+  const up = aggChain(model, eid);
+  const keep = aggPick && aggPick.model === model && up.every((x, i) => aggPick.chain[i] === x);
+  aggPick = { model, chain: keep ? aggPick.chain : up, level: up.length - 1 };
+  buildHighlight(aggGeoIds(model, eid).map(g => ({ model, eid: g })));
+  showElementDetail(model, eid);
+}
+/* etichetta corta di un elemento per catena e parti */
+function aggLabel(model, eid) {
+  try {
+    const l = model.api.GetLine(model.modelID, eid);
+    let t = "";
+    try { t = model.api.GetNameFromTypeCode ? model.api.GetNameFromTypeCode(l.type) : ""; } catch (e) {}
+    t = t || ("IFC " + l.type);
+    return { name: unwrap(l.Name) || unwrap(l.ObjectType) || (t + " #" + eid), type: t };
+  } catch (e) { return { name: "#" + eid, type: "" }; }
+}
+/* prewarm: l'indice a fette, così il primo clic non paga la scansione delle IfcRelAggregates */
+async function _prewarmAgg(model) {
+  if (model.aggIdx) return;
+  const st = _aggStart(model);
+  let t0 = performance.now();
+  while (!_aggStep(st)) {
+    if (performance.now() - t0 > PREWARM_SLICE_MS) {
+      await _prewarmYield();
+      if (model.aggIdx || !models.includes(model)) return;   // fatto dal lazy, o modello tolto
+      t0 = performance.now();
+    }
+  }
+  if (!model.aggIdx) model.aggIdx = { parent: st.parent, kids: st.kids };
+}
+
 /* ============================ picking elemento ============================ */
 const raycaster = new THREE.Raycaster();
 const mouseNdc = new THREE.Vector2();
@@ -5792,9 +6019,14 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   const eid = expressFromFace(hit.object, hit.faceIndex);
   if (eid === null) return;
   const model = hit.object.userData.model;
-  if (e.ctrlKey || e.metaKey) { toggleSelection([{ model, eid }], null); return; }
-  buildHighlight([{ model, eid }]);
-  showElementDetail(model, eid);
+  /* v2.12.0 — si seleziona l'assembly che contiene la parte colpita (vedi aggPickTarget) */
+  if (e.ctrlKey || e.metaKey) {
+    toggleSelection(aggGeoIds(model, aggPickTarget(model, eid, false)).map(g => ({ model, eid: g })), null);
+    return;
+  }
+  const target = aggPickTarget(model, eid, true);
+  buildHighlight(aggGeoIds(model, target).map(g => ({ model, eid: g })));
+  showElementDetail(model, target);
 });
 /* Esce dalle modalità di sezione attive (piano su faccia e/o section box).
    Ritorna true se ha chiuso almeno una modalità → il chiamante può fermarsi. */
@@ -5878,8 +6110,9 @@ renderer.domElement.addEventListener("dblclick", (e) => {
   const eid = expressFromFace(hit.object, hit.faceIndex);
   if (eid === null) return;
   const model = hit.object.userData.model;
-  buildHighlight([{ model, eid }]);
-  showElementDetail(model, eid);
+  const selEid = aggPickTarget(model, eid, true);   // lo stesso livello dei due clic che lo precedono
+  buildHighlight(aggGeoIds(model, selEid).map(g => ({ model, eid: g })));
+  showElementDetail(model, selEid);
   const dims = currentSelectionBox
     ? currentSelectionBox.getSize(new THREE.Vector3()).toArray().sort((a, b) => a - b)
     : [2, 2, 2];
@@ -5930,6 +6163,7 @@ async function prewarmModel(model) {
     await _prewarmPsets(model);
     await _prewarmTypes(model);
     await _qtoPropsAsync(model);
+    await _prewarmAgg(model);   // assembly (v2.12.0)
     model._prewarmed = true;
   } catch (e) { /* il lazy alla prima selezione resta comunque il fallback */ }
 }
@@ -9875,21 +10109,45 @@ function showElementDetail(model, eid) {
   $("detailTitle").textContent = tr("el.title");
   const body = $("detailBody");
   const hasEditable = info.psets.some(ps => ps.props.some(p => p.editable));
+  /* v2.12.0 — assembly: catena dei livelli sopra, livello su/giù fra le azioni, parti sotto.
+     «Giù» segue la parte cliccata nel 3D o quella da cui si è saliti (aggPick); altrimenti c'è
+     solo se la parte è una sola. */
+  const aggUp = aggChain(model, eid);
+  const aggKids = aggIndex(model).kids.get(eid) || [];
+  const aggParent = aggUp.length > 1 ? aggUp[aggUp.length - 2] : null;
+  const pk = aggPick && aggPick.model === model && aggPick.chain[aggPick.level] === eid ? aggPick : null;
+  const aggNext = pk && pk.level < pk.chain.length - 1 ? pk.chain[pk.level + 1] : (aggKids.length === 1 ? aggKids[0] : null);
+  const aggCrumbs = aggParent === null ? "" : `<div class="agg-crumbs"><span>${tr("agg.path")}:</span>${
+    aggUp.slice(0, -1).map(x => { const L = aggLabel(model, x);
+      return `<button class="agg-lnk" data-eid="${x}" title="${esc(tr("agg.crumbTitle", { t: L.type }))}">${esc(L.name)}</button><span class="agg-sep">›</span>`; }).join("")
+    }<span class="agg-cur">${esc(info.name || info.typeName)}</span></div>`;
+  const aggParts = !aggKids.length ? "" : `<div class="pset-block agg-parts" data-open="${aggKids.length > 12 ? 0 : 1}">
+      <div class="pset-head"><span class="pset-chev">▸</span><span class="pset-name">${tr("agg.parts")}</span><span class="pset-count">${aggKids.length}</span></div>
+      <table class="prop-table"><tbody>${aggKids.map(k => { const L = aggLabel(model, k);
+        return `<tr class="agg-part${k === aggNext ? " on" : ""}" data-eid="${k}" title="${esc(tr("agg.partTitle", { t: L.type }))}"><td>${esc(L.type)}</td><td>${esc(L.name)}</td></tr>`; }).join("")}</tbody></table>
+    </div>`;
+  /* schema del file in coda al nome del modello; clic → «Modelli caricati» */
+  const hdr = model.ifcHeader || {};
+  const schemaChip = !hdr.schema ? "" : `<button class="schema-chip" title="${esc(tr("minfo.chip", { s: hdr.schema, mvd: hdr.mvd ? " · " + hdr.mvd : "" }))}">${esc(hdr.schema)}</button>`;
   let html = `
     <span class="d-status" style="background:var(--st-other)">${esc(info.typeName)}</span>
     <div class="d-title">${esc(info.name || tr("el.noName"))}</div>
+    ${aggCrumbs}
     ${detailFlash ? `<div class="edit-flash">${esc(detailFlash)}</div>` : ""}
     <dl class="d-grid">
       <dt>GlobalId</dt><dd>${esc(info.globalId)}</dd>
-      <dt>${tr("el.model")}</dt><dd>${esc(model.name)}</dd>
+      <dt>${tr("el.model")}</dt><dd>${esc(model.name)}${schemaChip}</dd>
       ${info.objectType ? `<dt>ObjectType</dt><dd>${esc(info.objectType)}</dd>` : ""}
       <dt>ExpressID</dt><dd>#${eid}</dd>
     </dl>
     <div class="d-actions">
       <button id="btnZoomElem">${tr("el.zoomElem")}</button>
+      ${aggParent !== null ? `<button id="btnAggUp" title="${esc(tr("agg.upTitle", { n: aggLabel(model, aggParent).name }))}">${tr("agg.up")}</button>` : ""}
+      ${aggNext !== null ? `<button id="btnAggDown" title="${esc(tr("agg.downTitle", { n: aggLabel(model, aggNext).name }))}">${tr("agg.down")}</button>` : ""}
       ${hasEditable ? `<button id="btnEditMode">${detailEditMode ? tr("el.cancelEdit") : tr("el.editMode")}</button>` : ""}
       ${(activeTopic || activeReport || activeIdsSpec) ? `<button id="btnBackTopic">${tr("el.backIssue")}</button>` : ""}
-    </div>`;
+    </div>
+    ${aggParts}`;
   detailFlash = "";
   /* ---- proprietà: tab Istanza | Type, ogni pset collassabile ---- */
   /* colonna Unità come BIMvision (v2.11.1), solo nei pset con almeno un'unità; il tooltip dice
@@ -9941,6 +10199,17 @@ function showElementDetail(model, eid) {
     const blk = h.closest(".pset-block");
     blk.dataset.open = blk.dataset.open === "1" ? "0" : "1";
   }));
+  const scChip = body.querySelector(".schema-chip");
+  if (scChip) scChip.addEventListener("click", () => showModelsInfo(model));
+  /* assembly: livelli della catena, parti, su/giù (v2.12.0) */
+  /* salendo si ancora la catena all'elemento di partenza (anche se scelto dall'albero o da una
+     lista): «Livello giù» poi riporta lì */
+  const aggAnchor = () => { if (!pk) aggPick = { model, chain: aggUp, level: aggUp.length - 1 }; };
+  body.querySelectorAll(".agg-part").forEach(b => b.addEventListener("click", () => selectAggLevel(model, +b.dataset.eid)));
+  body.querySelectorAll(".agg-lnk").forEach(b => b.addEventListener("click", () => { aggAnchor(); selectAggLevel(model, +b.dataset.eid); }));
+  const bAggUp = $("btnAggUp"), bAggDown = $("btnAggDown");
+  if (bAggUp) bAggUp.addEventListener("click", () => { aggAnchor(); selectAggLevel(model, aggParent); });
+  if (bAggDown) bAggDown.addEventListener("click", () => selectAggLevel(model, aggNext));
   /* selezione per valore di parametro */
   body.querySelectorAll(".pv-selby").forEach(b => b.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -11824,17 +12093,24 @@ renderer.domElement.addEventListener("pointerup", (e) => {
       /* tasto destro su elemento GIÀ selezionato: la selezione (anche multipla)
          resta com'è, così il menu può agire su di essa. Altrimenti, come nella
          lista clash, l'elemento cliccato diventa la selezione. */
-      if (!(hlItems && hlItems.some(it => it.model === model && it.eid === eid))) {
-        buildHighlight([{ model, eid }]);
-        showElementDetail(model, eid);
+      /* v2.12.0 — il menu agisce sul livello di assembly selezionato: quello aperto nel
+         pannello se contiene la parte cliccata, altrimenti l'assembly più alto */
+      let target;
+      if (hlItems && hlItems.some(it => it.model === model && it.eid === eid)) {
+        const chain = aggChain(model, eid);
+        target = curDetail && curDetail.model === model && chain.includes(curDetail.eid) ? curDetail.eid : aggPickTarget(model, eid, false);
+      } else {
+        target = aggPickTarget(model, eid, true);
+        buildHighlight(aggGeoIds(model, target).map(g => ({ model, eid: g })));
+        showElementDetail(model, target);
       }
-      const guid = model.guidByExpress.get(eid);
-      let typeName = "";
+      let typeName = "", guid = model.guidByExpress.get(target);
       try {
-        const ln = model.api.GetLine(model.modelID, eid);
+        const ln = model.api.GetLine(model.modelID, target);
         typeName = model.api.GetNameFromTypeCode ? model.api.GetNameFromTypeCode(ln.type) : ("tipo " + ln.type);
+        if (!guid) guid = unwrap(ln.GlobalId);   // assembly senza geometria: non sta in guidByExpress
       } catch (_) {}
-      hitData = { model, eid, guid, typeName };
+      hitData = { model, eid: target, geoIds: aggGeoIds(model, target), guid, typeName };
     }
   }
   _openCtxMenu(e.clientX, e.clientY, hitData);
@@ -11867,7 +12143,7 @@ function _openCtxMenu(px, py, hitData) {
       applyIsolate();
     }));
     add(_ctxEl("⊘", tr("ctx.hideElem"), () => {
-      setElementsHidden(hitData.model, [hitData.eid], true);
+      setElementsHidden(hitData.model, hitData.geoIds, true);
       _syncElemEyes(hitData.model);
       _syncGroupEyes();
       toast(tr("toast.elemHidden"));
